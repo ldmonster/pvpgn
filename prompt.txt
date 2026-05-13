@@ -1,0 +1,7 @@
+implement refactoring-plan step by step
+
+after you make changes -ask user with dialog window what to do next
+when you need to stop -ask user with dialog window
+when you write result - ask user with dialog window
+
+write your progress in refactoring-progress.md

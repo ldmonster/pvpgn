@@ -1,0 +1,87 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "_base",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "PVPGN_BUILD_V3": "ON",
+                "PVPGN_V3_BUILD_TESTS": "ON",
+                "WITH_BNETD": "OFF",
+                "WITH_D2CS": "OFF",
+                "WITH_D2DBS": "OFF"
+            }
+        },
+        {
+            "name": "dev-debug",
+            "inherits": "_base",
+            "displayName": "Dev / Debug (v3 only)",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+        },
+        {
+            "name": "dev-release",
+            "inherits": "_base",
+            "displayName": "Dev / Release (v3 only)",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+        },
+        {
+            "name": "dev-asan",
+            "inherits": "dev-debug",
+            "displayName": "Dev / Debug + ASan/UBSan",
+            "cacheVariables": {
+                "PVPGN_V3_SANITIZERS": "address;undefined"
+            }
+        },
+        {
+            "name": "ci-coverage",
+            "inherits": "dev-debug",
+            "displayName": "CI coverage",
+            "cacheVariables": {
+                "PVPGN_V3_COVERAGE": "ON"
+            }
+        },
+        {
+            "name": "legacy-release",
+            "displayName": "Legacy build (parity)",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "PVPGN_BUILD_V3": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        { "name": "dev-debug",    "configurePreset": "dev-debug" },
+        { "name": "dev-release",  "configurePreset": "dev-release" },
+        { "name": "dev-asan",     "configurePreset": "dev-asan" },
+        { "name": "ci-coverage",  "configurePreset": "ci-coverage" }
+    ],
+    "testPresets": [
+        {
+            "name": "dev-debug",
+            "configurePreset": "dev-debug",
+            "output": { "outputOnFailure": true },
+            "execution": { "stopOnFailure": false, "jobs": 4 }
+        },
+        {
+            "name": "dev-release",
+            "configurePreset": "dev-release",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "dev-asan",
+            "configurePreset": "dev-asan",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "ci-coverage",
+            "configurePreset": "ci-coverage",
+            "output": { "outputOnFailure": true }
+        }
+    ]
+}

@@ -1,0 +1,47 @@
+---
+# clang-format >= 16 expected.
+# Style applies to src/v3/, tests/, webui/ C++ side. Legacy src/{bnetd,d2cs,d2dbs,
+# common,compat,win32,client,bniutils,bnpass,bnproxy,bntrackd,json,test} is kept
+# unchanged during the migration (see .clang-format-ignore notion in CI).
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++20
+ColumnLimit: 100
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBraces: Attach
+BreakConstructorInitializers: BeforeComma
+ConstructorInitializerIndentWidth: 4
+Cpp11BracedListStyle: true
+DerivePointerAlignment: false
+FixNamespaceComments: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<.*\.h(pp)?>'
+    Priority: 4
+  - Regex: '^<.*>'
+    Priority: 3
+  - Regex: '^"(core|domain|application|infrastructure|protocol|runtime)/'
+    Priority: 2
+  - Regex: '.*'
+    Priority: 1
+IndentCaseLabels: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+NamespaceIndentation: None
+PointerAlignment: Left
+ReflowComments: true
+SortIncludes: CaseSensitive
+SortUsingDeclarations: true
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpacesBeforeTrailingComments: 2
