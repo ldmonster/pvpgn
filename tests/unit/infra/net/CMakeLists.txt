@@ -2,6 +2,14 @@ pvpgn_v3_add_test(test_infra_net_echo
     SOURCES echo_test.cpp
     DEPS    infra_net)
 
+pvpgn_v3_add_test(test_infra_net_tcp_acceptor_adopt
+    SOURCES tcp_acceptor_adopt_test.cpp
+    DEPS    infra_net)
+
+pvpgn_v3_add_test(test_infra_net_listener_parity
+    SOURCES listener_parity_test.cpp
+    DEPS    infra_net)
+
 pvpgn_v3_add_test(test_infra_net_udp_echo
     SOURCES udp_echo_test.cpp
     DEPS    infra_net)

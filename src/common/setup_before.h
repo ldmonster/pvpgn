@@ -208,6 +208,7 @@ const unsigned BNETD_USERSYNC = 300; /* s */
 const unsigned BNETD_USERFLUSH = 1000;
 const unsigned BNETD_USERSTEP = 100; /* check 100 users per call in accountlist_save() */
 const unsigned BNETD_PACKET_LIMIT = 1000; /* maximum of 1000 packets in packet queue until connections is dropped */
+const unsigned BNETD_V3_TCP_SESSION_MODE = 0; /* v3 strangler-fig 38d: when non-zero, accepted bnet TCP sockets are owned by a v3 TcpSession instead of legacy fdwatch (scaffolding only -- 38d lands the config flag; live flip lands in 38e once t_connection lifecycle is designed) */
 const unsigned BNETD_LATENCY = 600; /* s */
 const unsigned BNETD_IRC_LATENCY = 180; /* s */ /* Ping timeout for IRC connections */
 const unsigned BNETD_DEF_NULLMSG = 120; /* s */

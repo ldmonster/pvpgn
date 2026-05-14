@@ -67,12 +67,25 @@ namespace pvpgn
 #define INCLUDED_SERVER_PROTOS
 
 #include <vector>
+#include <functional>
+
+// Forward-declare the C-library `sockaddr_in` at global scope so
+// that elaborated specifiers inside `namespace pvpgn::bnetd` below
+// resolve to `::sockaddr_in` (defined by <winsock2.h> / <netinet/in.h>
+// in translation units that include the full header), instead of
+// creating a stray `pvpgn::bnetd::sockaddr_in` forward declaration.
+struct sockaddr_in;
 
 namespace pvpgn
 {
 
 	namespace bnetd
 	{
+		// Forward-declare for the v3 owned-socket factory below.
+		// Defined in `connection.h`.
+		struct connection;
+		typedef struct connection t_connection;
+
 		enum restart_mode
 		{
 			restart_mode_none, // always first (0)
@@ -143,6 +156,90 @@ namespace pvpgn
 		 * Caller must not close the fds.
 		 */
 		extern std::vector<int> server_get_bnet_udp_fds(void);
+
+		/* When set to true *before* `server_process()` runs the
+		 * setup phase, the legacy server skips registering bnet
+		 * TCP listening sockets with the fdwatch loop. The
+		 * sockets are still opened, bound, listening, and made
+		 * non-blocking so callers can adopt them. The v3
+		 * integration uses this to take over TCP accept with
+		 * `infra::net::TcpAcceptor`.
+		 *
+		 * Only `laddr_type_bnet` listeners are affected. Other
+		 * listener types (IRC, WOL, telnet, w3route, wgameres,
+		 * apireg) keep the legacy accept loop.
+		 */
+		extern void server_set_skip_legacy_tcp_fdwatch(bool skip);
+		extern bool server_get_skip_legacy_tcp_fdwatch(void);
+
+		/* Per-listener metadata captured at setup time for the
+		 * v3 TCP bridge. `ssocket` is the TCP listen fd, `usocket`
+		 * is the matching UDP fd for `laddr_type_bnet` listeners
+		 * (or -1 otherwise). Addresses are in host byte order.
+		 */
+		struct bnet_tcp_listener_info {
+			int            ssocket;
+			int            usocket;
+			unsigned int   laddr_ip;
+			unsigned short laddr_port;
+			int            type;          /* t_laddr_type cast to int */
+			void *         opaque_laddr;  /* `t_addr *` for callbacks */
+		};
+
+		extern std::vector<bnet_tcp_listener_info> server_get_bnet_tcp_listeners(void);
+
+		/* Detach the listening fd at @p listener_index from legacy
+		 * ownership.  After this call legacy's `_shutdown_addrs`
+		 * will NOT `psock_close()` the fd; the caller (v3 bridge)
+		 * must close it.  Returns the original fd, or -1 if the
+		 * index is out of range or the listener was already
+		 * released. */
+		extern int server_release_bnet_tcp_listener_fd(std::size_t listener_index);
+
+		/* Hand a v3-accepted TCP socket back to legacy bnetd so
+		 * it can run the post-accept setup (ipban check,
+		 * SO_KEEPALIVE, getsockname, non-blocking, conn_create,
+		 * conn_add_fdwatch, listener-type specific class/state).
+		 * Returns 0 on success, -1 on failure; on failure the
+		 * legacy side has already closed `csocket`.
+		 * `caddr` must be a fully populated `sockaddr_in` for the
+		 * peer (network byte order). `listener_index` is an index
+		 * into the vector returned by
+		 * `server_get_bnet_tcp_listeners()`.
+		 */
+		extern int server_handle_v3_accepted_bnet_socket(
+		    std::size_t              listener_index,
+		    int                      csocket,
+		    struct sockaddr_in const* caddr);
+
+		/* v3 strangler-fig (38f): factory that produces a
+		 * `t_connection*` for an accepted bnet socket whose fd is
+		 * owned by a v3 infra::net::TcpSession. Reuses the same
+		 * pipeline as `server_handle_v3_accepted_bnet_socket` -- ip
+		 * ban check, keepalive, getsockname, conn_create, bnet
+		 * initkill timer -- BUT skips `conn_add_fdwatch` and does
+		 * NOT call `psock_close` on the fd. Marks the returned
+		 * connection with `conn_set_v3_owns_socket(c, 1)` before
+		 * returning so `conn_destroy` will not double-close the fd.
+		 * Returns the new connection on success or `NULL` on
+		 * failure. On failure the v3 caller is responsible for
+		 * closing the socket via its `TcpSession`. */
+		extern t_connection * server_handle_v3_owned_bnet_socket(
+		    std::size_t               listener_index,
+		    int                       csocket,
+		    struct sockaddr_in const* caddr);
+
+		/* v3 strangler-fig (38g): post a callback to be invoked
+		 * on the legacy main loop thread. Used by the TcpBridge
+		 * to defer `conn_destroy` (and other connlist-touching
+		 * work) off the Asio worker threads so it runs in the
+		 * same single-threaded context as `timerlist_check_timers`
+		 * and `fdwatch_handle`. Safe to call from any thread.
+		 * The callback is invoked exactly once, on the next
+		 * iteration of the main loop, before `connlist_reap`.
+		 * If the main loop has already exited, queued callbacks
+		 * are silently dropped (process is going away). */
+		extern void server_post_to_main(std::function<void()> fn);
 
 	}
 

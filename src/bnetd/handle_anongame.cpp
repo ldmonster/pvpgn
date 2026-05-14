@@ -40,6 +40,10 @@
 #include "common/setup_after.h"
 #include "icons.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+#include "integration/legacy_bnetd/strangler_macros.h"
+#endif
+
 namespace pvpgn
 {
 
@@ -75,6 +79,18 @@ namespace pvpgn
 			int temp;
 			t_clan * clan;
 			unsigned char rescount;
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// v3 strangler-fig: reproduce the legacy stub via the
+			// typed pipeline so the codec owns the wire format.
+			{
+				unsigned int sz = packet_get_size(packet);
+				void const*  bd = packet_get_data_const(packet, 0, sz);
+				if (bd != nullptr) {
+					PVPGN_V3_BRIDGE_TRY(clan_profile, c, bd, sz);
+				}
+			}
+#endif
 
 			if (packet_get_size(packet) < sizeof(t_client_findanongame_profile_clan))
 			{
@@ -152,6 +168,19 @@ namespace pvpgn
 			t_team * team;
 			t_bnettime bn_time;
 			bn_long ltime;
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// v3 strangler-fig: build the WAR3 stats reply via the
+			// pure builder + typed codec; only fall through to the
+			// legacy assembly below on failure.
+			{
+				unsigned int sz = packet_get_size(packet);
+				void const*  bd = packet_get_data_const(packet, 0, sz);
+				if (bd != nullptr) {
+					PVPGN_V3_BRIDGE_TRY(profile, c, bd, sz);
+				}
+			}
+#endif
 
 
 			Count = bn_int_get(packet->u.client_findanongame.count);
@@ -448,6 +477,24 @@ namespace pvpgn
 		static int _client_anongame_get_icon(t_connection * c, t_packet const * const packet)
 		{
 			t_packet * rpacket;
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// v3 strangler-fig: try the typed pipeline first.
+			// `pvpgn_v3_get_icon_try` lazily loads the IconReqTable
+			// from `prefs_get_anongame_infos_file()`, snapshots the
+			// account's icon state, builds the reply table, encodes
+			// it via the typed protocol/bnet codec, and dispatches
+			// it via `conn_push_outqueue`. Returns non-zero only
+			// when it has fully handled the request.
+			{
+				unsigned int sz = packet_get_size(packet);
+				void const*  bd = packet_get_data_const(packet, 0, sz);
+				if (bd != nullptr) {
+					PVPGN_V3_BRIDGE_TRY(get_icon, c, bd, sz);
+				}
+			}
+#endif
+
 			//BlacKDicK 04/20/2003 Need some huge re-work on this.
 			{
 				struct
@@ -563,6 +610,24 @@ namespace pvpgn
 		/* Choose icon by user from profile > portrait */
 		static int _client_anongame_set_icon(t_connection * c, t_packet const * const packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// v3 strangler-fig: try the typed pipeline first.
+			// `pvpgn_v3_set_icon_try` validates the requested icon
+			// against per-account race-win counts (mirrors the
+			// legacy `check_user_icon` "ICON SWITCH HACK PROTECTION"),
+			// applies via the legacy `account_set_user_icon` /
+			// `conn_update_w3_playerinfo` / `channel_rejoin` chain,
+			// and returns non-zero only when it has fully handled
+			// the request.
+			{
+				unsigned int sz = packet_get_size(packet);
+				void const*  bd = packet_get_data_const(packet, 0, sz);
+				if (bd != nullptr) {
+					PVPGN_V3_BRIDGE_TRY(set_icon, c, bd, sz);
+				}
+			}
+#endif
+
 			//BlacKDicK 04/20/2003
 			// Modified by aancw 16/12/2014
 			unsigned int desired_icon;
@@ -679,6 +744,24 @@ namespace pvpgn
 		static int _client_anongame_infos(t_connection * c, t_packet const * const packet)
 		{
 			t_packet * rpacket;
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// v3 strangler-fig: try the typed pipeline first. The
+			// bridge lazily initialises a snapshot cache from
+			// `prefs_get_anongame_infos_file()` + `prefs_get_mapsfile()`,
+			// parses the inforeq, resolves per-clienttag/lang, and
+			// dispatches the resulting SID 0x44 frames via
+			// `conn_push_outqueue`. Returns non-zero only when it has
+			// fully handled the request; otherwise we fall back to
+			// the legacy path below.
+			{
+				unsigned int sz = packet_get_size(packet);
+				void const*  bd = packet_get_data_const(packet, 0, sz);
+				if (bd != nullptr) {
+					PVPGN_V3_BRIDGE_TRY(anongame_inforeply, c, bd, sz);
+				}
+			}
+#endif
 
 			if (bn_int_get(packet->u.client_findanongame_inforeq.count) > 1) {
 				/* reply with 0 entries found */
@@ -813,6 +896,22 @@ namespace pvpgn
 		static int _client_anongame_tournament(t_connection * c, t_packet const * const packet)
 		{
 			t_packet * rpacket;
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// v3 strangler-fig: try the typed pipeline first.
+			// `pvpgn_v3_tournament_try` snapshots the legacy
+			// tournament globals + per-account state into a pure
+			// `TournamentInputs`, runs `build_tournament_reply`,
+			// encodes via the typed protocol/bnet codec, and
+			// dispatches via `conn_push_outqueue`.
+			{
+				unsigned int sz = packet_get_size(packet);
+				void const*  bd = packet_get_data_const(packet, 0, sz);
+				if (bd != nullptr) {
+					PVPGN_V3_BRIDGE_TRY(tournament, c, bd, sz);
+				}
+			}
+#endif
 
 			t_account * account = conn_get_account(c);
 			t_clienttag clienttag = conn_get_clienttag(c);

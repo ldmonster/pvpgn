@@ -58,7 +58,7 @@ TEST_CASE("Game: join / leave / capacity / closed-state",
     REQUIRE_FALSE(g.leave(AccountId{99}));
 }
 
-TEST_CASE("Game: start FSM — host only, Open → InProgress",
+TEST_CASE("Game: start FSM -- host only, Open -> InProgress",
           "[domain][gameplay][fsm]") {
     auto g = make_game(AccountId{1});
     (void)g.drain_events();

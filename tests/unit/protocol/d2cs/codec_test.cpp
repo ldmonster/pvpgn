@@ -107,3 +107,112 @@ TEST_CASE("d2cs: JoinGameReply round-trip", "[protocol][d2cs]") {
     REQUIRE(m.has_value());
     REQUIRE(std::get<JoinGameReply>(m.value()) == in);
 }
+
+TEST_CASE("d2cs: GameListReq round-trip", "[protocol][d2cs]") {
+    GameListReq in{0x0042u, 0x00000200u};  // hardcore bit
+    protocol::Writer w;
+    REQUIRE(encode(w, in).has_value());
+    auto m = decode_client(w.view());
+    REQUIRE(m.has_value());
+    REQUIRE(std::get<GameListReq>(m.value()) == in);
+}
+
+TEST_CASE("d2cs: GameListReply round-trip (one game)", "[protocol][d2cs]") {
+    GameListReply in;
+    in.seqno     = 0x0042u;
+    in.token     = 0xDEADBEEFu;
+    in.currchar  = 3u;
+    in.gameflag  = 0x00000004u;
+    in.game_name = "speedrun-1";
+    in.game_desc = "Diff: Normal | Lvl: 25";
+    protocol::Writer w;
+    REQUIRE(encode(w, in).has_value());
+    auto m = decode_server(w.view());
+    REQUIRE(m.has_value());
+    REQUIRE(std::get<GameListReply>(m.value()) == in);
+}
+
+TEST_CASE("d2cs: GameInfoReq round-trip", "[protocol][d2cs]") {
+    GameInfoReq in{0x0042u, "speedrun-1"};
+    protocol::Writer w;
+    REQUIRE(encode(w, in).has_value());
+    auto m = decode_client(w.view());
+    REQUIRE(m.has_value());
+    REQUIRE(std::get<GameInfoReq>(m.value()) == in);
+}
+
+TEST_CASE("d2cs: GameInfoReply round-trip (3 players)", "[protocol][d2cs]") {
+    GameInfoReply in;
+    in.seqno     = 0x0042u;
+    in.gameflag  = 0x00000004u;
+    in.etime     = 0x00001234u;
+    in.charlevel = 25u;
+    in.leveldiff = 5u;
+    in.maxchar   = 8u;
+    in.currchar  = 3u;
+    in.chclass    = {1,2,3, 0,0,0,0,0,0,0,0,0,0,0,0,0};
+    in.charlevels = {25,24,26, 0,0,0,0,0,0,0,0,0,0,0,0,0};
+    in.game_desc  = "Diff: Normal";
+    in.char_names = {"Alice", "Bob", "Charlie"};
+    protocol::Writer w;
+    REQUIRE(encode(w, in).has_value());
+    auto m = decode_server(w.view());
+    REQUIRE(m.has_value());
+    REQUIRE(std::get<GameInfoReply>(m.value()) == in);
+}
+
+TEST_CASE("d2cs: GameInfoReply rejects oversize currchar", "[protocol][d2cs]") {
+    // Craft a malformed reply manually: claim currchar=17 (over the 16 cap).
+    protocol::Writer w;
+    protocol::Writer p;
+    p.write_le<std::uint16_t>(0u);              // seqno
+    p.write_le<std::uint32_t>(0u);              // gameflag
+    p.write_le<std::uint32_t>(0u);              // etime
+    p.write_le<std::uint8_t>(0u);               // charlevel
+    p.write_le<std::uint8_t>(0u);               // leveldiff
+    p.write_le<std::uint8_t>(0u);               // maxchar
+    p.write_le<std::uint8_t>(17u);              // currchar > 16
+    for (int i = 0; i < 16; ++i) p.write_le<std::uint8_t>(0u);
+    for (int i = 0; i < 16; ++i) p.write_le<std::uint8_t>(0u);
+    p.write_cstring("");                        // game_desc
+    // Emit with the same framing as the codec.
+    const auto body = p.view();
+    const auto total = body.size() + 3u;  // D2csHeader::kSize
+    w.write_le<std::uint16_t>(static_cast<std::uint16_t>(total));
+    w.write_le<std::uint8_t>(0x06u);            // GAMEINFOREPLY
+    w.write_bytes(body);
+    auto r = decode_server(w.view());
+    REQUIRE_FALSE(r.has_value());
+    REQUIRE(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+TEST_CASE("d2cs: CharListReq round-trip", "[protocol][d2cs]") {
+    CharListReq in{8u, 0u};
+    protocol::Writer w;
+    REQUIRE(encode(w, in).has_value());
+    auto m = decode_client(w.view());
+    REQUIRE(m.has_value());
+    REQUIRE(std::get<CharListReq>(m.value()) == in);
+}
+
+TEST_CASE("d2cs: CharListReply round-trip (2 characters)", "[protocol][d2cs]") {
+    CharListReply in;
+    in.maxchar   = 8u;
+    in.currchar  = 2u;
+    in.u1        = 0u;
+    in.currchar2 = 2u;
+    CharListEntry e1;
+    e1.name = "Alice";
+    for (std::size_t i = 0; i < e1.portrait.size(); ++i)
+        e1.portrait[i] = static_cast<std::uint8_t>(i);
+    CharListEntry e2;
+    e2.name = "Bob";
+    for (std::size_t i = 0; i < e2.portrait.size(); ++i)
+        e2.portrait[i] = static_cast<std::uint8_t>(0xFF - i);
+    in.chars = {e1, e2};
+    protocol::Writer w;
+    REQUIRE(encode(w, in).has_value());
+    auto m = decode_server(w.view());
+    REQUIRE(m.has_value());
+    REQUIRE(std::get<CharListReply>(m.value()) == in);
+}

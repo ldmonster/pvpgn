@@ -41,7 +41,7 @@ TEST_CASE("Account::create emits AccountCreated and exposes identity",
     REQUIRE_FALSE(a.is_locked());
 }
 
-TEST_CASE("Account::login: correct hash → Accepted + UserLoggedIn",
+TEST_CASE("Account::login: correct hash -> Accepted + UserLoggedIn",
           "[domain][identity][login]") {
     auto a = make_account("Bob", 0x33);
     (void)a.drain_events();
@@ -58,7 +58,7 @@ TEST_CASE("Account::login: correct hash → Accepted + UserLoggedIn",
     REQUIRE(ev.tag == kStar);
 }
 
-TEST_CASE("Account::login: wrong hash → InvalidCredentials + rejection event",
+TEST_CASE("Account::login: wrong hash -> InvalidCredentials + rejection event",
           "[domain][identity][login]") {
     auto a = make_account("Bob", 0x33);
     (void)a.drain_events();

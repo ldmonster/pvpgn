@@ -32,13 +32,23 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 
+namespace pvpgn::infra::net { class IoRuntime; }
+
 namespace pvpgn::integration::legacy_bnetd {
 
 class UdpBridgeImpl;
 
 class UdpBridge {
 public:
+    /// Default-constructed bridges own their own `IoRuntime` and io
+    /// worker thread.  Useful for tests and standalone wiring.
     UdpBridge();
+
+    /// Share an externally-owned `IoRuntime`.  The bridge will
+    /// schedule its endpoints on @p runtime and rely on the owner to
+    /// `run()`/`stop()` it.  @p runtime must outlive this bridge.
+    explicit UdpBridge(infra::net::IoRuntime& runtime);
+
     ~UdpBridge();
 
     UdpBridge(const UdpBridge&)            = delete;

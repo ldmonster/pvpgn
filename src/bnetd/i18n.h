@@ -26,6 +26,7 @@
 #include "common/tag.h"
 
 #include <fmt/format.h>
+#include "common/fmt_compat.h"
 
 namespace pvpgn
 {
@@ -100,7 +101,7 @@ namespace pvpgn
 					}
 				}
 
-				output = fmt::format(format, args...);
+				output = fmt::format(PVPGN_FMT_RUNTIME(format), args...);
 
 				char tmp[MAX_MESSAGE_LEN];
 				std::snprintf(tmp, sizeof tmp, "%s", output.c_str());

@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+//
+// NOTE: this test relies on POSIX socket APIs (``arpa/inet.h``,
+// ``sys/socket.h``, ``adopt_native_handle`` from an ``int`` fd).
+// Skip the entire TU on Windows; the same code paths are still
+// covered by integration tests on POSIX hosts.
+#ifndef _WIN32
+
 #include <array>
 #include <chrono>
 #include <condition_variable>
@@ -136,3 +143,6 @@ TEST_CASE("UdpEndpoint: adopt_native_handle takes over a pre-bound fd",
     server.close();
     rt.stop();
 }
+
+#endif  // _WIN32
+

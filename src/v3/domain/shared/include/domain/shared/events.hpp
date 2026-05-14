@@ -58,6 +58,20 @@ struct AccountPasswordChanged {
     AccountId id;
 };
 
+/// Operator (or a policy hook) has flagged the account: the user
+/// must rotate their password on next successful login. The flag is
+/// idempotent -- repeated `require_password_change()` calls do NOT
+/// emit a second event.
+struct AccountPasswordRotationRequired {
+    AccountId id;
+};
+
+/// The "must change password" flag was cleared (either by a
+/// successful `change_password` or an admin reset).
+struct AccountPasswordRotationCleared {
+    AccountId id;
+};
+
 struct AccountCommandGroupGranted {
     AccountId    id;
     std::uint8_t group;        // 1..8 in legacy `command_groups.conf`
@@ -270,6 +284,8 @@ using DomainEvent = std::variant<
     UserLoginRejected,
     UserLoggedOut,
     AccountPasswordChanged,
+    AccountPasswordRotationRequired,
+    AccountPasswordRotationCleared,
     AccountCommandGroupGranted,
     AccountBanned,
     AccountUnbanned,

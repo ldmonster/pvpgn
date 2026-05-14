@@ -58,6 +58,7 @@ namespace pvpgn
 #endif
 
 #include <fmt/format.h>
+#include "common/fmt_compat.h"
 
 namespace pvpgn
 {
@@ -138,7 +139,7 @@ namespace pvpgn
 			}
 #endif
 
-			fmt::print(eventstrm, format_str, args...);
+			fmt::print(eventstrm, PVPGN_FMT_RUNTIME(format_str), args...);
 #ifdef WIN32_GUI
 			if (eventlog_level_gui & currlevel)
 			{
@@ -156,7 +157,7 @@ namespace pvpgn
 
 			if (eventlog_debugmode)
 			{
-				fmt::print("{} [{}] {}: {}\n", time, eventlog_get_levelname_str(level), module, fmt::format(format_str, args...));
+				fmt::print("{} [{}] {}: {}\n", time, eventlog_get_levelname_str(level), module, fmt::format(PVPGN_FMT_RUNTIME(format_str), args...));
 				std::fflush(stdout);
 			}
 		}

@@ -1,1 +1,7 @@
 add_subdirectory(auth)
+add_subdirectory(anongame_infoply)
+add_subdirectory(icon_table)
+add_subdirectory(tournament)
+add_subdirectory(profile)
+add_subdirectory(chat)
+add_subdirectory(i18n)

@@ -92,7 +92,37 @@ target_link_libraries(bnetd PRIVATE bnetd_legacy)
 # so the UDP receive path can be served by `infra::net::UdpEndpoint`.
 if(TARGET integration_legacy_bnetd_linked)
     target_link_libraries(bnetd PRIVATE integration_legacy_bnetd_linked)
+    if(TARGET infra_log_simple)
+        # JsonLineLogger (Batch 23c) is referenced from server.cpp
+        # behind PVPGN_V3_BNETD_INTEGRATION; link the lib + expose its
+        # public include path on the legacy compile unit.
+        target_link_libraries(bnetd PRIVATE infra_log_simple)
+        target_include_directories(bnetd_legacy PRIVATE
+            ${CMAKE_SOURCE_DIR}/src/v3/infra/log/include)
+    endif()
+    # Batch 26c: PasswordRotationObserver + InMemoryEventBus are
+    # referenced from server.cpp behind PVPGN_V3_AUDIT_LOG.
+    if(TARGET application_auth)
+        target_link_libraries(bnetd PRIVATE application_auth)
+    endif()
     target_compile_definitions(bnetd PRIVATE PVPGN_V3_BNETD_INTEGRATION=1)
+    # bnetd_legacy itself hosts the legacy `_client_anongame_*` /
+    # `handle_command` etc. handlers that contain the
+    # `#ifdef PVPGN_V3_BNETD_INTEGRATION` strangler hooks. Without the
+    # define on the lib those hooks were dead code (compiled-out) even
+    # when the bridges were linked into the EXE. Enable them here and
+    # expose the v3 strangler macro header on the legacy include path.
+    target_compile_definitions(bnetd_legacy PRIVATE PVPGN_V3_BNETD_INTEGRATION=1)
+    target_include_directories(bnetd_legacy PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/v3/integration/legacy_bnetd/include
+        ${CMAKE_SOURCE_DIR}/src/v3/application/chat/include
+        ${CMAKE_SOURCE_DIR}/src/v3/application/i18n/include
+        ${CMAKE_SOURCE_DIR}/src/v3/application/auth/include
+        ${CMAKE_SOURCE_DIR}/src/v3/application/ports/include
+        ${CMAKE_SOURCE_DIR}/src/v3/domain/shared/include
+        ${CMAKE_SOURCE_DIR}/src/v3/domain/identity/include
+        ${CMAKE_SOURCE_DIR}/src/v3/infra/inmemory/include
+        ${CMAKE_SOURCE_DIR}/src/v3/core/include)
 endif()
 
 install(TARGETS bnetd DESTINATION ${SBINDIR})

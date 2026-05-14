@@ -176,6 +176,7 @@ namespace pvpgn
 		extern char const * prefs_get_ladder_prefix(void);
 		extern unsigned int prefs_get_max_connections(void);
 		extern unsigned int prefs_get_packet_limit(void);
+		extern unsigned int prefs_get_v3_tcp_session_mode(void);
 		extern unsigned int prefs_get_sync_on_logoff(void);
 		extern char const * prefs_get_irc_network_name(void);
 		extern unsigned int prefs_get_localize_by_country(void);

@@ -105,3 +105,115 @@ TEST_CASE("BnetFsm: JOINCHANNEL before ENTERCHAT closes session",
     REQUIRE_FALSE(s.has_value());
     REQUIRE(ctx.closed);
 }
+
+TEST_CASE("BnetFsm: STARTGAME1 transitions LoggedIn -> InGame",
+          "[protocol][bnet][fsm]") {
+    FakeContext ctx;
+    BnetFsm f{ctx};
+    REQUIRE(f.handle(ClientMessage{AuthInfo{}}).has_value());
+    LogonResponse2 logon{};
+    logon.username = "alice";
+    REQUIRE(f.handle(ClientMessage{logon}).has_value());
+    REQUIRE(f.state() == BnetState::LoggedIn);
+
+    StartGame1Request req{};
+    req.game_name = "g";
+    REQUIRE(f.handle(ClientMessage{req}).has_value());
+    REQUIRE(f.state() == BnetState::InGame);
+}
+
+TEST_CASE("BnetFsm: STARTGAME3 transitions InChat -> InGame",
+          "[protocol][bnet][fsm]") {
+    FakeContext ctx;
+    BnetFsm f{ctx};
+    REQUIRE(f.handle(ClientMessage{AuthInfo{}}).has_value());
+    LogonResponse2 logon{};
+    logon.username = "alice";
+    REQUIRE(f.handle(ClientMessage{logon}).has_value());
+    EnterChatRequest req{"alice", "PXES"};
+    REQUIRE(f.handle(ClientMessage{req}).has_value());
+    REQUIRE(f.state() == BnetState::InChat);
+
+    StartGame3Request g3{};
+    g3.game_name = "g3";
+    REQUIRE(f.handle(ClientMessage{g3}).has_value());
+    REQUIRE(f.state() == BnetState::InGame);
+}
+
+TEST_CASE("BnetFsm: JOINGAME transitions LoggedIn -> InGame, CLOSEGAME returns to LoggedIn",
+          "[protocol][bnet][fsm]") {
+    FakeContext ctx;
+    BnetFsm f{ctx};
+    REQUIRE(f.handle(ClientMessage{AuthInfo{}}).has_value());
+    LogonResponse2 logon{};
+    logon.username = "alice";
+    REQUIRE(f.handle(ClientMessage{logon}).has_value());
+
+    JoinGame jg{};
+    jg.game_name = "g";
+    REQUIRE(f.handle(ClientMessage{jg}).has_value());
+    REQUIRE(f.state() == BnetState::InGame);
+
+    REQUIRE(f.handle(ClientMessage{CloseGame{}}).has_value());
+    REQUIRE(f.state() == BnetState::LoggedIn);
+}
+
+TEST_CASE("BnetFsm: CLOSEGAME2 from InGame returns to LoggedIn",
+          "[protocol][bnet][fsm]") {
+    FakeContext ctx;
+    BnetFsm f{ctx};
+    REQUIRE(f.handle(ClientMessage{AuthInfo{}}).has_value());
+    LogonResponse2 logon{};
+    logon.username = "alice";
+    REQUIRE(f.handle(ClientMessage{logon}).has_value());
+
+    StartGame1Request req{};
+    req.game_name = "g";
+    REQUIRE(f.handle(ClientMessage{req}).has_value());
+    REQUIRE(f.state() == BnetState::InGame);
+    REQUIRE(f.handle(ClientMessage{CloseGame2{}}).has_value());
+    REQUIRE(f.state() == BnetState::LoggedIn);
+}
+
+TEST_CASE("BnetFsm: GAMEREPORT in InGame keeps state",
+          "[protocol][bnet][fsm]") {
+    FakeContext ctx;
+    BnetFsm f{ctx};
+    REQUIRE(f.handle(ClientMessage{AuthInfo{}}).has_value());
+    LogonResponse2 logon{};
+    logon.username = "alice";
+    REQUIRE(f.handle(ClientMessage{logon}).has_value());
+    JoinGame jg{};
+    jg.game_name = "g";
+    REQUIRE(f.handle(ClientMessage{jg}).has_value());
+
+    GameReport gr{};
+    gr.results = {1};
+    gr.player_names = {"alice"};
+    REQUIRE(f.handle(ClientMessage{gr}).has_value());
+    REQUIRE(f.state() == BnetState::InGame);
+}
+
+TEST_CASE("BnetFsm: STARTGAME1 before login is rejected",
+          "[protocol][bnet][fsm]") {
+    FakeContext ctx;
+    BnetFsm f{ctx};
+    StartGame1Request req{};
+    req.game_name = "g";
+    auto s = f.handle(ClientMessage{req});
+    REQUIRE_FALSE(s.has_value());
+}
+
+TEST_CASE("BnetFsm: CLOSEGAME outside InGame is accepted as no-op",
+          "[protocol][bnet][fsm]") {
+    FakeContext ctx;
+    BnetFsm f{ctx};
+    REQUIRE(f.handle(ClientMessage{AuthInfo{}}).has_value());
+    LogonResponse2 logon{};
+    logon.username = "alice";
+    REQUIRE(f.handle(ClientMessage{logon}).has_value());
+    REQUIRE(f.state() == BnetState::LoggedIn);
+    REQUIRE(f.handle(ClientMessage{CloseGame{}}).has_value());
+    REQUIRE(f.state() == BnetState::LoggedIn);
+}
+

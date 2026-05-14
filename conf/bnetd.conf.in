@@ -454,6 +454,15 @@ max_connections = 1000
 # Set to 0 to disable
 packet_limit = 1000
 
+# v3 strangler-fig (38d): when non-zero, accepted bnet TCP sockets
+# are owned by the v3 TcpSession + LegacyBnetFrameRouter pipeline
+# instead of the legacy fdwatch loop. Defaults to 0 (legacy path).
+# This setting is currently scaffolding-only: the bridge logs when
+# it is on but still hands the fd to legacy. The live flip will land
+# in a follow-up batch once t_connection lifecycle ownership is
+# wired through.
+v3_tcp_session_mode = 0
+
 # Maximum number of concurrent users (0 means unlimited).
 max_concurrent_logins = 0
 

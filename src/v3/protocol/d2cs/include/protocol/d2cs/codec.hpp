@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "core/bytes.hpp"
 #include "core/result.hpp"
@@ -37,6 +38,18 @@ inline constexpr std::uint8_t kClientCreateGameReply = 0x03;
 // 0x04 — join-game
 inline constexpr std::uint8_t kClientJoinGameReq     = 0x04;
 inline constexpr std::uint8_t kClientJoinGameReply   = 0x04;
+
+// 0x05 — game-list (public games)
+inline constexpr std::uint8_t kClientGameListReq     = 0x05;
+inline constexpr std::uint8_t kClientGameListReply   = 0x05;
+
+// 0x06 — game-info (detail for one game)
+inline constexpr std::uint8_t kClientGameInfoReq     = 0x06;
+inline constexpr std::uint8_t kClientGameInfoReply   = 0x06;
+
+// 0x17 — char-list
+inline constexpr std::uint8_t kClientCharListReq     = 0x17;
+inline constexpr std::uint8_t kClientCharListReply   = 0x17;
 
 struct D2csHeader {
     std::uint16_t size = 0;
@@ -145,10 +158,84 @@ struct JoinGameReply {
     bool operator==(const JoinGameReply&) const = default;
 };
 
+// ---- 0x05 GAMELIST ------------------------------------------------------
+
+struct GameListReq {
+    std::uint16_t seqno    = 0;
+    std::uint32_t gameflag = 0;   ///< only hardcore bit set
+    bool operator==(const GameListReq&) const = default;
+};
+
+/// One game per reply packet. The realm server emits one
+/// ``GameListReply`` per public game; the codec round-trips a single
+/// entry. An empty list terminates with ``token == 0`` and empty name.
+struct GameListReply {
+    std::uint16_t seqno    = 0;
+    std::uint32_t token    = 0;
+    std::uint8_t  currchar = 0;
+    std::uint32_t gameflag = 0;
+    std::string   game_name;
+    std::string   game_desc;
+    bool operator==(const GameListReply&) const = default;
+};
+
+// ---- 0x06 GAMEINFO ------------------------------------------------------
+
+struct GameInfoReq {
+    std::uint16_t seqno = 0;
+    std::string   game_name;
+    bool operator==(const GameInfoReq&) const = default;
+};
+
+struct GameInfoReply {
+    std::uint16_t seqno     = 0;
+    std::uint32_t gameflag  = 0;
+    std::uint32_t etime     = 0;
+    std::uint8_t  charlevel = 0;
+    std::uint8_t  leveldiff = 0;
+    std::uint8_t  maxchar   = 0;
+    std::uint8_t  currchar  = 0;
+    std::array<std::uint8_t, 16> chclass{};
+    std::array<std::uint8_t, 16> charlevels{};
+    std::string                  game_desc;
+    /// One cstring per joined character (``currchar`` entries).
+    std::vector<std::string>     char_names;
+    bool operator==(const GameInfoReply&) const = default;
+};
+
+// ---- 0x17 CHARLIST ------------------------------------------------------
+
+struct CharListReq {
+    std::uint16_t maxchar = 0;
+    std::uint16_t u1      = 0;
+    bool operator==(const CharListReq&) const = default;
+};
+
+/// One character entry in a SERVER_CHARLISTREPLY. ``portrait`` is the
+/// 34-byte opaque blob the legacy code described as "character portrait
+/// block, 0x22 bytes static length" — kept opaque so the codec doesn't
+/// presume an inventory layout.
+struct CharListEntry {
+    std::string                  name;
+    std::array<std::uint8_t, 34> portrait{};
+    bool operator==(const CharListEntry&) const = default;
+};
+
+struct CharListReply {
+    std::uint16_t                 maxchar    = 0;
+    std::uint16_t                 currchar   = 0;
+    std::uint16_t                 u1         = 0;
+    std::uint16_t                 currchar2  = 0;
+    std::vector<CharListEntry>    chars;
+    bool operator==(const CharListReply&) const = default;
+};
+
 using ClientMessage = std::variant<
-    LoginReq, CreateCharReq, CreateGameReq, JoinGameReq>;
+    LoginReq, CreateCharReq, CreateGameReq, JoinGameReq,
+    GameListReq, GameInfoReq, CharListReq>;
 using ServerMessage = std::variant<
-    LoginReply, CreateCharReply, CreateGameReply, JoinGameReply>;
+    LoginReply, CreateCharReply, CreateGameReply, JoinGameReply,
+    GameListReply, GameInfoReply, CharListReply>;
 
 core::Result<D2csHeader>    parse_header(core::ByteView buf);
 core::Result<ClientMessage> decode_client(core::ByteView buf);
@@ -162,5 +249,11 @@ core::Status<> encode(Writer& w, const CreateGameReq&   m);
 core::Status<> encode(Writer& w, const CreateGameReply& m);
 core::Status<> encode(Writer& w, const JoinGameReq&     m);
 core::Status<> encode(Writer& w, const JoinGameReply&   m);
+core::Status<> encode(Writer& w, const GameListReq&     m);
+core::Status<> encode(Writer& w, const GameListReply&   m);
+core::Status<> encode(Writer& w, const GameInfoReq&     m);
+core::Status<> encode(Writer& w, const GameInfoReply&   m);
+core::Status<> encode(Writer& w, const CharListReq&     m);
+core::Status<> encode(Writer& w, const CharListReply&   m);
 
 }  // namespace pvpgn::protocol::d2cs

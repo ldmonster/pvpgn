@@ -29,12 +29,16 @@
 /// pushed back out through the v3 `IConnectionEgress`.
 
 #include <cstdint>
+#include <cstddef>
 #include <functional>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
+#include "core/error.hpp"
 #include "core/result.hpp"
 #include "integration/legacy_bnetd/legacy_protocol_handler.hpp"
+#include "protocol/bnet/anongame.hpp"
 #include "protocol/bnet/fsm.hpp"
 #include "protocol/bnet/messages.hpp"
 #include "protocol/bnet/session_context.hpp"
@@ -45,6 +49,16 @@ namespace pvpgn::integration::legacy_bnetd {
 /// the legacy path. Receives ownership of the frame so the
 /// implementation can move bytes into a `t_packet` without copying.
 using OnLegacyFallback = std::function<void(LegacyFrame)>;
+
+/// Callback that turns an `AnonGameInfoRequest` into a ready-to-send
+/// SID 0x44 byte stream (typically by selecting a per-locale
+/// `CompiledSnapshot` and calling
+/// `application::anongame_infoply::encode_inforeplies_for_request`).
+/// Returning a failure status causes the strangler to fall back to
+/// the legacy handler for that frame.
+using AnonGameInforeplyResolver = std::function<
+    core::Result<std::vector<std::byte>>(
+        const protocol::bnet::AnonGameInfoRequest&)>;
 
 class BnetStranglerHandler final : public LegacyProtocolHandler {
 public:
@@ -70,6 +84,22 @@ public:
     /// handed to the fallback. Updated from the network thread only.
     std::size_t handled_v3_count()  const noexcept { return handled_v3_; }
     std::size_t fallback_count()    const noexcept { return fallback_n_; }
+    std::size_t inforeply_count()   const noexcept { return inforeply_n_; }
+
+    /// Install the FINDANONGAME (SID 0x44) INFOREPLY pipeline. When
+    /// set, well-formed INFOREQ packets are answered in v3 by calling
+    /// `resolver`, which is expected to return the full concatenated
+    /// SID 0x44 byte stream of all INFOREPLY packets. Other 0x44
+    /// sub-options still fall back to legacy. Calling this with an
+    /// empty `resolver` removes the hook and reverts 0x44 to fallback.
+    void set_anongame_inforeply_resolver(AnonGameInforeplyResolver resolver) {
+        inforeply_resolver_ = std::move(resolver);
+        if (inforeply_resolver_) {
+            allowed_sids_.insert(0x44 /* kSidWarcraftGeneral */);
+        } else {
+            allowed_sids_.erase(0x44);
+        }
+    }
 
     /// Expose the FSM state for tests; never mutate it from outside.
     protocol::bnet::BnetState fsm_state() const noexcept {
@@ -95,11 +125,13 @@ private:
     void to_fallback(LegacyFrame frame);
 
     OnLegacyFallback                fallback_;
+    AnonGameInforeplyResolver       inforeply_resolver_;
     std::unordered_set<std::uint8_t> allowed_sids_;
     EgressContext                    ctx_;
     protocol::bnet::BnetFsm          fsm_;
     std::size_t                      handled_v3_  = 0;
     std::size_t                      fallback_n_  = 0;
+    std::size_t                      inforeply_n_ = 0;
 };
 
 }  // namespace pvpgn::integration::legacy_bnetd

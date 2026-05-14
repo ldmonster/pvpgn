@@ -1,5 +1,12 @@
 # Required cmake version
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.15)
+
+# CMP0091: allow setting MSVC runtime library via
+# CMAKE_MSVC_RUNTIME_LIBRARY instead of mutating CMAKE_<LANG>_FLAGS.
+# Required to match static vcpkg triplets (which build Boost with /MT).
+if(POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
 
 # Put the include dirs which are in the source or build tree
 # before all other include dirs, so the headers in the sources
@@ -7,10 +14,18 @@ cmake_minimum_required(VERSION 3.1.0)
 # since cmake 2.4.1
 set(CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE ON)
 
-project(pvpgn CXX)
+project(pvpgn C CXX)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# When a static vcpkg triplet is in use (e.g. x64-windows-static),
+# Boost libraries are built with /MT. Match the project to avoid
+# RuntimeLibrary mismatches at link time.
+if(MSVC AND DEFINED VCPKG_TARGET_TRIPLET AND VCPKG_TARGET_TRIPLET MATCHES "-static$")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    message(STATUS "pvpgn: static vcpkg triplet detected (${VCPKG_TARGET_TRIPLET}); forcing /MT runtime")
+endif()
 
 option(WITH_BNETD "compile the bnetd target" ON)
 option(WITH_D2CS "compile the d2cs target" ON)
@@ -36,7 +51,9 @@ option(PVPGN_V3_BUILD_TESTS  "Build unit tests for the v3 sub-tree"            $
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-include(ConfigureChecks.cmake)
+if(PVPGN_BUILD_LEGACY)
+    include(ConfigureChecks.cmake)
+endif()
 
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -60,12 +77,21 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 		message(FATAL_ERROR "Visual Studio 2015 or higher required")
 	endif()
 
-	add_definitions(
-		-D_CRT_SECURE_NO_DEPRECATE
-		-D_CRT_NONSTDC_NO_DEPRECATE
-		-DUNICODE
-		-D_UNICODE
-	)
+	# UNICODE flags belong to the legacy daemons only — the v3 sub-tree
+	# (and its Catch2 test harness) expects narrow `main()` entry points.
+	if(PVPGN_BUILD_LEGACY)
+		add_definitions(
+			-D_CRT_SECURE_NO_DEPRECATE
+			-D_CRT_NONSTDC_NO_DEPRECATE
+			-DUNICODE
+			-D_UNICODE
+		)
+	else()
+		add_definitions(
+			-D_CRT_SECURE_NO_DEPRECATE
+			-D_CRT_NONSTDC_NO_DEPRECATE
+		)
+	endif()
 	
 	# DEBUG compiler flags:
 	#	/Zi create debugging information PDB file
@@ -88,7 +114,37 @@ endif()
 if(PVPGN_BUILD_LEGACY)
     add_subdirectory(conf)
     add_subdirectory(files)
-    add_subdirectory(lib/fmt)
+    # Prefer system / vcpkg `fmt` (modern, 10.x+). When no package is
+    # found we fall back to FetchContent-ing the upstream fmtlib so a
+    # checkout without a vcpkg toolchain still builds (network
+    # required on first configure).
+    find_package(fmt CONFIG QUIET)
+    if(fmt_FOUND)
+        message(STATUS "Using external fmt ${fmt_VERSION} (vcpkg/system)")
+        # Consumers do `target_link_libraries(... fmt)`. Modern fmt
+        # exports `fmt::fmt`; alias bare `fmt` to it so consumer
+        # sites stay identical regardless of how fmt was obtained.
+        if(NOT TARGET fmt)
+            add_library(fmt INTERFACE IMPORTED GLOBAL)
+            target_link_libraries(fmt INTERFACE fmt::fmt)
+        endif()
+    else()
+        message(STATUS "External fmt not found; fetching fmtlib/fmt via FetchContent")
+        include(FetchContent)
+        FetchContent_Declare(
+            fmt
+            GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+            GIT_TAG        11.2.0
+            GIT_SHALLOW    TRUE
+        )
+        # fmt's tests / docs aren't needed for our consumers.
+        set(FMT_TEST     OFF CACHE BOOL "" FORCE)
+        set(FMT_DOC      OFF CACHE BOOL "" FORCE)
+        set(FMT_INSTALL  OFF CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(fmt)
+        # FetchContent'd fmt already exposes the bare `fmt` target,
+        # so no alias is needed.
+    endif()
     add_subdirectory(man)
     add_subdirectory(src)
     if(WITH_LUA)
@@ -99,10 +155,20 @@ endif()
 enable_testing()
 
 if(PVPGN_BUILD_V3)
+    # The v3 sub-tree (and its Catch2 test harness) expects a narrow
+    # `main()`. When PVPGN_BUILD_LEGACY=ON we added `-DUNICODE
+    # -D_UNICODE` globally for the legacy daemons, which would force
+    # MSVC's CRT to expect `wmain` in every executable, breaking the
+    # v3 test targets. Strip those flags before descending into the
+    # v3 subdirectory so v3 targets see narrow `main()`.
+    if (MSVC)
+        remove_definitions(-DUNICODE -D_UNICODE)
+    endif()
     add_subdirectory(src/v3)
 endif()
 
 # uninstall target
+if(PVPGN_BUILD_LEGACY)
 configure_file(
     "${CMAKE_MODULE_PATH}/cmake_uninstall.cmake.in"
     "${CMAKE_MODULE_PATH}/cmake_uninstall.cmake"
@@ -119,3 +185,4 @@ configure_file(
 
 add_custom_target(purge
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_MODULE_PATH}/cmake_purge.cmake)
+endif()

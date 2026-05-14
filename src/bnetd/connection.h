@@ -213,6 +213,18 @@ namespace pvpgn
 				unsigned int		passfail_count;
 				/* connection flag substituting some other values */
 				unsigned int		cflags;
+				/* v3 strangler-fig (38c): opaque pointer to a
+				 * pvpgn::integration::legacy_bnetd::LegacyBnetFrameRouter
+				 * when this connection is owned by a v3 TCP session.
+				 * NULL when legacy fdwatch owns the conn. Consulted by
+				 * conn_push_outqueue to redirect outbound packets. */
+				void *				v3_router;
+				/* v3 strangler-fig (38e): when non-zero, the underlying
+				 * TCP socket is owned by a v3 infra::net::TcpSession;
+				 * conn_destroy MUST skip fdwatch_del_fd / psock_shutdown
+				 * / psock_close for this connection. Defaults to 0 so
+				 * the legacy fdwatch path is unaffected. */
+				unsigned int		v3_owns_socket;
 			} protocol;
 		}
 #endif
@@ -350,6 +362,28 @@ namespace pvpgn
 		extern t_packet * conn_peek_outqueue(t_connection * c);
 		extern t_packet * conn_pull_outqueue(t_connection * c);
 		extern int conn_clear_outqueue(t_connection * c);
+
+		/* v3 strangler-fig (38c): per-connection v3 router pointer.
+		 * Opaque to legacy; populated by the v3 integration layer when
+		 * a TcpSession adopts ownership of the connection. */
+		extern void conn_set_v3_router(t_connection * c, void * router);
+		extern void * conn_get_v3_router(t_connection * c);
+
+		/* v3 strangler-fig (38e): mark a connection's TCP socket as
+		 * externally owned (by a v3 TcpSession). When set, conn_destroy
+		 * skips fdwatch_del_fd / psock_shutdown / psock_close for this
+		 * connection. The v3 side is responsible for closing the fd. */
+		extern void conn_set_v3_owns_socket(t_connection * c, int v);
+		extern int conn_get_v3_owns_socket(t_connection * c);
+
+		/* Install a process-global routing function that
+		 * conn_push_outqueue calls when c->v3_router is set. The
+		 * function should consume the packet bytes synchronously and
+		 * return non-zero on success. On 0 return (or no function
+		 * installed) conn_push_outqueue falls back to the legacy
+		 * fdwatch queue. */
+		extern void conn_install_v3_outbound_route(
+		    int (*fn)(void * router, void const * bytes, unsigned int size));
 		extern void conn_close_read(t_connection * c);
 		extern int conn_check_ignoring(t_connection const * c, char const * me);
 		extern t_account * conn_get_account(t_connection const * c);

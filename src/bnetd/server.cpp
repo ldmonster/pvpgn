@@ -25,6 +25,10 @@
 #include <cerrno>
 #include <cstring>
 #include <cstdio>
+#include <mutex>
+#include <vector>
+#include <utility>
+#include <functional>
 
 #ifdef DO_POSIXSIG
 # include <signal.h>
@@ -101,6 +105,22 @@
 #include "luainterface.h"
 #endif
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <memory>
+#include "core/logging.hpp"
+#include "infra/log/json_line_logger.hpp"
+#include "integration/legacy_bnetd/legacy_event_logger.hpp"
+#include "integration/legacy_bnetd/legacy_chat_reply_sink.hpp"
+#include "integration/legacy_bnetd/chat_reply_sink_override.hpp"
+#include "application/i18n/string_table.hpp"
+#include "application/auth/password_rotation_observer.hpp"
+#include "infra/inmemory/event_bus.hpp"
+#include "integration/legacy_bnetd/install_v3_handlers.hpp"
+#endif
+
 extern std::FILE * hexstrm; /* from main.c */
 extern int g_ServiceStatus;
 
@@ -132,6 +152,8 @@ namespace pvpgn
 		/* --- v3 strangler-fig hooks: see server.h for contract --- */
 		static bool             skip_legacy_udp_fdwatch = false;
 		static std::vector<int> bnet_udp_fds;
+		static bool             skip_legacy_tcp_fdwatch = false;
+		static std::vector<bnet_tcp_listener_info> bnet_tcp_listeners;
 		static void             (*after_setup_hook)(void) = nullptr;
 		static void             (*before_shutdown_hook)(void) = nullptr;
 
@@ -143,6 +165,80 @@ namespace pvpgn
 		extern bool server_get_skip_legacy_udp_fdwatch(void)
 		{
 			return skip_legacy_udp_fdwatch;
+		}
+
+		extern void server_set_skip_legacy_tcp_fdwatch(bool skip)
+		{
+			skip_legacy_tcp_fdwatch = skip;
+		}
+
+		extern bool server_get_skip_legacy_tcp_fdwatch(void)
+		{
+			return skip_legacy_tcp_fdwatch;
+		}
+
+		extern std::vector<bnet_tcp_listener_info> server_get_bnet_tcp_listeners(void)
+		{
+			return bnet_tcp_listeners;
+		}
+
+		/* --- v3 strangler-fig (38g): main-loop post seam --- */
+		static std::mutex                       pending_main_mu;
+		static std::vector<std::function<void()>> pending_main_q;
+		static volatile bool                    pending_main_active = false;
+
+		extern void server_post_to_main(std::function<void()> fn)
+		{
+			if (!fn) return;
+			std::lock_guard<std::mutex> g{pending_main_mu};
+			if (!pending_main_active) {
+				// Main loop has exited (or never started). Drop
+				// the callback -- the process is shutting down and
+				// touching connlist from here would race with
+				// `_shutdown_conns`.
+				return;
+			}
+			pending_main_q.push_back(std::move(fn));
+		}
+
+		// Drain queued main-loop callbacks. Called once per main-loop
+		// iteration, before `connlist_reap`, so callbacks see a
+		// consistent connlist and can safely call `conn_destroy`.
+		static void drain_pending_main(void)
+		{
+			std::vector<std::function<void()>> local;
+			{
+				std::lock_guard<std::mutex> g{pending_main_mu};
+				if (pending_main_q.empty()) return;
+				local.swap(pending_main_q);
+			}
+			for (auto& fn : local) {
+				try { fn(); }
+				catch (...) {
+					eventlog(eventlog_level_error, __FUNCTION__,
+					    "exception escaped a main-loop callback; ignored");
+				}
+			}
+		}
+
+		extern int server_release_bnet_tcp_listener_fd(std::size_t listener_index)
+		{
+			if (listener_index >= bnet_tcp_listeners.size()) {
+				return -1;
+			}
+			auto & info = bnet_tcp_listeners[listener_index];
+			const int fd = info.ssocket;
+			info.ssocket = -1;
+			// Also null out the legacy laddr_info entry so that
+			// `_shutdown_addrs()` skips its `psock_close()`. After
+			// this returns, the caller owns the fd and is
+			// responsible for closing it.
+			if (auto * curr_laddr = static_cast<t_addr *>(info.opaque_laddr)) {
+				if (auto * laddr_info = static_cast<t_laddr_info *>(addr_get_data(curr_laddr).p)) {
+					laddr_info->ssocket = -1;
+				}
+			}
+			return fd;
 		}
 
 		extern void server_set_after_setup_hook(void (*hook)(void))
@@ -158,6 +254,143 @@ namespace pvpgn
 		extern std::vector<int> server_get_bnet_udp_fds(void)
 		{
 			return bnet_udp_fds;
+		}
+
+		// Forward decl: definition lives further down with the other
+		// `sd_*` helpers. Declared here so the v3 strangler-fig
+		// callback `server_handle_v3_accepted_bnet_socket` (below)
+		// can refer to it.
+		static int sd_finalize_accepted(
+		    t_addr const *             curr_laddr,
+		    t_laddr_info const *       laddr_info,
+		    int                        csocket,
+		    struct sockaddr_in const & caddr);
+
+		extern int server_handle_v3_accepted_bnet_socket(
+		    std::size_t              listener_index,
+		    int                      csocket,
+		    struct sockaddr_in const* caddr)
+		{
+			if (listener_index >= bnet_tcp_listeners.size()) {
+				eventlog(eventlog_level_error, __FUNCTION__, "v3 accept callback: listener index {} out of range ({} listeners)", listener_index, bnet_tcp_listeners.size());
+				psock_close(csocket);
+				return -1;
+			}
+			if (!caddr) {
+				eventlog(eventlog_level_error, __FUNCTION__, "v3 accept callback: null peer address");
+				psock_close(csocket);
+				return -1;
+			}
+
+			auto * curr_laddr  = static_cast<t_addr *>(bnet_tcp_listeners[listener_index].opaque_laddr);
+			auto * laddr_info  = static_cast<t_laddr_info *>(addr_get_data(curr_laddr).p);
+			if (!laddr_info) {
+				eventlog(eventlog_level_error, __FUNCTION__, "v3 accept callback: null laddr_info for index {}", listener_index);
+				psock_close(csocket);
+				return -1;
+			}
+
+			return sd_finalize_accepted(curr_laddr, laddr_info, csocket, *caddr);
+		}
+
+		extern t_connection * server_handle_v3_owned_bnet_socket(
+		    std::size_t              listener_index,
+		    int                      csocket,
+		    struct sockaddr_in const* caddr)
+		{
+			if (listener_index >= bnet_tcp_listeners.size()) {
+				eventlog(eventlog_level_error, __FUNCTION__, "v3 owned-socket factory: listener index {} out of range ({} listeners)", listener_index, bnet_tcp_listeners.size());
+				return NULL;
+			}
+			if (!caddr) {
+				eventlog(eventlog_level_error, __FUNCTION__, "v3 owned-socket factory: null peer address");
+				return NULL;
+			}
+
+			auto * curr_laddr  = static_cast<t_addr *>(bnet_tcp_listeners[listener_index].opaque_laddr);
+			auto * laddr_info  = static_cast<t_laddr_info *>(addr_get_data(curr_laddr).p);
+			if (!laddr_info) {
+				eventlog(eventlog_level_error, __FUNCTION__, "v3 owned-socket factory: null laddr_info for index {}", listener_index);
+				return NULL;
+			}
+
+			char tempa[32];
+			if (!addr_get_addr_str(curr_laddr, tempa, sizeof(tempa)))
+				std::strcpy(tempa, "x.x.x.x:x");
+
+			if (curr_exittime) {
+				/* shutting down -- refuse new connections */
+				return NULL;
+			}
+
+			char addrstr[INET_ADDRSTRLEN] = { 0 };
+			if (ipbanlist_check(inet_ntop(AF_INET, &(caddr->sin_addr), addrstr, sizeof(addrstr))) != 0)
+			{
+				eventlog(eventlog_level_info, __FUNCTION__, "[{}] v3-owned: connection from banned address {} denied", csocket, addrstr);
+				return NULL;
+			}
+
+			eventlog(eventlog_level_info, __FUNCTION__, "[{}] v3-owned: accepted connection from {} on {}", csocket, addr_num_to_addr_str(ntohl(caddr->sin_addr.s_addr), ntohs(caddr->sin_port)), tempa);
+
+			if (prefs_get_use_keepalive())
+			{
+				int val = 1;
+				if (psock_setsockopt(csocket, PSOCK_SOL_SOCKET, PSOCK_SO_KEEPALIVE, &val, (psock_t_socklen)sizeof(val)) < 0)
+					eventlog(eventlog_level_error, __FUNCTION__, "[{}] v3-owned: could not set socket option SO_KEEPALIVE (psock_setsockopt: {})", csocket, pstrerror(psock_errno()));
+			}
+
+			unsigned int   raddr;
+			unsigned short rport;
+			{
+				struct sockaddr_in rsaddr;
+				psock_t_socklen    rlen;
+				std::memset(&rsaddr, 0, sizeof(rsaddr));
+				rlen = sizeof(rsaddr);
+				if (psock_getsockname(csocket, (struct sockaddr *)&rsaddr, &rlen) < 0
+				    || rsaddr.sin_family != PSOCK_AF_INET)
+				{
+					raddr = addr_get_ip(curr_laddr);
+					rport = addr_get_port(curr_laddr);
+				}
+				else
+				{
+					raddr = ntohl(rsaddr.sin_addr.s_addr);
+					rport = ntohs(rsaddr.sin_port);
+				}
+			}
+
+			/* Asio drives reads/writes for this fd, so legacy MUST
+			 * keep it in blocking mode-from-our-side -- we do NOT
+			 * flip PSOCK_NONBLOCK here. Asio sets its own mode on
+			 * the underlying socket. */
+
+			t_connection * c = conn_create(csocket, laddr_info->usocket,
+			    raddr, rport,
+			    addr_get_ip(curr_laddr), addr_get_port(curr_laddr),
+			    ntohl(caddr->sin_addr.s_addr), ntohs(caddr->sin_port));
+			if (!c) {
+				eventlog(eventlog_level_error, __FUNCTION__, "[{}] v3-owned: unable to create new connection", csocket);
+				return NULL;
+			}
+
+			/* Mark BEFORE any teardown path can fire so that an
+			 * early `conn_destroy` won't double-close our fd. */
+			conn_set_v3_owns_socket(c, 1);
+
+			/* Only the bnet listener type makes sense here -- v3
+			 * TcpBridge only adopts bnet listeners. For safety we
+			 * still attach the initkill timer used by the legacy
+			 * bnet branch. */
+			if (laddr_info->type == laddr_type_bnet) {
+				int delay = prefs_get_initkill_timer();
+				if (delay) {
+					t_timer_data data;
+					data.p = NULL;
+					timerlist_add_timer(c, std::time(NULL) + delay, conn_shutdown, data);
+				}
+			}
+
+			return c;
 		}
 
 		extern void server_quit_delay(int delay)
@@ -266,46 +499,27 @@ namespace pvpgn
 		static int handle_tcp(void *data, t_fdwatch_type rw);
 		static int handle_udp(void *data, t_fdwatch_type rw);
 
-
-		static int sd_accept(t_addr const * curr_laddr, t_laddr_info const * laddr_info, int ssocket, int usocket)
+		/* Per-connection setup that runs after a TCP socket has
+		 * been accepted (either via the legacy fdwatch loop or
+		 * the v3 TcpAcceptor strangler-fig). Performs ipban check,
+		 * SO_KEEPALIVE, getsockname, non-blocking flip, conn_create,
+		 * conn_add_fdwatch, and listener-type specific setup.
+		 * Returns 0 on success, -1 on failure (csocket is closed
+		 * or its associated t_connection is marked for destruction
+		 * before returning -1).
+		 */
+		static int sd_finalize_accepted(
+		    t_addr const *             curr_laddr,
+		    t_laddr_info const *       laddr_info,
+		    int                        csocket,
+		    struct sockaddr_in const & caddr)
 		{
-			char               tempa[32];
-			int                csocket;
-			struct sockaddr_in caddr;
-			psock_t_socklen    caddr_len;
-			unsigned int       raddr;
-			unsigned short     rport;
+			unsigned int   raddr;
+			unsigned short rport;
+			char           tempa[32];
 
 			if (!addr_get_addr_str(curr_laddr, tempa, sizeof(tempa)))
 				std::strcpy(tempa, "x.x.x.x:x");
-
-			/* accept the connection */
-			std::memset(&caddr, 0, sizeof(caddr)); /* not sure if this is needed... modern systems are ok anyway */
-			caddr_len = sizeof(caddr);
-			if ((csocket = psock_accept(ssocket, (struct sockaddr *)&caddr, &caddr_len)) < 0)
-			{
-				/* BSD, POSIX error for aborted connections, SYSV often uses EAGAIN or EPROTO */
-				if (
-#ifdef PSOCK_EWOULDBLOCK
-					psock_errno() == PSOCK_EWOULDBLOCK ||
-#endif
-#ifdef PSOCK_ECONNABORTED
-					psock_errno() == PSOCK_ECONNABORTED ||
-#endif
-#ifdef PSOCK_EPROTO
-					psock_errno() == PSOCK_EPROTO ||
-#endif
-					0)
-					eventlog(eventlog_level_error, __FUNCTION__, "client aborted connection on {} (psock_accept: {})", tempa, pstrerror(psock_errno()));
-				else /* EAGAIN can mean out of resources _or_ connection aborted :( */
-				if (
-#ifdef PSOCK_EINTR
-					psock_errno() != PSOCK_EINTR &&
-#endif
-					1)
-					eventlog(eventlog_level_error, __FUNCTION__, "could not accept new connection on {} (psock_accept: {})", tempa, pstrerror(psock_errno()));
-				return -1;
-			}
 
 			/* dont accept new connections while shutting down */
 			if (curr_exittime) {
@@ -337,12 +551,11 @@ namespace pvpgn
 				struct sockaddr_in rsaddr;
 				psock_t_socklen    rlen;
 
-				std::memset(&rsaddr, 0, sizeof(rsaddr)); /* not sure if this is needed... modern systems are ok anyway */
+				std::memset(&rsaddr, 0, sizeof(rsaddr));
 				rlen = sizeof(rsaddr);
 				if (psock_getsockname(csocket, (struct sockaddr *)&rsaddr, &rlen) < 0)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] unable to determine real local port (psock_getsockname: {})", csocket, pstrerror(psock_errno()));
-					/* not a fatal error */
 					raddr = addr_get_ip(curr_laddr);
 					rport = addr_get_port(curr_laddr);
 				}
@@ -351,7 +564,6 @@ namespace pvpgn
 					if (rsaddr.sin_family != PSOCK_AF_INET)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "local address returned with bad address family {}", (int)rsaddr.sin_family);
-						/* not a fatal error */
 						raddr = addr_get_ip(curr_laddr);
 						rport = addr_get_port(curr_laddr);
 					}
@@ -373,7 +585,7 @@ namespace pvpgn
 			{
 				t_connection * c;
 
-				if (!(c = conn_create(csocket, usocket, raddr, rport, addr_get_ip(curr_laddr), addr_get_port(curr_laddr), ntohl(caddr.sin_addr.s_addr), ntohs(caddr.sin_port))))
+				if (!(c = conn_create(csocket, laddr_info->usocket, raddr, rport, addr_get_ip(curr_laddr), addr_get_port(curr_laddr), ntohl(caddr.sin_addr.s_addr), ntohs(caddr.sin_port))))
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] unable to create new connection (closing connection)", csocket);
 					psock_close(csocket);
@@ -429,6 +641,48 @@ namespace pvpgn
 			}
 
 			return 0;
+		}
+
+
+		static int sd_accept(t_addr const * curr_laddr, t_laddr_info const * laddr_info, int ssocket, int usocket)
+		{
+			char               tempa[32];
+			int                csocket;
+			struct sockaddr_in caddr;
+			psock_t_socklen    caddr_len;
+
+			if (!addr_get_addr_str(curr_laddr, tempa, sizeof(tempa)))
+				std::strcpy(tempa, "x.x.x.x:x");
+
+			/* accept the connection */
+			std::memset(&caddr, 0, sizeof(caddr));
+			caddr_len = sizeof(caddr);
+			if ((csocket = psock_accept(ssocket, (struct sockaddr *)&caddr, &caddr_len)) < 0)
+			{
+				/* BSD, POSIX error for aborted connections, SYSV often uses EAGAIN or EPROTO */
+				if (
+#ifdef PSOCK_EWOULDBLOCK
+					psock_errno() == PSOCK_EWOULDBLOCK ||
+#endif
+#ifdef PSOCK_ECONNABORTED
+					psock_errno() == PSOCK_ECONNABORTED ||
+#endif
+#ifdef PSOCK_EPROTO
+					psock_errno() == PSOCK_EPROTO ||
+#endif
+					0)
+					eventlog(eventlog_level_error, __FUNCTION__, "client aborted connection on {} (psock_accept: {})", tempa, pstrerror(psock_errno()));
+				else /* EAGAIN can mean out of resources _or_ connection aborted :( */
+				if (
+#ifdef PSOCK_EINTR
+					psock_errno() != PSOCK_EINTR &&
+#endif
+					1)
+					eventlog(eventlog_level_error, __FUNCTION__, "could not accept new connection on {} (psock_accept: {})", tempa, pstrerror(psock_errno()));
+				return -1;
+			}
+
+			return sd_finalize_accepted(curr_laddr, laddr_info, csocket, caddr);
 		}
 
 
@@ -1058,11 +1312,22 @@ namespace pvpgn
 				if (psock_ctl(laddr_info->ssocket, PSOCK_NONBLOCK) < 0)
 					eventlog(eventlog_level_error, __FUNCTION__, "could not set {} TCP listen socket to non-blocking mode (psock_ctl: {})", laddr_type_get_str(laddr_info->type), pstrerror(psock_errno()));
 
-				/* index not stored persisently because we dont need to refer to it later */
-				fidx = fdwatch_add_fd(laddr_info->ssocket, fdwatch_type_read, handle_accept, curr_laddr);
-				if (fidx < 0) {
-					eventlog(eventlog_level_error, __FUNCTION__, "could not add listening socket {} to fdwatch pool (max sockets?)", laddr_info->ssocket);
-					goto errsock;
+				/* v3 strangler-fig: for bnet TCP listeners, optionally
+				 * skip the legacy fdwatch registration so the v3
+				 * TcpAcceptor can adopt the listening fd. Other
+				 * listener types always use the legacy accept loop. */
+				const bool skip_tcp_for_this = (skip_legacy_tcp_fdwatch
+					&& laddr_info->type == laddr_type_bnet);
+				fidx = -1;
+				if (!skip_tcp_for_this) {
+					/* index not stored persisently because we dont need to refer to it later */
+					fidx = fdwatch_add_fd(laddr_info->ssocket, fdwatch_type_read, handle_accept, curr_laddr);
+					if (fidx < 0) {
+						eventlog(eventlog_level_error, __FUNCTION__, "could not add listening socket {} to fdwatch pool (max sockets?)", laddr_info->ssocket);
+						goto errsock;
+					}
+				} else {
+					eventlog(eventlog_level_info, __FUNCTION__, "{} TCP fd {} reserved for v3 TcpAcceptor (skipped fdwatch)", laddr_type_get_str(laddr_info->type), laddr_info->ssocket);
 				}
 
 				eventlog(eventlog_level_info, __FUNCTION__, "listening for {} connections on {} TCP", laddr_type_get_str(laddr_info->type), tempa);
@@ -1102,6 +1367,20 @@ namespace pvpgn
 						}
 					}
 				}
+
+				/* v3 strangler-fig: record per-listener metadata for
+				 * the TcpBridge whenever bnet TCP fdwatch is skipped. */
+				if (skip_tcp_for_this) {
+					bnet_tcp_listener_info info;
+					info.ssocket       = laddr_info->ssocket;
+					info.usocket       = (laddr_info->type == laddr_type_bnet)
+					                       ? laddr_info->usocket : -1;
+					info.laddr_ip      = addr_get_ip(curr_laddr);
+					info.laddr_port    = addr_get_port(curr_laddr);
+					info.type          = static_cast<int>(laddr_info->type);
+					info.opaque_laddr  = const_cast<t_addr *>(curr_laddr);
+					bnet_tcp_listeners.push_back(info);
+				}
 			}
 
 			return 0;
@@ -1111,7 +1390,7 @@ namespace pvpgn
 			laddr_info->usocket = -1;
 
 		errfdw:
-			fdwatch_del_fd(fidx);
+			if (fidx >= 0) fdwatch_del_fd(fidx);
 
 		errsock:
 			psock_close(laddr_info->ssocket);
@@ -1294,6 +1573,14 @@ namespace pvpgn
 			next_savetime = starttime + prefs_get_user_sync_timer();
 			war3_ladder_updatetime = starttime - prefs_get_war3_ladder_update_secs();
 			output_updatetime = starttime - prefs_get_output_update_secs();
+
+			/* v3 strangler-fig (38g): open the main-loop post queue
+			 * so `server_post_to_main` from worker threads is
+			 * accepted. Closed below when the loop exits. */
+			{
+				std::lock_guard<std::mutex> g{pending_main_mu};
+				pending_main_active = true;
+			}
 
 			for (;;)
 			{
@@ -1560,6 +1847,13 @@ namespace pvpgn
 #endif
 				}
 
+				/* v3 strangler-fig (38g): run any work posted by
+				 * Asio worker threads (e.g. `teardown_session`)
+				 * on this thread before fdwatch polling so it
+				 * shares the same single-threaded invariants as
+				 * `timerlist_check_timers` / `connlist_reap`. */
+				drain_pending_main();
+
 				/* no need to populate the fdwatch structures as they are populated on the fly
 				 * by sd_accept, conn_push_outqueue, conn_pull_outqueue, conn_destory */
 
@@ -1583,6 +1877,16 @@ namespace pvpgn
 				/* reap dead connections */
 				connlist_reap();
 
+			}
+
+			/* v3 strangler-fig (38g): close the main-loop post
+			 * queue. Any callbacks posted after this point will be
+			 * dropped on the floor (the process is shutting down
+			 * and `_shutdown_conns` is about to walk connlist). */
+			{
+				std::lock_guard<std::mutex> g{pending_main_mu};
+				pending_main_active = false;
+				pending_main_q.clear();
 			}
 		}
 
@@ -1624,6 +1928,135 @@ namespace pvpgn
 		extern int server_process(void)
 		{
 			t_addrlist *    laddrs;
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// Composition root (Batch 21e + 23c): install a
+			// `core::ILogger` adapter as the v3 default sink so any
+			// application/integration code that calls
+			// `pvpgn::core::log(...)` routes through a single seam.
+			//
+			// Default: `LegacyEventLogger` -- forwards to the
+			// existing `eventlog()` pipeline (legacy logfile format
+			// + rotation unchanged).
+			//
+			// Opt-in: set the environment variable
+			//   PVPGN_LOG_FORMAT=json
+			// to install `infra::log::JsonLineLogger` writing NDJSON
+			// to stderr. Useful for piping into jq / logstash /
+			// fluent-bit. The legacy `eventlog()` file output is
+			// unaffected (it is written from a different code path);
+			// this switch only redirects records that flow through
+			// the new `core::ILogger` seam (bridges, use-cases).
+			{
+				const char* fmt = std::getenv("PVPGN_LOG_FORMAT");
+				if (fmt != nullptr && std::strcmp(fmt, "json") == 0) {
+					pvpgn::core::set_default_logger(
+						std::make_shared<
+							pvpgn::infra::log::JsonLineLogger>(
+								std::cerr));
+				} else {
+					pvpgn::core::set_default_logger(
+						std::make_shared<
+							pvpgn::integration::legacy_bnetd::
+								LegacyEventLogger>());
+				}
+			}
+
+			// Composition root (Batch 25a / Batch 26a): route whisper
+			// rejection replies through the v3 `IChatReplySink` by
+			// default so the user-visible text is owned by an
+			// injected `IStringTable` (enabling future translations
+			// without touching the legacy `localize()` machinery).
+			//
+			// Default: ON. Set `PVPGN_V3_CHAT_REPLIES=0` to opt out
+			// and fall back to the legacy whisper reply text. The
+			// sink + table are leaked intentionally for process
+			// lifetime (composition root); when the sink returns
+			// `true` from `emit_whisper_reply`, the chat command
+			// bridge reports the message handled and the legacy
+			// path is short-circuited.
+			{
+				const char* off =
+					std::getenv("PVPGN_V3_CHAT_REPLIES");
+				const bool disabled =
+					(off != nullptr && std::strcmp(off, "0") == 0);
+				if (!disabled) {
+					static pvpgn::application::i18n::MapStringTable
+						s_tbl;
+					pvpgn::integration::legacy_bnetd::
+						LegacyChatReplySink::seed_default_strings(
+							s_tbl);
+					// Optional translations -- harmless if no
+					// client requests deDE/ruRU.
+					pvpgn::integration::legacy_bnetd::
+						LegacyChatReplySink::seed_de_strings(s_tbl);
+					pvpgn::integration::legacy_bnetd::
+						LegacyChatReplySink::seed_ru_strings(s_tbl);
+					static pvpgn::integration::legacy_bnetd::
+						LegacyChatReplySink s_sink(s_tbl);
+					pvpgn::integration::legacy_bnetd::
+						set_chat_reply_sink_override(&s_sink);
+				}
+			}
+
+			// Composition root (Batch 26c): optionally install a
+			// process-singleton `InMemoryEventBus` and subscribe
+			// `PasswordRotationObserver` to it. Emits a structured
+			// audit-log line every time `must_change_password` flips.
+			//
+			// Opt-in: `PVPGN_V3_AUDIT_LOG=1`. Off by default because
+			// no production emitter publishes onto the bus today --
+			// the legacy code path mutates accounts directly and
+			// bypasses the aggregate. The wiring is therefore a
+			// future-ready seam: when the v3 `LoginUser` /
+			// `ChangePassword` use cases start being driven from
+			// bnetd, their drained events will land here without
+			// further composition-root changes.
+			{
+				const char* on =
+					std::getenv("PVPGN_V3_AUDIT_LOG");
+				if (on != nullptr && std::strcmp(on, "1") == 0) {
+					static pvpgn::infra::inmemory::InMemoryEventBus
+						s_bus;
+					static pvpgn::application::auth::
+						PasswordRotationObserver
+							s_obs(pvpgn::core::default_logger(),
+								  s_bus);
+					(void)s_obs;  // suppress unused-variable warning
+				}
+			}
+
+			// Composition root (Batch 30a): optionally install the
+			// real v3 ChangePassword handler. When `PVPGN_V3_CHANGEPW=1`
+			// the legacy `_client_changepassreq` short-circuits into
+			// `ChangePasswordUseCase` via the `BnetSessionHasher`
+			// adapter; the use-case verifies the double-hash, rotates
+			// the password, and writes the reply packet. The legacy
+			// arm only runs when the env var is unset.
+			{
+				const char* on =
+					std::getenv("PVPGN_V3_CHANGEPW");
+				if (on != nullptr && std::strcmp(on, "1") == 0) {
+					pvpgn::integration::legacy_bnetd::
+						install_change_password_handler();
+				}
+			}
+
+			// Composition root (Batch 30b): optionally install the
+			// telemetry-only v3 LoginUser handler. Always returns
+			// "not handled" today; the wiring exists so we can
+			// measure how often the slot would be exercised before
+			// committing to a real implementation that owns the
+			// loginreq1 / loginreq2 / loginreqw3 packet layouts.
+			{
+				const char* on =
+					std::getenv("PVPGN_V3_LOGIN");
+				if (on != nullptr && std::strcmp(on, "1") == 0) {
+					pvpgn::integration::legacy_bnetd::
+						install_login_user_handler();
+				}
+			}
+#endif
 
 			laddrs = NULL;
 			/* Start with the Battle.net address list */

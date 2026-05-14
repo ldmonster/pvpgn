@@ -30,7 +30,39 @@ endif(WIN32)
 
 # library checks
 if(WITH_BNETD)
-	find_package(ZLIB REQUIRED)
+	find_package(ZLIB QUIET)
+	if(NOT ZLIB_FOUND)
+		# Local bootstrap: fetch a known-good zlib release and build it
+		# in-tree. This keeps the legacy bnetd target buildable on
+		# checkouts that don't ship a system zlib (e.g. fresh Windows
+		# developer boxes without vcpkg / nuget). The target is built
+		# as a static library and aliased to ZLIB::ZLIB so the rest of
+		# the legacy tree continues to use the standard imported name.
+		message(STATUS "ZLIB not found via find_package; falling back to FetchContent")
+		include(FetchContent)
+		set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+		FetchContent_Declare(
+			zlib_bootstrap
+			URL      https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
+			URL_HASH SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
+		)
+		FetchContent_MakeAvailable(zlib_bootstrap)
+		# `zlib` upstream installs `zlibstatic` (static) and `zlib`
+		# (shared) targets. Prefer the static one to match how the
+		# pvpgn legacy tree historically links.
+		if(TARGET zlibstatic AND NOT TARGET ZLIB::ZLIB)
+			add_library(ZLIB::ZLIB ALIAS zlibstatic)
+			set(ZLIB_LIBRARIES zlibstatic)
+			set(ZLIB_INCLUDE_DIRS
+				"${zlib_bootstrap_SOURCE_DIR}"
+				"${zlib_bootstrap_BINARY_DIR}"
+			)
+			set(ZLIB_FOUND TRUE)
+		endif()
+	endif()
+	if(NOT ZLIB_FOUND AND NOT TARGET ZLIB::ZLIB)
+		message(FATAL_ERROR "ZLIB is required for WITH_BNETD=ON and could not be found or bootstrapped.")
+	endif()
 endif(WITH_BNETD)
 
 if(WITH_LUA)

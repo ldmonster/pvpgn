@@ -16,7 +16,7 @@ using domain::ladder::LadderCalculator;
 using domain::ladder::LadderEntry;
 using domain::ladder::LadderRules;
 
-TEST_CASE("LadderCalculator: equal-rated 1v1 → symmetric ±16 with K=32",
+TEST_CASE("LadderCalculator: equal-rated 1v1 -> symmetric +/-16 with K=32",
           "[domain][ladder]") {
     MatchReport rep{GameId{1}, ClientTag::parse("WAR3").value(),
                     {{AccountId{1}, MatchOutcome::Win},

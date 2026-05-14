@@ -21,6 +21,8 @@ namespace pvpgn::integration::legacy_bnetd {
 class UdpBridgeImpl {
 public:
     UdpBridgeImpl() = default;
+    explicit UdpBridgeImpl(infra::net::IoRuntime& runtime) noexcept
+        : external_runtime_(&runtime) {}
 
     ~UdpBridgeImpl() { stop(); }
 
@@ -40,13 +42,19 @@ public:
                 "server_set_skip_legacy_udp_fdwatch(true)?"});
         }
 
-        runtime_ = std::make_unique<infra::net::IoRuntime>();
+        // Use the externally provided runtime if one was supplied,
+        // otherwise fall back to owning our own.
+        infra::net::IoRuntime* runtime_ref = external_runtime_;
+        if (runtime_ref == nullptr) {
+            runtime_ = std::make_unique<infra::net::IoRuntime>();
+            runtime_ref = runtime_.get();
+        }
         endpoints_.reserve(fds.size());
         dispatchers_.reserve(fds.size());
 
         std::size_t installed = 0;
         for (int fd : fds) {
-            auto ep = std::make_unique<infra::net::UdpEndpoint>(*runtime_);
+            auto ep = std::make_unique<infra::net::UdpEndpoint>(*runtime_ref);
             auto adopted = ep->adopt_native_handle(fd);
             if (!adopted.has_value()) {
                 continue;
@@ -67,13 +75,18 @@ public:
                 "UdpBridge: no UDP endpoints could be adopted"});
         }
 
-        runtime_->run(1);
+        // `IoRuntime::run()` is idempotent: if the runtime is shared
+        // with another bridge that has already started it, this is a
+        // no-op.
+        runtime_ref->run(1);
         return installed;
     }
 
     void stop() {
         if (!running_.exchange(false)) return;
         for (auto& ep : endpoints_) ep->close();
+        // Only stop the runtime when we own it; an externally supplied
+        // runtime is the caller's responsibility.
         if (runtime_) runtime_->stop();
         dispatchers_.clear();
         endpoints_.clear();
@@ -84,12 +97,15 @@ public:
 
 private:
     std::atomic<bool>                                          running_{false};
+    infra::net::IoRuntime*                                     external_runtime_{nullptr};
     std::unique_ptr<infra::net::IoRuntime>                     runtime_;
     std::vector<std::unique_ptr<infra::net::UdpEndpoint>>      endpoints_;
     std::vector<std::unique_ptr<LegacyUdpDispatcher>>          dispatchers_;
 };
 
 UdpBridge::UdpBridge() : impl_(std::make_unique<UdpBridgeImpl>()) {}
+UdpBridge::UdpBridge(infra::net::IoRuntime& runtime)
+    : impl_(std::make_unique<UdpBridgeImpl>(runtime)) {}
 UdpBridge::~UdpBridge() = default;
 
 core::Result<std::size_t> UdpBridge::install() { return impl_->start(); }

@@ -8,6 +8,7 @@
 #include "application/ports/connection_handler.hpp"
 #include "core/bytes.hpp"
 #include "core/error.hpp"
+#include "protocol/bnet/anongame.hpp"
 #include "protocol/bnet/codec.hpp"
 #include "protocol/common/packet.hpp"
 #include "protocol/common/writer.hpp"
@@ -80,6 +81,42 @@ void BnetStranglerHandler::dispatch_frame(LegacyFrame frame) {
         to_fallback(std::move(frame));
         return;
     }
+
+    // Special-case the FINDANONGAME (0x44) sub-option multiplexer:
+    // route INFOREQ packets through the v3 INFOREPLY pipeline; defer
+    // every other sub-option to the legacy handler.
+    if (hdr.value().code == 0x44 /* kSidWarcraftGeneral */) {
+        auto* env = std::get_if<protocol::bnet::WarcraftGeneralRequest>(
+            &decoded.value());
+        if (!env || !inforeply_resolver_) {
+            to_fallback(std::move(frame));
+            return;
+        }
+        auto sub = protocol::bnet::parse_findanongame_request(*env);
+        if (!sub) {
+            to_fallback(std::move(frame));
+            return;
+        }
+        auto* req = std::get_if<protocol::bnet::AnonGameInfoRequest>(
+            &sub.value());
+        if (!req) {
+            // Other 0x44 sub-options (search/cancel/profile/...): legacy.
+            to_fallback(std::move(frame));
+            return;
+        }
+        auto bytes = inforeply_resolver_(*req);
+        if (!bytes) {
+            to_fallback(std::move(frame));
+            return;
+        }
+        if (auto* eg = egress(); eg && !bytes.value().empty()) {
+            eg->send(std::move(bytes).value());
+        }
+        ++handled_v3_;
+        ++inforeply_n_;
+        return;
+    }
+
     auto fsm_status = fsm_.handle(decoded.value());
     if (!fsm_status) {
         // FSM rejected the message (illegal in current state). Let

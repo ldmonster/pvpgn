@@ -448,6 +448,8 @@ namespace pvpgn
 
 
 			temp->protocol.cflags = 0;
+			temp->protocol.v3_router = NULL;
+			temp->protocol.v3_owns_socket = 0;
 
 			list_prepend_data(conn_head, temp);
 
@@ -708,7 +710,12 @@ namespace pvpgn
 			if (c->protocol.loggeduser) xfree((void*)c->protocol.loggeduser);
 
 			/* make sure the connection is closed */
-			if (c->socket.tcp_sock != -1) { /* -1 means that the socket was already closed by conn_close() */
+			if (c->protocol.v3_owns_socket) {
+				/* v3 strangler-fig (38e): v3 TcpSession owns the fd
+				 * and will close it via its own teardown path. Do not
+				 * touch fdwatch or the underlying socket from legacy
+				 * code here -- doing so would double-close. */
+			} else if (c->socket.tcp_sock != -1) { /* -1 means that the socket was already closed by conn_close() */
 				fdwatch_del_fd(c->socket.fdw_idx);
 				psock_shutdown(c->socket.tcp_sock, PSOCK_SHUT_RDWR);
 				psock_close(c->socket.tcp_sock);
@@ -2254,6 +2261,48 @@ namespace pvpgn
 			c->protocol.queues.outsize = size;
 		}
 
+		/* v3 strangler-fig (38c): process-global outbound routing
+		 * function pointer. Installed by the v3 integration layer
+		 * (legacy_bnet_frame_router_link.cpp) at static-init time,
+		 * NULL otherwise. Consulted by conn_push_outqueue. */
+		static int (*g_v3_route_outbound)(void * router,
+		                                  void const * bytes,
+		                                  unsigned int size) = NULL;
+
+		extern void conn_install_v3_outbound_route(
+		    int (*fn)(void * router, void const * bytes, unsigned int size))
+		{
+			g_v3_route_outbound = fn;
+		}
+
+		extern void conn_set_v3_router(t_connection * c, void * router)
+		{
+			if (!c)
+				return;
+			c->protocol.v3_router = router;
+		}
+
+		extern void * conn_get_v3_router(t_connection * c)
+		{
+			if (!c)
+				return NULL;
+			return c->protocol.v3_router;
+		}
+
+		extern void conn_set_v3_owns_socket(t_connection * c, int v)
+		{
+			if (!c)
+				return;
+			c->protocol.v3_owns_socket = (v != 0) ? 1u : 0u;
+		}
+
+		extern int conn_get_v3_owns_socket(t_connection * c)
+		{
+			if (!c)
+				return 0;
+			return c->protocol.v3_owns_socket != 0;
+		}
+
 		extern int conn_push_outqueue(t_connection * c, t_packet * packet)
 		{
 			if (!c)
@@ -2266,6 +2315,30 @@ namespace pvpgn
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL packet");
 				return -1;
+			}
+
+			/* v3 strangler-fig (38c): if the conn is owned by a v3
+			 * router AND a routing function has been installed, hand
+			 * the bytes off synchronously and skip the legacy queue.
+			 * On any failure (routing returns 0, or no function
+			 * installed) fall through to the legacy fdwatch path so
+			 * partially-wired conns never silently drop packets. */
+			if (c->protocol.v3_router != NULL && g_v3_route_outbound != NULL)
+			{
+				unsigned int sz = packet_get_size(packet);
+				void const * raw = packet_get_raw_data_const(packet, 0);
+				if (sz > 0 && raw != NULL)
+				{
+					if ((*g_v3_route_outbound)(c->protocol.v3_router, raw, sz) != 0)
+					{
+						/* Ownership semantics: caller of
+						 * conn_push_outqueue always packet_del_ref's
+						 * the packet after, regardless of whether we
+						 * queued or routed. The bytes have been copied
+						 * by the routing function. */
+						return 0;
+					}
+				}
 			}
 
 			// Protection from hack attempt

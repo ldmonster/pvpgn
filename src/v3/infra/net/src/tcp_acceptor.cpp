@@ -46,6 +46,45 @@ TcpAcceptor::listen(const std::string& host, std::uint16_t port, int backlog) {
     return listen(asio::ip::tcp::endpoint{addr, port}, backlog);
 }
 
+core::Result<asio::ip::tcp::endpoint>
+TcpAcceptor::adopt_native_handle(int fd, bool ipv6) {
+    if (open_) {
+        return core::fail(core::Error{core::StatusCode::FailedPrecondition,
+                                      "tcp acceptor already open"});
+    }
+    error_code ec;
+    const auto proto = ipv6 ? asio::ip::tcp::v6() : asio::ip::tcp::v4();
+    acceptor_.assign(proto, static_cast<asio::ip::tcp::acceptor::native_handle_type>(fd), ec);
+    if (ec) {
+        return core::fail(core::Error{core::StatusCode::Internal,
+                                      "tcp acceptor assign(" + std::to_string(fd) +
+                                          "): " + ec.message()});
+    }
+    open_ = true;
+    auto ep = acceptor_.local_endpoint(ec);
+    do_accept();
+    if (ec) {
+        return asio::ip::tcp::endpoint{};
+    }
+    return ep;
+}
+
+int TcpAcceptor::release_native_handle() {
+    if (!open_) return -1;
+    open_ = false;
+    error_code ec;
+#if defined(_MSC_VER)
+#  pragma warning(push)
+#  pragma warning(disable: 4996)  // acceptor::release: deprecated on pre-8.1 Windows
+#endif
+    auto fd = acceptor_.release(ec);
+#if defined(_MSC_VER)
+#  pragma warning(pop)
+#endif
+    if (ec) return -1;
+    return static_cast<int>(fd);
+}
+
 void TcpAcceptor::close() {
     if (!open_) return;
     open_ = false;
@@ -64,7 +103,9 @@ void TcpAcceptor::do_accept() {
             // Acceptor closed or transport error: stop the loop.
             return;
         }
-        if (factory_) {
+        if (raw_handler_) {
+            raw_handler_(std::move(sock));
+        } else if (factory_) {
             auto session = TcpSession::create(std::move(sock));
             factory_(session);
         }

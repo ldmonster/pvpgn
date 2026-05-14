@@ -14,7 +14,7 @@ using domain::social::Clan;
 using domain::social::ClanRank;
 using domain::social::FriendList;
 
-TEST_CASE("FriendList: add → AddOutcome::Added + FriendAdded event",
+TEST_CASE("FriendList: add -> AddOutcome::Added + FriendAdded event",
           "[domain][social][friend]") {
     FriendList fl{AccountId{1}};
     REQUIRE(fl.add(AccountId{2}) == FriendList::AddOutcome::Added);

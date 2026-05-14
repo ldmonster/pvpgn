@@ -16,6 +16,7 @@
 
 #include "application/ports/account_repository.hpp"
 #include "application/ports/event_bus.hpp"
+#include "application/ports/password_hasher.hpp"
 #include "application/ports/session_registry.hpp"
 #include "core/clock.hpp"
 #include "core/error.hpp"
@@ -37,6 +38,20 @@ struct LoginRequest {
     domain::SessionId session;
 };
 
+/// Legacy CLIENT_LOGINREQ1 / CLIENT_LOGINREQ2 arm: the client
+/// sends `hash2 = bnet_hash(ticks||sessionkey||hash1)`. The use-
+/// case re-derives the expected hash2 from the stored hash1 via
+/// the injected `IPasswordHasher`.
+struct LoginWithSessionHashRequest {
+    domain::UserName  name;
+    domain::BNHash    password_hash2;
+    std::uint32_t     ticks;
+    std::uint32_t     sessionkey;
+    domain::ClientTag tag;
+    domain::IpAddress ip;
+    domain::SessionId session;
+};
+
 struct LoginResponse {
     domain::AccountId id;
     domain::Locale    locale;
@@ -49,6 +64,12 @@ enum class LoginError {
     Banned,
     AlreadyLoggedIn,
     PersistenceFailed,
+    /// Account exists, credentials matched, but the password must
+    /// be rotated before the session is granted. Currently produced
+    /// only by the legacy-side `classify_login_attempt` bridge (the
+    /// domain aggregate `identity::Account` does not model
+    /// password-rotation policy yet).
+    MustChangePassword,
     Internal,
 };
 
@@ -59,17 +80,34 @@ public:
               application::ports::IEventBus& bus,
               core::IClock& clock) noexcept
         : accounts_(accounts), sessions_(sessions),
-          bus_(bus), clock_(clock) {}
+          bus_(bus), clock_(clock), hasher_(nullptr) {}
+
+    /// Hash2-aware overload (Batch 29b). When constructed with a
+    /// hasher the use-case also accepts
+    /// `LoginWithSessionHashRequest`. The cleartext-hash1 overload
+    /// remains available unconditionally.
+    LoginUser(application::ports::IAccountRepository& accounts,
+              application::ports::ISessionRegistry& sessions,
+              application::ports::IEventBus& bus,
+              core::IClock& clock,
+              const application::ports::IPasswordHasher& hasher) noexcept
+        : accounts_(accounts), sessions_(sessions),
+          bus_(bus), clock_(clock), hasher_(&hasher) {}
 
     using Result = core::Result<LoginResponse, LoginError>;
 
     Result execute(LoginRequest req);
 
+    /// Hash2-arm execution. Requires a hasher (returns `Internal`
+    /// otherwise so missing-hasher misuse is loud).
+    Result execute(LoginWithSessionHashRequest req);
+
 private:
-    application::ports::IAccountRepository& accounts_;
-    application::ports::ISessionRegistry&   sessions_;
-    application::ports::IEventBus&          bus_;
-    core::IClock&                           clock_;
+    application::ports::IAccountRepository&    accounts_;
+    application::ports::ISessionRegistry&      sessions_;
+    application::ports::IEventBus&             bus_;
+    core::IClock&                              clock_;
+    const application::ports::IPasswordHasher* hasher_;
 };
 
 }  // namespace pvpgn::application::auth

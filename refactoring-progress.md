@@ -381,3 +381,202 @@ storage, eventlog), which is out of scope for the unit-test gate
   low enough that this is fine, but the `FiberPool` machinery is
   available for any future protocol that needs N-thread fan-out.
 
+
+---
+
+> **NOTE (recovery):** The progress notes for Batches 23 through 38e
+> were lost mid-session due to a string-replace edit that matched and
+> truncated a much larger region than intended. The code changes for
+> those batches are preserved in the working copy (see git diff vs
+> HEAD); only the narrative changelog entries were lost. Earlier
+> entries can be reconstructed from the chat transcript at
+> `c:\Users\user\AppData\Roaming\Code\User\workspaceStorage\c4a9fc88ae796fd69b6b387dfb541fdd\GitHub.copilot-chat\transcripts\9be30c7d-ada1-4109-a20a-81d4f432e754.jsonl`
+> if needed. The two entries below cover only the most recent work.
+
+## 2026-06-21 (oo) -- Batch 38f: TcpBridge live flip (compilation-validated only)
+
+### Caveat
+
+The agent cannot run a real BNet/D2DV client against the server, so
+this batch ships the structural flip and asserts only that:
+
+1. all three build matrices (v3 / legacy / linked) compile clean
+   under `/WX`,
+2. the existing test suites (694 / 698 / 712 cases) pass at 100%,
+3. the default code path (`v3_tcp_session_mode = 0`) is
+   byte-for-byte identical to pre-38f behaviour.
+
+End-to-end validation with `v3_tcp_session_mode = 1` is an
+operator responsibility; runtime gaps are tracked at the end of this
+entry.
+
+### What this batch lands
+
+* **Class-refresh hook on `LegacyBnetFrameRouter`.** New
+  `set_class_refresh` / `clear_class_refresh` statics in the
+  router header. After every successful dispatch the router consults
+  the hook and calls `set_class(...)` so the framing follows the
+  legacy conn's class transition (`conn_class_init` ->
+  `conn_class_bnet` after the magic byte).
+* **Init-byte handling in the linked-variant dispatch.** Dispatches
+  on `conn_get_class(conn)`: `conn_class_init` ->
+  `handle_init_packet`; `conn_class_bnet` -> `handle_bnet_packet`;
+  other classes log Warn + return failure.
+* **Class-refresh registration.** `refresh_class_from_conn` maps
+  every relevant `conn_class_*` to `ConnectionClass`; the
+  `AutoRegister` ctor installs it.
+* **Owned-socket factory on the legacy side.**
+  `server_handle_v3_owned_bnet_socket` in `src/bnetd/server.cpp`
+  + declaration in `server.h`. Mirrors `sd_finalize_accepted` but
+  skips `PSOCK_NONBLOCK`, `conn_add_fdwatch`, and the on-error
+  `psock_close` (caller owns the fd). Calls
+  `conn_set_v3_owns_socket(c, 1)` before returning.
+* **`server.h` forward-declares `t_connection`.**
+* **`TcpSession::native_handle_int()`** -- new accessor.
+* **`TcpSessionEgress`** in `tcp_bridge.cpp`: an
+  `IConnectionEgress` adapter holding `weak_ptr<TcpSession>`.
+* **`V3OwnedSession` bundle**: shared_ptr<TcpSession>,
+  unique_ptr<TcpSessionEgress>, unique_ptr<LegacyBnetFrameRouter>,
+  t_connection*, atomic torn_down flag.
+* **`TcpBridgeImpl::sessions_`**: `mutex` + `vector<shared_ptr<
+  V3OwnedSession>>` registry; callbacks capture `weak_ptr` so
+  the registry is the single strong owner.
+* **`spawn_v3_owned_session`**: builds the bundle, calls the
+  legacy factory, wires conn -> router, starts router, hooks
+  `on_bytes` -> `router.on_bytes` and `on_close` ->
+  `teardown_session`, inserts in registry, calls
+  `session.start()`.
+* **`raw_handler` flip**: when `v3_tcp_session_mode != 0`,
+  routes via `spawn_v3_owned_session` instead of releasing the
+  fd to legacy. Default path byte-for-byte unchanged.
+
+### Files changed
+
+| Path | Nature |
+| ---- | ------ |
+| `src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/legacy_bnet_frame_router.hpp` | New `set_class_refresh` API |
+| `src/v3/integration/legacy_bnetd/src/legacy_bnet_frame_router.cpp` | Implements + invokes class refresh after each successful dispatch |
+| `src/v3/integration/legacy_bnetd/src/legacy_bnet_frame_router_link.cpp` | Dispatch-on-class; installs class-refresh hook |
+| `src/bnetd/server.h` | Forward-decl `t_connection`; declare new factory |
+| `src/bnetd/server.cpp` | Define `server_handle_v3_owned_bnet_socket` |
+| `src/v3/integration/legacy_bnetd/src/tcp_bridge.cpp` | TcpSessionEgress + V3OwnedSession + spawn + raw_handler flag check |
+
+### Build matrix after 38f
+
+* `build/v3`: **694/694**.
+* `build/legacy`: **698/698**.
+* `build/linked`: **712/712**.
+
+### Known runtime gaps documented at landing time
+
+1. `udp_sock` shared per listener -- later audit (38g) concluded
+   this is **non-issue**: legacy `sd_finalize_accepted` shares
+   the same fd; `udp_sock` is only used for `psock_sendto` in
+   `udptest_send.cpp` where the destination is per-conn but the
+   source is per-listener; receive is registered once per listener.
+2. **Thread safety of `conn_destroy` from Asio worker** -- racing
+   the legacy main thread. Addressed in 38g.
+3. Init-byte timing -- pending real-client verification.
+4. Outqueue ordering with the redirect -- pending real-client
+   verification.
+5. `pvpgn` shutdown ordering -- addressed in 38g.
+
+## 2026-06-21 (pp) -- Batch 38g: cross-thread teardown + shutdown ordering
+
+User accepted runtime smoke-test responsibility for 38f and asked
+the agent to land two of the documented gap items in one batch:
+
+* **38g-thread**: post `teardown_session` to the legacy main loop
+  instead of running it on the Asio worker thread that fired
+  `on_close`.
+* **38g-shutdown**: drain `sessions_` from `TcpBridge::stop()`
+  before stopping the runtime.
+
+### 38g-thread: main-loop post seam
+
+* New seam in `src/bnetd/server.h`:
+  `extern void server_post_to_main(std::function<void()> fn);`
+* Implementation in `src/bnetd/server.cpp`: static
+  `std::mutex pending_main_mu` guards a
+  `std::vector<std::function<void()>> pending_main_q`. A
+  `pending_main_active` flag is opened at the start of
+  `_server_mainloop` and closed immediately after the loop exits;
+  callbacks posted while the flag is closed are silently dropped
+  (process is going away).
+* `drain_pending_main()` swaps the queue under the mutex then
+  invokes callbacks outside the mutex (so a callback that calls
+  `server_post_to_main` will not deadlock). Wrapped in
+  `try{}catch(...)` with an eventlog so a misbehaving callback
+  cannot take down the loop.
+* Hook point: right after `timerlist_check_timers(now)` and
+  before the fdwatch poll, sharing the timer pass's
+  single-threaded invariants.
+* Added `<functional>`, `<mutex>`, `<vector>`, `<utility>`
+  to `server.cpp`; `<functional>` to `server.h`.
+
+### TcpBridge teardown refactor
+
+`teardown_session` (in `tcp_bridge.cpp`) now splits work:
+
+1. **Synchronous (any thread)**: remove the bundle's `shared_ptr`
+   from `sessions_` under `sessions_mu_`.
+2. **Posted to main loop**: `conn_set_v3_router(c, nullptr)`
+   then `conn_destroy(c, nullptr, DESTROY_FROM_DEADLIST)`. The
+   posted lambda captures the bundle's `shared_ptr` so the
+   `V3OwnedSession` (and the `TcpSession` it owns) outlives
+   `conn_destroy`. After the callback returns, the lambda
+   destructs, dropping the last strong ref: the `TcpSession`
+   destructs and the fd is closed.
+
+The `torn_down` atomic guard still makes the flow idempotent.
+
+### 38g-shutdown: drain in `stop()`
+
+`TcpBridgeImpl::stop()` now, after closing the acceptors but
+before stopping the runtime:
+
+* Copies `sessions_` under `sessions_mu_`.
+* Calls `session->close()` on each (outside the mutex so the
+  on_close callback can re-enter `teardown_session`).
+* Drops the copy.
+
+The cooperative `runtime_->stop()` that follows joins worker
+threads and runs queued handlers to completion. Legacy-side
+`conn_destroy` posts queued during teardown either run on the
+next main-loop iteration (if the loop is still running) or are
+dropped (if the loop has exited, in which case `_shutdown_conns`
+will reap the connection itself, skipping the fd close because
+`v3_owns_socket = 1`).
+
+### Files changed
+
+| Path | Nature |
+| ---- | ------ |
+| `src/bnetd/server.h` | Declared `server_post_to_main`; `#include <functional>` |
+| `src/bnetd/server.cpp` | Added queue + mutex + active flag + `drain_pending_main()`; hook in `_server_mainloop`; open/close gating around the `for(;;)` |
+| `src/v3/integration/legacy_bnetd/src/tcp_bridge.cpp` | `teardown_session` posts conn_destroy via `server_post_to_main`; `stop()` drains `sessions_` |
+
+### Build matrix after 38g
+
+* `build/v3`: **694/694**.
+* `build/legacy`: **698/698**.
+* `build/linked`: **712/712**.
+
+### Gap list status (carried over from 38f)
+
+1. Cross-thread `conn_destroy` race -- **addressed** (38g-thread).
+2. `stop()` shutdown ordering -- **addressed** (38g-shutdown).
+3. `udp_sock` per listener -- **non-issue on audit** (legacy
+   does the same; sendto-only usage; receive is per-listener).
+   Closed without code action.
+4. Init-byte timing -- still pending verification; depends on
+   38g-thread being deployed (now done).
+5. Outqueue ordering -- still pending verification; depends on
+   real traffic.
+
+### Next step
+
+Operator runtime validation of the linked binary with
+`v3_tcp_session_mode = 1`. Items 4-5 of the gap list need a real
+client to drive them; pending that, the agent has no further
+mechanical work to do on the TcpBridge.

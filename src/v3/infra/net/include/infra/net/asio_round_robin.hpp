@@ -58,28 +58,45 @@ private:
     std::size_t                                counter_{0};
 
 public:
-    struct service : public boost::asio::io_context::service {
-        static boost::asio::io_context::id id;
+    struct service : public boost::asio::execution_context::service {
+        using key_type = service;
 
-        std::unique_ptr<boost::asio::io_context::work> work_;
+        static boost::asio::execution_context::id id;
 
-        service(boost::asio::io_context& io_ctx)
-            : boost::asio::io_context::service(io_ctx),
-              work_{new boost::asio::io_context::work(io_ctx)} {}
+        // Modern replacement for the removed `io_context::work`:
+        // an executor_work_guard keeps the io_context's run() from
+        // returning while any guard is alive, which is exactly the
+        // behaviour the original example relied on.
+        std::unique_ptr<
+            boost::asio::executor_work_guard<
+                boost::asio::io_context::executor_type>> work_;
+
+        service(boost::asio::execution_context& ctx)
+            : boost::asio::execution_context::service(ctx),
+              work_{
+                  new boost::asio::executor_work_guard<
+                      boost::asio::io_context::executor_type>(
+                      boost::asio::make_work_guard(
+                          static_cast<boost::asio::io_context&>(ctx)
+                              .get_executor()))} {}
 
         ~service() override = default;
 
         service(const service&)            = delete;
         service& operator=(const service&) = delete;
 
-        void shutdown_service() override final {
+        // execution_context::service uses `shutdown()` not
+        // `shutdown_service()` since Boost 1.66+.
+        void shutdown() noexcept override final {
             work_.reset();
         }
     };
 
     round_robin(const std::shared_ptr<boost::asio::io_context>& io_ctx)
         : io_ctx_(io_ctx), suspend_timer_(*io_ctx_) {
-        boost::asio::add_service(*io_ctx_, new service(*io_ctx_));
+        // Modern spelling: `make_service<T>(ctx, args...)` replaces
+        // the deprecated `add_service(ctx, new T(...))`.
+        boost::asio::make_service<service>(*io_ctx_);
         boost::asio::post(*io_ctx_, [this]() mutable {
             while (!io_ctx_->stopped()) {
                 if (has_ready_fibers()) {
@@ -142,7 +159,7 @@ public:
     }
 };
 
-inline boost::asio::io_context::id round_robin::service::id;
+inline boost::asio::execution_context::id round_robin::service::id;
 
 }}}  // namespace boost::fibers::asio
 

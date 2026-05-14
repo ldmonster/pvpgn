@@ -98,10 +98,16 @@
 #endif
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
+# include "infra/net/io_runtime.hpp"
 # include "integration/legacy_bnetd/udp_bridge.hpp"
+# include "integration/legacy_bnetd/tcp_bridge.hpp"
 /* Lifetime-bridge between the captureless C-style hooks installed
- * on the legacy server and the bridge instance scoped to main(). */
+ * on the legacy server and the bridge instances scoped to main().
+ * Both bridges share `g_v3_io_runtime` so we only spend one io
+ * thread and one io_context for the whole strangler-fig surface. */
+pvpgn::infra::net::IoRuntime*                g_v3_io_runtime_ptr = nullptr;
 pvpgn::integration::legacy_bnetd::UdpBridge* g_v3_udp_bridge_ptr = nullptr;
+pvpgn::integration::legacy_bnetd::TcpBridge* g_v3_tcp_bridge_ptr = nullptr;
 #endif
 
 
@@ -592,27 +598,54 @@ extern int main(int argc, char ** argv)
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 		/* v3 strangler-fig: instruct the legacy server to skip
-		 * registering bnet UDP sockets with fdwatch. The bridge
-		 * below adopts those fds into an `infra::net::UdpEndpoint`
-		 * once `server_process()` finishes the setup phase. */
-		pvpgn::integration::legacy_bnetd::UdpBridge v3_udp_bridge;
+		 * registering bnet UDP and TCP listening sockets with
+		 * fdwatch. The bridges below adopt those fds once
+		 * `server_process()` finishes the setup phase.  A single
+		 * shared `IoRuntime` backs both bridges -- one io_context,
+		 * one worker thread, two strangler-fig consumers. */
+		pvpgn::infra::net::IoRuntime              v3_shared_runtime;
+		pvpgn::integration::legacy_bnetd::UdpBridge v3_udp_bridge(v3_shared_runtime);
+		pvpgn::integration::legacy_bnetd::TcpBridge v3_tcp_bridge(v3_shared_runtime);
+		g_v3_io_runtime_ptr = &v3_shared_runtime;
 		g_v3_udp_bridge_ptr = &v3_udp_bridge;
+		g_v3_tcp_bridge_ptr = &v3_tcp_bridge;
 		pvpgn::bnetd::server_set_skip_legacy_udp_fdwatch(true);
+		pvpgn::bnetd::server_set_skip_legacy_tcp_fdwatch(true);
 		pvpgn::bnetd::server_set_after_setup_hook(+[]() {
-			if (!g_v3_udp_bridge_ptr) return;
-			auto r = g_v3_udp_bridge_ptr->install();
-			if (!r.has_value()) {
-				eventlog(eventlog_level_error, __FUNCTION__,
-					"v3 UDP bridge install failed: {}",
-					r.error().message());
-			} else {
-				eventlog(eventlog_level_info, __FUNCTION__,
-					"v3 UDP bridge installed: {} endpoint(s)",
-					r.value());
+			if (g_v3_udp_bridge_ptr) {
+				auto r = g_v3_udp_bridge_ptr->install();
+				if (!r.has_value()) {
+					eventlog(eventlog_level_error, __FUNCTION__,
+						"v3 UDP bridge install failed: {}",
+						r.error().message());
+				} else {
+					eventlog(eventlog_level_info, __FUNCTION__,
+						"v3 UDP bridge installed: {} endpoint(s)",
+						r.value());
+				}
+			}
+			if (g_v3_tcp_bridge_ptr) {
+				auto r = g_v3_tcp_bridge_ptr->install();
+				if (!r.has_value()) {
+					eventlog(eventlog_level_error, __FUNCTION__,
+						"v3 TCP bridge install failed: {}",
+						r.error().message());
+				} else {
+					eventlog(eventlog_level_info, __FUNCTION__,
+						"v3 TCP bridge installed: {} acceptor(s)",
+						r.value());
+				}
 			}
 		});
 		pvpgn::bnetd::server_set_before_shutdown_hook(+[]() {
+			if (g_v3_tcp_bridge_ptr) g_v3_tcp_bridge_ptr->shutdown();
 			if (g_v3_udp_bridge_ptr) g_v3_udp_bridge_ptr->shutdown();
+			/* Both bridges share the runtime; stop it once here.  The
+			 * acceptors / endpoints owned by the bridges are kept
+			 * alive in their impls and torn down when the bridge
+			 * objects go out of scope, after the legacy server has
+			 * already closed the fds. */
+			if (g_v3_io_runtime_ptr) g_v3_io_runtime_ptr->stop();
 		});
 #endif
 
@@ -626,6 +659,8 @@ extern int main(int argc, char ** argv)
 		pvpgn::bnetd::server_set_after_setup_hook(nullptr);
 		pvpgn::bnetd::server_set_before_shutdown_hook(nullptr);
 		g_v3_udp_bridge_ptr = nullptr;
+		g_v3_tcp_bridge_ptr = nullptr;
+		g_v3_io_runtime_ptr = nullptr;
 #endif
 
 		// run post server stuff and exit

@@ -11,6 +11,12 @@
 #include <boost/fiber/operations.hpp>
 #include <boost/system/error_code.hpp>
 
+#if defined(_WIN32)
+#  include <winsock2.h>
+#else
+#  include <unistd.h>
+#endif
+
 #include "core/error.hpp"
 #include "infra/net/asio_round_robin.hpp"
 #include "infra/net/tcp_session.hpp"
@@ -21,6 +27,18 @@ namespace {
 core::Error make_error(core::StatusCode code,
                        const boost::system::error_code& ec) {
     return core::Error{code, ec.message()};
+}
+
+// Close a raw OS socket handle in a portable manner. Used only
+// on the failure path of `assign()`; the happy path keeps the
+// fd wrapped in an asio socket.
+inline void close_native_socket(
+    boost::asio::ip::tcp::socket::native_handle_type fd) noexcept {
+#if defined(_WIN32)
+    ::closesocket(fd);
+#else
+    ::close(fd);
+#endif
 }
 }  // namespace
 
@@ -152,7 +170,18 @@ FiberPool::accept(const std::string& host,
                 // worker-0-bound socket and rewrap on the target.
                 Worker& target = self->pick_worker_round_robin();
                 const auto proto      = sock.local_endpoint().protocol();
+                // MSVC marks socket::release() as C4996 because it
+                // returns operation_not_supported on Windows < 8.1.
+                // We target Windows 10 and the legacy daemons share
+                // the same minimum, so silence the deprecation.
+#if defined(_MSC_VER)
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#endif
                 const auto native_fd  = sock.release();
+#if defined(_MSC_VER)
+#  pragma warning(pop)
+#endif
                 boost::asio::ip::tcp::socket migrated(
                     target.ctx.get_executor());
                 boost::system::error_code aec2;
@@ -160,7 +189,7 @@ FiberPool::accept(const std::string& host,
                 if (aec2) {
                     // Best-effort: drop the connection.
                     boost::asio::post(target.ctx, [native_fd] {
-                        ::close(native_fd);
+                        close_native_socket(native_fd);
                     });
                 } else {
                     // Hand off creation+spawn into the target's

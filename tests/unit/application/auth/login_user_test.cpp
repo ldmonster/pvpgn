@@ -147,3 +147,36 @@ TEST_CASE("LoginUser: locked account is rejected",
     REQUIRE_FALSE(r);
     REQUIRE(r.error() == LoginError::Locked);
 }
+
+TEST_CASE("LoginUser: must-change-password flag surfaces "
+          "LoginError::MustChangePassword (Batch 23d)",
+          "[application][auth][login][must_change_password]") {
+    Fixture f;
+    auto a = domain::identity::Account::create(
+        f.alice_id, make_name("Alice"), f.password, domain::Locale{}).value();
+    (void)a.drain_events();
+    a.require_password_change();
+    REQUIRE(f.accounts.save(a));
+
+    auto uc = f.make_use_case();
+    auto r = uc.execute(f.req_for("alice", f.password, f.alice_session));
+
+    REQUIRE_FALSE(r);
+    REQUIRE(r.error() == LoginError::MustChangePassword);
+    // No session attached, no account saved past the verdict.
+    REQUIRE_FALSE(f.sessions.account_for(f.alice_session).has_value());
+}
+
+TEST_CASE("LoginUser: change_password clears the must-change flag "
+          "(Batch 23d)",
+          "[application][auth][login][must_change_password]") {
+    Fixture f;
+    auto a = domain::identity::Account::create(
+        f.alice_id, make_name("Alice"), f.password, domain::Locale{}).value();
+    (void)a.drain_events();
+    a.require_password_change();
+    REQUIRE(a.must_change_password());
+    auto new_pwd = make_hash(0xCC);
+    a.change_password(new_pwd);
+    REQUIRE_FALSE(a.must_change_password());
+}

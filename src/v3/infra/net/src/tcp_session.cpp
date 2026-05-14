@@ -26,6 +26,13 @@ asio::ip::tcp::endpoint TcpSession::remote_endpoint() const {
     return socket_.remote_endpoint(ec);
 }
 
+int TcpSession::native_handle_int() noexcept {
+    if (!socket_.is_open()) {
+        return -1;
+    }
+    return static_cast<int>(socket_.native_handle());
+}
+
 void TcpSession::do_read() {
     auto self = shared_from_this();
     socket_.async_read_some(

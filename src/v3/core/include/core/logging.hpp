@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <ostream>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -45,6 +46,37 @@ public:
                      std::string_view message) noexcept = 0;
     virtual LogLevel level() const noexcept = 0;
     virtual void     set_level(LogLevel) noexcept = 0;
+
+    /// Structured key/value extension (Batch 27c).
+    /// Default impl flattens to `message field=value field=value`
+    /// and delegates to `log()` so every existing logger keeps
+    /// working unchanged. Override to emit per-field structure
+    /// (JsonLineLogger does this).
+    struct Field {
+        std::string_view key;
+        std::string_view value;
+    };
+    virtual void log_kv(LogLevel level, std::string_view module,
+                        std::string_view message,
+                        std::span<const Field> fields) noexcept {
+        if (fields.empty()) {
+            log(level, module, message);
+            return;
+        }
+        try {
+            std::string buf{message};
+            for (const auto& f : fields) {
+                buf.push_back(' ');
+                buf.append(f.key);
+                buf.push_back('=');
+                buf.append(f.value);
+            }
+            log(level, module, std::string_view{buf});
+        } catch (...) {
+            // Fall back to the plain message; logging must not throw.
+            log(level, module, message);
+        }
+    }
 };
 
 /// Swallows everything. Used in tests by default.
@@ -90,6 +122,18 @@ void     set_default_logger(std::shared_ptr<ILogger> logger) noexcept;
 inline void log(LogLevel level, std::string_view module,
                 std::string_view message) noexcept {
     default_logger().log(level, module, message);
+}
+
+/// Convenience: emit a structured log record with key/value fields
+/// via the process-default logger. Loggers that understand
+/// structured output (e.g. `JsonLineLogger`) emit each field as a
+/// separate JSON key; legacy loggers flatten to `msg k=v k=v`.
+inline void log_kv(LogLevel level, std::string_view module,
+                   std::string_view message,
+                   std::initializer_list<ILogger::Field> fields) noexcept {
+    default_logger().log_kv(level, module, message,
+                            std::span<const ILogger::Field>{
+                                fields.begin(), fields.size()});
 }
 
 }  // namespace pvpgn::core

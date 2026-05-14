@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <iterator>
 #include <limits>
 #include <sstream>
 #include <tuple>
@@ -83,6 +84,10 @@
 #include "common/setup_after.h"
 #ifdef WITH_LUA
 #include "luainterface.h"
+#endif
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+#include "integration/legacy_bnetd/strangler_macros.h"
 #endif
 namespace pvpgn
 {
@@ -896,6 +901,16 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// 28b strangler-fig: offer the v3 ChangePassword path
+			// first. Scaffold-only today (returns 0 -> fall-through)
+			// unless `PVPGN_V3_CHANGEPW=1` registers a handler at
+			// process start. The legacy double-hash dance below is
+			// the source of truth until the use-case learns it.
+			PVPGN_V3_BRIDGE_TRY(change_password, c, packet,
+				packet_get_size(packet));
+#endif
+
 			{
 				char const *username;
 				t_account *account;
@@ -1550,6 +1565,14 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// 28c strangler-fig: offer the v3 login path first.
+			// Scaffold-only (returns 0 -> legacy runs) unless
+			// `PVPGN_V3_LOGIN=1` registers a handler.
+			PVPGN_V3_BRIDGE_TRY(login_user, c, packet,
+				packet_get_size(packet));
+#endif
+
 			{
 				char const *username;
 				t_account *account;
@@ -1694,6 +1717,11 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad LOGINREQ2 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_loginreq2), packet_get_size(packet));
 				return -1;
 			}
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			PVPGN_V3_BRIDGE_TRY(login_user, c, packet,
+				packet_get_size(packet));
+#endif
 
 			{
 				char const *username;
@@ -1857,6 +1885,11 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLIENT_LOGINREQ_W3 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_loginreq_w3), packet_get_size(packet));
 				return -1;
 			}
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			PVPGN_V3_BRIDGE_TRY(login_user, c, packet,
+				packet_get_size(packet));
+#endif
 
 			{
 				char const *username;
@@ -2932,7 +2965,12 @@ namespace pvpgn
 					while (char* buff = file_get_line(fp))
 					{
 						char* line = message_format_line(c, buff);
-						fmt::format_to(serverinfo, "{}" + '\n', (line + 1));
+						// The original code used `"{}" + '\n'`, which is
+						// pointer arithmetic on a string literal (UB,
+						// reading past the literal).  Modern fmt also
+						// no longer accepts a memory_buffer directly as
+						// the output target -- it needs an iterator.
+						fmt::format_to(std::back_inserter(serverinfo), "{}\n", (line + 1));
 						xfree((void*)line);
 					}
 
@@ -3712,6 +3750,25 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad MESSAGE packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_message), packet_get_size(packet));
 				return -1;
 			}
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// v3 strangler-fig: observe the chat input via the typed
+			// `application::chat::classify_chat_command` seam. Today
+			// the bridge always returns 0 (legacy stays in charge);
+			// a follow-up batch will start consuming the
+			// classification (drop Empty early, route Whisper through
+			// a v3 use-case, etc).
+			{
+				unsigned int sz = packet_get_size(packet);
+				void const*  bd = packet_get_data_const(
+					packet, sizeof(t_client_message),
+					sz - sizeof(t_client_message));
+				if (bd != nullptr) {
+					PVPGN_V3_BRIDGE_TRY(chat_command, c, bd,
+						sz - sizeof(t_client_message));
+				}
+			}
+#endif
 
 			{
 				char const *text;

@@ -108,6 +108,24 @@ core::Result<ClientMessage> decode_client(core::ByteView buf) {
             auto s2 = r.read_cstring(); if (!s2) return core::fail(s2.error()); m.game_pass.assign(s2.value());
             return ClientMessage{std::move(m)};
         }
+        case kClientGameListReq: {
+            GameListReq m;
+            auto sq = r.read_le<std::uint16_t>(); if (!sq) return core::fail(sq.error()); m.seqno    = sq.value();
+            auto gf = r.read_le<std::uint32_t>(); if (!gf) return core::fail(gf.error()); m.gameflag = gf.value();
+            return ClientMessage{m};
+        }
+        case kClientGameInfoReq: {
+            GameInfoReq m;
+            auto sq = r.read_le<std::uint16_t>(); if (!sq) return core::fail(sq.error()); m.seqno = sq.value();
+            auto s  = r.read_cstring(); if (!s) return core::fail(s.error()); m.game_name.assign(s.value());
+            return ClientMessage{std::move(m)};
+        }
+        case kClientCharListReq: {
+            CharListReq m;
+            auto a = r.read_le<std::uint16_t>(); if (!a) return core::fail(a.error()); m.maxchar = a.value();
+            a      = r.read_le<std::uint16_t>(); if (!a) return core::fail(a.error()); m.u1      = a.value();
+            return ClientMessage{m};
+        }
         default:
             return core::fail(core::Error{
                 core::StatusCode::Unimplemented, "d2cs codec: unknown type"});
@@ -147,6 +165,79 @@ core::Result<ServerMessage> decode_server(core::ByteView buf) {
             v      = r.read_le<std::uint32_t>(); if (!v) return core::fail(v.error()); m.token  = v.value();
             v      = r.read_le<std::uint32_t>(); if (!v) return core::fail(v.error()); m.reply  = v.value();
             return ServerMessage{m};
+        }
+        case kClientGameListReply: {
+            GameListReply m;
+            auto sq = r.read_le<std::uint16_t>(); if (!sq) return core::fail(sq.error()); m.seqno    = sq.value();
+            auto tk = r.read_le<std::uint32_t>(); if (!tk) return core::fail(tk.error()); m.token    = tk.value();
+            auto cc = r.read_le<std::uint8_t>();  if (!cc) return core::fail(cc.error()); m.currchar = cc.value();
+            auto gf = r.read_le<std::uint32_t>(); if (!gf) return core::fail(gf.error()); m.gameflag = gf.value();
+            auto s1 = r.read_cstring(); if (!s1) return core::fail(s1.error()); m.game_name.assign(s1.value());
+            auto s2 = r.read_cstring(); if (!s2) return core::fail(s2.error()); m.game_desc.assign(s2.value());
+            return ServerMessage{std::move(m)};
+        }
+        case kClientGameInfoReply: {
+            GameInfoReply m;
+            auto sq = r.read_le<std::uint16_t>(); if (!sq) return core::fail(sq.error()); m.seqno     = sq.value();
+            auto gf = r.read_le<std::uint32_t>(); if (!gf) return core::fail(gf.error()); m.gameflag  = gf.value();
+            auto et = r.read_le<std::uint32_t>(); if (!et) return core::fail(et.error()); m.etime     = et.value();
+            auto u  = r.read_le<std::uint8_t>();  if (!u)  return core::fail(u.error());  m.charlevel = u.value();
+            u       = r.read_le<std::uint8_t>();  if (!u)  return core::fail(u.error());  m.leveldiff = u.value();
+            u       = r.read_le<std::uint8_t>();  if (!u)  return core::fail(u.error());  m.maxchar   = u.value();
+            u       = r.read_le<std::uint8_t>();  if (!u)  return core::fail(u.error());  m.currchar  = u.value();
+            for (auto& b : m.chclass) {
+                auto v = r.read_le<std::uint8_t>();
+                if (!v) return core::fail(v.error());
+                b = v.value();
+            }
+            for (auto& b : m.charlevels) {
+                auto v = r.read_le<std::uint8_t>();
+                if (!v) return core::fail(v.error());
+                b = v.value();
+            }
+            auto s = r.read_cstring();
+            if (!s) return core::fail(s.error());
+            m.game_desc.assign(s.value());
+            // currchar character names follow.
+            if (m.currchar > 16) {
+                return core::fail(core::Error{
+                    core::StatusCode::InvalidArgument,
+                    "d2cs codec: gameinfo currchar > 16"});
+            }
+            m.char_names.reserve(m.currchar);
+            for (std::uint8_t i = 0; i < m.currchar; ++i) {
+                auto nm = r.read_cstring();
+                if (!nm) return core::fail(nm.error());
+                m.char_names.emplace_back(nm.value());
+            }
+            return ServerMessage{std::move(m)};
+        }
+        case kClientCharListReply: {
+            CharListReply m;
+            auto a = r.read_le<std::uint16_t>(); if (!a) return core::fail(a.error()); m.maxchar   = a.value();
+            a      = r.read_le<std::uint16_t>(); if (!a) return core::fail(a.error()); m.currchar  = a.value();
+            a      = r.read_le<std::uint16_t>(); if (!a) return core::fail(a.error()); m.u1        = a.value();
+            a      = r.read_le<std::uint16_t>(); if (!a) return core::fail(a.error()); m.currchar2 = a.value();
+            // Defensive: legacy clients cap at 8 chars/account.
+            if (m.currchar > 64) {
+                return core::fail(core::Error{
+                    core::StatusCode::InvalidArgument,
+                    "d2cs codec: charlist currchar > 64"});
+            }
+            m.chars.reserve(m.currchar);
+            for (std::uint16_t i = 0; i < m.currchar; ++i) {
+                CharListEntry e;
+                auto nm = r.read_cstring();
+                if (!nm) return core::fail(nm.error());
+                e.name.assign(nm.value());
+                for (auto& b : e.portrait) {
+                    auto v = r.read_le<std::uint8_t>();
+                    if (!v) return core::fail(v.error());
+                    b = v.value();
+                }
+                m.chars.push_back(std::move(e));
+            }
+            return ServerMessage{std::move(m)};
         }
         default:
             return core::fail(core::Error{
@@ -232,6 +323,67 @@ core::Status<> encode(Writer& w, const JoinGameReply& m) {
     p.write_le<std::uint32_t>(m.token);
     p.write_le<std::uint32_t>(m.reply);
     return emit(w, kClientJoinGameReply, p);
+}
+
+core::Status<> encode(Writer& w, const GameListReq& m) {
+    Writer p;
+    p.write_le<std::uint16_t>(m.seqno);
+    p.write_le<std::uint32_t>(m.gameflag);
+    return emit(w, kClientGameListReq, p);
+}
+
+core::Status<> encode(Writer& w, const GameListReply& m) {
+    Writer p;
+    p.write_le<std::uint16_t>(m.seqno);
+    p.write_le<std::uint32_t>(m.token);
+    p.write_le<std::uint8_t>(m.currchar);
+    p.write_le<std::uint32_t>(m.gameflag);
+    p.write_cstring(m.game_name);
+    p.write_cstring(m.game_desc);
+    return emit(w, kClientGameListReply, p);
+}
+
+core::Status<> encode(Writer& w, const GameInfoReq& m) {
+    Writer p;
+    p.write_le<std::uint16_t>(m.seqno);
+    p.write_cstring(m.game_name);
+    return emit(w, kClientGameInfoReq, p);
+}
+
+core::Status<> encode(Writer& w, const GameInfoReply& m) {
+    Writer p;
+    p.write_le<std::uint16_t>(m.seqno);
+    p.write_le<std::uint32_t>(m.gameflag);
+    p.write_le<std::uint32_t>(m.etime);
+    p.write_le<std::uint8_t>(m.charlevel);
+    p.write_le<std::uint8_t>(m.leveldiff);
+    p.write_le<std::uint8_t>(m.maxchar);
+    p.write_le<std::uint8_t>(m.currchar);
+    for (auto b : m.chclass)    p.write_le<std::uint8_t>(b);
+    for (auto b : m.charlevels) p.write_le<std::uint8_t>(b);
+    p.write_cstring(m.game_desc);
+    for (const auto& nm : m.char_names) p.write_cstring(nm);
+    return emit(w, kClientGameInfoReply, p);
+}
+
+core::Status<> encode(Writer& w, const CharListReq& m) {
+    Writer p;
+    p.write_le<std::uint16_t>(m.maxchar);
+    p.write_le<std::uint16_t>(m.u1);
+    return emit(w, kClientCharListReq, p);
+}
+
+core::Status<> encode(Writer& w, const CharListReply& m) {
+    Writer p;
+    p.write_le<std::uint16_t>(m.maxchar);
+    p.write_le<std::uint16_t>(m.currchar);
+    p.write_le<std::uint16_t>(m.u1);
+    p.write_le<std::uint16_t>(m.currchar2);
+    for (const auto& e : m.chars) {
+        p.write_cstring(e.name);
+        for (auto b : e.portrait) p.write_le<std::uint8_t>(b);
+    }
+    return emit(w, kClientCharListReply, p);
 }
 
 }  // namespace pvpgn::protocol::d2cs

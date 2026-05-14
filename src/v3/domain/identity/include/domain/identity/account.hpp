@@ -75,15 +75,17 @@ public:
         return a;
     }
 
-    /// Rehydrate from persistence — no events emitted. Caller (the
+    /// Rehydrate from persistence -- no events emitted. Caller (the
     /// repository) is responsible for the snapshot's validity.
     static Account rehydrate(AccountId id, UserName name, BNHash password,
                              Locale loc, CommandGroupMask groups,
-                             std::optional<Ban> ban, bool locked) {
+                             std::optional<Ban> ban, bool locked,
+                             bool must_change_password = false) {
         Account a{id, std::move(name), std::move(password), loc};
         a.groups_ = groups;
         a.ban_    = std::move(ban);
         a.locked_ = locked;
+        a.must_change_password_ = must_change_password;
         return a;
     }
 
@@ -97,6 +99,15 @@ public:
     bool                  is_locked() const noexcept { return locked_; }
     const std::optional<Ban>& ban()   const noexcept { return ban_; }
 
+    /// True if the operator (or a password-rotation policy) has
+    /// flagged this account: the password matched but the user must
+    /// rotate it before a session is granted. The application-layer
+    /// `LoginUser` use-case translates this into
+    /// `LoginError::MustChangePassword` (Batch 23d).
+    bool                  must_change_password() const noexcept {
+        return must_change_password_;
+    }
+
     /// True if the account is barred from logging in at the given
     /// wall-clock — covers expired bans correctly.
     bool is_login_barred(core::SystemTime now) const noexcept {
@@ -104,6 +115,24 @@ public:
         if (ban_ && ban_->active_at(now)) return true;
         return false;
     }
+
+    /// Pure credential check. Used by flows that need to verify
+    /// the caller knows the current password *without* the
+    /// side-effects of `login()` (no event emission, no ban gating,
+    /// no IP / clienttag input). The `ChangePasswordUseCase` is the
+    /// first such caller.
+    bool verify_password(const BNHash& candidate) const noexcept {
+        return password_ == candidate;
+    }
+
+    /// Read-only access to the stored password hash1. Required by
+    /// flows that re-derive the legacy session-hash transcript
+    /// (`bnet_hash(ticks||sessionkey||hash1)`) to verify a hash2
+    /// arrived in a CLIENT_LOGINREQ1 / CLIENT_CHANGEPASSREQ
+    /// packet -- the application layer routes this through an
+    /// `IPasswordHasher` port, never recomputes the algorithm
+    /// itself.
+    const BNHash& password_hash1() const noexcept { return password_; }
 
     // --- Commands (mutate + emit events) --------------------------------
 
@@ -138,7 +167,38 @@ public:
 
     void change_password(BNHash new_hash) {
         password_ = std::move(new_hash);
+        // Successful rotation always clears the "must change" flag.
+        const bool was_required = must_change_password_;
+        must_change_password_ = false;
         events_.push_back(events::AccountPasswordChanged{id_});
+        if (was_required) {
+            events_.push_back(events::AccountPasswordRotationCleared{id_});
+        }
+    }
+
+    /// Force the user to rotate their password on next successful
+    /// login. Emits `AccountPasswordRotationRequired` only on the
+    /// edge (false -> true); idempotent on a no-op flip.
+    void require_password_change() noexcept {
+        if (must_change_password_) return;
+        must_change_password_ = true;
+        try {
+            events_.push_back(events::AccountPasswordRotationRequired{id_});
+        } catch (...) {
+            // event emission is best-effort; the flag has flipped.
+        }
+    }
+
+    /// Operator override: clear the rotation flag without rotating
+    /// the password (e.g. admin "unmark for change"). Emits
+    /// `AccountPasswordRotationCleared` only on the edge.
+    void clear_password_change_requirement() noexcept {
+        if (!must_change_password_) return;
+        must_change_password_ = false;
+        try {
+            events_.push_back(events::AccountPasswordRotationCleared{id_});
+        } catch (...) {
+        }
     }
 
     void grant_command_group(std::uint8_t group) {
@@ -183,6 +243,7 @@ private:
     CommandGroupMask                   groups_;
     std::optional<Ban>                 ban_;
     bool                               locked_ = false;
+    bool                               must_change_password_ = false;
     std::vector<events::DomainEvent>   events_;
 };
 
