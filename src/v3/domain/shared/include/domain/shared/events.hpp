@@ -123,6 +123,23 @@ struct ChannelMemberKicked {
     AccountId target;
 };
 
+struct WhisperDelivered {
+    AccountId   from;
+    AccountId   to;
+    ChatMessage body;
+    core::SystemTime sent_at;
+};
+
+struct IgnoreAdded {
+    AccountId owner;
+    AccountId target;
+};
+
+struct IgnoreRemoved {
+    AccountId owner;
+    AccountId target;
+};
+
 // --- social -------------------------------------------------------------
 
 struct FriendAdded {
@@ -295,6 +312,9 @@ using DomainEvent = std::variant<
     ChannelMessageSent,
     ChannelTopicChanged,
     ChannelMemberKicked,
+    WhisperDelivered,
+    IgnoreAdded,
+    IgnoreRemoved,
     FriendAdded,
     FriendRemoved,
     ClanCreated,

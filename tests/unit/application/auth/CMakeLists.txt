@@ -17,3 +17,15 @@ pvpgn_v3_add_test(test_application_auth_password_rotation_observer
 pvpgn_v3_add_test(test_application_auth_change_password
     SOURCES change_password_test.cpp
     DEPS    application_auth infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_create_account
+    SOURCES create_account_test.cpp
+    DEPS    application_auth infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_logout_user
+    SOURCES logout_user_test.cpp
+    DEPS    application_auth infra_inmemory infra_storage)
+
+pvpgn_v3_add_test(test_application_auth_account_lock
+    SOURCES account_lock_test.cpp
+    DEPS    application_auth infra_inmemory)

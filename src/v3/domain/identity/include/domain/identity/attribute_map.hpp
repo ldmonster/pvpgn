@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+#include "core/clock.hpp"
+#include "domain/shared/client_tag.hpp"
 #include "domain/shared/events.hpp"
 #include "domain/shared/ids.hpp"
 
@@ -63,6 +65,37 @@ public:
     const std::unordered_map<std::string, std::string>& values() const noexcept {
         return values_;
     }
+
+    // --- Typed accessors for BNET account attributes ---
+
+    /// Identity attributes
+    std::optional<std::string> username() const;
+    std::optional<std::string> email() const;
+    std::optional<std::string> sex() const;
+    std::optional<std::string> location() const;
+    std::optional<std::string> description() const;
+    std::optional<core::SystemTime> last_login() const;
+    std::optional<core::SystemTime> created_at() const;
+
+    void set_email(std::string_view v);
+    void set_sex(std::string_view v);
+    void set_location(std::string_view v);
+    void set_description(std::string_view v);
+    void set_last_login(core::SystemTime t);
+    void set_created_at(core::SystemTime t);
+
+    /// Game statistics per ClientTag
+    std::uint32_t wins(ClientTag tag) const noexcept;
+    std::uint32_t losses(ClientTag tag) const noexcept;
+    std::uint32_t disconnects(ClientTag tag) const noexcept;
+    std::uint32_t ladder_wins(ClientTag tag) const noexcept;
+    std::uint32_t ladder_losses(ClientTag tag) const noexcept;
+
+    void increment_wins(ClientTag tag);
+    void increment_losses(ClientTag tag);
+    void increment_disconnects(ClientTag tag);
+    void increment_ladder_wins(ClientTag tag);
+    void increment_ladder_losses(ClientTag tag);
 
     std::vector<events::DomainEvent> drain_events() {
         return std::exchange(events_, {});

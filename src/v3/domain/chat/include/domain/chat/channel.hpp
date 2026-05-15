@@ -66,6 +66,18 @@ public:
         return Channel{id, std::move(name), std::move(policy)};
     }
 
+    /// Rehydrate from persistence — no events emitted.
+    static Channel rehydrate(ChannelId id, std::string name, std::string topic,
+                             ChannelPolicy policy,
+                             const std::unordered_map<AccountId, ClientTag>& members,
+                             const std::vector<AccountId>& banlist) {
+        Channel c{id, std::move(name), std::move(policy)};
+        c.topic_ = std::move(topic);
+        c.members_ = members;
+        c.banlist_ = banlist;
+        return c;
+    }
+
     // --- Queries --------------------------------------------------------
 
     ChannelId           id()           const noexcept { return id_; }

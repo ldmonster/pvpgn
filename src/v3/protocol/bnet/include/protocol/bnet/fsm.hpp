@@ -37,10 +37,13 @@
 /// `Ping` and `Null` are legal in every non-`Closing` state.
 
 #include <cstdint>
+#include <memory>
 
 #include "core/result.hpp"
+#include "domain/shared/ids.hpp"
 #include "protocol/bnet/messages.hpp"
 #include "protocol/bnet/session_context.hpp"
+#include "protocol/bnet/use_case_context.hpp"
 
 namespace pvpgn::protocol::bnet {
 
@@ -55,7 +58,9 @@ enum class BnetState : std::uint8_t {
 
 class BnetFsm {
 public:
-    explicit BnetFsm(ISessionContext& ctx) noexcept : ctx_(&ctx) {}
+    explicit BnetFsm(std::shared_ptr<ISessionContext> ctx, 
+                     const BnetUseCaseContext& use_cases) noexcept 
+        : ctx_(ctx), use_cases_(use_cases) {}
 
     BnetState state() const noexcept { return state_; }
 
@@ -167,8 +172,14 @@ public:
 private:
     core::Status<> reject(const char* reason);
 
-    ISessionContext* ctx_;
-    BnetState        state_ = BnetState::Init;
+    std::shared_ptr<ISessionContext> ctx_;
+    BnetUseCaseContext use_cases_;
+    BnetState state_ = BnetState::Init;
+    
+    // Session tracking
+    domain::AccountId current_account_id_{0};
+    domain::ChannelId current_channel_id_{0};
+    domain::GameId current_game_id_{0};
 };
 
 }  // namespace pvpgn::protocol::bnet

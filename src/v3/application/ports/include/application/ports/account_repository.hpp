@@ -10,6 +10,7 @@
 /// (production) all satisfy this interface.
 
 #include <cstddef>
+#include <functional>
 #include <optional>
 
 #include "core/error.hpp"
@@ -39,6 +40,11 @@ public:
 
     /// Remove. Returns `NotFound` if the id doesn't exist.
     virtual core::Status<> remove(domain::AccountId id) = 0;
+
+    /// Iterate over all accounts, applying predicate. Early exit on
+    /// predicate returning false.
+    virtual void
+    forEach(std::function<bool(const domain::identity::Account&)> predicate) const = 0;
 
     virtual std::size_t size() const noexcept = 0;
 };

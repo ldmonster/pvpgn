@@ -174,11 +174,16 @@ pvpgn_v3_add_library(protocol_bnet
         protocol/bnet/src/fsm.cpp
         protocol/bnet/src/anongame.cpp
         protocol/bnet/src/anongame_tags.cpp
+        protocol/bnet/src/event_dispatcher.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/bnet/include
     PUBLIC_DEPS
         core
         protocol_common
+        application_ports
+        application_chat
+        application_game
+        application_moderation
 )
 
 # MSVC: codec.cpp now exceeds the default object-file section count.
@@ -193,11 +198,14 @@ pvpgn_v3_add_library(protocol_irc
     SOURCES
         protocol/irc/src/codec.cpp
         protocol/irc/src/fsm.cpp
+        protocol/irc/src/bridge_fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/irc/include
     PUBLIC_DEPS
         core
         protocol_common
+        application_chat
+        application_auth
 )
 
 # ---- protocol/udp -------------------------------------------------------
@@ -219,11 +227,13 @@ pvpgn_v3_add_library(protocol_telnet
     STATIC
     SOURCES
         protocol/telnet/src/codec.cpp
+        protocol/telnet/src/admin_fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/telnet/include
     PUBLIC_DEPS
         core
         protocol_common
+        application_ports
 )
 
 # ---- protocol/file ------------------------------------------------------
@@ -232,6 +242,7 @@ pvpgn_v3_add_library(protocol_file
     STATIC
     SOURCES
         protocol/file/src/codec.cpp
+        protocol/file/src/bnftp_fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/file/include
     PUBLIC_DEPS
@@ -284,11 +295,13 @@ pvpgn_v3_add_library(protocol_wolgameres
     STATIC
     SOURCES
         protocol/wolgameres/src/codec.cpp
+        protocol/wolgameres/src/wol_fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/wolgameres/include
     PUBLIC_DEPS
         core
         protocol_common
+        application_ports
 )
 
 # ---- domain/shared (value objects, events, IDs) -------------------------
@@ -410,6 +423,10 @@ pvpgn_v3_add_library(application_auth
         application/auth/src/login_classifier.cpp
         application/auth/src/password_rotation_observer.cpp
         application/auth/src/change_password.cpp
+        application/auth/src/create_account.cpp
+        application/auth/src/logout_user.cpp
+        application/auth/src/account_lock.cpp
+        application/auth/src/permission_checker.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/auth/include
     PUBLIC_DEPS
@@ -417,6 +434,7 @@ pvpgn_v3_add_library(application_auth
         application_ports
         domain_shared
         domain_identity
+        domain_moderation
 )
 
 # ---- application/anongame_infoply ---------------------------------------
@@ -501,10 +519,89 @@ pvpgn_v3_add_library(application_chat
     SOURCES
         application/chat/src/chat_command.cpp
         application/chat/src/whisper_use_case.cpp
+        application/chat/src/join_channel.cpp
+        application/chat/src/post_message.cpp
+        application/chat/src/leave_channel.cpp
+        application/chat/src/list_channels.cpp
+        application/chat/src/send_emote.cpp
+        application/chat/src/kick_from_channel.cpp
+        application/chat/src/ban_from_channel.cpp
+        application/chat/src/set_channel_topic.cpp
+        application/chat/src/command_registry.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/chat/include
     PUBLIC_DEPS
         core
+        application_ports
+        domain_chat
+)
+
+# ---- application/game ---------------------------------------------------
+#
+# Game management use-cases (StartGame, JoinGame, LeaveGame).
+# Orchestrates between repositories and the Game aggregate.
+
+pvpgn_v3_add_library(application_game
+    STATIC
+    SOURCES
+        application/game/src/start_game.cpp
+        application/game/src/join_game.cpp
+        application/game/src/leave_game.cpp
+        application/game/src/report_game_result.cpp
+        application/game/src/list_public_games.cpp
+        application/game/src/create_private_game.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/game/include
+    PUBLIC_DEPS
+        core
+        application_ports
+        domain_gameplay
+)
+
+# ---- application/moderation -----------------------------------------------
+#
+# Moderation use-cases (CheckIpBan).
+# Checks IP ban status via the IpBanRepository port.
+
+pvpgn_v3_add_library(application_moderation
+    STATIC
+    SOURCES
+        application/moderation/src/check_ip_ban.cpp
+        application/moderation/src/ban_account.cpp
+        application/moderation/src/unban_account.cpp
+        application/moderation/src/ban_ip.cpp
+        application/moderation/src/kick_connection.cpp
+        application/moderation/src/silence_user.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/moderation/include
+    PUBLIC_DEPS
+        core
+        application_ports
+        domain_moderation
+)
+
+# ---- application/social --------------------------------------------------
+#
+# Social use-cases: friend list management, clan operations.
+
+pvpgn_v3_add_library(application_social
+    STATIC
+    SOURCES
+        application/social/src/add_friend.cpp
+        application/social/src/remove_friend.cpp
+        application/social/src/list_friends.cpp
+        application/social/src/create_clan.cpp
+        application/social/src/disband_clan.cpp
+        application/social/src/invite_to_clan.cpp
+        application/social/src/kick_from_clan.cpp
+        application/social/src/promote_clan_member.cpp
+        application/social/src/set_clan_motd.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/social/include
+    PUBLIC_DEPS
+        core
+        application_ports
+        domain_social
 )
 
 # ---- application/i18n ---------------------------------------------------
@@ -539,6 +636,19 @@ pvpgn_v3_add_library(infra_legacy_config
         application_icon_table
 )
 
+# ---- infra/audit (audit log implementations) --------------------------------
+
+pvpgn_v3_add_library(infra_audit
+    STATIC
+    SOURCES
+        infra/audit/src/in_memory_audit_log.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/audit/include
+    PUBLIC_DEPS
+        core
+        application_ports
+)
+
 # ---- infra/inmemory (test + dev adapters, header-only) ------------------
 
 pvpgn_v3_add_library(infra_inmemory
@@ -550,6 +660,52 @@ pvpgn_v3_add_library(infra_inmemory
         application_ports
         domain_shared
         domain_identity
+)
+
+# ---- infra/storage/repository (Phase 2 in-memory repositories) -----------
+
+pvpgn_v3_add_library(infra_storage_repository
+    INTERFACE
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/storage/repository
+    PUBLIC_DEPS
+        core
+        application_ports
+        domain_shared
+        domain_identity
+        domain_chat
+        domain_gameplay
+        domain_realm
+)
+
+# ---- infra/routing (message routing layer) -------------------------------
+
+pvpgn_v3_add_library(infra_routing
+    INTERFACE
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/routing/include
+    PUBLIC_DEPS
+        core
+        application_ports
+)
+
+# ---- infra/session (protocol-specific session factories) -----------------
+
+pvpgn_v3_add_library(infra_session
+    INTERFACE
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/session/include
+    PUBLIC_DEPS
+        core
+        application_ports
+        infra_net
+        infra_routing
+        protocol_bnet
+        protocol_irc
+        protocol_file
+        protocol_telnet
+        protocol_wolgameres
+        domain_shared
 )
 
 # ---- infra/legacy_crypto (bnet_hash adapter) ----------------------------
@@ -682,10 +838,13 @@ if(PVPGN_V3_WITH_BOOST)
             infra/net/src/tcp_session.cpp
             infra/net/src/udp_endpoint.cpp
             infra/net/src/fiber_pool.cpp
+            infra/net/src/signal_handler.cpp
+            infra/net/src/shutdown_coordinator.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/infra/net/include
         PUBLIC_DEPS
             ${_pvpgn_net_public_deps}
+            application_ports
         DEPS
             ${_pvpgn_net_deps}
     )
@@ -700,6 +859,42 @@ if(PVPGN_V3_WITH_BOOST)
     if(NOT MSVC)
         target_compile_options(infra_net PUBLIC -Wno-null-dereference)
     endif()
+endif()
+
+# ---- infra/metrics (observability: Prometheus metrics, HTTP /metrics endpoint) --
+
+pvpgn_v3_add_library(infra_metrics
+    STATIC
+    SOURCES
+        infra/metrics/src/in_memory_metrics_registry.cpp
+        infra/metrics/src/server_metrics.cpp
+        infra/metrics/src/http_metrics_server.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/metrics/include
+    PUBLIC_DEPS
+        core
+        application_ports
+        infra_net
+    DEPS
+        Boost::system
+)
+
+# ---- infra/webui (REST API server + HTML dashboard) -----------------------
+
+if(PVPGN_V3_WITH_BOOST)
+    pvpgn_v3_add_library(infra_webui
+        STATIC
+        SOURCES
+            infra/webui/src/web_server.cpp
+        PUBLIC_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/infra/webui/include
+        PUBLIC_DEPS
+            core
+            application_ports
+            infra_net
+        DEPS
+            Boost::system
+    )
 endif()
 
 # ---- tests --------------------------------------------------------------

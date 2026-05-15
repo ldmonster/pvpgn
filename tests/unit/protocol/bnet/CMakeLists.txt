@@ -6,6 +6,10 @@ pvpgn_v3_add_test(test_protocol_bnet_fsm
     SOURCES fsm_test.cpp
     DEPS    protocol_bnet)
 
+pvpgn_v3_add_test(test_protocol_bnet_fsm_golden
+    SOURCES fsm_golden_test.cpp
+    DEPS    protocol_bnet)
+
 pvpgn_v3_add_test(test_protocol_bnet_anongame
     SOURCES anongame_test.cpp
     DEPS    protocol_bnet)
