@@ -63,8 +63,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] `LegacyUdpDispatcher` — builds legacy `t_packet` and dispatches to `pvpgn::bnetd::handle_udp_packet` (TCP `dispatch_frame` still seam-only; needs `t_connection*` plumbing)
 - [x] `UdpBridge` — owns IoRuntime + UdpEndpoints + dispatchers; wired into `bnetd` exe (UDP fdwatch loop replaced)
 - [x] Per-session fiber spawn behind `PVPGN_V3_WITH_FIBER` — `SessionChannel` + `spawn_session()` + `FiberPool` (multi-thread fan-out with `asio::round_robin` integration)
-- [ ] TCP `dispatch_frame` real wiring (needs `t_connection*` construction from outside legacy composition root)
-- [ ] Replace bnetd TCP `fdwatch` accept loop with `TcpAcceptor`
+- [x] TCP `dispatch_frame` real wiring — `LegacyBnetFrameRouter` (38b) + linked-variant dispatch hook routes framed bytes to `handle_init_packet` / `handle_bnet_packet`; class-refresh hook (38f) tracks `conn_class_init` → `conn_class_bnet` transition
+- [x] Replace bnetd TCP `fdwatch` accept loop with `TcpAcceptor` — `TcpBridge` adopts bnet listener fds (38a); `server_handle_v3_accepted_bnet_socket` factory hands accepted fds back to legacy; gated by `server_set_skip_legacy_tcp_fdwatch`
+- [x] Live TcpSession ownership of accepted bnet conns — `v3_tcp_session_mode = 1` opt-in (38d-38g): `TcpSession` + `LegacyBnetFrameRouter` own the fd; legacy `t_connection` allocated via `server_handle_v3_owned_bnet_socket` factory; outbound writes redirected via `conn_set_v3_router` slot (38c); `v3_owns_socket` flag prevents double-close in `conn_destroy`; cross-thread `conn_destroy` posted to legacy main loop via `server_post_to_main` (38g)
+- [ ] Runtime smoke-test of `v3_tcp_session_mode = 1` against a real BNet/D2DV client — pending operator validation
 
 ## Phase 3 — Domain extraction
 - [x] `domain/shared/ids.hpp` — `AccountId`, `ChannelId`, `GameId`, `ClanId`, `TeamId` (StrongId-typed)
@@ -98,9 +100,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] `protocol/common/reader.hpp` — `Reader` (LE/BE int, NUL-string, raw blob, skip; non-advancing on OOB)
 - [x] `protocol/common/writer.hpp` — `Writer` with `begin_bnet_packet` / `finalize_bnet_packet` size back-patch
 - [~] per-protocol codecs
-  - [~] `protocol/bnet/` — pure codec covers **SID_NULL (0x00), SID_ENTERCHAT (0x0A), SID_JOINCHANNEL (0x0C), SID_CHATCOMMAND (0x0E), SID_CHATEVENT (0x0F), SID_PING (0x25), SID_LOGONRESPONSE2 (0x3A) both directions, SID_AUTH_INFO (0x50), SID_AUTH_CHECK reply (0x51)** with full round-trip tests
+  - [~] `protocol/bnet/` — pure codec covers **SID_NULL (0x00), SID_GETADVLISTEX (0x09) both directions, SID_ENTERCHAT (0x0A), SID_JOINCHANNEL (0x0C), SID_CHATCOMMAND (0x0E), SID_CHATEVENT (0x0F), SID_PING (0x25), SID_LADDERSEARCH (0x2F) both directions, SID_GETFILETIME (0x33) both directions, SID_LOGONRESPONSE2 (0x3A) both directions, SID_AUTH_INFO (0x50), SID_AUTH_CHECK (0x51) both directions** with full round-trip tests
   - [x] `protocol/irc/` — RFC 1459 framer + tokeniser + encoder (handles bare-LF, prefix/command/middle/trailing, upper-cases commands, `Message` value type)
-  - [ ] remaining BNet SIDs (game-list, ladder, file-transfer init, AUTH_CHECK client direction, …)
+  - [ ] remaining BNet SIDs (cdkey 0x36, charlist, statstring profile, clan family, friends, account info SIDs, AUTH_INFO server-direction reply, …)
   - [x] `protocol/udp/` — connection-less codec for UDPTEST (0x05), UDPPING (0x07), SESSIONADDR1/2 (0x08/0x09); `Datagram` variant
   - [x] `protocol/telnet/` — line framer (CRLF or bare LF), `tokenise(line) → Command{verb,args}`, `write_line()` reply helper
   - [x] `protocol/file/` — BNFTP header (u16 size + u16 type) + `ClientFileReq` (0x0100) and `ServerFileReply` (0x0000) round-trip
