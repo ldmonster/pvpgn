@@ -5,12 +5,12 @@
 /// Thread-safe in-memory implementation of IIpBanRepository.
 /// Suitable for tests and development.
 
-#include <ankerl/unordered_dense.h>
+#include <chrono>
 #include <functional>
 #include <shared_mutex>
-#include <vector>
 
 #include "application/ports/ip_ban_repository.hpp"
+#include "domain/moderation/ip_ban_list.hpp"
 
 namespace pvpgn::infra::inmemory {
 
@@ -20,31 +20,14 @@ public:
     core::Result<bool>
     is_banned(const domain::IpAddress& ip) const override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
-        for (const auto& entry : entries_) {
-            // Simple exact match for now; CIDR matching would be more complex
-            if (entry.ip == ip) {
-                // Check if expired
-                if (entry.expires_at) {
-                    auto now = core::SystemTime::now();
-                    if (now >= *entry.expires_at) {
-                        continue;  // Expired
-                    }
-                }
-                return true;
-            }
-        }
-        return false;
+        auto now = std::chrono::system_clock::now();
+        return banlist_.blocks(ip, now);
     }
 
     core::Status<>
     add_ban(domain::moderation::IpBanEntry entry) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        // Remove existing ban for this IP
-        entries_.erase(
-            std::remove_if(entries_.begin(), entries_.end(),
-                          [&entry](const auto& e) { return e.ip == entry.ip; }),
-            entries_.end());
-        entries_.push_back(entry);
+        banlist_.add(entry);
         return core::ok();
     }
 
@@ -54,29 +37,19 @@ public:
                   core::SystemTime issued_at,
                   std::optional<core::SystemTime> expires_at) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        domain::moderation::IpBanEntry entry{
-            .ip = network,
-            .prefix_bits = prefix_bits,
-            .reason = reason,
-            .issuer = issuer,
-            .issued_at = issued_at,
-            .expires_at = expires_at};
-        entries_.push_back(entry);
+        banlist_.add_range(network, prefix_bits, reason, issuer, issued_at,
+                          expires_at);
         return core::ok();
     }
 
     core::Status<>
     remove_ban(const domain::IpAddress& ip) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        auto it = std::find_if(
-            entries_.begin(), entries_.end(),
-            [&ip](const auto& entry) { return entry.ip == ip; });
-        if (it == entries_.end()) {
+        if (!banlist_.remove(ip)) {
             return core::fail(core::Error{
                 core::StatusCode::NotFound,
                 "ip_ban: entry not found"});
         }
-        entries_.erase(it);
         return core::ok();
     }
 
@@ -84,17 +57,11 @@ public:
     remove_range_ban(domain::IpAddress network,
                      std::uint8_t prefix_bits) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        auto it = std::find_if(
-            entries_.begin(), entries_.end(),
-            [&network, prefix_bits](const auto& entry) {
-                return entry.ip == network && entry.prefix_bits == prefix_bits;
-            });
-        if (it == entries_.end()) {
+        if (!banlist_.remove_range(network, prefix_bits)) {
             return core::fail(core::Error{
                 core::StatusCode::NotFound,
                 "ip_ban: range not found"});
         }
-        entries_.erase(it);
         return core::ok();
     }
 
@@ -102,7 +69,7 @@ public:
         std::function<bool(const domain::moderation::IpBanEntry&)> predicate)
         const override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
-        for (const auto& entry : entries_) {
+        for (const auto& entry : banlist_.entries()) {
             if (!predicate(entry)) break;
         }
     }
@@ -110,27 +77,19 @@ public:
     core::Result<domain::moderation::IpBanList>
     load_banlist() const override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
-        domain::moderation::IpBanList banlist;
-        for (const auto& entry : entries_) {
-            banlist.add_entry(entry);
-        }
-        return banlist;
+        return banlist_;
     }
 
     core::Status<>
     save_banlist(const domain::moderation::IpBanList& banlist) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        entries_.clear();
-        banlist.for_each([this](const auto& entry) {
-            entries_.push_back(entry);
-            return true;
-        });
+        banlist_ = banlist;
         return core::ok();
     }
 
 private:
     mutable std::shared_mutex mutex_;
-    std::vector<domain::moderation::IpBanEntry> entries_;
+    domain::moderation::IpBanList banlist_;
 };
 
 }  // namespace pvpgn::infra::inmemory

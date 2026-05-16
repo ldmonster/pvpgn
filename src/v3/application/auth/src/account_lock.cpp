@@ -7,7 +7,7 @@ LockAccount::Result LockAccount::execute(domain::AccountId target,
                                          domain::AccountId by_admin,
                                          std::string_view reason) {
     // 1. Find the target account.
-    auto found = accounts_.find_by_id(target);
+    auto found = accounts_.find_by_id(target.value());
     if (!found) {
         return core::fail(core::Error{core::StatusCode::NotFound,
                                        "account not found"});
@@ -35,7 +35,7 @@ LockAccount::Result LockAccount::execute(domain::AccountId target,
 UnlockAccount::Result UnlockAccount::execute(domain::AccountId target,
                                              domain::AccountId by_admin) {
     // 1. Find the target account.
-    auto found = accounts_.find_by_id(target);
+    auto found = accounts_.find_by_id(target.value());
     if (!found) {
         return core::fail(core::Error{core::StatusCode::NotFound,
                                        "account not found"});

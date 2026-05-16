@@ -26,7 +26,6 @@ CreatePrivateGame::execute(const CreatePrivateGameRequest& req) {
     domain::gameplay::GameDescriptor desc{
         .name = req.game_name,
         .map = req.map_name,
-        .password = req.password,
         .max_players = static_cast<std::uint8_t>(req.max_players),
     };
 
@@ -43,7 +42,7 @@ CreatePrivateGame::execute(const CreatePrivateGameRequest& req) {
     domain::gameplay::Game game = game_result.value();
 
     // 4. Start the game immediately for private games
-    auto start_outcome = game.start(req.host_id, core::SystemTime::now());
+    auto start_outcome = game.start(req.host_id, std::chrono::system_clock::now());
     if (start_outcome == domain::gameplay::Game::StartOutcome::WrongState) {
         return core::fail(CreatePrivateGameError::Internal);
     }

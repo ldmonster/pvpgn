@@ -27,7 +27,7 @@ public:
         
         const auto& ban = it->second;
         if (ban.active_at(now)) {
-            return ban;
+            return std::optional<application::ports::AccountBan>{ban};
         }
         return std::optional<application::ports::AccountBan>{};
     }

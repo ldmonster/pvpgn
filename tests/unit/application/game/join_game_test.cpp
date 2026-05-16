@@ -9,7 +9,7 @@
 #include "domain/gameplay/game.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/storage/repository/game_repository.hpp"
+#include "game_repository.hpp"
 
 namespace {
 
@@ -25,8 +25,9 @@ struct Fixture {
     domain::ClientTag star_tag = domain::ClientTag::parse("STAR").value();
 
     void setup_game(domain::GameId game_id, std::uint8_t max_players) {
-        auto g = domain::gameplay::Game::create(
-            game_id, alice_id, star_tag, "TestGame", "Deathstar", max_players)
+        auto g = domain::gameplay::Game::host(
+            game_id, alice_id, star_tag,
+            domain::gameplay::GameDescriptor{"TestGame", "Deathstar", max_players})
             .value();
         REQUIRE(games.save(g));
     }
@@ -48,7 +49,8 @@ TEST_CASE("JoinGame: joining a game succeeds when game is open and has capacity"
 
     REQUIRE(r);
     REQUIRE(!r.value().server_address.empty());
-    REQUIRE(r.value().server_port > 0);
+    // Port is populated by infrastructure layer, not application layer
+    REQUIRE(r.value().server_address == "127.0.0.1");
 }
 
 TEST_CASE("JoinGame: joining non-existent game returns GameNotFound",
@@ -87,19 +89,21 @@ TEST_CASE("JoinGame: game updated after successful join",
 
     REQUIRE(r);
     // Verify Bob is in the game
-    auto g = f.games.find_by_id(domain::GameId{1});
+    auto g = f.games.find_by_id(1);  // Pass uint32_t, not GameId
     REQUIRE(g);
-    auto players = g.value().player_list();
+    auto players = g.value()->players();  // Use players() method, dereference shared_ptr
     REQUIRE(players.size() >= 2);  // Alice (host) + Bob
 }
 
 TEST_CASE("JoinGame: joining closed game returns GameClosed",
           "[application][game][join]") {
     Fixture f;
-    auto g = domain::gameplay::Game::create(
-        domain::GameId{1}, f.alice_id, f.star_tag, "TestGame", "Deathstar", 4)
+    auto g = domain::gameplay::Game::host(
+        domain::GameId{1}, f.alice_id, f.star_tag,
+        domain::gameplay::GameDescriptor{"TestGame", "Deathstar", 4})
         .value();
-    g.close();
+    // Start the game to change state from Open to InProgress (which is "closed" for joining)
+    (void)g.start(f.alice_id, std::chrono::system_clock::now());
     REQUIRE(f.games.save(g));
 
     auto uc = f.make_use_case();

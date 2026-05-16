@@ -7,7 +7,7 @@ namespace pvpgn::application::auth {
 
 LoginUser::Result LoginUser::execute(LoginRequest req) {
     // 1. Look up the account by canonical name.
-    auto found = accounts_.find_by_name(req.name);
+    auto found = accounts_.find_by_name(req.name.canonical());
     if (!found) {
         return core::fail(LoginError::UnknownUser);
     }
@@ -75,7 +75,7 @@ LoginUser::Result LoginUser::execute(LoginWithSessionHashRequest req) {
         return core::fail(LoginError::Internal);
     }
 
-    auto found = accounts_.find_by_name(req.name);
+    auto found = accounts_.find_by_name(req.name.canonical());
     if (!found) {
         return core::fail(LoginError::UnknownUser);
     }

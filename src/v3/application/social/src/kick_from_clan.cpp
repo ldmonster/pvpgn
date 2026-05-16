@@ -18,13 +18,14 @@ KickFromClan::execute(domain::ClanId clan_id, domain::AccountId kicker,
         return core::fail(KickFromClanError::ClanNotFound);
     }
 
-    domain::social::Clan clan = clan_result.value();
+    auto clan_ptr = clan_result.value();
+    auto& clan = *clan_ptr;
 
     // 2. Verify kicker is in clan and has sufficient rank
     const auto& members = clan.members();
     auto kicker_it = std::find_if(members.begin(), members.end(),
                                   [kicker](const domain::social::ClanMember& m) {
-                                      return m.account == kicker;
+                                      return m.account.value() == kicker.value();
                                   });
 
     if (kicker_it == members.end()) {
@@ -39,7 +40,7 @@ KickFromClan::execute(domain::ClanId clan_id, domain::AccountId kicker,
     // 3. Check if target is member
     auto target_it = std::find_if(members.begin(), members.end(),
                                   [target](const domain::social::ClanMember& m) {
-                                      return m.account == target;
+                                      return m.account.value() == target.value();
                                   });
 
     if (target_it == members.end()) {
@@ -68,7 +69,7 @@ KickFromClan::execute(domain::ClanId clan_id, domain::AccountId kicker,
         event_bus_->publish(event);
     }
 
-    return core::ok();
+    return core::Result<void, KickFromClanError>{};
 }
 
 }  // namespace pvpgn::application::social

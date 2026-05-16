@@ -56,7 +56,7 @@ core::Result<void, core::Error> ConfigWatcher::reload() {
     // Load and parse the config file
     auto result = load_server_config(std::filesystem::path(config_path_));
     if (!result) {
-        return core::Err(result.error());
+        return core::fail(result.error());
     }
 
     ServerConfig new_config = result.value();
@@ -68,7 +68,7 @@ core::Result<void, core::Error> ConfigWatcher::reload() {
     }
 
     notify_subscribers(new_config);
-    return core::Ok();
+    return core::ok();
 }
 
 void ConfigWatcher::start_watch(std::chrono::seconds interval) {

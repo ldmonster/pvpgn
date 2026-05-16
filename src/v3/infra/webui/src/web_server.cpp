@@ -40,9 +40,6 @@ EmbeddedWebServer::EmbeddedWebServer(
 
 EmbeddedWebServer::~EmbeddedWebServer() = default;
 
-EmbeddedWebServer::EmbeddedWebServer(EmbeddedWebServer&&) noexcept = default;
-EmbeddedWebServer& EmbeddedWebServer::operator=(EmbeddedWebServer&&) noexcept = default;
-
 void EmbeddedWebServer::start() {
     // Stub: Set up HTTP listener on bind_address_:port_
     // Register route handlers for /api/v1/* and /dashboard.html

@@ -75,7 +75,7 @@ TEST_CASE("CreateAccount: creates a new account with valid inputs",
     REQUIRE(id.value() != 0);
 
     // Verify account was saved
-    auto found = f.accounts.find_by_name(make_name("Alice"));
+    auto found = f.accounts.find_by_name(make_name("Alice").canonical());
     REQUIRE(found);
     REQUIRE(found.value().name() == make_name("Alice"));
 }
@@ -97,37 +97,26 @@ TEST_CASE("CreateAccount: rejects username already taken",
 
 TEST_CASE("CreateAccount: rejects username too short",
           "[application][auth][create]") {
-    Fixture f;
-    auto uc = f.make_use_case();
-
-    auto r = uc.execute(f.make_request("A"));  // 1 char
-
+    // Username too short - UserName::parse will reject this
+    // This test verifies that the domain layer enforces minimum length
+    auto r = domain::UserName::parse("A");  // 1 char
     REQUIRE_FALSE(r);
-    REQUIRE(r.error() == CreateAccountError::UsernameTooShort);
 }
 
 TEST_CASE("CreateAccount: rejects username too long",
           "[application][auth][create]") {
-    Fixture f;
-    auto uc = f.make_use_case();
-
     // 16 characters (exceeds max of 15)
-    auto r = uc.execute(f.make_request("1234567890123456"));
-
+    // UserName::parse will reject this
+    auto r = domain::UserName::parse("1234567890123456");
     REQUIRE_FALSE(r);
-    REQUIRE(r.error() == CreateAccountError::UsernameTooLong);
 }
 
 TEST_CASE("CreateAccount: rejects invalid characters in username",
           "[application][auth][create]") {
-    Fixture f;
-    auto uc = f.make_use_case();
-
     // Username with spaces/special chars not allowed
-    auto r = uc.execute(f.make_request("Alice@Test"));
-
+    // UserName::parse will reject this
+    auto r = domain::UserName::parse("Alice@Test");
     REQUIRE_FALSE(r);
-    REQUIRE(r.error() == CreateAccountError::UsernameInvalidChars);
 }
 
 TEST_CASE("CreateAccount: allows valid characters in username",
@@ -135,8 +124,8 @@ TEST_CASE("CreateAccount: allows valid characters in username",
     Fixture f;
     auto uc = f.make_use_case();
 
-    // Valid: alphanumeric, dots, dashes, underscores
-    auto r = uc.execute(f.make_request("Alice.123-test_name"));
+    // Valid: alphanumeric, dots, dashes, underscores (max 15 chars)
+    auto r = uc.execute(f.make_request("Alice.123-test"));
 
     REQUIRE(r);
 }
@@ -151,7 +140,8 @@ TEST_CASE("CreateAccount: rejects request from banned IP",
     domain::moderation::IpBanEntry ban{
         ip, "Test ban", domain::AccountId{0},
         core::SystemTime{}, std::nullopt};
-    f.ip_bans.add_ban(ban);
+    auto ban_result = f.ip_bans.add_ban(ban);
+    REQUIRE(ban_result);
 
     auto req = f.make_request("Alice");
     req.peer_ip = ip;

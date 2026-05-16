@@ -51,8 +51,8 @@ public:
 
     EmbeddedWebServer(const EmbeddedWebServer&) = delete;
     EmbeddedWebServer& operator=(const EmbeddedWebServer&) = delete;
-    EmbeddedWebServer(EmbeddedWebServer&&) noexcept;
-    EmbeddedWebServer& operator=(EmbeddedWebServer&&) noexcept;
+    EmbeddedWebServer(EmbeddedWebServer&&) noexcept = delete;
+    EmbeddedWebServer& operator=(EmbeddedWebServer&&) noexcept = delete;
 
     /// Start the HTTP server.
     void start();

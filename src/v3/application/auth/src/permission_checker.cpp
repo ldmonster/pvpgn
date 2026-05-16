@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/auth/permission_checker.hpp"
 
+#include <algorithm>
+
 #include "application/ports/account_repository.hpp"
 
 namespace pvpgn::application::auth {
@@ -57,21 +59,29 @@ void InMemoryPermissionChecker::init_group_mappings() {
 bool InMemoryPermissionChecker::has_permission(
     domain::AccountId account, application::ports::Permission perm) const {
     // 1. Look up account
-    auto account_result = accounts_->find_by_id(account);
+    auto account_result = accounts_->find_by_id(account.value());
     if (!account_result) {
         return false;
     }
 
     const auto& acc = account_result.value();
 
-    // 2. Check each command group the account belongs to
+    // 2. Check each command group the account belongs to (groups 1-8)
     const auto& groups = acc.command_groups();
-    for (const auto& group : groups) {
-        auto it = group_permissions_.find(group);
-        if (it != group_permissions_.end()) {
-            auto perm_val = static_cast<std::uint16_t>(perm);
-            if (it->second.count(perm_val) > 0) {
-                return true;
+    for (std::uint8_t group_num = 1; group_num <= 8; ++group_num) {
+        if (groups.has(group_num)) {
+            std::string group_name;
+            if (group_num == 1) group_name = "admin";
+            else if (group_num == 2) group_name = "mod";
+            else if (group_num == 3) group_name = "operator";
+            else if (group_num == 4) group_name = "voice";
+            
+            auto it = group_permissions_.find(group_name);
+            if (it != group_permissions_.end()) {
+                auto perm_val = static_cast<std::uint16_t>(perm);
+                if (it->second.count(perm_val) > 0) {
+                    return true;
+                }
             }
         }
     }
@@ -82,7 +92,7 @@ bool InMemoryPermissionChecker::has_permission(
 bool InMemoryPermissionChecker::has_command_group(
     domain::AccountId account, std::string_view group) const {
     // 1. Look up account
-    auto account_result = accounts_->find_by_id(account);
+    auto account_result = accounts_->find_by_id(account.value());
     if (!account_result) {
         return false;
     }
@@ -91,9 +101,17 @@ bool InMemoryPermissionChecker::has_command_group(
 
     // 2. Check if group is in account's groups
     const auto& groups = acc.command_groups();
-    for (const auto& g : groups) {
-        if (g == group) {
-            return true;
+    for (std::uint8_t group_num = 1; group_num <= 8; ++group_num) {
+        if (groups.has(group_num)) {
+            std::string group_name;
+            if (group_num == 1) group_name = "admin";
+            else if (group_num == 2) group_name = "mod";
+            else if (group_num == 3) group_name = "operator";
+            else if (group_num == 4) group_name = "voice";
+            
+            if (group_name == group) {
+                return true;
+            }
         }
     }
 

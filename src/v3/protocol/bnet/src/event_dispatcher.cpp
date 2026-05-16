@@ -21,7 +21,7 @@ inline constexpr std::uint32_t kEidWhisperSent   = 12;
 inline constexpr std::uint32_t kEidInfo          = 4;  // error/info message
 
 void BnetEventDispatcher::dispatch_channel_events(
-    std::span<const domain::SessionId> target_sessions) {
+    const std::vector<domain::SessionId>& target_sessions) {
     // Phase 5 implementation framework:
     //
     // When actual domain events are available, this would:
@@ -69,7 +69,7 @@ void BnetEventDispatcher::dispatch_channel_events(
 }
 
 void BnetEventDispatcher::dispatch_game_events(
-    std::span<const domain::SessionId> target_sessions) {
+    const std::vector<domain::SessionId>& target_sessions) {
     // Phase 5 implementation framework:
     //
     // When actual domain events are available, this would:

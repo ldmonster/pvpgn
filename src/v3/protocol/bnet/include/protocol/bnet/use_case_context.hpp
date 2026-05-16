@@ -17,7 +17,6 @@ namespace pvpgn::application::chat {
 class JoinChannel;
 class PostMessage;
 class LeaveChannel;
-class WhisperUseCase;
 }  // namespace pvpgn::application::chat
 
 namespace pvpgn::application::game {
@@ -48,7 +47,6 @@ struct BnetUseCaseContext {
     std::shared_ptr<application::game::StartGame> start_game;
     std::shared_ptr<application::game::JoinGame> join_game;
     std::shared_ptr<application::game::LeaveGame> leave_game;
-    std::shared_ptr<application::chat::WhisperUseCase> whisper;
     std::shared_ptr<application::moderation::CheckIpBan> check_ip_ban;
     std::shared_ptr<application::ports::IMessageRouter> message_router;
     std::shared_ptr<application::ports::ISessionRegistry> session_registry;

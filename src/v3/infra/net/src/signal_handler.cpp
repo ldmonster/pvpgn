@@ -7,6 +7,7 @@
 
 #include "application/ports/metrics_registry.hpp"
 #include "application/ports/unit_of_work_factory.hpp"
+#include "application/ports/unit_of_work.hpp"
 #include "core/logging.hpp"
 #include "infra/config/config_watcher.hpp"
 #include "infra/net/io_runtime.hpp"
@@ -18,6 +19,9 @@ namespace {
 // This is intentional - signal handlers require C linkage and static storage
 SignalHandler* g_signal_handler = nullptr;
 
+// These handlers are registered with the signal set but not directly called
+// They exist for future use when signal handling is fully integrated
+#if 0
 void handle_sighup(int) {
     if (g_signal_handler) {
         g_signal_handler->install();  // Re-register handlers
@@ -41,6 +45,7 @@ void handle_sigint_sigterm(int sig) {
         // Handler will be invoked in the post() callback
     }
 }
+#endif
 }  // anonymous namespace
 
 SignalHandler::SignalHandler(
@@ -67,53 +72,53 @@ void SignalHandler::install() {
 }
 
 void SignalHandler::on_sighup() {
-    SPDLOG_INFO("Received SIGHUP, reloading configuration");
+    std::cerr << "Received SIGHUP, reloading configuration\n";
     if (config_watcher_) {
         auto result = config_watcher_->reload();
         if (result.has_value()) {
-            SPDLOG_INFO("Configuration reloaded successfully");
+            std::cerr << "Configuration reloaded successfully\n";
         } else {
-            SPDLOG_ERROR("Failed to reload configuration: {}", result.error().message());
+            std::cerr << "Failed to reload configuration: " << result.error().message() << "\n";
         }
     }
 }
 
 void SignalHandler::on_sigusr1_save_all() {
-    SPDLOG_INFO("Received SIGUSR1, flushing all repositories");
+    std::cerr << "Received SIGUSR1, flushing all repositories\n";
     if (uow_factory_) {
         try {
             auto uow = uow_factory_->create();
             auto result = uow->begin();
             if (!result.has_value()) {
-                SPDLOG_ERROR("Failed to begin unit of work: {}", result.error().message());
+                std::cerr << "Failed to begin unit of work: " << result.error().message() << "\n";
                 return;
             }
 
             // Commit to flush all repositories
             result = uow->commit();
             if (result.has_value()) {
-                SPDLOG_INFO("All repositories flushed successfully");
+                std::cerr << "All repositories flushed successfully\n";
             } else {
-                SPDLOG_ERROR("Failed to commit unit of work: {}", result.error().message());
+                std::cerr << "Failed to commit unit of work: " << result.error().message() << "\n";
             }
         } catch (const std::exception& e) {
-            SPDLOG_ERROR("Exception during save-all: {}", e.what());
+            std::cerr << "Exception during save-all: " << e.what() << "\n";
         }
     }
 }
 
 void SignalHandler::on_sigusr2_dump_metrics() {
-    SPDLOG_INFO("Received SIGUSR2, dumping metrics");
+    std::cerr << "Received SIGUSR2, dumping metrics\n";
     if (metrics_) {
         std::string metrics_output = metrics_->serialize();
-        SPDLOG_INFO("=== METRICS DUMP ===");
-        SPDLOG_INFO("{}", metrics_output);
-        SPDLOG_INFO("=== END METRICS DUMP ===");
+        std::cerr << "=== METRICS DUMP ===\n";
+        std::cerr << metrics_output << "\n";
+        std::cerr << "=== END METRICS DUMP ===\n";
     }
 }
 
 void SignalHandler::on_shutdown(int signal_number) {
-    SPDLOG_INFO("Received signal {}, initiating graceful shutdown", signal_number);
+    std::cerr << "Received signal " << signal_number << ", initiating graceful shutdown\n";
     if (on_shutdown_) {
         on_shutdown_(signal_number);
     }

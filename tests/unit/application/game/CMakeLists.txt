@@ -3,14 +3,14 @@
 pvpgn_v3_add_test(test_application_game_start
     SOURCES start_game_test.cpp
     DEPS    application_game
-            infra_storage)
+            infra_storage_repository)
 
 pvpgn_v3_add_test(test_application_game_join
     SOURCES join_game_test.cpp
     DEPS    application_game
-            infra_storage)
+            infra_storage_repository)
 
 pvpgn_v3_add_test(test_application_game_leave
     SOURCES leave_game_test.cpp
     DEPS    application_game
-            infra_storage)
+            infra_storage_repository)

@@ -16,13 +16,14 @@ InviteToClan::execute(domain::ClanId clan_id, domain::AccountId inviter,
         return core::fail(InviteToClanError::ClanNotFound);
     }
 
-    domain::social::Clan clan = clan_result.value();
+    auto clan_ptr = clan_result.value();
+    auto& clan = *clan_ptr;
 
     // 2. Verify inviter is in clan and has sufficient rank
     const auto& members = clan.members();
     auto inviter_it = std::find_if(members.begin(), members.end(),
                                    [inviter](const domain::social::ClanMember& m) {
-                                       return m.account == inviter;
+                                       return m.account.value() == inviter.value();
                                    });
 
     if (inviter_it == members.end()) {
@@ -62,7 +63,7 @@ InviteToClan::execute(domain::ClanId clan_id, domain::AccountId inviter,
         event_bus_->publish(event);
     }
 
-    return core::ok();
+    return core::Result<void, InviteToClanError>{};
 }
 
 }  // namespace pvpgn::application::social

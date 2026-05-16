@@ -15,21 +15,19 @@ ListPublicGames::execute(const ListPublicGamesRequest& req) {
     std::vector<GameInfo> results;
     std::size_t count = 0;
 
-    // 2. Iterate through all games and filter
-    games_->forEach([&](domain::gameplay::Game& game) -> bool {
-        // Skip private games
-        if (!game.descriptor().password.empty()) {
-            return true;  // Continue iteration
-        }
+    // 2. Get all active games and filter
+    auto games_result = games_->list_active();
+    if (!games_result) {
+        return core::fail(ListPublicGamesError::InvalidRequest);
+    }
 
-        // Apply client tag filter
-        if (req.filter_by_tag && game.client() != *req.filter_by_tag) {
-            return true;
-        }
+    for (const auto& game_ptr : games_result.value()) {
+        if (!game_ptr) continue;
+        const auto& game = *game_ptr;
 
-        // Apply game type filter
-        if (req.filter_by_type && game.descriptor().type != *req.filter_by_type) {
-            return true;
+    // Apply client tag filter
+        if (req.filter_by_tag && game.client().bytes() != req.filter_by_tag->bytes()) {
+            continue;
         }
 
         // Add to results
@@ -38,14 +36,14 @@ ListPublicGames::execute(const ListPublicGamesRequest& req) {
             .name = game.descriptor().name,
             .current_players = game.player_count(),
             .max_players = static_cast<std::size_t>(game.descriptor().max_players),
-            .game_type = game.descriptor().type,
+            .game_type = "public",
             .map_name = game.descriptor().map,
             .is_private = false,
         });
 
         count++;
-        return count < req.max_results;  // Stop if we've reached max
-    });
+        if (count >= req.max_results) break;
+    }
 
     return results;
 }

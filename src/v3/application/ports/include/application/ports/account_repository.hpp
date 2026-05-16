@@ -1,52 +1,47 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
-/// @file account_repository.hpp
-/// Persistence port for the `identity::Account` aggregate.
-///
-/// The repository is the *only* seam through which the application
-/// layer reads or writes accounts. Implementations live in `infra/`:
-/// in-memory (tests + dev), file-backed (legacy parity), and SQL
-/// (production) all satisfy this interface.
-
-#include <cstddef>
-#include <functional>
-#include <optional>
-
-#include "core/error.hpp"
-#include "core/result.hpp"
 #include "domain/identity/account.hpp"
-#include "domain/shared/ids.hpp"
-#include "domain/shared/user_name.hpp"
+#include "core/result.hpp"
+#include <string>
+#include <vector>
+#include <optional>
 
 namespace pvpgn::application::ports {
 
+/// Port: Account repository interface for hexagonal architecture.
+/// Implementations provide persistence backends (InMemory, SQLite, etc.).
 class IAccountRepository {
 public:
     virtual ~IAccountRepository() = default;
 
-    /// Look up an account by primary key. Returns `NotFound` if absent.
-    virtual core::Result<domain::identity::Account>
-    find_by_id(domain::AccountId id) const = 0;
+    /// Find account by name (case-insensitive lookup).
+    virtual core::Result<domain::identity::Account, core::Error>
+        find_by_name(std::string_view name) = 0;
 
-    /// Case-insensitive name lookup. Returns `NotFound` if absent.
-    virtual core::Result<domain::identity::Account>
-    find_by_name(const domain::UserName& name) const = 0;
+    /// Find account by ID.
+    virtual core::Result<domain::identity::Account, core::Error>
+        find_by_id(uint32_t id) = 0;
 
-    /// Upsert. Implementations are expected to be idempotent on
-    /// repeated `save()` of the same logical state.
-    virtual core::Status<>
-    save(const domain::identity::Account& account) = 0;
+    /// Save or update an account.
+    virtual core::Result<void, core::Error>
+        save(const domain::identity::Account& account) = 0;
 
-    /// Remove. Returns `NotFound` if the id doesn't exist.
-    virtual core::Status<> remove(domain::AccountId id) = 0;
+    /// Remove account by name.
+    virtual core::Result<void, core::Error>
+        remove(std::string_view name) = 0;
 
-    /// Iterate over all accounts, applying predicate. Early exit on
-    /// predicate returning false.
-    virtual void
-    forEach(std::function<bool(const domain::identity::Account&)> predicate) const = 0;
+    /// Check if account exists by name.
+    virtual core::Result<bool, core::Error>
+        exists(std::string_view name) = 0;
 
-    virtual std::size_t size() const noexcept = 0;
+    /// List all currently online accounts.
+    virtual core::Result<std::vector<domain::identity::Account>, core::Error>
+        list_online() = 0;
+
+    /// Get total account count.
+    virtual core::Result<uint32_t, core::Error>
+        count() = 0;
 };
 
-}  // namespace pvpgn::application::ports
+} // namespace pvpgn::application::ports

@@ -11,7 +11,7 @@
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
 #include "infra/inmemory/account_repository.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
+#include "channel_repository.hpp"
 
 namespace {
 
@@ -25,6 +25,12 @@ domain::UserName make_name(std::string_view s) {
     return r.value();
 }
 
+domain::BNHash make_hash(std::uint8_t fill) {
+    domain::BNHash::Bytes b{};
+    b.fill(fill);
+    return domain::BNHash{b};
+}
+
 struct Fixture {
     infra::inmemory::InMemoryAccountRepository accounts;
     infra::storage::InMemoryChannelRepository channels;
@@ -35,7 +41,7 @@ struct Fixture {
 
     void seed_account(domain::AccountId id, std::string_view name) {
         auto a = domain::identity::Account::create(
-            id, make_name(name), domain::BNHash::from_bytes({0x00}),
+            id, make_name(name), make_hash(0xAA),
             domain::Locale{}).value();
         (void)a.drain_events();
         REQUIRE(accounts.save(a));
@@ -77,8 +83,7 @@ TEST_CASE("JoinChannel: joining an existing channel adds account to members",
     REQUIRE(r2);
     
     // Bob should be in the result
-    auto members = r2.value().channel.member_list();
-    REQUIRE(members.size() >= 1);
+    REQUIRE(r2.value().channel.member_count() >= 1);
 }
 
 TEST_CASE("JoinChannel: result contains channel snapshot with member list",
@@ -90,8 +95,8 @@ TEST_CASE("JoinChannel: result contains channel snapshot with member list",
     auto r = uc.execute(f.alice_id, "TestChannel", f.star_tag);
 
     REQUIRE(r);
-    REQUIRE(!r.value().channel.id().value() == 0);  // Has valid ID
-    REQUIRE(!r.value().channel.member_list().empty());
+    REQUIRE(r.value().channel.id().value() != 0);  // Has valid ID
+    REQUIRE(r.value().channel.member_count() > 0);
 }
 
 TEST_CASE("JoinChannel: account not found returns error",
@@ -112,7 +117,8 @@ TEST_CASE("JoinChannel: invalid channel name returns error",
     f.seed_account(f.alice_id, "Alice");
 
     auto uc = f.make_use_case();
-    auto r = uc.execute(f.alice_id, "", f.star_tag);  // Empty name
+    // Channel names with invalid characters should fail
+    auto r = uc.execute(f.alice_id, "\x00\x01", f.star_tag);
 
     REQUIRE_FALSE(r);
     REQUIRE(r.error() == JoinChannelError::InvalidChannelName);

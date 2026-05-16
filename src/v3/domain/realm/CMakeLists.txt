@@ -1,0 +1,10 @@
+pvpgn_v3_add_library(domain_realm
+    SOURCES
+        src/character.cpp
+        src/dupe_checker.cpp
+    HEADERS
+        include/domain/realm/character.hpp
+        include/domain/realm/dupe_checker.hpp
+    DEPS
+        core
+)

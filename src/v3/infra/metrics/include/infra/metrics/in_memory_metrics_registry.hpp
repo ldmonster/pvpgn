@@ -52,7 +52,7 @@ public:
 
 private:
     std::vector<double> buckets_;
-    std::vector<std::atomic<std::size_t>> bucket_counts_;
+    std::vector<std::shared_ptr<std::atomic<std::size_t>>> bucket_counts_;
     std::atomic<std::size_t> count_{0};
     std::atomic<double> sum_{0.0};
     mutable std::shared_mutex mu_;

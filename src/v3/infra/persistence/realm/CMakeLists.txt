@@ -1,0 +1,14 @@
+pvpgn_v3_add_library(infra_persistence_realm
+    SOURCES
+        src/inmemory_character_repository.cpp
+        src/filesystem_save_store.cpp
+        src/inmemory_save_store.cpp
+    HEADERS
+        include/infra/persistence/realm/inmemory_character_repository.hpp
+        include/infra/persistence/realm/filesystem_save_store.hpp
+        include/infra/persistence/realm/inmemory_save_store.hpp
+    DEPS
+        pvpgn_v3_application_realm
+        pvpgn_v3_domain_realm
+        pvpgn_v3_core
+)

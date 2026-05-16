@@ -16,8 +16,8 @@
 #include "infra/inmemory/account_repository.hpp"
 #include "infra/inmemory/event_bus.hpp"
 #include "infra/inmemory/session_registry.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
-#include "infra/storage/repository/game_repository.hpp"
+#include "infra/inmemory/channel_repository.hpp"
+#include "infra/inmemory/game_repository.hpp"
 
 namespace {
 
@@ -40,8 +40,8 @@ domain::UserName make_name(std::string_view s) {
 struct Fixture {
     infra::inmemory::InMemoryAccountRepository accounts;
     infra::inmemory::InMemorySessionRegistry sessions;
-    infra::storage::InMemoryChannelRepository channels;
-    infra::storage::InMemoryGameRepository games;
+    infra::inmemory::InMemoryChannelRepository channels;
+    infra::inmemory::InMemoryGameRepository games;
     infra::inmemory::InMemoryEventBus bus;
     core::ManualClock clock{core::SystemTime{}};
 
@@ -101,8 +101,8 @@ TEST_CASE("LogoutUser: removes account from channels",
 
     // Create and join a channel
     auto channel = domain::chat::Channel::create(
-        domain::ChannelId{1}, "TestChannel", f.star_tag).value();
-    channel.join(f.alice_id, make_name("Alice"));
+        domain::ChannelId{1}, "TestChannel", domain::chat::ChannelPolicy{.flags = domain::chat::ChannelFlags{}, .client = f.star_tag});
+    (void)channel.admit(f.alice_id, f.star_tag);
     (void)f.channels.save(channel);
 
     auto uc = f.make_use_case();
@@ -120,8 +120,9 @@ TEST_CASE("LogoutUser: removes account from games",
     f.attach_alice_session();
 
     // Create and join a game
-    auto game = domain::gameplay::Game::create(
-        domain::GameId{1}, "TestGame", f.star_tag).value();
+    auto game = domain::gameplay::Game::host(
+        domain::GameId{1}, f.alice_id, f.star_tag,
+        domain::gameplay::GameDescriptor{.name = "TestGame", .map = "TestMap"}).value();
     (void)f.games.save(game);
 
     auto uc = f.make_use_case();

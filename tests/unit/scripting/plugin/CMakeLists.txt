@@ -1,0 +1,7 @@
+add_executable(test_semver semver_test.cpp)
+target_link_libraries(test_semver PRIVATE pvpgn_scripting_plugin GTest::gtest_main)
+add_test(NAME SemVerTest COMMAND test_semver)
+
+add_executable(test_dependency_resolver dependency_resolver_test.cpp)
+target_link_libraries(test_dependency_resolver PRIVATE pvpgn_scripting_plugin GTest::gtest_main)
+add_test(NAME DependencyResolverTest COMMAND test_dependency_resolver)

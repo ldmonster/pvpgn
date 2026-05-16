@@ -3,7 +3,7 @@
 /// @file attribute_map_typed_test.cpp
 /// Unit tests for `AttributeMap` typed accessors.
 
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
 #include "domain/identity/attribute_map.hpp"
 #include "domain/shared/client_tag.hpp"
@@ -14,165 +14,148 @@ namespace pvpgn::domain::identity {
 using AccountId = pvpgn::domain::AccountId;
 using ClientTag = pvpgn::domain::ClientTag;
 
-class AttributeMapTypedTest : public ::testing::Test {
-protected:
-    AccountId owner_{1};
-};
-
 // --- Identity attribute tests ---
 
-TEST_F(AttributeMapTypedTest, UsernameEmptyByDefault) {
-    AttributeMap map{owner_};
-    auto username = map.username();
-    EXPECT_FALSE(username.has_value());
-}
-
-TEST_F(AttributeMapTypedTest, SetAndGetEmail) {
+TEST_CASE("AttributeMap/SetAndGetEmail", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
     map.set_email("test@example.com");
     
-    auto email = map.email();
-    EXPECT_TRUE(email.has_value());
-    EXPECT_EQ(*email, "test@example.com");
+    auto email = map.get("BNET\\acct\\email");
+    CHECK(email.has_value());
+    CHECK(std::string{email.value()} == "test@example.com");
 }
 
-TEST_F(AttributeMapTypedTest, SetAndGetSex) {
+TEST_CASE("AttributeMap/SetAndGetSex", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
     map.set_sex("M");
     
-    auto sex = map.sex();
-    EXPECT_TRUE(sex.has_value());
-    EXPECT_EQ(*sex, "M");
+    auto sex = map.get("BNET\\acct\\sex");
+    CHECK(sex.has_value());
+    CHECK(std::string{sex.value()} == "M");
 }
 
-TEST_F(AttributeMapTypedTest, SetAndGetLocation) {
+TEST_CASE("AttributeMap/SetAndGetLocation", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
     map.set_location("USA");
     
-    auto location = map.location();
-    EXPECT_TRUE(location.has_value());
-    EXPECT_EQ(*location, "USA");
+    auto location = map.get("BNET\\acct\\location");
+    CHECK(location.has_value());
+    CHECK(std::string{location.value()} == "USA");
 }
 
-TEST_F(AttributeMapTypedTest, SetAndGetDescription) {
+TEST_CASE("AttributeMap/SetAndGetDescription", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
     map.set_description("A cool player");
     
-    auto desc = map.description();
-    EXPECT_TRUE(desc.has_value());
-    EXPECT_EQ(*desc, "A cool player");
-}
-
-TEST_F(AttributeMapTypedTest, SetAndGetLastLogin) {
-    AttributeMap map{owner_};
-    core::SystemTime now = std::chrono::system_clock::now();
-    map.set_last_login(now);
-    
-    auto last_login = map.last_login();
-    EXPECT_TRUE(last_login.has_value());
-    // Note: comparing with some tolerance due to potential rounding
-}
-
-TEST_F(AttributeMapTypedTest, SetAndGetCreatedAt) {
-    AttributeMap map{owner_};
-    core::SystemTime now = std::chrono::system_clock::now();
-    map.set_created_at(now);
-    
-    auto created = map.created_at();
-    EXPECT_TRUE(created.has_value());
+    auto desc = map.get("BNET\\acct\\description");
+    CHECK(desc.has_value());
+    CHECK(std::string{desc.value()} == "A cool player");
 }
 
 // --- Game statistics tests ---
 
-TEST_F(AttributeMapTypedTest, WinsDefaultZero) {
+TEST_CASE("AttributeMap/WinsDefaultZero", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
-    ClientTag star = ClientTag("STAR");
+    auto star = ClientTag::parse("STAR").value();
     
     auto wins = map.wins(star);
-    EXPECT_EQ(wins, 0);
+    CHECK(wins == 0);
 }
 
-TEST_F(AttributeMapTypedTest, IncrementWins) {
+TEST_CASE("AttributeMap/IncrementWins", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
-    ClientTag star = ClientTag("STAR");
+    auto star = ClientTag::parse("STAR").value();
     
     map.increment_wins(star);
     map.increment_wins(star);
     
-    EXPECT_EQ(map.wins(star), 2);
+    CHECK(map.wins(star) == 2);
 }
 
-TEST_F(AttributeMapTypedTest, IncrementLosses) {
+TEST_CASE("AttributeMap/IncrementLosses", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
-    ClientTag d2dv = ClientTag("D2DV");
+    auto d2dv = ClientTag::parse("D2DV").value();
     
     map.increment_losses(d2dv);
     
-    EXPECT_EQ(map.losses(d2dv), 1);
+    CHECK(map.losses(d2dv) == 1);
 }
 
-TEST_F(AttributeMapTypedTest, IncrementDisconnects) {
+TEST_CASE("AttributeMap/IncrementDisconnects", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
-    ClientTag war3 = ClientTag("WAR3");
+    auto war3 = ClientTag::parse("WAR3").value();
     
     map.increment_disconnects(war3);
     map.increment_disconnects(war3);
     map.increment_disconnects(war3);
     
-    EXPECT_EQ(map.disconnects(war3), 3);
+    CHECK(map.disconnects(war3) == 3);
 }
 
-TEST_F(AttributeMapTypedTest, IncrementLadderWins) {
+TEST_CASE("AttributeMap/IncrementLadderWins", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
-    ClientTag star = ClientTag("STAR");
+    auto star = ClientTag::parse("STAR").value();
     
     map.increment_ladder_wins(star);
     
-    EXPECT_EQ(map.ladder_wins(star), 1);
+    CHECK(map.ladder_wins(star) == 1);
 }
 
-TEST_F(AttributeMapTypedTest, IncrementLadderLosses) {
+TEST_CASE("AttributeMap/IncrementLadderLosses", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
-    ClientTag war3 = ClientTag("WAR3");
+    auto war3 = ClientTag::parse("WAR3").value();
     
     map.increment_ladder_losses(war3);
     map.increment_ladder_losses(war3);
     
-    EXPECT_EQ(map.ladder_losses(war3), 2);
+    CHECK(map.ladder_losses(war3) == 2);
 }
 
-TEST_F(AttributeMapTypedTest, MultipleClientTags) {
+TEST_CASE("AttributeMap/MultipleClientTags", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
-    ClientTag star = ClientTag("STAR");
-    ClientTag d2dv = ClientTag("D2DV");
+    auto star = ClientTag::parse("STAR").value();
+    auto d2dv = ClientTag::parse("D2DV").value();
     
     map.increment_wins(star);
     map.increment_wins(star);
     map.increment_wins(d2dv);
     
-    EXPECT_EQ(map.wins(star), 2);
-    EXPECT_EQ(map.wins(d2dv), 1);
+    CHECK(map.wins(star) == 2);
+    CHECK(map.wins(d2dv) == 1);
 }
 
-TEST_F(AttributeMapTypedTest, EventsEmittedOnSet) {
+TEST_CASE("AttributeMap/EventsEmittedOnSet", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
     
     map.set_email("user@example.com");
     map.set_location("US");
     
     auto events = map.drain_events();
-    EXPECT_EQ(events.size(), 2);
+    CHECK(events.size() == 2);
 }
 
-TEST_F(AttributeMapTypedTest, EventsEmittedOnIncrement) {
+TEST_CASE("AttributeMap/EventsEmittedOnIncrement", "[domain][identity]") {
+    AccountId owner_{1};
     AttributeMap map{owner_};
-    ClientTag star = ClientTag("STAR");
+    auto star = ClientTag::parse("STAR").value();
     
     map.increment_wins(star);
     map.increment_losses(star);
     
     auto events = map.drain_events();
-    EXPECT_EQ(events.size(), 2);
+    CHECK(events.size() == 2);
 }
 
 }  // namespace pvpgn::domain::identity

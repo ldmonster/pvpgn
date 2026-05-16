@@ -10,7 +10,7 @@ namespace pvpgn::application::moderation {
 core::Result<void, BanAccountError>
 BanAccount::execute(const BanAccountRequest& req) {
     // 1. Verify target account exists
-    auto target_result = accounts_->find_by_id(req.target);
+    auto target_result = accounts_->find_by_id(req.target.value());
     if (!target_result) {
         return core::fail(BanAccountError::TargetNotFound);
     }
@@ -21,7 +21,7 @@ BanAccount::execute(const BanAccountRequest& req) {
     }
 
     // 3. Check if already banned
-    auto existing_ban = bans_->find_active_ban(req.target, core::SystemTime::now());
+    auto existing_ban = bans_->find_active_ban(req.target, std::chrono::system_clock::now());
     if (existing_ban && existing_ban.value()) {
         return core::fail(BanAccountError::AlreadyBanned);
     }
@@ -31,7 +31,7 @@ BanAccount::execute(const BanAccountRequest& req) {
         .banned_account = req.target,
         .banned_by = req.banned_by,
         .reason = req.reason,
-        .banned_at = core::SystemTime::now(),
+        .banned_at = std::chrono::system_clock::now(),
         .expires_at = req.expires_at,
     };
 
@@ -43,7 +43,7 @@ BanAccount::execute(const BanAccountRequest& req) {
     // 5. Publish events (would include AccountBanned domain event)
     // Events would be published via event_bus_
 
-    return core::ok();
+    return core::Result<void, BanAccountError>();
 }
 
 }  // namespace pvpgn::application::moderation

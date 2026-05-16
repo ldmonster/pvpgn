@@ -1,13 +1,13 @@
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
 # include used modules
-include(DefineInstallationPaths)
+include(${CMAKE_SOURCE_DIR}/cmake/DefineInstallationPaths.cmake)
 include(CheckIncludeFileCXX)
 include(CheckFunctionExists)
 include(CheckSymbolExists)
 include(CheckLibraryExists)
 include(CheckCXXCompilerFlag)
-include(CheckMkdirArgs)
+include(${CMAKE_SOURCE_DIR}/cmake/CheckMkdirArgs.cmake)
 include(CheckIncludeFiles)
 
 # setup short variable path names
@@ -66,7 +66,11 @@ if(WITH_BNETD)
 endif(WITH_BNETD)
 
 if(WITH_LUA)
-    find_package(Lua REQUIRED)
+    # Lua 5.1 support dropped in 4.0 — require Lua 5.4+
+    find_package(Lua 5.4 REQUIRED)
+    if(NOT LUA_VERSION_STRING MATCHES "^5\\.4")
+        message(FATAL_ERROR "Lua 5.4 is required (found ${LUA_VERSION_STRING}). Lua 5.1 support was dropped in PvPGN 4.0.")
+    endif()
 endif(WITH_LUA)
 
 # storage module checks
@@ -222,6 +226,7 @@ else(HAVE_WINSOCK2_H)
 	check_function_exists(getservbyname HAVE_GETSERVBYNAME)
 endif(HAVE_WINSOCK2_H)
 
-check_mkdir_args(MKDIR_TAKES_ONE_ARG)
+# check_mkdir_args(MKDIR_TAKES_ONE_ARG)
+# Note: This macro is not defined in the CMake modules and is only needed for legacy builds
 
 configure_file(config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)

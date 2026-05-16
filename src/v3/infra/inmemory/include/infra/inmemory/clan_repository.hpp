@@ -9,29 +9,31 @@
 #include <ankerl/unordered_dense.h>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <string>
 
 #include "application/ports/clan_repository.hpp"
+#include "domain/social/clan.hpp"
 
 namespace pvpgn::infra::inmemory {
 
 class InMemoryClanRepository final
     : public application::ports::IClanRepository {
 public:
-    core::Result<domain::social::Clan>
-    find_by_id(domain::ClanId id) const override {
+    core::Result<std::shared_ptr<domain::social::Clan>, core::Error>
+    find_by_id(domain::ClanId id) override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
         auto it = by_id_.find(id.value());
         if (it == by_id_.end()) {
             return core::fail(
                 core::Error{core::StatusCode::NotFound, "clan: id not found"});
         }
-        return *it->second;
+        return it->second;
     }
 
-    core::Result<domain::social::Clan>
-    find_by_tag(std::string_view tag) const override {
+    core::Result<std::shared_ptr<domain::social::Clan>, core::Error>
+    find_by_tag(std::string_view tag) override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
         // Normalize tag to lowercase for case-insensitive lookup
         std::string normalized_tag(tag);
@@ -47,27 +49,25 @@ public:
             return core::fail(core::Error{
                 core::StatusCode::Internal, "clan: index corrupt"});
         }
-        return *clan_it->second;
+        return clan_it->second;
     }
 
-    core::Result<domain::social::Clan>
-    find_by_member(domain::AccountId account_id) const override {
+    core::Result<std::shared_ptr<domain::social::Clan>, core::Error>
+    find_by_name(std::string_view name) override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
         for (const auto& [_id, clan] : by_id_) {
-            // Check if account is a member of this clan
-            if (clan->has_member(account_id)) {
-                return *clan;
+            if (clan->name() == name) {
+                return clan;
             }
         }
         return core::fail(core::Error{
-            core::StatusCode::NotFound,
-            "clan: account is not a member of any clan"});
+            core::StatusCode::NotFound, "clan: name not found"});
     }
 
-    core::Status<>
+    core::Result<void, core::Error>
     save(const domain::social::Clan& clan) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        auto copy = std::make_unique<domain::social::Clan>(clan);
+        auto copy = std::make_shared<domain::social::Clan>(clan);
         
         // Update tag index (normalized)
         std::string normalized_tag(clan.tag());
@@ -76,48 +76,35 @@ public:
         by_tag_[normalized_tag] = clan.id().value();
         
         // Update ID index
-        by_id_[clan.id().value()] = std::move(copy);
+        by_id_[clan.id().value()] = copy;
         return core::ok();
     }
 
-    core::Status<>
-    remove(domain::ClanId id) override {
+    core::Result<void, core::Error>
+    remove(std::string_view tag) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        auto it = by_id_.find(id.value());
-        if (it == by_id_.end()) {
-            return core::fail(
-                core::Error{core::StatusCode::NotFound, "clan: id not found"});
-        }
-        
-        // Remove from tag index
-        std::string normalized_tag(it->second->tag());
+        // Normalize tag to lowercase for case-insensitive lookup
+        std::string normalized_tag(tag);
         std::transform(normalized_tag.begin(), normalized_tag.end(),
                       normalized_tag.begin(), ::tolower);
-        by_tag_.erase(normalized_tag);
+        auto it = by_tag_.find(normalized_tag);
+        if (it == by_tag_.end()) {
+            return core::fail(
+                core::Error{core::StatusCode::NotFound, "clan: tag not found"});
+        }
         
         // Remove from ID index
-        by_id_.erase(it);
+        by_id_.erase(it->second);
+        
+        // Remove from tag index
+        by_tag_.erase(it);
         return core::ok();
-    }
-
-    void forEach(
-        std::function<bool(const domain::social::Clan&)> predicate)
-        const override {
-        std::shared_lock<std::shared_mutex> lock(mutex_);
-        for (const auto& [_id, clan] : by_id_) {
-            if (!predicate(*clan)) break;
-        }
-    }
-
-    std::size_t size() const noexcept override {
-        std::shared_lock<std::shared_mutex> lock(mutex_);
-        return by_id_.size();
     }
 
 private:
     mutable std::shared_mutex mutex_;
     ankerl::unordered_dense::map<std::uint32_t,
-                                 std::unique_ptr<domain::social::Clan>>
+                                 std::shared_ptr<domain::social::Clan>>
         by_id_;
     ankerl::unordered_dense::map<std::string, std::uint32_t> by_tag_;
 };

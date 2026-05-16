@@ -18,13 +18,13 @@ SetClanMotd::execute(domain::ClanId clan_id, domain::AccountId setter,
         return core::fail(SetClanMotdError::ClanNotFound);
     }
 
-    domain::social::Clan clan = clan_result.value();
+    auto& clan = *clan_result.value();
 
     // 2. Verify setter is in clan and has sufficient rank
     const auto& members = clan.members();
     auto setter_it = std::find_if(members.begin(), members.end(),
                                   [setter](const domain::social::ClanMember& m) {
-                                      return m.account == setter;
+                                      return m.account.value() == setter.value();
                                   });
 
     if (setter_it == members.end()) {
@@ -57,7 +57,7 @@ SetClanMotd::execute(domain::ClanId clan_id, domain::AccountId setter,
         event_bus_->publish(event);
     }
 
-    return core::ok();
+    return core::Result<void, SetClanMotdError>{};
 }
 
 }  // namespace pvpgn::application::social

@@ -9,7 +9,7 @@ namespace pvpgn::application::moderation {
 core::Result<void, UnbanAccountError>
 UnbanAccount::execute(domain::AccountId target, domain::AccountId by_admin) {
     // 1. Check if account is currently banned
-    auto existing_ban = bans_->find_active_ban(target, core::SystemTime::now());
+    auto existing_ban = bans_->find_active_ban(target, std::chrono::system_clock::now());
     if (!existing_ban || !existing_ban.value()) {
         return core::fail(UnbanAccountError::NotBanned);
     }
@@ -23,7 +23,7 @@ UnbanAccount::execute(domain::AccountId target, domain::AccountId by_admin) {
     // 3. Publish events (would include AccountUnbanned domain event)
     // Events would be published via event_bus_
 
-    return core::ok();
+    return core::Result<void, UnbanAccountError>();
 }
 
 }  // namespace pvpgn::application::moderation

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/chat/list_channels.hpp"
 
+#include <algorithm>
+
 #include "application/ports/channel_repository.hpp"
 #include "domain/chat/channel.hpp"
 
@@ -8,18 +10,24 @@ namespace pvpgn::application::chat {
 
 core::Result<std::vector<ChannelInfo>, ListChannelsError>
 ListChannels::execute(const ListChannelsRequest& req) const {
-    // 1. Validate max_results
-    if (req.max_results == 0) {
+    // 1. Validate max_results (0 is invalid when not filtering by tag)
+    bool has_filter = req.filter_by_tag.has_value() &&
+                      req.filter_by_tag.value().bytes() != domain::ClientTag{}.bytes();
+    if (req.max_results == 0 && !has_filter) {
         return core::fail(ListChannelsError::InvalidMaxResults);
     }
 
     std::vector<ChannelInfo> result;
+    
+    // Use a large number if max_results is 0 (unlimited when filtering)
+    std::uint32_t limit = (req.max_results == 0) ? UINT32_MAX : req.max_results;
 
     // 2. Iterate channels via forEach
-    channels_->forEach([&](domain::chat::Channel& ch) {
+    channels_->forEach([&](const domain::chat::Channel& ch) {
         // 3. Filter by client tag if provided
-        if (req.filter_by_tag) {
-            if (!(ch.policy().client == *req.filter_by_tag)) {
+        if (req.filter_by_tag.has_value() &&
+            req.filter_by_tag.value().bytes() != domain::ClientTag{}.bytes()) {
+            if (ch.policy().client.bytes() != req.filter_by_tag.value().bytes()) {
                 return true;  // continue
             }
         }
@@ -33,8 +41,14 @@ ListChannels::execute(const ListChannelsRequest& req) const {
         });
 
         // 5. Respect max_results limit
-        return result.size() < req.max_results;
+        return result.size() < limit;
     });
+
+    // 6. Sort by channel ID for consistent ordering
+    std::sort(result.begin(), result.end(),
+              [](const ChannelInfo& a, const ChannelInfo& b) {
+                  return a.id.value() < b.id.value();
+              });
 
     return result;
 }

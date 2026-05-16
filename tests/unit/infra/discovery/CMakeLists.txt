@@ -1,0 +1,3 @@
+add_executable(test_service_registry service_registry_test.cpp)
+target_link_libraries(test_service_registry PRIVATE pvpgn_discovery GTest::gtest_main)
+add_test(NAME ServiceRegistryTest COMMAND test_service_registry)

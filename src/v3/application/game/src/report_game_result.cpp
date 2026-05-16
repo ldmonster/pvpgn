@@ -15,12 +15,13 @@ ReportGameResult::execute(const ReportGameResultRequest& req) {
     }
 
     // 2. Find the game
-    auto game_result = games_->find_by_id(req.game_id);
+    auto game_result = games_->find_by_id(req.game_id.value());
     if (!game_result) {
         return core::fail(ReportGameResultError::GameNotFound);
     }
 
-    domain::gameplay::Game game = game_result.value();
+    auto game_ptr = game_result.value();
+    auto& game = *game_ptr;
 
     // 3. Verify reporter is in the game
     if (!game.contains(req.reporter_id)) {
@@ -35,10 +36,15 @@ ReportGameResult::execute(const ReportGameResultRequest& req) {
     // 5. Convert to domain PlayerResults
     std::vector<domain::PlayerResult> player_results;
     for (const auto& res : req.results) {
+        domain::MatchOutcome outcome = domain::MatchOutcome::Loss;
+        if (res.disconnected) {
+            outcome = domain::MatchOutcome::Disconnect;
+        } else if (res.won) {
+            outcome = domain::MatchOutcome::Win;
+        }
         player_results.push_back({
-            .account_id = res.account_id,
-            .won = res.won,
-            .disconnected = res.disconnected,
+            .account = res.account_id,
+            .outcome = outcome,
         });
     }
 
@@ -60,7 +66,7 @@ ReportGameResult::execute(const ReportGameResultRequest& req) {
         event_bus_->publish(event);
     }
 
-    return core::ok();
+    return core::Result<void, ReportGameResultError>{};
 }
 
 }  // namespace pvpgn::application::game

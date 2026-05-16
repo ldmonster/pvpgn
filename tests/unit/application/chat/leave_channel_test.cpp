@@ -9,7 +9,7 @@
 #include "domain/chat/channel.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
+#include "channel_repository.hpp"
 
 namespace {
 
@@ -25,20 +25,21 @@ struct Fixture {
 
     void setup_channel_with_members() {
         auto ch = domain::chat::Channel::create(
-            channel_id, "TestChannel", domain::ClientTag::parse("STAR").value())
-            .value();
-        (void)ch.add_member(alice_id);
-        (void)ch.add_member(bob_id);
+            channel_id, "TestChannel", domain::chat::ChannelPolicy{});
+        auto star_tag = domain::ClientTag::parse("STAR").value();
+        (void)ch.admit(alice_id, star_tag);
+        (void)ch.admit(bob_id, star_tag);
         REQUIRE(channels.save(ch));
     }
 
     void setup_permanent_channel_with_members() {
+        domain::chat::ChannelPolicy policy;
+        policy.flags.set(domain::chat::ChannelFlag::Permanent);
         auto ch = domain::chat::Channel::create(
-            channel_id, "TestChannel", domain::ClientTag::parse("STAR").value())
-            .value();
-        ch.set_permanent(true);
-        (void)ch.add_member(alice_id);
-        (void)ch.add_member(bob_id);
+            channel_id, "TestChannel", policy);
+        auto star_tag = domain::ClientTag::parse("STAR").value();
+        (void)ch.admit(alice_id, star_tag);
+        (void)ch.admit(bob_id, star_tag);
         REQUIRE(channels.save(ch));
     }
 
@@ -61,8 +62,7 @@ TEST_CASE("LeaveChannel: leaving a channel removes the account from members",
     // Verify Alice was removed by checking the channel state
     auto ch = f.channels.find_by_id(f.channel_id);
     REQUIRE(ch);
-    auto members = ch.value().member_list();
-    REQUIRE(members.size() == 1);  // Only Bob remains
+    REQUIRE(ch.value().member_count() == 1);  // Only Bob remains
 }
 
 TEST_CASE("LeaveChannel: empty non-permanent channel is removed from repository",

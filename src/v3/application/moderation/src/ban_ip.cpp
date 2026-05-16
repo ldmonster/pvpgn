@@ -17,18 +17,20 @@ BanIp::execute(const BanIpRequest& req) {
     }
 
     // 3. Check if already banned
-    auto existing_ban = bans_->find_ban(req.target);
-    if (existing_ban) {
+    auto is_banned = bans_->is_banned(req.target);
+    if (!is_banned) {
+        return core::fail(BanIpError::PersistenceFailed);
+    }
+    if (is_banned.value()) {
         return core::fail(BanIpError::AlreadyBanned);
     }
 
     // 4. Create and save IP ban entry
-    application::ports::IpBan ban{
+    domain::moderation::IpBanEntry ban{
         .ip = req.target,
-        .banned_by = req.banned_by,
         .reason = req.reason,
-        .is_cidr_range = req.is_cidr_range,
-        .banned_at = core::SystemTime::now(),
+        .issuer = req.banned_by,
+        .issued_at = std::chrono::system_clock::now(),
         .expires_at = req.expires_at,
     };
 
@@ -40,7 +42,7 @@ BanIp::execute(const BanIpRequest& req) {
     // 5. Publish events (would include IpBanned domain event)
     // Events would be published via event_bus_
 
-    return core::ok();
+    return core::Result<void, BanIpError>{};
 }
 
 }  // namespace pvpgn::application::moderation

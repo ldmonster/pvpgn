@@ -8,9 +8,9 @@ namespace pvpgn::application::moderation {
 
 core::Result<void, KickConnectionError>
 KickConnection::execute(domain::SessionId session_id, std::string_view reason) {
-    // 1. Find the session
-    auto session_result = registry_->find_session_by_id(session_id);
-    if (!session_result) {
+    // 1. Check if the session exists
+    auto account_opt = registry_->account_for(session_id);
+    if (!account_opt) {
         return core::fail(KickConnectionError::SessionNotFound);
     }
 
@@ -22,12 +22,9 @@ KickConnection::execute(domain::SessionId session_id, std::string_view reason) {
     // }
 
     // 3. Unregister the session
-    auto unregister_result = registry_->remove_session(session_id);
-    if (!unregister_result) {
-        return core::fail(KickConnectionError::RoutingFailed);
-    }
+    registry_->detach(session_id);
 
-    return core::ok();
+    return core::Result<void, KickConnectionError>{};
 }
 
 }  // namespace pvpgn::application::moderation

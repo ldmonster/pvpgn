@@ -9,7 +9,7 @@
 #include "domain/gameplay/game.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/storage/repository/game_repository.hpp"
+#include "game_repository.hpp"
 
 namespace {
 
@@ -24,13 +24,14 @@ struct Fixture {
     domain::AccountId charlie_id{3};
     domain::ClientTag star_tag = domain::ClientTag::parse("STAR").value();
 
-    void setup_game_with_players(domain::GameId game_id, 
+    void setup_game_with_players(domain::GameId game_id,
                                   std::vector<domain::AccountId> players) {
-        auto g = domain::gameplay::Game::create(
-            game_id, players[0], star_tag, "TestGame", "Deathstar", 4)
+        auto g = domain::gameplay::Game::host(
+            game_id, players[0], star_tag,
+            domain::gameplay::GameDescriptor{"TestGame", "Deathstar", 4})
             .value();
         for (size_t i = 1; i < players.size(); ++i) {
-            (void)g.add_player(players[i]);
+            (void)g.join(players[i]);
         }
         REQUIRE(games.save(g));
     }
@@ -52,9 +53,9 @@ TEST_CASE("LeaveGame: leaving a game removes the player",
 
     REQUIRE(r);
     // Verify Bob was removed
-    auto g = f.games.find_by_id(domain::GameId{1});
+    auto g = f.games.find_by_id(1);  // Pass uint32_t, not GameId
     REQUIRE(g);
-    auto players = g.value().player_list();
+    auto players = g.value()->players();  // Use players() method, dereference shared_ptr
     REQUIRE(players.size() == 1);  // Only Alice remains
 }
 
@@ -62,14 +63,18 @@ TEST_CASE("LeaveGame: empty game is removed from repository",
           "[application][game][leave]") {
     Fixture f;
     f.setup_game_with_players(domain::GameId{1}, {f.alice_id});
-    REQUIRE(f.games.size() == 1);
+    // Verify game was saved
+    auto initial = f.games.find_by_id(1);
+    REQUIRE(initial);
 
     auto uc = f.make_use_case();
     auto r = uc.execute(domain::GameId{1}, f.alice_id);
 
     REQUIRE(r);
     REQUIRE(r.value().game_deleted);
-    REQUIRE(f.games.size() == 0);  // Game should be removed
+    // Verify game was removed
+    auto after = f.games.find_by_id(1);
+    REQUIRE_FALSE(after);
 }
 
 TEST_CASE("LeaveGame: if host leaves, host migrates to another player",
@@ -85,7 +90,7 @@ TEST_CASE("LeaveGame: if host leaves, host migrates to another player",
     REQUIRE(r.value().new_host.value() > 0);
     
     // Verify new host is one of the remaining players
-    REQUIRE(r.value().new_host == f.bob_id || r.value().new_host == f.charlie_id);
+    REQUIRE((r.value().new_host == f.bob_id || r.value().new_host == f.charlie_id));
 }
 
 TEST_CASE("LeaveGame: leaving non-existent game returns GameNotFound",

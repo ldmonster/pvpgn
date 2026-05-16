@@ -8,7 +8,7 @@
 #include "application/chat/kick_from_channel.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
+#include "channel_repository.hpp"
 
 namespace {
 
@@ -27,16 +27,17 @@ struct Fixture {
     void setup_channel_with_members() {
         auto ch = domain::chat::Channel::create(
             channel_id, "TestChannel", domain::chat::ChannelPolicy{});
-        ch.admit(alice_id, domain::ClientTag{});
-        ch.admit(bob_id, domain::ClientTag{});
-        ch.admit(charlie_id, domain::ClientTag{});
-        channels.save(ch);
+        auto star_tag = domain::ClientTag::parse("STAR").value();
+        (void)ch.admit(alice_id, star_tag);
+        (void)ch.admit(bob_id, star_tag);
+        (void)ch.admit(charlie_id, star_tag);
+        REQUIRE(channels.save(ch));
     }
 
     KickFromChannel make_use_case() {
         return KickFromChannel{
-            std::make_shared<infra::storage::InMemoryChannelRepository>(
-                channels),
+            std::shared_ptr<infra::storage::InMemoryChannelRepository>(
+                &channels, [](auto*) {}),
             nullptr,  // Account repository not tested here
             nullptr   // Message router not tested here
         };

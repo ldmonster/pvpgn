@@ -6,7 +6,7 @@ namespace pvpgn::application::auth {
 ChangePasswordUseCase::Result ChangePasswordUseCase::execute(
     const ChangePasswordRequest& req) {
     // 1. Look up the account by canonical name.
-    auto found = accounts_.find_by_name(req.name);
+    auto found = accounts_.find_by_name(req.name.canonical());
     if (!found) {
         return core::fail(ChangePasswordError::UnknownUser);
     }
@@ -62,7 +62,7 @@ ChangePasswordUseCase::Result ChangePasswordUseCase::execute(
         return core::fail(ChangePasswordError::Internal);
     }
 
-    auto found = accounts_.find_by_name(req.name);
+    auto found = accounts_.find_by_name(req.name.canonical());
     if (!found) {
         return core::fail(ChangePasswordError::UnknownUser);
     }

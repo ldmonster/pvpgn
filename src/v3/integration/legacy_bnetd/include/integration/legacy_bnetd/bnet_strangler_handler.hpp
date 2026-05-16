@@ -73,7 +73,7 @@ public:
         : LegacyProtocolHandler(cls),
           fallback_(std::move(fallback)),
           ctx_(*this),
-          fsm_(ctx_) {
+          fsm_(std::make_shared<EgressContext>(*this), protocol::bnet::BnetUseCaseContext{}) {
         // Currently the v3 layer is authoritative for SID_NULL only.
         // Add more opcodes here as the corresponding FSM/codec arms
         // graduate from "stub" to "feature-complete".

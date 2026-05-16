@@ -1,0 +1,19 @@
+# Example Quiz Plugin for PvPGN v3
+# This demonstrates the plugin system and can be used as a template
+
+[plugin]
+id = "com.pvpgn.example.quiz"
+name = "Quiz Plugin"
+version = "1.0.0"
+description = "Example quiz game plugin for PvPGN"
+author = "PvPGN Team"
+license = "GPL-2.0"
+entry_point = "main.lua"
+api_version_req = ">=3.0.0"
+provides = ["game.quiz"]
+conflicts = []
+
+[[dependencies]]
+plugin_id = "com.pvpgn.core.chat"
+version_req = ">=3.0.0"
+optional = false

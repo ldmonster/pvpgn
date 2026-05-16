@@ -8,3 +8,6 @@
 /lua5.1
 /.vs
 /CMakeSettings.json
+/_deps
+/cmake
+CMakeFiles

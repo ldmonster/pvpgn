@@ -20,15 +20,10 @@ public:
     ~CapturingSessionContext() = default;
 
     /// Send a message (captured in sent_messages_).
-    void send(const ServerMessage& msg) override;
+    core::Status<> send(const ServerMessage& msg) override;
 
     /// Mark session as closed.
     void close() override { closed_ = true; }
-
-    /// Return a constant session ID for testing.
-    domain::SessionId session_id() const override {
-        return domain::SessionId{1};
-    }
 
     // Query helpers for test assertions
 

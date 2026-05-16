@@ -51,9 +51,24 @@ public:
     core::Status<>
     save(const domain::chat::Channel& channel) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        auto copy = std::make_unique<domain::chat::Channel>(channel);
-        by_name_[channel.name()] = channel.id().value();
-        by_id_[channel.id().value()] = std::move(copy);
+        
+        // If channel has ID 0, auto-generate one
+        domain::chat::Channel ch = channel;
+        if (ch.id().value() == 0) {
+            next_id_++;
+            ch = domain::chat::Channel::create(
+                domain::ChannelId{next_id_},
+                ch.name(),
+                ch.policy());
+            // Re-add members from original channel
+            for (const auto& member_id : channel.member_ids()) {
+                ch.admit(member_id, domain::ClientTag{});
+            }
+        }
+        
+        auto copy = std::make_unique<domain::chat::Channel>(ch);
+        by_name_[ch.name()] = ch.id().value();
+        by_id_[ch.id().value()] = std::move(copy);
         return core::ok();
     }
 
@@ -87,6 +102,7 @@ private:
     std::unordered_map<std::uint32_t,
                        std::unique_ptr<domain::chat::Channel>> by_id_;
     std::unordered_map<std::string, std::uint32_t> by_name_;
+    std::uint32_t next_id_ = 0;
 };
 
 }  // namespace pvpgn::infra::storage

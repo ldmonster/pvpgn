@@ -24,7 +24,7 @@ pvpgn_v3_add_test(test_application_auth_create_account
 
 pvpgn_v3_add_test(test_application_auth_logout_user
     SOURCES logout_user_test.cpp
-    DEPS    application_auth infra_inmemory infra_storage)
+    DEPS    application_auth infra_inmemory)
 
 pvpgn_v3_add_test(test_application_auth_account_lock
     SOURCES account_lock_test.cpp

@@ -30,7 +30,7 @@ CreateClan::execute(const CreateClanRequest& req) {
 
     // 4. Create new clan aggregate
     auto clan_result = domain::social::Clan::create(
-        clan_id, req.tag, req.name, req.founder_id, domain::ClientTag::Unknown);
+        clan_id, req.tag, req.name, req.founder_id, domain::ClientTag{});
     if (!clan_result) {
         return core::fail(CreateClanError::InvalidName);
     }

@@ -18,8 +18,8 @@ void ShutdownCoordinator::initiate_shutdown(std::chrono::seconds grace_period) {
     // Step 1: Stop accepting new connections (would be done by listener)
     
     // Step 2: Notify all active sessions
-    if (auto registry = registry_.lock()) {
-        auto sessions = registry->list();
+    if (registry_) {
+        auto sessions = registry_->list();
         // TODO: Send shutdown notification to all sessions via ISessionContext
         (void)sessions;
     }
@@ -28,17 +28,17 @@ void ShutdownCoordinator::initiate_shutdown(std::chrono::seconds grace_period) {
     std::this_thread::sleep_for(grace_period);
 
     // Step 4: Force-close remaining sessions
-    if (auto registry = registry_.lock()) {
-        auto sessions = registry->list();
+    if (registry_) {
+        auto sessions = registry_->list();
         for (auto sid : sessions) {
-            registry->detach(sid);
+            registry_->detach(sid);
         }
     }
 
     // Step 5: Flush all repositories via UnitOfWork
-    if (auto uow_factory = uow_factory_.lock()) {
+    if (uow_factory_) {
         // TODO: Create UoW and call SaveAll on each repository
-        (void)uow_factory;
+        (void)uow_factory_;
     }
 
     // Step 6: Stop IoRuntime

@@ -31,7 +31,7 @@ public:
     save(const domain::social::FriendList& list) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
         auto copy = std::make_unique<domain::social::FriendList>(list);
-        by_owner_[list.owner_id().value()] = std::move(copy);
+        by_owner_[list.owner().value()] = std::move(copy);
         return core::ok();
     }
 

@@ -22,7 +22,7 @@ ListFriends::execute(domain::AccountId owner) {
     // 2. For each friend, gather info
     for (domain::AccountId friend_id : list.entries()) {
         // Get account info
-        auto account_result = accounts_->find_by_id(friend_id);
+        auto account_result = accounts_->find_by_id(friend_id.value());
         if (!account_result) {
             continue;  // Skip if account not found
         }
@@ -30,12 +30,12 @@ ListFriends::execute(domain::AccountId owner) {
         const auto& account = account_result.value();
 
         // Check if online
-        auto session_result = registry_->find_session_by_account(friend_id);
+        auto session_result = registry_->session_for(friend_id);
         bool is_online = session_result.has_value();
 
         FriendInfo info{
             .id = friend_id,
-            .name = account.user_name(),
+            .name = account.name(),
             .is_online = is_online,
             .current_channel = std::nullopt,
             .current_game = std::nullopt,
@@ -43,7 +43,7 @@ ListFriends::execute(domain::AccountId owner) {
 
         // If online, get current channel and game
         if (is_online) {
-            const auto& session = session_result.value();
+            [[maybe_unused]] const auto& session = session_result.value();
             // Note: these would be populated by the session registry impl
             // For now, set to nullopt
         }

@@ -9,7 +9,7 @@
 #include "domain/chat/channel.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
+#include "channel_repository.hpp"
 
 namespace {
 
@@ -20,7 +20,10 @@ using application::chat::BanFromChannelError;
 
 domain::UserName make_name(std::string_view s) {
     auto r = domain::UserName::parse(s);
-    if (!r) return domain::UserName{};
+    if (!r) {
+        auto fallback = domain::UserName::parse("Unknown");
+        return fallback.value();
+    }
     return r.value();
 }
 
@@ -33,15 +36,16 @@ struct Fixture {
     void setup_channel_with_members() {
         auto ch = domain::chat::Channel::create(
             channel_id, "TestChannel", domain::chat::ChannelPolicy{});
-        ch.admit(alice_id, domain::ClientTag{});
-        ch.admit(bob_id, domain::ClientTag{});
-        channels.save(ch);
+        auto star_tag = domain::ClientTag::parse("STAR").value();
+        (void)ch.admit(alice_id, star_tag);
+        (void)ch.admit(bob_id, star_tag);
+        REQUIRE(channels.save(ch));
     }
 
     BanFromChannel make_use_case() {
         return BanFromChannel{
-            std::make_shared<infra::storage::InMemoryChannelRepository>(
-                channels),
+            std::shared_ptr<infra::storage::InMemoryChannelRepository>(
+                &channels, [](auto*) {}),
             nullptr,  // Account repository not tested here
             nullptr   // Message router not tested here
         };
@@ -135,7 +139,7 @@ TEST_CASE("BanFromChannel: fails when target already banned",
     if (ch) {
         auto channel = ch.value();
         channel.kick(f.alice_id, f.bob_id);  // This adds to banlist
-        f.channels.save(channel);
+        REQUIRE(f.channels.save(channel));
     }
 
     auto uc = f.make_use_case();

@@ -1,0 +1,13 @@
+pvpgn_v3_add_library(application_ports
+    HEADERS
+        include/application/ports/account_repository.hpp
+        include/application/ports/channel_repository.hpp
+        include/application/ports/game_repository.hpp
+        include/application/ports/clan_repository.hpp
+        include/application/ports/ladder_repository.hpp
+    DEPS
+        pvpgn_v3_core
+        pvpgn_v3_domain_identity
+        pvpgn_v3_domain_chat
+        pvpgn_v3_domain_gameplay
+)

@@ -9,7 +9,7 @@
 #include "domain/chat/channel.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
+#include "channel_repository.hpp"
 
 namespace {
 
@@ -32,18 +32,19 @@ struct Fixture {
         auto ch1 = domain::chat::Channel::create(
             channel_id_1, "PublicChannel",
             domain::chat::ChannelPolicy{});
-        channels.save(ch1);
+        REQUIRE(channels.save(ch1));
 
+        domain::chat::ChannelPolicy policy;
+        policy.client = make_tag("STAR");
         auto ch2 = domain::chat::Channel::create(
-            channel_id_2, "StarChannel",
-            domain::chat::ChannelPolicy{.client = make_tag("STAR")});
-        channels.save(ch2);
+            channel_id_2, "StarChannel", policy);
+        REQUIRE(channels.save(ch2));
     }
 
     ListChannels make_use_case() {
         return ListChannels{
-            std::make_shared<infra::storage::InMemoryChannelRepository>(
-                channels)};
+            std::shared_ptr<infra::storage::InMemoryChannelRepository>(
+                &channels, [](auto*) {})};
     }
 };
 
@@ -70,6 +71,7 @@ TEST_CASE("ListChannels: filters by client tag when provided",
     auto uc = f.make_use_case();
     ListChannelsRequest req{
         .filter_by_tag = make_tag("STAR"),
+        .max_results = 0,
     };
     auto r = uc.execute(req);
 
@@ -85,6 +87,7 @@ TEST_CASE("ListChannels: respects max_results limit",
 
     auto uc = f.make_use_case();
     ListChannelsRequest req{
+        .filter_by_tag = domain::ClientTag{},
         .max_results = 1,
     };
     auto r = uc.execute(req);
@@ -115,6 +118,7 @@ TEST_CASE("ListChannels: invalid max_results returns error",
 
     auto uc = f.make_use_case();
     ListChannelsRequest req{
+        .filter_by_tag = domain::ClientTag{},
         .max_results = 0,
     };
     auto r = uc.execute(req);

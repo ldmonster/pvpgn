@@ -6,6 +6,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "application/moderation/check_ip_ban.hpp"
+#include "application/ports/ip_ban_repository.hpp"
 #include "core/clock.hpp"
 #include "domain/moderation/ip_ban_list.hpp"
 #include "domain/shared/ids.hpp"
@@ -53,10 +54,10 @@ public:
     }
 
     core::Result<domain::moderation::IpBanList> load_banlist() const override {
-        return domain::moderation::IpBanList::create().value();
+        return domain::moderation::IpBanList{};
     }
 
-    core::Status<> save(const domain::moderation::IpBanList&) override {
+    core::Status<> save_banlist(const domain::moderation::IpBanList&) override {
         return core::ok();
     }
 };

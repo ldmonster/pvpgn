@@ -88,7 +88,7 @@ TEST_CASE("ChangePasswordUseCase: happy path rotates and publishes",
     REQUIRE(count.load() == 1);  // no rotation flag => no Cleared event
 
     // Repository now holds the new hash.
-    auto reloaded = f.accounts.find_by_name(mk_name("bob"));
+    auto reloaded = f.accounts.find_by_name(mk_name("bob").canonical());
     REQUIRE(reloaded);
     REQUIRE(reloaded.value().verify_password(f.next));
 }
@@ -149,7 +149,7 @@ TEST_CASE("ChangePasswordUseCase: clears must_change_password flag and "
     REQUIRE(saw_changed);
     REQUIRE(saw_cleared);
 
-    auto reloaded = f.accounts.find_by_name(mk_name("bob"));
+    auto reloaded = f.accounts.find_by_name(mk_name("bob").canonical());
     REQUIRE(reloaded);
     REQUIRE_FALSE(reloaded.value().must_change_password());
 }

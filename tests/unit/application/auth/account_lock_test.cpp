@@ -68,7 +68,7 @@ TEST_CASE("LockAccount: locks an account", "[application][auth][lock]") {
     REQUIRE(r);
 
     // Verify the account is now locked
-    auto found = f.accounts.find_by_id(f.alice_id);
+    auto found = f.accounts.find_by_id(f.alice_id.value());
     REQUIRE(found);
     REQUIRE(found.value().is_locked());
 }
@@ -109,7 +109,7 @@ TEST_CASE("UnlockAccount: unlocks a locked account",
 
     // Verify it's locked
     {
-        auto found = f.accounts.find_by_id(f.alice_id);
+        auto found = f.accounts.find_by_id(f.alice_id.value());
         REQUIRE(found.value().is_locked());
     }
 
@@ -120,7 +120,7 @@ TEST_CASE("UnlockAccount: unlocks a locked account",
     REQUIRE(r);
 
     // Verify the account is no longer locked
-    auto found = f.accounts.find_by_id(f.alice_id);
+    auto found = f.accounts.find_by_id(f.alice_id.value());
     REQUIRE(found);
     REQUIRE_FALSE(found.value().is_locked());
 }
@@ -146,7 +146,7 @@ TEST_CASE("UnlockAccount: can unlock an already-unlocked account",
     auto r = uc.execute(f.alice_id, f.admin_id);
 
     REQUIRE(r);
-    auto found = f.accounts.find_by_id(f.alice_id);
+    auto found = f.accounts.find_by_id(f.alice_id.value());
     REQUIRE_FALSE(found.value().is_locked());
 }
 
@@ -158,7 +158,7 @@ TEST_CASE("LockAccount and UnlockAccount: lock prevents login barring",
     auto lock_uc = f.make_lock_use_case();
     (void)lock_uc.execute(f.alice_id, f.admin_id, "Test");
 
-    auto found = f.accounts.find_by_id(f.alice_id);
+    auto found = f.accounts.find_by_id(f.alice_id.value());
     REQUIRE(found.value().is_locked());
     REQUIRE(found.value().is_login_barred(core::SystemTime{}));
 }

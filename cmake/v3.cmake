@@ -117,6 +117,11 @@ function(pvpgn_v3_add_test name)
     pvpgn_v3_apply_flags(${name})
     target_link_libraries(${name} PRIVATE Catch2::Catch2WithMain ${P_DEPS})
 
+    # Disable non-virtual-dtor warning for tests since Catch2 has this issue
+    if(NOT MSVC)
+        target_compile_options(${name} PRIVATE -Wno-non-virtual-dtor)
+    endif()
+
     include(Catch)
     catch_discover_tests(${name})
 endfunction()

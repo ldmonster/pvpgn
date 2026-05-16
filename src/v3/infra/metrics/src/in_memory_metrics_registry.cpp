@@ -59,8 +59,9 @@ std::vector<double> InMemoryHistogram::default_buckets() {
 InMemoryHistogram::InMemoryHistogram(std::vector<double> buckets)
     : buckets_(buckets.empty() ? default_buckets() : buckets) {
     // Initialize bucket counts (one per bucket boundary + 1 for +Inf)
+    // Use shared_ptr to store atomics since they are non-copyable
     for (std::size_t i = 0; i <= buckets_.size(); ++i) {
-        bucket_counts_.push_back(std::atomic<std::size_t>(0));
+        bucket_counts_.push_back(std::make_shared<std::atomic<std::size_t>>(0));
     }
     // Ensure buckets are sorted
     std::sort(buckets_.begin(), buckets_.end());
@@ -75,20 +76,20 @@ void InMemoryHistogram::observe(double value) {
     // Find the bucket index and increment all buckets >= value
     for (std::size_t i = 0; i < buckets_.size(); ++i) {
         if (value <= buckets_[i]) {
-            bucket_counts_[i].fetch_add(1, std::memory_order_relaxed);
+            bucket_counts_[i]->fetch_add(1, std::memory_order_relaxed);
         }
     }
     // Always increment +Inf bucket
-    bucket_counts_[buckets_.size()].fetch_add(1, std::memory_order_relaxed);
+    bucket_counts_[buckets_.size()]->fetch_add(1, std::memory_order_relaxed);
 }
 
 std::vector<double> InMemoryHistogram::bucket_values() const {
     std::vector<double> result;
     result.reserve(buckets_.size() + 1);
     for (std::size_t i = 0; i < buckets_.size(); ++i) {
-        result.push_back(bucket_counts_[i].load(std::memory_order_relaxed));
+        result.push_back(bucket_counts_[i]->load(std::memory_order_relaxed));
     }
-    result.push_back(bucket_counts_[buckets_.size()].load(std::memory_order_relaxed));
+    result.push_back(bucket_counts_[buckets_.size()]->load(std::memory_order_relaxed));
     return result;
 }
 

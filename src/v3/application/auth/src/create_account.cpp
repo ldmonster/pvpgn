@@ -16,7 +16,7 @@ CreateAccount::Result CreateAccount::execute(const CreateAccountRequest& req) {
     }
 
     // 2. Check if username is already taken.
-    auto existing = accounts_.find_by_name(req.username);
+    auto existing = accounts_.find_by_name(req.username.canonical());
     if (existing) {
         return core::fail(CreateAccountError::UsernameTaken);
     }

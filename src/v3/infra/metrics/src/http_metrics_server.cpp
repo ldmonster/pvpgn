@@ -11,6 +11,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
+#include <spdlog/spdlog.h>
 
 #include "application/ports/metrics_registry.hpp"
 #include "core/logging.hpp"

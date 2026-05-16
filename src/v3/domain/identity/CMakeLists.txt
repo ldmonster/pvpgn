@@ -1,0 +1,11 @@
+pvpgn_v3_add_library(domain_identity
+    SOURCES
+        src/attribute_map.cpp
+    HEADERS
+        include/domain/identity/account.hpp
+        include/domain/identity/account_snapshot.hpp
+        include/domain/identity/attribute_map.hpp
+    DEPS
+        core
+        domain_shared
+)

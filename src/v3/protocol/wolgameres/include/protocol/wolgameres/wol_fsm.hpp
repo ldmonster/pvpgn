@@ -9,6 +9,7 @@
 #include <span>
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 
 #include "core/result.hpp"
 

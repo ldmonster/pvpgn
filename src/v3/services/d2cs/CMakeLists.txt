@@ -1,0 +1,12 @@
+pvpgn_v3_add_library(service_d2cs
+    SOURCES
+        src/d2cs_composition.cpp
+    HEADERS
+        include/services/d2cs/d2cs_composition.hpp
+    DEPS
+        pvpgn_v3_runtime
+        pvpgn_v3_application_realm
+        pvpgn_v3_protocol_d2cs
+        pvpgn_v3_infra_persistence_realm
+        pvpgn_v3_core
+)

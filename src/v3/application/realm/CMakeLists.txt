@@ -1,0 +1,13 @@
+pvpgn_v3_add_library(application_realm
+    SOURCES
+        src/character_lock.cpp
+        src/character_persistence.cpp
+        src/gs_queue.cpp
+    HEADERS
+        include/application/realm/character_lock.hpp
+        include/application/realm/character_persistence.hpp
+        include/application/realm/gs_queue.hpp
+    DEPS
+        pvpgn_v3_domain_realm
+        pvpgn_v3_core
+)

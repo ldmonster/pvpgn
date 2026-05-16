@@ -19,14 +19,14 @@ PromoteClanMember::execute(domain::ClanId clan_id, domain::AccountId promoter,
         return core::fail(PromoteClanMemberError::ClanNotFound);
     }
 
-    domain::social::Clan clan = clan_result.value();
+    auto& clan = *clan_result.value();
 
     // 2. Verify promoter is chieftain
     const auto& members = clan.members();
     auto promoter_it = std::find_if(
         members.begin(), members.end(),
         [promoter](const domain::social::ClanMember& m) {
-            return m.account == promoter && m.rank == domain::social::ClanRank::Chieftain;
+            return m.account.value() == promoter.value() && m.rank == domain::social::ClanRank::Chieftain;
         });
 
     if (promoter_it == members.end()) {
@@ -69,7 +69,7 @@ PromoteClanMember::execute(domain::ClanId clan_id, domain::AccountId promoter,
         event_bus_->publish(event);
     }
 
-    return core::ok();
+    return core::Result<void, PromoteClanMemberError>{};
 }
 
 }  // namespace pvpgn::application::social

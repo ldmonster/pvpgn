@@ -1,0 +1,43 @@
+site_name: PvPGN Documentation
+site_description: PvPGN Battle.net emulator documentation
+site_url: https://pvpgn.github.io/pvpgn/
+repo_url: https://github.com/pvpgn/pvpgn
+repo_name: pvpgn/pvpgn
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+
+nav:
+  - Home: README.md
+  - Architecture:
+    - Overview: refactoring-plan-00-overview.md
+    - Current Architecture: refactoring-plan-01-current-architecture.md
+    - Target Architecture: refactoring-plan-02-target-architecture.md
+    - Domain Model: refactoring-plan-03-domain-model.md
+    - Application Layer: refactoring-plan-04-application-layer.md
+    - Infrastructure: refactoring-plan-05-infrastructure.md
+    - Networking: refactoring-plan-06-networking-and-boost-fiber.md
+    - Protocols: refactoring-plan-07-protocols.md
+  - Development:
+    - Build Environment: docs/refactoring-build-env.md
+    - Testing Strategy: refactoring-plan-11-testing-strategy.md
+    - Migration Roadmap: refactoring-plan-15-migration-roadmap.md
+    - Risks & ADRs: refactoring-plan-16-risks-and-adrs.md
+  - Progress: refactoring-progress.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.tabbed

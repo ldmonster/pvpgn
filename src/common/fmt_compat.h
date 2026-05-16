@@ -30,15 +30,15 @@
            template (T, Char, Enable) by pinning Char=char and using
            the Enable slot for SFINAE on std::is_enum. */
         template <typename E>
-        struct formatter<E, char, std::enable_if_t<std::is_enum<E>::value>>
-            : formatter<std::underlying_type_t<E>, char>
+        struct formatter<E, char, typename std::enable_if<std::is_enum<E>::value>::type>
+            : formatter<typename std::underlying_type<E>::type, char>
         {
             template <typename FormatContext>
             auto format(E e, FormatContext& ctx) const
                 -> decltype(ctx.out())
             {
-                return formatter<std::underlying_type_t<E>, char>::format(
-                    static_cast<std::underlying_type_t<E>>(e), ctx);
+                return formatter<typename std::underlying_type<E>::type, char>::format(
+                    static_cast<typename std::underlying_type<E>::type>(e), ctx);
             }
         };
 

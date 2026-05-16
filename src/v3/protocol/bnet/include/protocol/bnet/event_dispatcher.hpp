@@ -7,6 +7,7 @@
 
 #include <span>
 #include <vector>
+#include <memory>
 
 #include "domain/shared/ids.hpp"
 
@@ -30,13 +31,13 @@ public:
     /// to appropriate EID codes (EID_JOIN, EID_LEAVE, EID_TALK, etc.)
     /// and encode them as SID_CHATEVENT packets.
     void dispatch_channel_events(
-        std::span<const domain::SessionId> target_sessions);
+        const std::vector<domain::SessionId>& target_sessions);
 
     /// Process game-related domain events and route to target sessions.
     /// TODO: Full implementation in Phase 5 will convert game state changes
     /// to SID_GAMEEVENT packets encoding player count, host info, etc.
     void dispatch_game_events(
-        std::span<const domain::SessionId> target_sessions);
+        const std::vector<domain::SessionId>& target_sessions);
 
 private:
     std::shared_ptr<application::ports::IMessageRouter> router_;

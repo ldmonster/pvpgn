@@ -11,7 +11,7 @@
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
+#include "channel_repository.hpp"
 
 namespace {
 
@@ -19,14 +19,8 @@ using namespace pvpgn;
 using application::chat::PostMessage;
 using application::chat::PostMessageError;
 
-domain::UserName make_name(std::string_view s) {
-    auto r = domain::UserName::parse(s);
-    REQUIRE(r);
-    return r.value();
-}
-
 domain::ChatMessage make_message(std::string_view text) {
-    auto r = domain::ChatMessage::parse(text);
+    auto r = domain::ChatMessage::create(text);
     REQUIRE(r);
     return r.value();
 }
@@ -39,10 +33,10 @@ struct Fixture {
 
     void setup_channel_with_members() {
         auto ch = domain::chat::Channel::create(
-            channel_id, "TestChannel", domain::ClientTag::parse("STAR").value())
-            .value();
-        (void)ch.add_member(alice_id);
-        (void)ch.add_member(bob_id);
+            channel_id, "TestChannel", domain::chat::ChannelPolicy{});
+        auto star_tag = domain::ClientTag::parse("STAR").value();
+        (void)ch.admit(alice_id, star_tag);
+        (void)ch.admit(bob_id, star_tag);
         REQUIRE(channels.save(ch));
     }
 
@@ -88,7 +82,7 @@ TEST_CASE("PostMessage: result contains ChatEvent with correct message and sende
     auto r = uc.execute(f.channel_id, f.alice_id, msg);
 
     REQUIRE(r);
-    REQUIRE(r.value().event.account_id == f.alice_id);
+    REQUIRE(r.value().event.from == f.alice_id);
 }
 
 TEST_CASE("PostMessage: result contains list of recipient session IDs",

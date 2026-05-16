@@ -2,7 +2,7 @@
 
 #include "protocol/wolgameres/wol_fsm.hpp"
 
-#include "protocol/bnet/session_context.hpp"
+#include <span>
 
 namespace pvpgn::protocol::wol {
 

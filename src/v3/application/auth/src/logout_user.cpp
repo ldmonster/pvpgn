@@ -4,10 +4,17 @@
 namespace pvpgn::application::auth {
 
 LogoutUser::Result LogoutUser::execute(const LogoutRequest& req) {
-    // 1. Detach the session from the registry.
+    // 1. Verify the session exists
+    if (!sessions_.account_for(req.session_id).has_value()) {
+        return core::fail(core::Error{
+            core::StatusCode::NotFound,
+            "Session not found"});
+    }
+
+    // 2. Detach the session from the registry.
     sessions_.detach(req.session_id);
 
-    // 2. Note: Channel and Game cleanup would happen here via forEach()
+    // 3. Note: Channel and Game cleanup would happen here via forEach()
     // and calling leave() on each aggregate. This is deferred to a full
     // implementation that has access to the complete domain types.
     // For now, session detachment is the primary cleanup.

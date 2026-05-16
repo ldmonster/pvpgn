@@ -13,7 +13,7 @@ LeaveChannel::execute(domain::ChannelId channel_id, domain::AccountId account_id
         return core::fail(LeaveChannelError::ChannelNotFound);
     }
 
-    domain::chat::Channel channel = found.value();
+    auto channel = found.value();
 
     // 2. Validate account is a member
     if (!channel.contains(account_id)) {

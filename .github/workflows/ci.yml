@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'feature/**', 'fix/**']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-linux:
+    name: Build & Test (Linux)
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        compiler: [gcc-12, clang-17]
+        build_type: [Debug, Release]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build \
+            libboost-all-dev \
+            libssl-dev \
+            liblua5.4-dev \
+            libspdlog-dev \
+            catch2 \
+            ${{ matrix.compiler == 'gcc-12' && 'gcc-12 g++-12' || 'clang-17' }}
+
+      - name: Configure
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.compiler == 'gcc-12' && 'g++-12' || 'clang++-17' }} \
+            -DPVPGN_BUILD_TESTS=ON \
+            -DPVPGN_BUILD_V3=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --parallel 4
+
+  build-windows:
+    name: Build & Test (Windows)
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: vcpkg install boost-asio boost-fiber openssl lua spdlog catch2
+
+      - name: Configure
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DPVPGN_BUILD_TESTS=ON `
+            -DPVPGN_BUILD_V3=ON `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-17 cmake-format
+          pip install pre-commit
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files

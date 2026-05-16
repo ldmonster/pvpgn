@@ -10,6 +10,12 @@ namespace pvpgn::application::chat {
 core::Result<JoinChannelResult, JoinChannelError>
 JoinChannel::execute(domain::AccountId account_id, const std::string& channel_name,
                      domain::ClientTag client_tag) const {
+    // 0. Validate channel name
+    if (channel_name.empty() || channel_name.find('\0') != std::string::npos ||
+        channel_name.find('\x01') != std::string::npos) {
+        return core::fail(JoinChannelError::InvalidChannelName);
+    }
+
     // 1. Try to find existing channel by name
     auto found = channel_repo_.find_by_name(channel_name);
 
@@ -53,23 +59,36 @@ JoinChannel::execute(domain::AccountId account_id, const std::string& channel_na
     }
 
     // 4. Look up account name for client reply
-    auto account_result = account_repo_.find_by_id(account_id);
+    auto account_result = account_repo_.find_by_id(account_id.value());
     if (!account_result) {
         return core::fail(JoinChannelError::AccountNotFound);
     }
 
-    // 5. Drain domain events and collect member session IDs
-    auto events = channel.drain_events();
+    // 5. Retrieve the saved channel from repository to get the assigned ID
+    auto saved_channel_result = channel_repo_.find_by_name(channel_name);
+    if (!saved_channel_result) {
+        return core::fail(JoinChannelError::NotFound);
+    }
+    auto saved_channel = saved_channel_result.value();
+
+    // 6. Drain domain events and collect member session IDs
+    auto events = saved_channel.drain_events();
     std::vector<domain::SessionId> members_to_notify;
     
     // In a real implementation, would look up session IDs from connection registry
-    // For now, this is a placeholder for infrastructure to populate
+    // For now, create placeholder session IDs for each member except the joining account
+    auto member_ids = saved_channel.member_ids();
+    for (const auto& member_id : member_ids) {
+        if (member_id.value() != account_id.value()) {
+            members_to_notify.push_back(domain::SessionId{member_id.value()});
+        }
+    }
     (void)events;  // Events will be processed by caller
 
     return JoinChannelResult{
-        .channel = channel,
+        .channel = saved_channel,
         .members_to_notify = members_to_notify,
-        .flags = channel.policy().flags,
+        .flags = saved_channel.policy().flags,
     };
 }
 

@@ -96,6 +96,15 @@ public:
         return false;
     }
 
+    /// Get all member account IDs.
+    std::vector<AccountId> member_ids() const noexcept {
+        std::vector<AccountId> ids;
+        for (const auto& [id, _] : members_) {
+            ids.push_back(id);
+        }
+        return ids;
+    }
+
     // --- Commands -------------------------------------------------------
 
     JoinOutcome admit(AccountId who, ClientTag tag) {

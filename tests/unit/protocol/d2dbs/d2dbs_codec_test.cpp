@@ -41,7 +41,7 @@ TEST_CASE("d2dbs: header rejects size < 8", "[protocol][d2dbs]") {
     // size = 4 (LE), type = 0x34, seqno = 0
     buf[0] = std::byte{0x04};
     buf[2] = std::byte{0x34};
-    auto v = parse_header(core::ByteView{buf, 8});
+    auto v = parse_header(core::ByteView(buf, 8));
     REQUIRE_FALSE(v.has_value());
     REQUIRE(v.error().code() == core::StatusCode::InvalidArgument);
 }
@@ -63,7 +63,7 @@ TEST_CASE("d2dbs: unimplemented downstream type", "[protocol][d2dbs]") {
     // size = 8, type = 0x99 (unknown), seqno = 0
     buf[0] = std::byte{0x08};
     buf[2] = std::byte{0x99};
-    auto v = decode_d2dbs_to_d2gs(core::ByteView{buf, 8});
+    auto v = decode_d2dbs_to_d2gs(core::ByteView(buf, 8));
     REQUIRE_FALSE(v.has_value());
     REQUIRE(v.error().code() == core::StatusCode::Unimplemented);
 }
@@ -82,7 +82,7 @@ TEST_CASE("d2dbs: connect handshake encode + decode", "[protocol][d2dbs]") {
 TEST_CASE("d2dbs: connect handshake rejects unknown class",
           "[protocol][d2dbs]") {
     std::byte b[1] = {std::byte{0x42}};
-    auto v = decode_connect_handshake(core::ByteView{b, 1});
+    auto v = decode_connect_handshake(core::ByteView(b, 1));
     REQUIRE_FALSE(v.has_value());
     REQUIRE(v.error().code() == core::StatusCode::InvalidArgument);
 }
@@ -189,5 +189,3 @@ TEST_CASE("d2dbs: 0x33 CHAR_LOCK lock + unlock round-trip",
     unlock.realmname  = "EU";
     round_trip_up<CharLockRequest, CharLockRequest>(unlock);
 }
-
-

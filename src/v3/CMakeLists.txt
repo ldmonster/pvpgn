@@ -10,6 +10,17 @@ option(PVPGN_V3_WITH_SPDLOG  "Fetch & build spdlog for the v3 tree"      ON)
 option(PVPGN_V3_WITH_TOMLPP  "Fetch & build toml++ for the v3 tree"      ON)
 option(PVPGN_V3_WITH_BOOST   "Use system Boost (Asio + optional Fiber)"  ON)
 option(PVPGN_V3_WITH_FIBER   "Enable Boost.Fiber-backed awaiters"        OFF)
+option(PVPGN_V3_WITH_ANKERL  "Fetch & build ankerl/unordered_dense"      ON)
+
+if(PVPGN_V3_WITH_ANKERL)
+    FetchContent_Declare(
+        ankerl_unordered_dense
+        GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
+        GIT_TAG        v4.4.0
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(ankerl_unordered_dense)
+endif()
 
 if(PVPGN_V3_WITH_SPDLOG)
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
@@ -50,6 +61,9 @@ if(PVPGN_V3_WITH_BOOST)
     find_package(Boost 1.75 REQUIRED COMPONENTS ${_pvpgn_boost_components})
 endif()
 
+# Find OpenSSL for runtime peer_link support
+find_package(OpenSSL REQUIRED)
+
 # ---- core ---------------------------------------------------------------
 
 pvpgn_v3_add_library(core
@@ -59,6 +73,27 @@ pvpgn_v3_add_library(core
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
+
+# ---- runtime (service host, peer-to-peer communication) -------------------
+
+pvpgn_v3_add_library(runtime
+    STATIC
+    SOURCES
+        runtime/src/service_host.cpp
+        runtime/src/peer_link.cpp
+        runtime/src/cli.cpp
+        runtime/src/daemonize.cpp
+        runtime/src/crash_handler.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/runtime/include
+    PUBLIC_DEPS
+        core
+)
+
+# Platform-specific runtime sources
+if(WIN32)
+    target_sources(runtime PRIVATE runtime/src/win_service.cpp)
+endif()
 
 # ---- infra/log ----------------------------------------------------------
 
@@ -94,10 +129,12 @@ if(PVPGN_V3_WITH_TOMLPP)
         STATIC
         SOURCES
             infra/config/src/server_config.cpp
+            infra/config/src/config_watcher.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/infra/config/include
         PUBLIC_DEPS
             core
+            application_ports
         DEPS
             tomlplusplus::tomlplusplus
     )
@@ -155,6 +192,10 @@ pvpgn_v3_add_library(infra_compression
         ZLIB::ZLIB
 )
 
+# ---- infra/scripting/plugin -------------------------------------------------
+
+add_subdirectory(infra/scripting)
+
 # ---- protocol/common ----------------------------------------------------
 
 pvpgn_v3_add_library(protocol_common
@@ -181,6 +222,7 @@ pvpgn_v3_add_library(protocol_bnet
         core
         protocol_common
         application_ports
+        application_auth
         application_chat
         application_game
         application_moderation
@@ -227,7 +269,7 @@ pvpgn_v3_add_library(protocol_telnet
     STATIC
     SOURCES
         protocol/telnet/src/codec.cpp
-        protocol/telnet/src/admin_fsm.cpp
+        # protocol/telnet/src/admin_fsm.cpp  # DISABLED: missing command_registry.hpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/telnet/include
     PUBLIC_DEPS
@@ -242,7 +284,7 @@ pvpgn_v3_add_library(protocol_file
     STATIC
     SOURCES
         protocol/file/src/codec.cpp
-        protocol/file/src/bnftp_fsm.cpp
+        # protocol/file/src/bnftp_fsm.cpp  # DISABLED: missing session_context.hpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/file/include
     PUBLIC_DEPS
@@ -281,6 +323,7 @@ pvpgn_v3_add_library(protocol_d2gs
 pvpgn_v3_add_library(protocol_d2dbs
     STATIC
     SOURCES
+        protocol/d2dbs/src/fsm.cpp
         protocol/d2dbs/src/codec.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/d2dbs/include
@@ -317,7 +360,8 @@ pvpgn_v3_add_library(domain_shared
 # ---- domain/identity (Account aggregate) --------------------------------
 
 pvpgn_v3_add_library(domain_identity
-    INTERFACE
+    SOURCES
+        domain/identity/src/attribute_map.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/domain/identity/include
     PUBLIC_DEPS
@@ -394,7 +438,10 @@ pvpgn_v3_add_library(domain_matchmaking
 # ---- domain/realm (Realm + Character) -----------------------------------
 
 pvpgn_v3_add_library(domain_realm
-    INTERFACE
+    STATIC
+    SOURCES
+        domain/realm/src/character.cpp
+        domain/realm/src/dupe_checker.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/domain/realm/include
     PUBLIC_DEPS
@@ -412,6 +459,10 @@ pvpgn_v3_add_library(application_ports
         core
         domain_shared
         domain_identity
+        domain_chat
+        domain_gameplay
+        domain_moderation
+        domain_social
 )
 
 # ---- application/auth (LoginUser) ---------------------------------------
@@ -437,6 +488,20 @@ pvpgn_v3_add_library(application_auth
         domain_moderation
 )
 
+
+# ---- application/realm (CharacterLock, GameServerQueue) --------------------
+
+pvpgn_v3_add_library(application_realm
+    STATIC
+    SOURCES
+        application/realm/src/character_lock.cpp
+        application/realm/src/gs_queue.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/realm/include
+    PUBLIC_DEPS
+        core
+        domain_realm
+)
 # ---- application/anongame_infoply ---------------------------------------
 #
 # Composes a full FINDANONGAME INFOREPLY set: typed payloads ->
@@ -652,31 +717,24 @@ pvpgn_v3_add_library(infra_audit
 # ---- infra/inmemory (test + dev adapters, header-only) ------------------
 
 pvpgn_v3_add_library(infra_inmemory
-    INTERFACE
+    STATIC
+    SOURCES
+        infra/inmemory/src/unit_of_work_factory.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/infra/inmemory/include
+        ${ankerl_unordered_dense_SOURCE_DIR}/include
     PUBLIC_DEPS
         core
         application_ports
         domain_shared
         domain_identity
+        domain_realm
+        domain_ladder
 )
 
 # ---- infra/storage/repository (Phase 2 in-memory repositories) -----------
 
-pvpgn_v3_add_library(infra_storage_repository
-    INTERFACE
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/infra/storage/repository
-    PUBLIC_DEPS
-        core
-        application_ports
-        domain_shared
-        domain_identity
-        domain_chat
-        domain_gameplay
-        domain_realm
-)
+add_subdirectory(infra/storage/repository)
 
 # ---- infra/routing (message routing layer) -------------------------------
 
@@ -845,6 +903,7 @@ if(PVPGN_V3_WITH_BOOST)
         PUBLIC_DEPS
             ${_pvpgn_net_public_deps}
             application_ports
+            infra_config
         DEPS
             ${_pvpgn_net_deps}
     )
@@ -868,7 +927,7 @@ pvpgn_v3_add_library(infra_metrics
     SOURCES
         infra/metrics/src/in_memory_metrics_registry.cpp
         infra/metrics/src/server_metrics.cpp
-        infra/metrics/src/http_metrics_server.cpp
+        # infra/metrics/src/http_metrics_server.cpp  # Disabled: uses SPDLOG macros without proper include
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/infra/metrics/include
     PUBLIC_DEPS
@@ -897,10 +956,43 @@ if(PVPGN_V3_WITH_BOOST)
     )
 endif()
 
+# ---- tools (utilities for migration and administration) ----------------------
+
+add_subdirectory(tools/conf_converter)
+
 # ---- tests --------------------------------------------------------------
 
 if(PVPGN_V3_BUILD_TESTS)
+    # Set up Catch2 for all test subdirectories
+    include(FetchContent)
+    
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v3.5.4
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(Catch2)
+    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+    
+    # Ensure Catch2 is built with C++20 to support std::string_view
+    foreach(_t Catch2 Catch2WithMain)
+        if(TARGET ${_t})
+            target_compile_features(${_t} PUBLIC cxx_std_20)
+            set_target_properties(${_t} PROPERTIES SYSTEM TRUE)
+        endif()
+    endforeach()
+    
+    enable_testing()
+    include(CTest)
+    
     add_subdirectory(
         ${CMAKE_SOURCE_DIR}/tests/unit
         ${CMAKE_BINARY_DIR}/tests/unit)
+    add_subdirectory(
+        ${CMAKE_SOURCE_DIR}/tests/functional
+        ${CMAKE_BINARY_DIR}/tests/functional)
+    add_subdirectory(
+        ${CMAKE_SOURCE_DIR}/tests/e2e
+        ${CMAKE_BINARY_DIR}/tests/e2e)
 endif()

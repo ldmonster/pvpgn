@@ -33,7 +33,7 @@ RemoveFriend::execute(domain::AccountId owner, domain::AccountId target) {
         event_bus_->publish(event);
     }
 
-    return core::ok();
+    return core::Result<void, RemoveFriendError>{};
 }
 
 }  // namespace pvpgn::application::social

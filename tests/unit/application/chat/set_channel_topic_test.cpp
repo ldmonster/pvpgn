@@ -8,7 +8,7 @@
 #include "application/chat/set_channel_topic.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
+#include "channel_repository.hpp"
 
 namespace {
 
@@ -25,14 +25,15 @@ struct Fixture {
     void setup_channel_with_member() {
         auto ch = domain::chat::Channel::create(
             channel_id, "TestChannel", domain::chat::ChannelPolicy{});
-        ch.admit(alice_id, domain::ClientTag{});
-        channels.save(ch);
+        auto star_tag = domain::ClientTag::parse("STAR").value();
+        (void)ch.admit(alice_id, star_tag);
+        REQUIRE(channels.save(ch));
     }
 
     SetChannelTopic make_use_case() {
         return SetChannelTopic{
-            std::make_shared<infra::storage::InMemoryChannelRepository>(
-                channels),
+            std::shared_ptr<infra::storage::InMemoryChannelRepository>(
+                &channels, [](auto*) {}),
             nullptr  // Message router not tested here
         };
     }

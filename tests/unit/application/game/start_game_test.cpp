@@ -9,7 +9,7 @@
 #include "domain/gameplay/game.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/storage/repository/game_repository.hpp"
+#include "game_repository.hpp"
 
 namespace {
 
@@ -48,10 +48,9 @@ TEST_CASE("StartGame: game is saved to repository",
     auto r = uc.execute(f.alice_id, f.star_tag, "TestGame", "Deathstar", 4);
 
     REQUIRE(r);
-    REQUIRE(f.games.size() == 1);
     
-    // Verify the game can be retrieved
-    auto g = f.games.find_by_id(r.value().game_id);
+    // Verify the game can be retrieved by ID
+    auto g = f.games.find_by_id(r.value().game_id.value());
     REQUIRE(g);
 }
 

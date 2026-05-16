@@ -15,14 +15,15 @@ DisbandClan::execute(domain::ClanId clan_id, domain::AccountId by_chieftain) {
         return core::fail(DisbandClanError::ClanNotFound);
     }
 
-    domain::social::Clan clan = clan_result.value();
+    auto clan_ptr = clan_result.value();
+    auto& clan = *clan_ptr;
 
     // 2. Verify caller is chieftain
     const auto& members = clan.members();
     auto chieftain_it = std::find_if(
         members.begin(), members.end(),
         [by_chieftain](const domain::social::ClanMember& m) {
-            return m.account == by_chieftain && m.rank == domain::social::ClanRank::Chieftain;
+            return m.account.value() == by_chieftain.value() && m.rank == domain::social::ClanRank::Chieftain;
         });
 
     if (chieftain_it == members.end()) {
@@ -30,7 +31,7 @@ DisbandClan::execute(domain::ClanId clan_id, domain::AccountId by_chieftain) {
     }
 
     // 3. Remove the clan
-    auto remove_result = clans_->remove(clan_id);
+    auto remove_result = clans_->remove(clan.tag());
     if (!remove_result) {
         return core::fail(DisbandClanError::PersistenceFailed);
     }
@@ -38,7 +39,7 @@ DisbandClan::execute(domain::ClanId clan_id, domain::AccountId by_chieftain) {
     // 4. Publish disbanding event would go here (would need domain event support)
     // For now, events would be published via event_bus
 
-    return core::ok();
+    return core::Result<void, DisbandClanError>{};
 }
 
 }  // namespace pvpgn::application::social

@@ -10,12 +10,12 @@ namespace pvpgn::application::social {
 core::Result<void, AddFriendError>
 AddFriend::execute(domain::AccountId owner, domain::AccountId target) {
     // 1. Verify both accounts exist
-    auto owner_result = accounts_->find_by_id(owner);
+    auto owner_result = accounts_->find_by_id(owner.value());
     if (!owner_result) {
         return core::fail(AddFriendError::OwnerNotFound);
     }
 
-    auto target_result = accounts_->find_by_id(target);
+    auto target_result = accounts_->find_by_id(target.value());
     if (!target_result) {
         return core::fail(AddFriendError::TargetNotFound);
     }
@@ -54,7 +54,7 @@ AddFriend::execute(domain::AccountId owner, domain::AccountId target) {
         event_bus_->publish(event);
     }
 
-    return core::ok();
+    return core::Result<void, AddFriendError>{};
 }
 
 }  // namespace pvpgn::application::social

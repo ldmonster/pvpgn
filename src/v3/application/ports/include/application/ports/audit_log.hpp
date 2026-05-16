@@ -28,7 +28,7 @@ enum class AuditAction : std::uint16_t {
     // Channel actions
     ChannelCreated,
     ChannelDeleted,
-    MemberKicked,
+    ChannelMemberKicked,
     MemberBanned,
     TopicChanged,
 
@@ -41,7 +41,7 @@ enum class AuditAction : std::uint16_t {
     ClanCreated,
     ClanDisbanded,
     MemberPromoted,
-    MemberKicked,
+    ClanMemberKicked,
 
     // Server actions
     ServerShutdown,

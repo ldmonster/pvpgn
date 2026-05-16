@@ -9,7 +9,7 @@ namespace pvpgn::application::moderation {
 core::Result<void, SilenceUserError>
 SilenceUser::execute(const SilenceUserRequest& req) {
     // 1. Verify target account exists
-    auto target_result = accounts_->find_by_id(req.target);
+    auto target_result = accounts_->find_by_id(req.target.value());
     if (!target_result) {
         return core::fail(SilenceUserError::TargetNotFound);
     }
@@ -39,7 +39,7 @@ SilenceUser::execute(const SilenceUserRequest& req) {
     // 6. Publish events (would include UserSilenced domain event)
     // Events would be published via event_bus_
 
-    return core::ok();
+    return core::Result<void, SilenceUserError>{};
 }
 
 }  // namespace pvpgn::application::moderation

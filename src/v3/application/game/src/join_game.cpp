@@ -8,15 +8,15 @@ namespace pvpgn::application::game {
 core::Result<JoinGameResult, JoinGameError>
 JoinGame::execute(domain::GameId game_id, domain::AccountId account_id) const {
     // 1. Find the game
-    auto found = game_repo_.find_by_id(game_id);
+    auto found = game_repo_.find_by_id(game_id.value());
     if (!found) {
         return core::fail(JoinGameError::GameNotFound);
     }
 
-    domain::gameplay::Game game = found.value();
+    auto game = found.value();
 
     // 2. Attempt to join
-    auto outcome = game.join(account_id);
+    auto outcome = game->join(account_id);
 
     // Map domain outcome to application error
     switch (outcome) {
@@ -31,18 +31,18 @@ JoinGame::execute(domain::GameId game_id, domain::AccountId account_id) const {
     }
 
     // 3. Save updated game
-    auto save_result = game_repo_.save(game);
+    auto save_result = game_repo_.save(*game);
     if (!save_result) {
         return core::fail(JoinGameError::GameNotFound);
     }
 
     // 4. Drain domain events
-    auto events = game.drain_events();
+    auto events = game->drain_events();
     (void)events;  // Events will be processed by caller
 
     // 5. Return result with server address/port (placeholder)
     return JoinGameResult{
-        .game = game,
+        .game = *game,
         .server_address = "127.0.0.1",  // Infrastructure layer populates real address
         .server_port = 0,                 // Infrastructure layer populates real port
     };

@@ -14,7 +14,7 @@ endif()
 # since cmake 2.4.1
 set(CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE ON)
 
-project(pvpgn C CXX)
+project(pvpgn VERSION 4.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -165,6 +165,7 @@ if(PVPGN_BUILD_V3)
         remove_definitions(-DUNICODE -D_UNICODE)
     endif()
     add_subdirectory(src/v3)
+    add_subdirectory(tests)
 endif()
 
 # uninstall target

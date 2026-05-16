@@ -10,7 +10,7 @@
 #include "domain/shared/chat_message.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/storage/repository/channel_repository.hpp"
+#include "channel_repository.hpp"
 
 namespace {
 
@@ -20,8 +20,8 @@ using application::chat::SendEmoteRequest;
 using application::chat::SendEmoteError;
 
 domain::ChatMessage make_message(std::string_view text) {
-    auto r = domain::ChatMessage::parse(text);
-    if (!r) return domain::ChatMessage{};
+    auto r = domain::ChatMessage::create(text);
+    REQUIRE(r);
     return r.value();
 }
 
@@ -37,13 +37,13 @@ struct Fixture {
             channel_id, "TestChannel", domain::chat::ChannelPolicy{});
         ch.admit(alice_id, domain::ClientTag{});
         ch.admit(bob_id, domain::ClientTag{});
-        channels.save(ch);
+        REQUIRE(channels.save(ch));
     }
 
     SendEmote make_use_case() {
         return SendEmote{
-            std::make_shared<infra::storage::InMemoryChannelRepository>(
-                channels),
+            std::shared_ptr<infra::storage::InMemoryChannelRepository>(
+                &channels, [](auto*) {}),
             nullptr};  // Router not tested here
     }
 };
@@ -118,5 +118,5 @@ TEST_CASE("SendEmote: result contains correct sender and emote text",
     auto r = uc.execute(req);
 
     REQUIRE(r);
-    REQUIRE(r.value().event.account_id == f.alice_id);
+    REQUIRE(r.value().event.from == f.alice_id);
 }
