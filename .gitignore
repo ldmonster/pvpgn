@@ -9,5 +9,3 @@
 /.vs
 /CMakeSettings.json
 /_deps
-/cmake
-CMakeFiles
