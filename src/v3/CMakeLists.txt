@@ -402,15 +402,18 @@ pvpgn_v3_add_library(domain_gameplay
         domain_shared
 )
 
-# ---- domain/ladder (LadderCalculator service) ---------------------------
+# ---- domain/ladder (LadderCalculator service + D2Ladder aggregate) ------
 
 pvpgn_v3_add_library(domain_ladder
-    INTERFACE
+    STATIC
+    SOURCES
+        domain/ladder/src/d2_ladder.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/domain/ladder/include
     PUBLIC_DEPS
         core
         domain_shared
+        domain_realm
 )
 
 # ---- domain/moderation (IpBanList) --------------------------------------
@@ -435,13 +438,14 @@ pvpgn_v3_add_library(domain_matchmaking
         domain_shared
 )
 
-# ---- domain/realm (Realm + Character) -----------------------------------
+# ---- domain/realm (Realm + Character + CharacterList) -------------------
 
 pvpgn_v3_add_library(domain_realm
     STATIC
     SOURCES
         domain/realm/src/character.cpp
         domain/realm/src/dupe_checker.cpp
+        domain/realm/src/character_list.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/domain/realm/include
     PUBLIC_DEPS

@@ -11,10 +11,12 @@ namespace pvpgn::application::realm {
 class ICharacterRepository {
 public:
     virtual ~ICharacterRepository() = default;
-    virtual core::Result<domain::realm::Character, core::Error> 
+    virtual core::Result<domain::realm::Character, core::Error>
         find(const domain::realm::CharacterId& id) = 0;
-    virtual core::Result<void, core::Error> 
+    virtual core::Result<void, core::Error>
         save(const domain::realm::Character& character) = 0;
+    virtual core::Result<void, core::Error>
+        remove(const domain::realm::CharacterId& id) = 0;
     virtual core::Result<std::vector<domain::realm::Character>, core::Error>
         list_for_account(std::string_view account_name) = 0;
 };

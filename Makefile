@@ -380,6 +380,19 @@ domain_identity/fast:
 .PHONY : domain_identity/fast
 
 #=============================================================================
+# Target rules for targets named domain_ladder
+
+# Build rule for target.
+domain_ladder: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 domain_ladder
+.PHONY : domain_ladder
+
+# fast build rule for target.
+domain_ladder/fast:
+	$(MAKE) $(MAKESILENT) -f src/v3/CMakeFiles/domain_ladder.dir/build.make src/v3/CMakeFiles/domain_ladder.dir/build
+.PHONY : domain_ladder/fast
+
+#=============================================================================
 # Target rules for targets named domain_realm
 
 # Build rule for target.
@@ -1485,6 +1498,97 @@ application_realm_gs_queue_test/fast:
 .PHONY : application_realm_gs_queue_test/fast
 
 #=============================================================================
+# Target rules for targets named application_realm_create_character_test
+
+# Build rule for target.
+application_realm_create_character_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 application_realm_create_character_test
+.PHONY : application_realm_create_character_test
+
+# fast build rule for target.
+application_realm_create_character_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/application/realm/CMakeFiles/application_realm_create_character_test.dir/build.make tests/unit/application/realm/CMakeFiles/application_realm_create_character_test.dir/build
+.PHONY : application_realm_create_character_test/fast
+
+#=============================================================================
+# Target rules for targets named application_realm_delete_character_test
+
+# Build rule for target.
+application_realm_delete_character_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 application_realm_delete_character_test
+.PHONY : application_realm_delete_character_test
+
+# fast build rule for target.
+application_realm_delete_character_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/application/realm/CMakeFiles/application_realm_delete_character_test.dir/build.make tests/unit/application/realm/CMakeFiles/application_realm_delete_character_test.dir/build
+.PHONY : application_realm_delete_character_test/fast
+
+#=============================================================================
+# Target rules for targets named application_realm_list_characters_test
+
+# Build rule for target.
+application_realm_list_characters_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 application_realm_list_characters_test
+.PHONY : application_realm_list_characters_test
+
+# fast build rule for target.
+application_realm_list_characters_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/application/realm/CMakeFiles/application_realm_list_characters_test.dir/build.make tests/unit/application/realm/CMakeFiles/application_realm_list_characters_test.dir/build
+.PHONY : application_realm_list_characters_test/fast
+
+#=============================================================================
+# Target rules for targets named application_realm_join_game_server_test
+
+# Build rule for target.
+application_realm_join_game_server_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 application_realm_join_game_server_test
+.PHONY : application_realm_join_game_server_test
+
+# fast build rule for target.
+application_realm_join_game_server_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/application/realm/CMakeFiles/application_realm_join_game_server_test.dir/build.make tests/unit/application/realm/CMakeFiles/application_realm_join_game_server_test.dir/build
+.PHONY : application_realm_join_game_server_test/fast
+
+#=============================================================================
+# Target rules for targets named application_realm_save_character_test
+
+# Build rule for target.
+application_realm_save_character_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 application_realm_save_character_test
+.PHONY : application_realm_save_character_test
+
+# fast build rule for target.
+application_realm_save_character_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/application/realm/CMakeFiles/application_realm_save_character_test.dir/build.make tests/unit/application/realm/CMakeFiles/application_realm_save_character_test.dir/build
+.PHONY : application_realm_save_character_test/fast
+
+#=============================================================================
+# Target rules for targets named application_realm_load_character_test
+
+# Build rule for target.
+application_realm_load_character_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 application_realm_load_character_test
+.PHONY : application_realm_load_character_test
+
+# fast build rule for target.
+application_realm_load_character_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/application/realm/CMakeFiles/application_realm_load_character_test.dir/build.make tests/unit/application/realm/CMakeFiles/application_realm_load_character_test.dir/build
+.PHONY : application_realm_load_character_test/fast
+
+#=============================================================================
+# Target rules for targets named application_realm_update_ladder_test
+
+# Build rule for target.
+application_realm_update_ladder_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 application_realm_update_ladder_test
+.PHONY : application_realm_update_ladder_test
+
+# fast build rule for target.
+application_realm_update_ladder_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/application/realm/CMakeFiles/application_realm_update_ladder_test.dir/build.make tests/unit/application/realm/CMakeFiles/application_realm_update_ladder_test.dir/build
+.PHONY : application_realm_update_ladder_test/fast
+
+#=============================================================================
 # Target rules for targets named test_application_ports_clan_repository
 
 # Build rule for target.
@@ -1758,6 +1862,19 @@ test_domain_ladder/fast:
 .PHONY : test_domain_ladder/fast
 
 #=============================================================================
+# Target rules for targets named domain_ladder_d2_ladder_test
+
+# Build rule for target.
+domain_ladder_d2_ladder_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 domain_ladder_d2_ladder_test
+.PHONY : domain_ladder_d2_ladder_test
+
+# fast build rule for target.
+domain_ladder_d2_ladder_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/domain/ladder/CMakeFiles/domain_ladder_d2_ladder_test.dir/build.make tests/unit/domain/ladder/CMakeFiles/domain_ladder_d2_ladder_test.dir/build
+.PHONY : domain_ladder_d2_ladder_test/fast
+
+#=============================================================================
 # Target rules for targets named test_domain_moderation
 
 # Build rule for target.
@@ -1821,6 +1938,19 @@ domain_realm_realm_test: cmake_check_build_system
 domain_realm_realm_test/fast:
 	$(MAKE) $(MAKESILENT) -f tests/unit/domain/realm/CMakeFiles/domain_realm_realm_test.dir/build.make tests/unit/domain/realm/CMakeFiles/domain_realm_realm_test.dir/build
 .PHONY : domain_realm_realm_test/fast
+
+#=============================================================================
+# Target rules for targets named domain_realm_character_list_test
+
+# Build rule for target.
+domain_realm_character_list_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 domain_realm_character_list_test
+.PHONY : domain_realm_character_list_test
+
+# fast build rule for target.
+domain_realm_character_list_test/fast:
+	$(MAKE) $(MAKESILENT) -f tests/unit/domain/realm/CMakeFiles/domain_realm_character_list_test.dir/build.make tests/unit/domain/realm/CMakeFiles/domain_realm_character_list_test.dir/build
+.PHONY : domain_realm_character_list_test/fast
 
 #=============================================================================
 # Target rules for targets named test_infra_log_spdlog
@@ -2512,12 +2642,22 @@ help:
 	@echo "... application_profile"
 	@echo "... application_realm"
 	@echo "... application_realm_character_lock_test"
+	@echo "... application_realm_create_character_test"
+	@echo "... application_realm_delete_character_test"
 	@echo "... application_realm_gs_queue_test"
+	@echo "... application_realm_join_game_server_test"
+	@echo "... application_realm_list_characters_test"
+	@echo "... application_realm_load_character_test"
+	@echo "... application_realm_save_character_test"
+	@echo "... application_realm_update_ladder_test"
 	@echo "... application_social"
 	@echo "... application_tournament"
 	@echo "... core"
 	@echo "... domain_identity"
+	@echo "... domain_ladder"
+	@echo "... domain_ladder_d2_ladder_test"
 	@echo "... domain_realm"
+	@echo "... domain_realm_character_list_test"
 	@echo "... domain_realm_character_test"
 	@echo "... domain_realm_dupe_checker_test"
 	@echo "... domain_realm_realm_test"
