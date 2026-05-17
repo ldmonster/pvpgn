@@ -84,13 +84,13 @@ namespace pvpgn
 
 	extern char const * vernum_to_verstr(unsigned long vernum)
 	{
-		static char verstr[16];
+		static char verstr[32];
 
-		std::sprintf(verstr, "%lu.%lu.%lu.%lu",
-			(vernum >> 24),
-			(vernum >> 16) & 0xff,
-			(vernum >> 8) & 0xff,
-			(vernum)& 0xff);
+		std::snprintf(verstr, sizeof(verstr), "%u.%u.%u.%u",
+			(unsigned int)(vernum >> 24),
+			(unsigned int)((vernum >> 16) & 0xff),
+			(unsigned int)((vernum >> 8) & 0xff),
+			(unsigned int)(vernum & 0xff));
 		return verstr;
 	}
 

@@ -828,11 +828,11 @@ namespace pvpgn
 			DEBUG3("APIREG:/{}/{}/{}/", apiregmember_get_request(apiregmember), apiregmember_get_newnick(apiregmember), apiregmember_get_newpass(apiregmember));
 
 			if ((request) && (std::strcmp(apiregmember_get_request(apiregmember), REQUEST_AGEVERIFY) == 0)) {
-				std::snprintf(data, sizeof(data), "HRESULT=%s\nMessage=%s\nNewNick=((NewNick))\nNewPass=((NewPass))\n", hresult, message);
+				std::snprintf(data, sizeof(data), "HRESULT=%.11s\nMessage=%.256s\nNewNick=((NewNick))\nNewPass=((NewPass))\n", hresult, message);
 				/* FIXME: Count real age here! */
 				std::snprintf(age, sizeof(age), "28"); /* FIXME: Here must be counted age */
 				std::snprintf(temp, sizeof(temp), "Age=%s\nConsent=((Consent))\nEND\r", age);
-				std::strcat(data, temp);
+				std::strncat(data, temp, sizeof(data) - std::strlen(data) - 1);
 				apireg_send(apiregmember_get_conn(apiregmember), data);
 				return 0;
 			}
@@ -880,7 +880,7 @@ namespace pvpgn
 						}
 					}
 				}
-				std::snprintf(data, sizeof(data), "HRESULT=%s\nMessage=%s\nNewNick=%s\nNewPass=%s\nAge=%s\nConsent=%s\nEND\r", hresult, message, newnick, newpass, age, consent);
+				std::snprintf(data, sizeof(data), "HRESULT=%.11s\nMessage=%.256s\nNewNick=%.32s\nNewPass=%.32s\nAge=%.7s\nConsent=%.11s\nEND\r", hresult, message, newnick ? newnick : "", newpass ? newpass : "", age, consent);
 				apireg_send(apiregmember_get_conn(apiregmember), data);
 				return 0;
 			}

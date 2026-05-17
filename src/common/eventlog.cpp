@@ -40,8 +40,8 @@
 namespace pvpgn
 {
 
-	extern std::FILE *eventstrm = NULL;
-	extern unsigned currlevel = eventlog_level_debug |
+	std::FILE *eventstrm = NULL;
+	unsigned currlevel = eventlog_level_debug |
 		eventlog_level_info |
 		eventlog_level_warn |
 		eventlog_level_error |
@@ -51,7 +51,7 @@ namespace pvpgn
 #endif
 		;
 	/* FIXME: maybe this should be default for win32 */
-	extern int eventlog_debugmode = 0;
+	int eventlog_debugmode = 0;
 
 	extern void eventlog_set_debugmode(int debugmode)
 	{

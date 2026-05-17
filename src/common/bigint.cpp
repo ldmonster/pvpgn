@@ -62,6 +62,7 @@ namespace pvpgn
 	{
 #ifndef HAVE_UINT64_T
 		int i;
+		int shift_amount = bigint_base_bitcount;
 #endif
 		segment_count = sizeof(std::uint32_t) / sizeof(bigint_base);
 		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
@@ -70,7 +71,8 @@ namespace pvpgn
 #else
 		for (i = 0; i < segment_count; i++){
 			segment[i] = input & bigint_base_mask;
-			input >>= bigint_base_bitcount;
+			if (i + 1 < segment_count)
+				input >>= shift_amount;
 		}
 #endif
 	}
@@ -78,11 +80,13 @@ namespace pvpgn
 	BigInt::BigInt(std::uint64_t input)
 	{
 		int i;
+		int shift_amount = bigint_base_bitcount;
 		segment_count = sizeof(std::uint64_t) / sizeof(bigint_base);
 		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
 		for (i = 0; i < segment_count; i++){
 			segment[i] = input & bigint_base_mask;
-			input >>= bigint_base_bitcount;
+			if (i + 1 < segment_count)
+				input >>= shift_amount;
 		}
 	}
 

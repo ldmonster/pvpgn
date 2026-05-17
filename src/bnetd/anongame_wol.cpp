@@ -331,16 +331,16 @@ namespace pvpgn
 		static int _get_pair(int * i, int * j, int max, bool different)
 		{
 			max++; /* We want to use just real maximum number - no metter what function do */
-
+	
 			if (*i == -2)
-				*i = (max * rand() / (RAND_MAX + 1));
-
+				*i = (int)(((long)max * (long)rand()) / (RAND_MAX + 1));
+	
 			if (*j == -2)
-				*j = (max * rand() / (RAND_MAX + 1));
-
+				*j = (int)(((long)max * (long)rand()) / (RAND_MAX + 1));
+	
 			if ((different) && (*i == *j)) {
 				do {
-					*j = (max * rand() / (RAND_MAX + 1));
+					*j = (int)(((long)max * (long)rand()) / (RAND_MAX + 1));
 				} while (*i == *j);
 			}
 			return 0;

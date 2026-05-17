@@ -119,10 +119,10 @@ namespace pvpgn
 					if (uname(&utsbuf) != 0)
 					{
 						eventlog(eventlog_level_warn, __FUNCTION__, "could not get platform info (uname: {})", pstrerror(errno));
-						std::snprintf(reinterpret_cast<char*>(packet.platform), sizeof packet.platform, "");
+						std::memset(reinterpret_cast<char*>(packet.platform), 0, sizeof packet.platform);
 					}
 				}
-				std::snprintf(reinterpret_cast<char*>(packet.platform), sizeof packet.platform, "%s", utsbuf.sysname);
+				std::snprintf(reinterpret_cast<char*>(packet.platform), sizeof packet.platform, "%.31s", utsbuf.sysname);
 
 				LIST_TRAVERSE_CONST(laddrs, currl)
 				{
