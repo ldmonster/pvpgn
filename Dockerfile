@@ -1,0 +1,216 @@
+ARG MODE=mysql
+FROM alpine:latest AS build-base
+
+### Install build dependencies
+RUN apk --quiet --no-cache add \
+  build-base \
+  clang \
+  cmake \
+  make \
+  zlib-dev \
+  curl-dev \
+  lua-dev \
+  openssl-dev \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+### Copy source code
+COPY . /src
+RUN mkdir -p /src/build /usr/local/pvpgn
+WORKDIR /src
+
+ENV WITH_LUA=true
+ENV WITH_MYSQL=false
+ENV WITH_SQLITE3=false
+ENV WITH_PGSQL=false
+ENV WITH_ODBC=false
+
+################################################################################
+FROM build-base AS build-plain
+
+RUN cmake -S ./ -B ./build \
+  -D WITH_LUA=${WITH_LUA} \
+  -D WITH_MYSQL=${WITH_MYSQL} \
+  -D WITH_SQLITE3=${WITH_SQLITE3} \
+  -D WITH_PGSQL=${WITH_PGSQL} \
+  -D WITH_ODBC=${WITH_ODBC} \
+  -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+  && cd build && make
+
+################################################################################
+FROM build-base AS build-mysql
+
+RUN apk --quiet --no-cache add \
+  mariadb-dev \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+ENV WITH_MYSQL=true
+
+RUN cmake -S ./ -B ./build \
+  -D WITH_LUA=${WITH_LUA} \
+  -D WITH_MYSQL=${WITH_MYSQL} \
+  -D WITH_SQLITE3=${WITH_SQLITE3} \
+  -D WITH_PGSQL=${WITH_PGSQL} \
+  -D WITH_ODBC=${WITH_ODBC} \
+  -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+  && cd build && make
+
+################################################################################
+FROM build-base AS build-pgsql
+
+RUN apk --quiet --no-cache add \
+  libpq-dev \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+ENV WITH_PGSQL=true
+
+RUN cmake -S ./ -B ./build \
+  -D WITH_LUA=${WITH_LUA} \
+  -D WITH_MYSQL=${WITH_MYSQL} \
+  -D WITH_SQLITE3=${WITH_SQLITE3} \
+  -D WITH_PGSQL=${WITH_PGSQL} \
+  -D WITH_ODBC=${WITH_ODBC} \
+  -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+  && cd build && make
+
+################################################################################
+FROM build-base AS build-sqlite3
+
+RUN apk --quiet --no-cache add \
+  sqlite-dev \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+ENV WITH_SQLITE3=true
+
+RUN cmake -S ./ -B ./build \
+  -D WITH_LUA=${WITH_LUA} \
+  -D WITH_MYSQL=${WITH_MYSQL} \
+  -D WITH_SQLITE3=${WITH_SQLITE3} \
+  -D WITH_PGSQL=${WITH_PGSQL} \
+  -D WITH_ODBC=${WITH_ODBC} \
+  -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+  && cd build && make
+
+################################################################################
+FROM build-base AS build-odbc
+
+RUN apk --quiet --no-cache add \
+  unixodbc-dev \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+ENV WITH_ODBC=true
+
+RUN cmake -S ./ -B ./build \
+  -D WITH_LUA=${WITH_LUA} \
+  -D WITH_MYSQL=${WITH_MYSQL} \
+  -D WITH_SQLITE3=${WITH_SQLITE3} \
+  -D WITH_PGSQL=${WITH_PGSQL} \
+  -D WITH_ODBC=${WITH_ODBC} \
+  -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+  && cd build && make
+
+################################################################################
+FROM build-${MODE} AS build
+
+### Install
+WORKDIR /src/build
+RUN make install && chown -R 1001:1001 /usr/local/pvpgn
+
+################################################################################
+FROM alpine:latest AS runner-plain
+
+### Install dependencies
+RUN apk --quiet --no-cache add \
+  ca-certificates \
+  libstdc++ \
+  libgcc \
+  libcurl \
+  lua5.1-libs \
+  openssl \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+################################################################################
+FROM runner-plain AS runner-mysql
+
+### Install dependencies
+RUN apk --quiet --no-cache add \
+  mariadb-connector-c \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+################################################################################
+FROM runner-plain AS runner-pgsql
+
+### Install dependencies
+RUN apk --quiet --no-cache add \
+  libpq \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+################################################################################
+FROM runner-plain AS runner-sqlite3
+
+### Install dependencies
+RUN apk --quiet --no-cache add \
+  sqlite-libs \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+################################################################################
+FROM runner-plain AS runner-odbc
+
+## Install dependencies
+RUN apk --quiet --no-cache add \
+  unixodbc \
+  && rm -rf /var/cache/apk/* \
+  ;
+
+################################################################################
+FROM runner-${MODE} AS runner
+
+### Copy build files
+COPY --from=build --chown=1001:1001 /usr/local/pvpgn /usr/local/pvpgn
+
+### Create symlinks for binaries in standard locations
+RUN ln -s /usr/local/pvpgn/sbin/* /usr/local/sbin/ 2>/dev/null || true && \
+    ln -s /usr/local/pvpgn/bin/* /usr/local/bin/ 2>/dev/null || true
+
+### Prepare user
+RUN addgroup --gid 1001 pvpgn \
+  && adduser \
+  --home /var/pvpgn \
+  --gecos "" \
+  --shell /sbin/nologin \
+  --ingroup pvpgn \
+  --system \
+  --disabled-password \
+  --no-create-home \
+  --uid 1001 \
+  pvpgn
+
+### Create data directories
+RUN mkdir -p /var/pvpgn /etc/pvpgn && \
+    chown -R 1001:1001 /var/pvpgn /etc/pvpgn
+
+### Copy config files if they exist
+COPY --from=build --chown=1001:1001 /usr/local/pvpgn/etc/pvpgn /etc/pvpgn 2>/dev/null || true
+COPY --from=build --chown=1001:1001 /usr/local/pvpgn/var/pvpgn /var/pvpgn 2>/dev/null || true
+
+### persist data and configs
+VOLUME /var/pvpgn
+VOLUME /etc/pvpgn
+
+# expose served network ports
+EXPOSE 6112 4000
+
+### Set user
+USER 1001:1001
+
+### RUN!
+CMD ["bnetd", "-f"]
+ENTRYPOINT ["bnetd"]
