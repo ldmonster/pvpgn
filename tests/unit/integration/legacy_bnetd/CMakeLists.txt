@@ -29,3 +29,43 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_chat_reply_sink_fixture
 pvpgn_v3_add_test(test_integration_legacy_bnetd_account_repository_hex
     SOURCES legacy_account_repository_hex_test.cpp
     DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_packet_bridge
+    SOURCES send_packet_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_init_conn_bridge
+    SOURCES init_conn_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_authreply1_bridge
+    SOURCES send_authreply1_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_authreply109_bridge
+    SOURCES send_authreply109_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_authinfo_reply_bridge
+    SOURCES send_authinfo_reply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_loginreply_bridge
+    SOURCES send_loginreply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_loginreply_w3_bridge
+    SOURCES send_loginreply_w3_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_logonproof_reply_bridge
+    SOURCES send_logonproof_reply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_createacct_reply_bridge
+    SOURCES send_createacct_reply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_iconreply_bridge
+    SOURCES send_iconreply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)

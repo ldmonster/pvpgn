@@ -158,7 +158,7 @@ struct AuthInfo {
     bool operator==(const AuthInfo&) const = default;
 };
 
-/// SID_AUTH_INFO (server → client) — legacy `SERVER_AUTHREQ_109` (0x50).
+/// SID_AUTH_INFO (server -> client) -- legacy `SERVER_AUTHREQ_109` (0x50).
 /// Carries the version-check seed and MPQ filename, server token used
 /// for the password hash, and the W3 logon-type flag.
 struct AuthInfoReply {
@@ -168,6 +168,12 @@ struct AuthInfoReply {
     std::uint64_t timestamp    = 0;   ///< Windows FILETIME.
     std::string   mpq_filename;       ///< e.g. "ver-IX86-1.mpq"
     std::string   checksum_formula;   ///< version-check equation
+    /// Optional trailing opaque bytes appended after the equation.
+    /// Legacy bnetd emits a 128-byte zero pad here for W3/W3XP
+    /// clients (server signature placeholder). Empty for all other
+    /// clients. Stored as raw bytes so the codec stays oblivious to
+    /// the (unused) signature payload format.
+    std::vector<std::uint8_t> server_signature;
     bool operator==(const AuthInfoReply&) const = default;
 };
 
@@ -1432,10 +1438,14 @@ inline constexpr std::uint32_t kAuthReply1MessageBadVersion = 0x00000000u;
 inline constexpr std::uint32_t kAuthReply1MessageUpdate     = 0x00000001u;
 inline constexpr std::uint32_t kAuthReply1MessageOk         = 0x00000002u;
 
+/// SERVER_AUTHREPLY1 (0x07). Legacy on-wire layout:
+///   u32 message
+///   if !filename.empty(): cstring filename
+///   cstring ""     // always emitted -- legacy parity
+///   cstring ""     // always emitted -- legacy parity
 struct AuthReply1 {
     std::uint32_t message = kAuthReply1MessageOk;
     std::string   filename;  ///< optional patch filename (only on UPDATE)
-    std::string   unknown;   ///< optional trailing string (rare)
     bool operator==(const AuthReply1&) const = default;
 };
 

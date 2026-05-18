@@ -25,4 +25,20 @@ void install_change_password_handler();
 /// second call.
 void install_login_user_handler();
 
+/// Installs the legacy-bnetd implementation of the v3
+/// `pvpgn_v3_send_packet_try` ABI (wraps bytes in a
+/// `packet_class_raw` `t_packet` and pushes via
+/// `conn_push_outqueue`). No-op on second call. Must be available
+/// before any ported v3 handler attempts to reply through the
+/// bridge.
+void install_send_packet_handler();
+
+/// Installs the legacy-bnetd implementation of the v3
+/// `pvpgn_v3_init_conn_apply` ABI (the byte-1 connection-class
+/// state-machine transitions plus the D2CS_BNETD realmlist check
+/// and `handle_d2cs_init` call). No-op on second call. Must be
+/// available before any client opens a TCP socket if the legacy
+/// handler is to delegate to v3.
+void install_init_conn_apply_handler();
+
 }  // namespace pvpgn::integration::legacy_bnetd

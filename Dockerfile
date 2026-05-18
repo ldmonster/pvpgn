@@ -36,13 +36,27 @@ RUN mkdir -p /src/build /usr/local/pvpgn
 WORKDIR /src
 
 # ---------------------------------------------------------------------------
-# Default feature flags – individual build stages override these as needed
+# Default feature flags - individual build stages override these as needed
 # ---------------------------------------------------------------------------
 ENV WITH_LUA=false
 ENV WITH_MYSQL=false
 ENV WITH_PGSQL=false
 ENV WITH_SQLITE3=false
 ENV WITH_ODBC=false
+
+# ---------------------------------------------------------------------------
+# Common install layout used by every build-<MODE> stage:
+#   /usr/local/pvpgn -> binaries (sbin, bin, lib, share)
+#   /etc/pvpgn       -> configuration files
+#   /var/pvpgn       -> runtime data (users, clans, teams, files, ...)
+#
+# Pinning SYSCONF_INSTALL_DIR / LOCALSTATE_INSTALL_DIR here is what makes
+# `make install` actually populate /etc/pvpgn and /var/pvpgn inside the
+# build image. Without this they default to /etc and /var, so the runtime
+# image never ships the configs/templates that bnetd needs to start.
+# ---------------------------------------------------------------------------
+ENV PVPGN_SYSCONFDIR=/etc/pvpgn
+ENV PVPGN_LOCALSTATEDIR=/var/pvpgn
 
 
 # =============================================================================
@@ -58,6 +72,8 @@ RUN cmake -S ./ -B ./build \
       -D WITH_SQLITE3=${WITH_SQLITE3} \
       -D WITH_ODBC=${WITH_ODBC} \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+      -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
+      -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
     && cd build && make
 
 
@@ -67,7 +83,6 @@ RUN cmake -S ./ -B ./build \
 # =============================================================================
 FROM build-base AS build-mysql
 
-# Install the MariaDB development headers and client library
 RUN apk --quiet --no-cache add \
       mariadb-dev \
     && rm -rf /var/cache/apk/*
@@ -81,16 +96,16 @@ RUN cmake -S ./ -B ./build \
       -D WITH_SQLITE3=${WITH_SQLITE3} \
       -D WITH_ODBC=${WITH_ODBC} \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+      -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
+      -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
     && cd build && make
 
 
 # =============================================================================
 # Stage: build-pgsql
-# Adds PostgreSQL client library and enables the PostgreSQL storage backend.
 # =============================================================================
 FROM build-base AS build-pgsql
 
-# Install the PostgreSQL development headers and client library
 RUN apk --quiet --no-cache add \
       libpq-dev \
     && rm -rf /var/cache/apk/*
@@ -104,16 +119,16 @@ RUN cmake -S ./ -B ./build \
       -D WITH_SQLITE3=${WITH_SQLITE3} \
       -D WITH_ODBC=${WITH_ODBC} \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+      -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
+      -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
     && cd build && make
 
 
 # =============================================================================
 # Stage: build-sqlite3
-# Adds SQLite3 library and enables the SQLite3 storage backend.
 # =============================================================================
 FROM build-base AS build-sqlite3
 
-# Install the SQLite3 development headers and library
 RUN apk --quiet --no-cache add \
       sqlite-dev \
     && rm -rf /var/cache/apk/*
@@ -127,16 +142,16 @@ RUN cmake -S ./ -B ./build \
       -D WITH_SQLITE3=${WITH_SQLITE3} \
       -D WITH_ODBC=${WITH_ODBC} \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+      -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
+      -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
     && cd build && make
 
 
 # =============================================================================
 # Stage: build-odbc
-# Adds unixODBC library and enables the ODBC storage backend.
 # =============================================================================
 FROM build-base AS build-odbc
 
-# Install the unixODBC development headers and library
 RUN apk --quiet --no-cache add \
       unixodbc-dev \
     && rm -rf /var/cache/apk/*
@@ -150,19 +165,28 @@ RUN cmake -S ./ -B ./build \
       -D WITH_SQLITE3=${WITH_SQLITE3} \
       -D WITH_ODBC=${WITH_ODBC} \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
+      -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
+      -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
     && cd build && make
 
 
 # =============================================================================
 # Stage: build  (selector)
-# Resolves to the correct build-<MODE> stage and runs `make install`.
+# Resolves to the correct build-<MODE> stage, installs everything, and stashes
+# a pristine copy of /etc/pvpgn and /var/pvpgn under /usr/local/share/pvpgn so
+# the runtime entrypoint can seed mounted named volumes that come up empty.
 # =============================================================================
 FROM build-${MODE} AS build
 
 WORKDIR /src/build
 
-# Install compiled binaries/configs into the prefix and fix ownership
-RUN make install && chown -R 1001:1001 /usr/local/pvpgn
+RUN make install \
+    && mkdir -p /usr/local/share/pvpgn \
+    && cp -a /etc/pvpgn /usr/local/share/pvpgn/etc \
+    && cp -a /var/pvpgn /usr/local/share/pvpgn/var \
+    && chown -R 1001:1001 \
+         /usr/local/pvpgn \
+         /usr/local/share/pvpgn
 
 
 # =============================================================================
@@ -178,12 +202,12 @@ RUN apk --quiet --no-cache add \
       libgcc \
       libstdc++ \
       openssl \
+      su-exec \
     && rm -rf /var/cache/apk/*
 
 
 # =============================================================================
 # Stage: runner-mysql
-# Extends runner-plain with the MariaDB connector runtime library.
 # =============================================================================
 FROM runner-plain AS runner-mysql
 
@@ -194,7 +218,6 @@ RUN apk --quiet --no-cache add \
 
 # =============================================================================
 # Stage: runner-pgsql
-# Extends runner-plain with the PostgreSQL client runtime library.
 # =============================================================================
 FROM runner-plain AS runner-pgsql
 
@@ -205,7 +228,6 @@ RUN apk --quiet --no-cache add \
 
 # =============================================================================
 # Stage: runner-sqlite3
-# Extends runner-plain with the SQLite3 runtime library.
 # =============================================================================
 FROM runner-plain AS runner-sqlite3
 
@@ -216,7 +238,6 @@ RUN apk --quiet --no-cache add \
 
 # =============================================================================
 # Stage: runner-odbc
-# Extends runner-plain with the unixODBC runtime library.
 # =============================================================================
 FROM runner-plain AS runner-odbc
 
@@ -227,25 +248,11 @@ RUN apk --quiet --no-cache add \
 
 # =============================================================================
 # Stage: runner  (final image)
-# Selects the correct runner-<MODE> base, copies the installed files from the
-# build stage, and configures the container for production use.
 # =============================================================================
 FROM runner-${MODE} AS runner
 
 # ---------------------------------------------------------------------------
-# Copy the installed PvPGN tree from the build stage
-# ---------------------------------------------------------------------------
-COPY --from=build --chown=1001:1001 /usr/local/pvpgn /usr/local/pvpgn
-
-# ---------------------------------------------------------------------------
-# Symlink PvPGN binaries into standard PATH locations so they are accessible
-# without modifying PATH inside the container
-# ---------------------------------------------------------------------------
-RUN ln -s /usr/local/pvpgn/sbin/* /usr/local/sbin/ 2>/dev/null || true \
-    && ln -s /usr/local/pvpgn/bin/*  /usr/local/bin/  2>/dev/null || true
-
-# ---------------------------------------------------------------------------
-# Create a dedicated system user/group (uid/gid 1001) for running PvPGN
+# Create the unprivileged pvpgn user/group (uid/gid 1001)
 # ---------------------------------------------------------------------------
 RUN addgroup --gid 1001 pvpgn \
     && adduser \
@@ -260,47 +267,43 @@ RUN addgroup --gid 1001 pvpgn \
          pvpgn
 
 # ---------------------------------------------------------------------------
-# Create runtime data and configuration directories with correct ownership
+# Copy installed binaries and the pristine configs+data seed from the build
+# stage.
 # ---------------------------------------------------------------------------
-RUN mkdir -p /var/pvpgn /etc/pvpgn /var/pvpgn/logs /var/pvpgn/users /var/pvpgn/clans /var/pvpgn/teams \
-    && chown -R 1001:1001 /var/pvpgn /etc/pvpgn \
-    && chmod -R 755 /var/pvpgn \
-    && echo "storage_path = \"file:mode=plain;dir=/var/pvpgn/users;clan=/var/pvpgn/clans;team=/var/pvpgn/teams;default=/etc/pvpgn/bnetd_default_user.plain\"" > /etc/pvpgn/bnetd.conf \
-    && echo "logfile = /var/pvpgn/bnetd.log" >> /etc/pvpgn/bnetd.conf \
-    && echo "servername = PvPGN" >> /etc/pvpgn/bnetd.conf \
-    && chown 1001:1001 /etc/pvpgn/bnetd.conf
+COPY --from=build --chown=1001:1001 /usr/local/pvpgn       /usr/local/pvpgn
+COPY --from=build --chown=1001:1001 /usr/local/share/pvpgn /usr/local/share/pvpgn
 
 # ---------------------------------------------------------------------------
-# Seed config and data directories from the installed prefix (best-effort)
+# Symlink PvPGN binaries into standard PATH locations
 # ---------------------------------------------------------------------------
-RUN if [ -d /usr/local/pvpgn/etc/pvpgn ]; then \
-      cp -r /usr/local/pvpgn/etc/pvpgn/* /etc/pvpgn/ 2>/dev/null || true; \
-    fi && \
-    if [ -d /usr/local/pvpgn/var/pvpgn ]; then \
-      cp -r /usr/local/pvpgn/var/pvpgn/* /var/pvpgn/ 2>/dev/null || true; \
-    fi && \
-    chown -R 1001:1001 /var/pvpgn /etc/pvpgn
+RUN ln -sf /usr/local/pvpgn/sbin/* /usr/local/sbin/ 2>/dev/null || true \
+    && ln -sf /usr/local/pvpgn/bin/*  /usr/local/bin/  2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# Declare persistent volumes for data and configuration
-# (these are overridden by named volumes in docker-compose)
+# Create runtime mount points. The entrypoint will seed them from
+# /usr/local/share/pvpgn if a named volume mounts them empty.
 # ---------------------------------------------------------------------------
-VOLUME /var/pvpgn
-VOLUME /etc/pvpgn
+RUN mkdir -p /etc/pvpgn /var/pvpgn \
+    && chown -R 1001:1001 /etc/pvpgn /var/pvpgn
 
 # ---------------------------------------------------------------------------
-# Expose Battle.net (6112) and additional service (4000) ports
+# Install the entrypoint script
+# ---------------------------------------------------------------------------
+COPY --chown=root:root scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
+
+# ---------------------------------------------------------------------------
+# Network ports
 # ---------------------------------------------------------------------------
 EXPOSE 6112
 EXPOSE 4000
 
 # ---------------------------------------------------------------------------
-# Drop privileges to the pvpgn system user
+# Entrypoint runs as root so it can chown the named volumes and seed them,
+# then drops to uid/gid 1001 via su-exec before exec'ing bnetd in the
+# foreground. `-f` keeps bnetd attached so it stays PID 1; the entrypoint
+# also patches bnetd.conf so logfile=/dev/stdout, which is what makes
+# `docker logs` actually show server output.
 # ---------------------------------------------------------------------------
-USER 1001:1001
-
-# ---------------------------------------------------------------------------
-# Default command: run bnetd in foreground mode with config from /etc/pvpgn
-# ---------------------------------------------------------------------------
-ENTRYPOINT ["/usr/local/pvpgn/sbin/bnetd"]
-CMD ["-f", "-c", "/etc/pvpgn/bnetd.conf"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["/usr/local/pvpgn/sbin/bnetd", "-f", "-c", "/etc/pvpgn/bnetd.conf"]

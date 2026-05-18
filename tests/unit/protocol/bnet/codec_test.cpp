@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -133,7 +133,7 @@ TEST_CASE("bnet codec: SID_NULL with extra body bytes rejected",
 TEST_CASE("bnet codec: SID_PING with short body rejected",
           "[protocol][bnet]") {
     using namespace protocol::bnet;
-    // Says size=6 but ticks needs 4 bytes — only 2 present.
+    // Says size=6 but ticks needs 4 bytes вЂ” only 2 present.
     std::array<std::byte, 6> raw{
         std::byte{0xFF}, std::byte{0x25}, std::byte{0x06}, std::byte{0x00},
         std::byte{0x00}, std::byte{0x00}};
@@ -152,7 +152,7 @@ TEST_CASE("bnet codec: SID_AUTH_INFO with unterminated country string",
     w.begin_bnet_packet(kSidAuthInfo);
     for (int i = 0; i < 9; ++i) w.write_le<std::uint32_t>(0);
     w.write_cstring("USA");
-    // No final NUL — write raw bytes only.
+    // No final NUL вЂ” write raw bytes only.
     const char tail[] = "United";
     w.write_bytes(core::as_byte_view(tail, 6));
     REQUIRE(w.finalize_bnet_packet().has_value());
@@ -276,6 +276,90 @@ TEST_CASE("bnet codec: SID_AUTH_INFO server reply round-trip (standard logon)",
     auto r = round_trip(in, decode_server);
     REQUIRE(r.has_value());
     REQUIRE(std::get<AuthInfoReply>(r.value()) == in);
+}
+
+TEST_CASE("bnet codec: SID_AUTH_INFO (0x50) reply byte parity vs legacy",
+          "[protocol][bnet]") {
+    using namespace pvpgn::protocol::bnet;
+
+    // Reference bytes match legacy bnetd `_client_auth_info` emission
+    // for SERVER_AUTHREQ_109 (0x50): header (FF 50 size_lo size_hi),
+    // then u32 logontype, u32 sessionkey, u32 sessionnum, u64 FILETIME
+    // (low DWORD LE then high DWORD LE), cstring mpq_filename,
+    // cstring equation, then optional 128 bytes of zero padding for
+    // W3/W3XP clients only.
+
+    SECTION("standard logon, no W3 signature") {
+        AuthInfoReply m;
+        m.logontype        = 0u;
+        m.server_token     = 0xdeadbeefu;
+        m.session_num      = 0x12345678u;
+        m.timestamp        = 0x01c79a4dcafebabeull;
+        m.mpq_filename     = "IX86ver1.mpq";
+        m.checksum_formula = "A=A^S";
+
+        pvpgn::protocol::Writer w;
+        REQUIRE(encode(w, m).has_value());
+        auto bytes = w.take();
+        // header (4) + 5 u32 (20) + "IX86ver1.mpq\0" (13) +
+        // "A=A^S\0" (6) = 43 bytes.
+        REQUIRE(bytes.size() == 43u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[0]) == 0xFFu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[1]) == 0x50u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[2]) == 43u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[3]) == 0u);
+        for (int i = 0; i < 4; ++i)
+            REQUIRE(static_cast<std::uint8_t>(bytes[4 + i]) == 0u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[8])  == 0xEFu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[9])  == 0xBEu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[10]) == 0xADu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[11]) == 0xDEu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[12]) == 0x78u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[13]) == 0x56u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[14]) == 0x34u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[15]) == 0x12u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[16]) == 0xBEu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[17]) == 0xBAu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[18]) == 0xFEu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[19]) == 0xCAu);
+        REQUIRE(static_cast<std::uint8_t>(bytes[20]) == 0x4Du);
+        REQUIRE(static_cast<std::uint8_t>(bytes[21]) == 0x9Au);
+        REQUIRE(static_cast<std::uint8_t>(bytes[22]) == 0xC7u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[23]) == 0x01u);
+        const char expected_name[] = "IX86ver1.mpq";
+        for (std::size_t i = 0; i < sizeof(expected_name); ++i)
+            REQUIRE(static_cast<std::uint8_t>(bytes[24 + i]) ==
+                    static_cast<std::uint8_t>(expected_name[i]));
+        const char expected_eq[] = "A=A^S";
+        for (std::size_t i = 0; i < sizeof(expected_eq); ++i)
+            REQUIRE(static_cast<std::uint8_t>(bytes[37 + i]) ==
+                    static_cast<std::uint8_t>(expected_eq[i]));
+    }
+
+    SECTION("W3 with 128-byte zero signature pad") {
+        AuthInfoReply m;
+        m.logontype        = 0x00000002u; // W3 NLS
+        m.server_token     = 0u;
+        m.session_num      = 0u;
+        m.timestamp        = 0u;
+        m.mpq_filename     = "";
+        m.checksum_formula = "";
+        m.server_signature.assign(128, 0u);
+
+        pvpgn::protocol::Writer w;
+        REQUIRE(encode(w, m).has_value());
+        auto bytes = w.take();
+        // header (4) + u32*5 (20) + "\0" + "\0" + 128 = 154 bytes.
+        REQUIRE(bytes.size() == 154u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[1]) == 0x50u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[2]) == 154u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[3]) == 0u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[4]) == 0x02u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[24]) == 0u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[25]) == 0u);
+        for (std::size_t i = 0; i < 128; ++i)
+            REQUIRE(static_cast<std::uint8_t>(bytes[26 + i]) == 0u);
+    }
 }
 
 TEST_CASE("bnet codec: SID_AUTH_CHECK client request round-trip (LoD: 2 cdkeys)",
@@ -2086,18 +2170,75 @@ TEST_CASE("bnet codec: SID_AUTH (0x07) request round-trip", "[protocol][bnet]") 
 
 TEST_CASE("bnet codec: SID_AUTH (0x07) reply OK round-trip", "[protocol][bnet]") {
     using namespace protocol::bnet;
-    AuthReply1 in{kAuthReply1MessageOk, "", ""};
+    AuthReply1 in{kAuthReply1MessageOk, ""};
     auto r = round_trip(in, decode_server);
     REQUIRE(r.has_value());
     REQUIRE(std::get<AuthReply1>(r.value()) == in);
 }
 
-TEST_CASE("bnet codec: SID_AUTH (0x07) reply with strings round-trip", "[protocol][bnet]") {
+TEST_CASE("bnet codec: SID_AUTH (0x07) reply with filename round-trip", "[protocol][bnet]") {
     using namespace protocol::bnet;
-    AuthReply1 in{kAuthReply1MessageUpdate, "patch.mpq", "additional info"};
+    AuthReply1 in{kAuthReply1MessageUpdate, "patch.mpq"};
     auto r = round_trip(in, decode_server);
     REQUIRE(r.has_value());
     REQUIRE(std::get<AuthReply1>(r.value()) == in);
+}
+
+TEST_CASE("bnet codec: SID_AUTH (0x07) reply byte parity vs legacy",
+          "[protocol][bnet]") {
+    using namespace protocol::bnet;
+    // Reference bytes are taken from src/common/bnet_protocol.h:
+    //   "FF 07 0A 00 02 00 00 00 00 00"
+    // Header (FF 07 size_le) + u32 message (OK=2) + ""\0 + ""\0
+    {
+        AuthReply1 m{kAuthReply1MessageOk, ""};
+        protocol::Writer w;
+        REQUIRE(encode(w, m).has_value());
+        auto bytes = w.take();
+        const std::uint8_t expected[] = {
+            0xFF, 0x07, 0x0A, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00
+        };
+        REQUIRE(bytes.size() == sizeof(expected));
+        for (std::size_t i = 0; i < sizeof(expected); ++i) {
+            REQUIRE(static_cast<std::uint8_t>(bytes[i]) == expected[i]);
+        }
+    }
+    // BADVERSION variant: message=0, no filename, two trailing empties.
+    {
+        AuthReply1 m{kAuthReply1MessageBadVersion, ""};
+        protocol::Writer w;
+        REQUIRE(encode(w, m).has_value());
+        auto bytes = w.take();
+        const std::uint8_t expected[] = {
+            0xFF, 0x07, 0x0A, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00
+        };
+        REQUIRE(bytes.size() == sizeof(expected));
+        for (std::size_t i = 0; i < sizeof(expected); ++i) {
+            REQUIRE(static_cast<std::uint8_t>(bytes[i]) == expected[i]);
+        }
+    }
+    // Update variant: prepended filename "p.mpq" + two trailing empties.
+    {
+        AuthReply1 m{kAuthReply1MessageOk, "p.mpq"};
+        protocol::Writer w;
+        REQUIRE(encode(w, m).has_value());
+        auto bytes = w.take();
+        const std::uint8_t expected[] = {
+            0xFF, 0x07, 0x10, 0x00,           // size = 16
+            0x02, 0x00, 0x00, 0x00,           // message = OK
+            'p',  '.',  'm',  'p',  'q', 0x00, // "p.mpq"\0
+            0x00,                              // ""\0
+            0x00                               // ""\0
+        };
+        REQUIRE(bytes.size() == sizeof(expected));
+        for (std::size_t i = 0; i < sizeof(expected); ++i) {
+            REQUIRE(static_cast<std::uint8_t>(bytes[i]) == expected[i]);
+        }
+    }
 }
 
 TEST_CASE("bnet codec: SID_COUNTRYINFO1 (0x12) round-trip", "[protocol][bnet]") {
@@ -2275,6 +2416,119 @@ TEST_CASE("bnet codec: SID_NETGAMEPORT (0x45) round-trip", "[protocol][bnet]") {
     REQUIRE(r.has_value());
     REQUIRE(std::get<NetGamePort>(r.value()) == in);
 }
+
+TEST_CASE("bnet codec: SID_COUNTRYINFO1 (0x12) byte parity vs legacy",
+          "[protocol][bnet]") {
+    using namespace pvpgn::protocol::bnet;
+    // Reference payload from bnet_protocol.h CLIENT_COUNTRYINFO1 docs:
+    //   56 17 A5 3F C0 01 A8 FD   systemtime (u64 LE)
+    //   FF FF 09 0C 00 00 09 0C   bias (i32 LE = -300), langid1
+    //   00 00 09 0C 00 00         langid2, langid3
+    //   "ena\0" "61\0" "AUS\0" "Australia\0"
+    // Plus the v3 begin_bnet_packet header (FF 12 size_lo size_hi).
+    // The legacy reference text omits localtime; v3 includes it
+    // explicitly. We exercise the v3 encoder with concrete values
+    // and verify the on-wire byte order matches the documented LE
+    // field order, including the 4 trailing cstrings.
+    CountryInfo1 m;
+    m.systemtime    = 0xFDA801C03FA51756ull;
+    m.localtime     = 0x0000000000000000ull;
+    m.bias          = -300;
+    m.langid1       = 0x0C090000u;
+    m.langid2       = 0x0C090000u;
+    m.langid3       = 0x0C090000u;
+    m.langstr       = "ena";
+    m.countrycode   = "61";
+    m.countryabbrev = "AUS";
+    m.countryname   = "Australia";
+
+    pvpgn::protocol::Writer w;
+    REQUIRE(encode(w, m).has_value());
+    auto bytes = w.take();
+    // header(4) + 8 + 8 + 4 + 4 + 4 + 4 + 4 + 3 + 4 + 10 = 53.
+    REQUIRE(bytes.size() == 53u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[0]) == 0xFFu);
+    REQUIRE(static_cast<std::uint8_t>(bytes[1]) == 0x12u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[2]) == 53u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[3]) == 0u);
+    // systemtime little-endian
+    REQUIRE(static_cast<std::uint8_t>(bytes[4])  == 0x56u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[5])  == 0x17u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[6])  == 0xA5u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[7])  == 0x3Fu);
+    REQUIRE(static_cast<std::uint8_t>(bytes[8])  == 0xC0u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[9])  == 0x01u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[10]) == 0xA8u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[11]) == 0xFDu);
+    // localtime = 0
+    for (std::size_t i = 12; i < 20; ++i)
+        REQUIRE(static_cast<std::uint8_t>(bytes[i]) == 0u);
+    // bias = -300 (0xFFFFFED4 little-endian)
+    REQUIRE(static_cast<std::uint8_t>(bytes[20]) == 0xD4u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[21]) == 0xFEu);
+    REQUIRE(static_cast<std::uint8_t>(bytes[22]) == 0xFFu);
+    REQUIRE(static_cast<std::uint8_t>(bytes[23]) == 0xFFu);
+    // langid1/2/3 = 0x0C090000
+    for (int k = 0; k < 3; ++k) {
+        REQUIRE(static_cast<std::uint8_t>(bytes[24 + 4 * k + 0]) == 0x00u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[24 + 4 * k + 1]) == 0x00u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[24 + 4 * k + 2]) == 0x09u);
+        REQUIRE(static_cast<std::uint8_t>(bytes[24 + 4 * k + 3]) == 0x0Cu);
+    }
+    // Tail cstrings.
+    const char expected_tail[] = "ena\0" "61\0" "AUS\0" "Australia";
+    // length = 3+1 + 2+1 + 3+1 + 9+1 = 21.
+    for (std::size_t i = 0; i < 21; ++i)
+        REQUIRE(static_cast<std::uint8_t>(bytes[36 + i]) ==
+                static_cast<std::uint8_t>(expected_tail[i]));
+}
+
+TEST_CASE("bnet codec: SID_REGSNOOPREPLY (0x18) byte parity vs legacy",
+          "[protocol][bnet]") {
+    using namespace pvpgn::protocol::bnet;
+    // Reference bytes from bnet_protocol.h CLIENT_REGSNOOPREPLY:
+    //   FF 18 0C 00 00 00 00 00   42 6F 62 00     "...Bob\0"
+    // header(4) + u32 unknown1 + "Bob\0" (raw bytes appended via
+    // `value`) = 12 bytes.
+    RegSnoopReply m;
+    m.unknown1 = 0u;
+    const char payload[] = "Bob";
+    m.value.assign(reinterpret_cast<std::byte const*>(payload),
+                   reinterpret_cast<std::byte const*>(payload) + 4);
+
+    pvpgn::protocol::Writer w;
+    REQUIRE(encode(w, m).has_value());
+    auto bytes = w.take();
+    const std::uint8_t expected[] = {
+        0xFF, 0x18, 0x0C, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x42, 0x6F, 0x62, 0x00
+    };
+    REQUIRE(bytes.size() == sizeof(expected));
+    for (std::size_t i = 0; i < sizeof(expected); ++i)
+        REQUIRE(static_cast<std::uint8_t>(bytes[i]) == expected[i]);
+}
+
+TEST_CASE("bnet codec: SID_NETGAMEPORT (0x45) byte parity vs legacy",
+          "[protocol][bnet]") {
+    using namespace pvpgn::protocol::bnet;
+    // Reference bytes from bnet_protocol.h CLIENT_CHANGEGAMEPORT:
+    //   FF 45 06 00 E0 17    port = 0x17E0 = 6112
+    NetGamePort m;
+    m.port = 6112;
+
+    pvpgn::protocol::Writer w;
+    REQUIRE(encode(w, m).has_value());
+    auto bytes = w.take();
+    const std::uint8_t expected[] = {
+        0xFF, 0x45, 0x06, 0x00,
+        0xE0, 0x17
+    };
+    REQUIRE(bytes.size() == sizeof(expected));
+    for (std::size_t i = 0; i < sizeof(expected); ++i)
+        REQUIRE(static_cast<std::uint8_t>(bytes[i]) == expected[i]);
+}
+
 
 
 // ============================================================================
@@ -2467,4 +2721,5 @@ TEST_CASE("bnet codec: SID_READMEMORY (0x17) decode rejects oversized count guar
     REQUIRE(r.has_value());
     REQUIRE(std::get<ReadMemoryRequest>(r.value()) == in);
 }
+
 

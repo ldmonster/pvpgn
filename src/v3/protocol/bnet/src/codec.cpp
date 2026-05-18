@@ -88,6 +88,16 @@ core::Result<AuthInfoReply> decode_auth_info_reply(const Packet& pkt) {
     m.timestamp = (static_cast<std::uint64_t>(ts_hi) << 32) | ts_lo;
     RD_STR(m.mpq_filename);
     RD_STR(m.checksum_formula);
+    // Any remaining bytes are the optional W3 server-signature
+    // placeholder (legacy emits 128 zero bytes for W3/W3XP, nothing
+    // for other clients). Store opaquely.
+    if (r.remaining() > 0) {
+        auto bv = r.tail();
+        m.server_signature.resize(bv.size());
+        for (std::size_t i = 0; i < bv.size(); ++i) {
+            m.server_signature[i] = static_cast<std::uint8_t>(bv[i]);
+        }
+    }
     return m;
 }
 
@@ -1772,8 +1782,18 @@ core::Result<AuthReply1> decode_authreply1(const Packet& pkt) {
     Reader r{pkt.payload};
     AuthReply1 m;
     RD_U32(m.message);
-    if (!r.empty()) { RD_STR(m.filename); }
-    if (!r.empty()) { RD_STR(m.unknown); }
+    // Legacy always emits at least two trailing NUL-terminated
+    // strings. Materialise the first as `filename` when it is
+    // non-empty; the trailing empties are consumed but ignored.
+    if (!r.empty()) {
+        auto cs = r.read_cstring();
+        if (!cs) return core::fail(cs.error());
+        if (!cs.value().empty()) m.filename.assign(cs.value());
+    }
+    if (!r.empty()) {
+        auto cs = r.read_cstring();
+        if (!cs) return core::fail(cs.error());
+    }
     return m;
 }
 // 0x12 CLIENT_COUNTRYINFO1
@@ -2971,6 +2991,11 @@ core::Status<> encode(Writer& w, const AuthInfoReply& m) {
     w.write_le<std::uint32_t>(static_cast<std::uint32_t>(m.timestamp >> 32));
     w.write_cstring(m.mpq_filename);
     w.write_cstring(m.checksum_formula);
+    if (!m.server_signature.empty()) {
+        w.write_bytes(core::ByteView{
+            reinterpret_cast<const std::byte*>(m.server_signature.data()),
+            m.server_signature.size()});
+    }
     return w.finalize_bnet_packet();
 }
 
@@ -4034,10 +4059,13 @@ core::Status<> encode(Writer& w, const AuthReq1& m) {
 core::Status<> encode(Writer& w, const AuthReply1& m) {
     w.begin_bnet_packet(kSidAuthReq1);
     w.write_le<std::uint32_t>(m.message);
-    if (!m.filename.empty() || !m.unknown.empty()) {
-        w.write_cstring(m.filename);
-        if (!m.unknown.empty()) w.write_cstring(m.unknown);
-    }
+    // Legacy SERVER_AUTHREPLY1 on-wire layout: optional filename
+    // (only when non-empty) followed by exactly two trailing
+    // NUL-terminated empty strings. Parity is required for real
+    // clients to advance past the auth reply.
+    if (!m.filename.empty()) w.write_cstring(m.filename);
+    w.write_cstring("");
+    w.write_cstring("");
     return w.finalize_bnet_packet();
 }
 core::Status<> encode(Writer& w, const CountryInfo1& m) {

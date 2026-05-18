@@ -2,14 +2,12 @@
 # PvPGN Docker Compose
 # =============================================================================
 # Usage:
-#   docker compose up                        # build with default MODE=plain
-#   docker compose build --build-arg MODE=pgsql && docker compose up
+#   docker compose up                                       # MODE=plain default
+#   MODE=pgsql docker compose build && docker compose up    # pick a backend
 #
 # Supported MODE values: plain | mysql | pgsql | sqlite3 | odbc
 # Note: Alpine Linux has limited database support; plain mode is recommended.
 # =============================================================================
-
-version: "3.8"
 
 # =============================================================================
 # Services
@@ -17,32 +15,42 @@ version: "3.8"
 services:
 
   # ---------------------------------------------------------------------------
-  # bnetd – the PvPGN Battle.net emulation server
+  # bnetd - the PvPGN Battle.net emulation server
   # ---------------------------------------------------------------------------
   bnetd:
     build:
-      context: .          # use the local Dockerfile at the repo root
+      context: .
       dockerfile: Dockerfile
       args:
         # Select the database backend at build time (default: plain).
-        # Override with: docker compose build --build-arg MODE=pgsql
         MODE: ${MODE:-plain}
 
-    # Restart the container automatically unless explicitly stopped
+    # Restart the container automatically unless explicitly stopped. The
+    # entrypoint now seeds /etc/pvpgn and /var/pvpgn from the in-image
+    # pristine copy when those mounts are empty, so a restart loop will not
+    # silently strand the server with no config.
     restart: unless-stopped
 
+    # Stop bnetd politely; it traps SIGTERM and shuts down its sockets.
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+
     ports:
-      # Battle.net game traffic – TCP and UDP
+      # Battle.net game traffic - TCP and UDP
       - "6112:6112/tcp"
       - "6112:6112/udp"
       # Additional PvPGN service port (e.g. D2CS / D2DBS)
       - "4000:4000/tcp"
 
     volumes:
-      # Persistent game data (accounts, ladder, etc.)
+      # Persistent game data (accounts, ladder, clans, teams, ...).
       - pvpgn_data:/var/pvpgn
-      # Persistent server configuration files
-      - pvpgn_conf:/etc/pvpgn
+      # Bind-mount your own configuration directory here if you want to
+      # edit bnetd.conf, channel.conf, etc. on the host. Leaving it
+      # unmounted uses the configs baked into the image.
+      #
+      # Example:
+      # - ./conf:/etc/pvpgn
 
     environment:
       # Pass the chosen mode into the container for reference (informational)
@@ -54,6 +62,3 @@ services:
 volumes:
   # PvPGN runtime data (accounts, ladder files, etc.)
   pvpgn_data:
-
-  # PvPGN configuration files
-  pvpgn_conf:

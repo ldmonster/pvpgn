@@ -30,6 +30,44 @@
 #include "handle_d2cs.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Strangler-fig observer (Step 4 E.3): forward-declared inline so
+// we don't have to pull a C++ header into this TU. The bridge is
+// defined in `integration_legacy_bnetd` and resolves the same
+// byte-to-decision table that the legacy switch below encodes; we
+// compare and log on any divergence. v3 does NOT yet apply the
+// decision -- the legacy code remains authoritative until the
+// parity log goes silent across a full bnetd run.
+extern "C" int pvpgn_v3_init_conn_decide(unsigned char cclass,
+                                         unsigned char* out_decision) noexcept;
+
+// Authoritative apply hook (Step 4 E.3 follow-up): when a handler
+// has been installed via `install_init_conn_apply_handler()`, this
+// returns 1 (v3 transitioned the conn), -1 (handled but failed --
+// caller should return -1), or 0 (declined; legacy switch runs).
+extern "C" int pvpgn_v3_init_conn_apply(void* conn_ptr,
+                                        unsigned char cclass) noexcept;
+namespace {
+constexpr unsigned char kInitDecisionBnet      = 0;
+constexpr unsigned char kInitDecisionFile      = 1;
+constexpr unsigned char kInitDecisionBot       = 2;
+constexpr unsigned char kInitDecisionTelnet    = 3;
+constexpr unsigned char kInitDecisionD2csBnetd = 4;
+constexpr unsigned char kInitDecisionRejected  = 0xff;
+
+unsigned char legacy_init_decision_for(unsigned char cclass) noexcept {
+    switch (cclass) {
+    case CLIENT_INITCONN_CLASS_BNET:       return kInitDecisionBnet;
+    case CLIENT_INITCONN_CLASS_FILE:       return kInitDecisionFile;
+    case CLIENT_INITCONN_CLASS_BOT:        return kInitDecisionBot;
+    case CLIENT_INITCONN_CLASS_TELNET:     return kInitDecisionTelnet;
+    case CLIENT_INITCONN_CLASS_D2CS_BNETD: return kInitDecisionD2csBnetd;
+    default:                               return kInitDecisionRejected;
+    }
+}
+}  // namespace
+#endif
+
 
 namespace pvpgn
 {
@@ -65,7 +103,51 @@ namespace pvpgn
 			switch (packet_get_type(packet))
 			{
 			case CLIENT_INITCONN:
-				switch (bn_byte_get(packet->u.client_initconn.cclass))
+			{
+				const unsigned char cclass =
+					bn_byte_get(packet->u.client_initconn.cclass);
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				// Step 4 E.3 parity check: ask v3 what it would
+				// decide for this byte and log any disagreement
+				// against the legacy table below. Cheap belt-and-
+				// braces guard that fires only on real drift.
+				{
+					unsigned char v3_decision = kInitDecisionRejected;
+					pvpgn_v3_init_conn_decide(cclass, &v3_decision);
+					const unsigned char legacy_decision =
+						legacy_init_decision_for(cclass);
+					if (v3_decision != legacy_decision)
+					{
+						eventlog(eventlog_level_warn, __FUNCTION__,
+							"[{}] v3/legacy init dispatch mismatch "
+							"(cclass 0x{:02x}: legacy={} v3={})",
+							conn_get_socket(c),
+							(unsigned int)cclass,
+							(unsigned int)legacy_decision,
+							(unsigned int)v3_decision);
+					}
+				}
+
+				// Step 4 E.3 authoritative path: when the v3 apply
+				// handler is installed, it transitions the
+				// connection for every accepted class byte (and
+				// returns -1 if a D2CS_BNETD client failed the
+				// realmlist gate or `handle_d2cs_init`). When the
+				// handler is NOT installed -- legacy-only build,
+				// or this is being called before
+				// `install_init_conn_apply_handler()` ran -- the
+				// call returns 0 and the legacy switch below runs
+				// unchanged.
+				{
+					const int v3_rc =
+						pvpgn_v3_init_conn_apply(c, cclass);
+					if (v3_rc == 1) break;       // v3 fully handled
+					if (v3_rc == -1) return -1;  // v3 handled, failed
+				}
+#endif
+
+				switch (cclass)
 				{
 				case CLIENT_INITCONN_CLASS_BNET:
 					eventlog(eventlog_level_info, __FUNCTION__, "[{}] client initiated bnet connection", conn_get_socket(c));
@@ -130,9 +212,10 @@ namespace pvpgn
 					break;
 
 				default:
-					eventlog(eventlog_level_error, __FUNCTION__, "[{}] client requested unknown class 0x{:02x} (length {}) (closing connection)", conn_get_socket(c), (unsigned int)bn_byte_get(packet->u.client_initconn.cclass), packet_get_size(packet));
+					eventlog(eventlog_level_error, __FUNCTION__, "[{}] client requested unknown class 0x{:02x} (length {}) (closing connection)", conn_get_socket(c), (unsigned int)cclass, packet_get_size(packet));
 					return -1;
 				}
+			}
 				break;
 			default:
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] unknown init packet type 0x{:04x}, len {}", conn_get_socket(c), packet_get_type(packet), packet_get_size(packet));

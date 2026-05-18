@@ -1,0 +1,93 @@
+# =============================================================================
+# PvPGN v3 build-verification Dockerfile
+# =============================================================================
+# Builds the experimental v3 sub-tree (under src/v3/) using Alpine packages
+# for Boost and OpenSSL. Used by the refactoring workflow to verify that
+# the v3 tree still compiles after each step.
+#
+# Usage:
+#   docker build -f Dockerfile.v3 --target v3-build  -t pvpgn:v3-build  .
+#   docker build -f Dockerfile.v3 --target v3-test   -t pvpgn:v3-test   .
+#   # or just:
+#   docker build -f Dockerfile.v3 -t pvpgn:v3 .
+# =============================================================================
+
+FROM alpine:latest AS v3-base
+
+RUN apk --quiet --no-cache add \
+      build-base \
+      clang \
+      cmake \
+      git \
+      make \
+      boost-dev \
+      openssl-dev \
+      zlib-dev \
+      curl-dev \
+    && rm -rf /var/cache/apk/*
+
+COPY . /src
+WORKDIR /src
+
+
+# -----------------------------------------------------------------------------
+# Stage: v3-build
+# Configures and builds the v3 sub-tree with the legacy daemons disabled.
+# -----------------------------------------------------------------------------
+FROM v3-base AS v3-build
+
+RUN cmake -S . -B build/v3 \
+      -D PVPGN_BUILD_V3=ON \
+      -D PVPGN_BUILD_LEGACY=ON \
+      -D WITH_BNETD=OFF \
+      -D WITH_D2CS=OFF \
+      -D WITH_D2DBS=OFF \
+      -D CMAKE_BUILD_TYPE=Release \
+    && cmake --build build/v3 --config Release --target infra_compat test_infra_compat_process infra_crypto test_infra_crypto_bnet_hash common test_infra_crypto_parity test_protocol_udp_wire_types test_protocol_bnet_init_wire_types test_protocol_bnet_bot_wire_types test_protocol_d2cs_bnetd_wire_types test_protocol_file_wire_types test_protocol_d2gs_wire_types test_protocol_wolgameres_wire_types test_protocol_d2cs_wire_types test_protocol_d2gs_game_wire_types test_protocol_irc_wire_types test_protocol_bnet_anongame_wire_types test_protocol_bnet_wire_types test_protocol_bnet_w3route_wire_types test_protocol_bnet_auth_wire_types test_protocol_bnet_account_wire_types test_protocol_bnet_cdkey_wire_types test_protocol_bnet_realm_wire_types test_protocol_bnet_chat_wire_types test_protocol_bnet_game_wire_types test_protocol_bnet_clan_wire_types test_protocol_bnet_misc_wire_types test_protocol_packet test_protocol_reader test_protocol_writer test_integration_legacy_bnetd_send_packet_bridge test_application_init_conn_dispatch test_integration_legacy_bnetd_init_conn_bridge test_integration_legacy_bnetd_send_authreply1_bridge test_integration_legacy_bnetd_send_authreply109_bridge test_integration_legacy_bnetd_send_authinfo_reply_bridge test_integration_legacy_bnetd_send_loginreply_bridge test_integration_legacy_bnetd_send_loginreply_w3_bridge test_integration_legacy_bnetd_send_logonproof_reply_bridge test_integration_legacy_bnetd_send_createacct_reply_bridge test_integration_legacy_bnetd_send_iconreply_bridge test_protocol_bnet_codec -j"$(nproc)"
+
+
+# -----------------------------------------------------------------------------
+# Stage: v3-test
+# Runs the Catch2 unit tests for modules built in v3-build.
+# -----------------------------------------------------------------------------
+FROM v3-build AS v3-test
+
+RUN /src/build/v3/tests/unit/infra/compat/test_infra_compat_process --reporter compact \
+ && /src/build/v3/tests/unit/infra/crypto/test_infra_crypto_bnet_hash --reporter compact \
+ && /src/build/v3/tests/unit/infra/crypto/test_infra_crypto_parity --reporter compact \
+ && /src/build/v3/tests/unit/protocol/udp/test_protocol_udp_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_init_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_bot_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/d2cs/test_protocol_d2cs_bnetd_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/file/test_protocol_file_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/d2gs/test_protocol_d2gs_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/wolgameres/test_protocol_wolgameres_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/d2cs/test_protocol_d2cs_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/d2gs/test_protocol_d2gs_game_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/irc/test_protocol_irc_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_anongame_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_w3route_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_auth_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_account_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_cdkey_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_realm_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_chat_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_game_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_clan_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_misc_wire_types --reporter compact \
+ && /src/build/v3/tests/unit/protocol/common/test_protocol_packet --reporter compact \
+ && /src/build/v3/tests/unit/protocol/common/test_protocol_reader --reporter compact \
+ && /src/build/v3/tests/unit/protocol/common/test_protocol_writer --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_packet_bridge --reporter compact \
+ && /src/build/v3/tests/unit/application/init/test_application_init_conn_dispatch --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_init_conn_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_authreply1_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_authreply109_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_authinfo_reply_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_loginreply_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_loginreply_w3_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_logonproof_reply_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_createacct_reply_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_iconreply_bridge --reporter compact \
+ && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_codec --reporter compact

@@ -1,0 +1,14 @@
+# Local build outputs - never copy these into images
+build/
+.vs/
+.vscode/
+
+# Editor / OS noise
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore

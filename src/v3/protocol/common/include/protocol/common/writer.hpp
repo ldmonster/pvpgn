@@ -82,6 +82,55 @@ public:
         buf_[off + s.size()] = std::byte{0};
     }
 
+    /// Append a string verbatim with no NUL terminator. Parity with
+    /// the legacy `packet_append_ntstring()` (`"nt"` = "no terminator").
+    void write_string_no_nul(std::string_view s) {
+        if (s.empty()) return;
+        const auto off = buf_.size();
+        buf_.resize(off + s.size());
+        std::memcpy(buf_.data() + off, s.data(), s.size());
+    }
+
+    /// Append `n` zero bytes and return the offset where they start.
+    /// Useful for reserving room for a protocol header that will be
+    /// back-patched later via `patch_*()`. The returned offset stays
+    /// valid until the next allocation that grows the buffer beyond
+    /// its current capacity; in practice callers should only treat it
+    /// as a logical position and re-fetch `data()` lazily.
+    std::size_t reserve(std::size_t n) {
+        const auto off = buf_.size();
+        buf_.resize(off + n);
+        return off;
+    }
+
+    /// Back-patch a single byte at `offset`. Returns OutOfRange if
+    /// `offset >= size()`.
+    core::Status<> patch_u8(std::size_t offset, std::uint8_t v) {
+        if (offset >= buf_.size()) return short_patch_();
+        buf_[offset] = static_cast<std::byte>(v);
+        return core::ok();
+    }
+
+    /// Back-patch a little-endian integer of width `sizeof(T)` at
+    /// `offset`. Returns OutOfRange if the field would extend past
+    /// the buffer end.
+    template <class T>
+    core::Status<> patch_le(std::size_t offset, T v) {
+        static_assert(std::is_integral_v<T>);
+        if (offset + sizeof(T) > buf_.size()) return short_patch_();
+        return core::write_le<T>(
+            core::ByteSpan{buf_.data() + offset, sizeof(T)}, v);
+    }
+
+    /// Back-patch a big-endian integer at `offset`.
+    template <class T>
+    core::Status<> patch_be(std::size_t offset, T v) {
+        static_assert(std::is_integral_v<T>);
+        if (offset + sizeof(T) > buf_.size()) return short_patch_();
+        return core::write_be<T>(
+            core::ByteSpan{buf_.data() + offset, sizeof(T)}, v);
+    }
+
     /// Begin a BNet packet: writes a header with the given code and size=0.
     /// The size field is back-patched in `finalize_bnet_packet()`.
     void begin_bnet_packet(std::uint8_t code) {
@@ -119,6 +168,12 @@ public:
 private:
     static constexpr std::size_t kNoPacket =
         static_cast<std::size_t>(-1);
+
+    static core::Failure<core::Error> short_patch_() noexcept {
+        return core::fail(core::make_error(
+            core::StatusCode::OutOfRange,
+            "writer: patch offset past end"));
+    }
 
     std::vector<std::byte> buf_;
     std::size_t            bnet_start_ = kNoPacket;

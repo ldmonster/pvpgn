@@ -2056,6 +2056,25 @@ namespace pvpgn
 						install_login_user_handler();
 				}
 			}
+
+			// Step 4 / E.2: install the legacy-bnetd sink for the
+			// v3 `pvpgn_v3_send_packet_try` ABI. Unconditional --
+			// the bridge has no observable side effect until a
+			// ported handler actually calls the C entry-point, and
+			// keeping the install gate-free means later strangler
+			// call sites don't each need a separate env var.
+			pvpgn::integration::legacy_bnetd::
+				install_send_packet_handler();
+
+			// Step 4 / E.3: install the legacy-bnetd apply-side of
+			// the byte-1 connection-class dispatch. With this
+			// handler registered, `handle_init_packet` delegates
+			// the per-class state transitions to v3. Without it
+			// the legacy switch in `handle_init.cpp` continues to
+			// run as before (the bridge returns 0 and the legacy
+			// branches handle the request).
+			pvpgn::integration::legacy_bnetd::
+				install_init_conn_apply_handler();
 #endif
 
 			laddrs = NULL;

@@ -25,6 +25,8 @@
 #include "integration/legacy_bnetd/change_password_bridge.hpp"
 #include "integration/legacy_bnetd/legacy_account_repository.hpp"
 #include "integration/legacy_bnetd/login_user_bridge.hpp"
+#include "integration/legacy_bnetd/send_packet_bridge.hpp"
+#include "integration/legacy_bnetd/init_conn_bridge.hpp"
 
 #include "common/setup_before.h"
 #include "common/bn_type.h"
@@ -323,6 +325,36 @@ void install_login_user_handler() {
     set_login_user_handler(&login_user_handler);
     bridge_log_kv(core::LogLevel::Info, "v3.login",
                   "v3 login handler installed", {});
+}
+
+namespace {
+std::atomic<bool> g_send_packet_installed{false};
+}  // namespace
+
+void install_send_packet_handler() {
+    bool expected = false;
+    if (!g_send_packet_installed.compare_exchange_strong(
+            expected, true, std::memory_order_acq_rel)) {
+        return;
+    }
+    install_legacy_send_packet_handler();
+    bridge_log_kv(core::LogLevel::Info, "v3.send_packet",
+                  "v3 send_packet handler installed", {});
+}
+
+namespace {
+std::atomic<bool> g_init_conn_installed{false};
+}  // namespace
+
+void install_init_conn_apply_handler() {
+    bool expected = false;
+    if (!g_init_conn_installed.compare_exchange_strong(
+            expected, true, std::memory_order_acq_rel)) {
+        return;
+    }
+    install_legacy_init_conn_apply_handler();
+    bridge_log_kv(core::LogLevel::Info, "v3.init_conn",
+                  "v3 init_conn apply handler installed", {});
 }
 
 }  // namespace pvpgn::integration::legacy_bnetd

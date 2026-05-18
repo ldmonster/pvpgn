@@ -61,8 +61,13 @@ if(PVPGN_V3_WITH_BOOST)
     find_package(Boost 1.75 REQUIRED COMPONENTS ${_pvpgn_boost_components})
 endif()
 
-# Find OpenSSL for runtime peer_link support
-find_package(OpenSSL REQUIRED)
+# Find OpenSSL for runtime peer_link support. Optional -- peer_link is the
+# only consumer, and it is fine to build without it when developers do not
+# have OpenSSL installed (the v3 single-node binary still works).
+find_package(OpenSSL QUIET)
+if(NOT OpenSSL_FOUND)
+    message(STATUS "OpenSSL not found -- runtime/peer_link.cpp will be excluded")
+endif()
 
 # ---- core ---------------------------------------------------------------
 
@@ -95,7 +100,58 @@ if(WIN32)
     target_sources(runtime PRIVATE runtime/src/win_service.cpp)
 endif()
 
+# OpenSSL is optional. When found, link it; when missing, drop peer_link.cpp
+# from the runtime library so the rest of the v3 tree still builds.
+if(OpenSSL_FOUND)
+    target_link_libraries(runtime PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+else()
+    get_target_property(_runtime_src runtime SOURCES)
+    list(FILTER _runtime_src EXCLUDE REGEX "peer_link\\.cpp$")
+    set_target_properties(runtime PROPERTIES SOURCES "${_runtime_src}")
+endif()
+
 # ---- infra/log ----------------------------------------------------------
+
+# ---- infra/compat -------------------------------------------------------
+#
+# Thin C++20 wrappers around platform-specific helpers (getpid, gethostname,
+# uname). Replaces the headers under src/compat/. Header-only consumers
+# can include <infra/compat/platform.hpp>; consumers of process info link
+# against `infra_compat`.
+
+pvpgn_v3_add_library(infra_compat
+    STATIC
+    SOURCES
+        infra/compat/src/process.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/compat/include
+    PUBLIC_DEPS
+        core
+)
+
+# ---- infra/crypto -------------------------------------------------------
+#
+# Clean C++20 reimplementation of Battle.net cryptographic primitives
+# (Blizzard's broken-SHA1 hash, true SHA-1 helpers, ...). Replaces the
+# legacy src/common/{bnethash,bnethashconv,bnetsrp3,bigint,wolhash,
+# peerchat}.cpp. Migration is incremental -- legacy headers stay until
+# every consumer has switched.
+
+pvpgn_v3_add_library(infra_crypto
+    STATIC
+    SOURCES
+        infra/crypto/src/bnet_hash.cpp
+        infra/crypto/src/bnet_hash_conv.cpp
+        infra/crypto/src/big_uint.cpp
+        infra/crypto/src/wol_hash.cpp
+        infra/crypto/src/peerchat.cpp
+        infra/crypto/src/bnet_srp3.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/crypto/include
+    PUBLIC_DEPS
+        core
+        Boost::headers
+)
 
 # Always-available structured logger backends (no third-party deps).
 pvpgn_v3_add_library(infra_log_simple
@@ -685,6 +741,19 @@ pvpgn_v3_add_library(application_i18n
         core
 )
 
+# ---- application/init ---------------------------------------------------
+
+pvpgn_v3_add_library(application_init
+    STATIC
+    SOURCES
+        application/init/src/init_conn_dispatch.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/init/include
+    PUBLIC_DEPS
+        core
+        protocol_bnet
+)
+
 # ---- infra/legacy_config (parse legacy bnetd .conf files) ---------------
 #
 # Bridge adapters that convert legacy bnetd config-file dialects into the
@@ -810,6 +879,16 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/legacy_chat_reply_sink.cpp
         integration/legacy_bnetd/src/login_user_bridge.cpp
         integration/legacy_bnetd/src/change_password_bridge.cpp
+        integration/legacy_bnetd/src/send_packet_bridge.cpp
+        integration/legacy_bnetd/src/init_conn_bridge.cpp
+        integration/legacy_bnetd/src/send_authreply1_bridge.cpp
+        integration/legacy_bnetd/src/send_authreply109_bridge.cpp
+        integration/legacy_bnetd/src/send_authinfo_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_loginreply_bridge.cpp
+        integration/legacy_bnetd/src/send_loginreply_w3_bridge.cpp
+        integration/legacy_bnetd/src/send_logonproof_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_createacct_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_iconreply_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
     PUBLIC_DEPS
@@ -818,6 +897,7 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         application_anongame_infoply
         application_chat
         application_i18n
+        application_init
         infra_legacy_config
         protocol_common
         protocol_bnet
@@ -855,6 +935,8 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             integration/legacy_bnetd/src/legacy_whisper_target_lookup.cpp
             integration/legacy_bnetd/src/install_v3_handlers.cpp
             integration/legacy_bnetd/src/legacy_bnet_frame_router_link.cpp
+            integration/legacy_bnetd/src/send_packet_bridge_link.cpp
+            integration/legacy_bnetd/src/init_conn_bridge_link.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
         PUBLIC_DEPS

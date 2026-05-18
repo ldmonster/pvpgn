@@ -2,6 +2,58 @@ pvpgn_v3_add_test(test_protocol_bnet_codec
     SOURCES codec_test.cpp
     DEPS    protocol_bnet)
 
+pvpgn_v3_add_test(test_protocol_bnet_init_wire_types
+    SOURCES init_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_bot_wire_types
+    SOURCES bot_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_anongame_wire_types
+    SOURCES anongame_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_wire_types
+    SOURCES wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_w3route_wire_types
+    SOURCES w3route_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_auth_wire_types
+    SOURCES auth_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_account_wire_types
+    SOURCES account_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_cdkey_wire_types
+    SOURCES cdkey_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_realm_wire_types
+    SOURCES realm_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_chat_wire_types
+    SOURCES chat_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_game_wire_types
+    SOURCES game_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_clan_wire_types
+    SOURCES clan_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_misc_wire_types
+    SOURCES misc_wire_types_test.cpp
+    DEPS    protocol_bnet)
+
 # Disabled: BnetFsm tests require proper use case mocks (LoginUser, ChangePassword, etc.)
 # The make_test_context() helper returns all nullptrs, causing handle() to fail
 # These tests need either:

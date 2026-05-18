@@ -88,6 +88,61 @@
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 #include "integration/legacy_bnetd/strangler_macros.h"
+// Strangler-fig hook for SERVER_AUTHREPLY1 byte emission (Step 4 E.3
+// step 2). The v3 bridge builds the on-wire bytes via the v3 codec
+// and ships them through the registered send_packet handler. Returns
+// 1 on success (caller must skip its own legacy `packet_create` /
+// `conn_push_outqueue` emit), 0 on decline / no handler installed,
+// -1 on transport failure. Forward-declared inline so we don't pull
+// a C++ header into this TU.
+extern "C" int pvpgn_v3_send_authreply1(void* conn_ptr,
+                                        unsigned int message,
+                                        char const* mpqfilename) noexcept;
+// Strangler-fig hook for SERVER_AUTHREPLY_109 byte emission
+// (D2/LoD 1.09 auth flow).
+extern "C" int pvpgn_v3_send_authreply109(void* conn_ptr,
+                                          unsigned int message,
+                                          char const* mpqfilename) noexcept;
+// Strangler-fig hook for SERVER_AUTHREQ_109 (SID_AUTH_INFO reply,
+// 0x50) byte emission. Builds the on-wire bytes via the v3
+// `encode(AuthInfoReply)` codec.
+extern "C" int pvpgn_v3_send_authinfo_reply(void* conn_ptr,
+                                            unsigned int logontype,
+                                            unsigned int server_token,
+                                            unsigned int session_num,
+                                            unsigned long long timestamp,
+                                            char const* mpq_filename,
+                                            char const* checksum_formula,
+                                            int include_w3_signature) noexcept;
+// Strangler-fig hooks for SERVER_LOGINREPLY1 (0x29) and
+// SERVER_LOGINREPLY2 (0x3A) byte emissions.
+extern "C" int pvpgn_v3_send_loginreply1(void* conn_ptr,
+                                         unsigned int message) noexcept;
+extern "C" int pvpgn_v3_send_loginreply2(void* conn_ptr,
+                                         unsigned int message,
+                                         char const* reason) noexcept;
+// Strangler-fig hooks for SERVER_CREATEACCTREPLY1 (0x2a) and
+// SERVER_CREATEACCTREPLY2 (0x3d).
+extern "C" int pvpgn_v3_send_createacctreply1(void* conn_ptr,
+                                              unsigned int result) noexcept;
+extern "C" int pvpgn_v3_send_createacctreply2(void* conn_ptr,
+                                              unsigned int result) noexcept;
+extern "C" int pvpgn_v3_send_createaccount_w3(void* conn_ptr,
+                                              unsigned int result) noexcept;
+// Strangler-fig hook for SERVER_ICONREPLY (0x2d).
+extern "C" int pvpgn_v3_send_iconreply(void* conn_ptr,
+                                       unsigned long long timestamp,
+                                       char const* filename) noexcept;
+// Strangler-fig hook for SERVER_LOGONPROOFREPLY (NLS step M1/M2).
+extern "C" int pvpgn_v3_send_logonproof_reply(void* conn_ptr,
+                                              unsigned int response,
+                                              unsigned char const* server_password_proof,
+                                              char const* custom_reason) noexcept;
+// Strangler-fig hook for SERVER_LOGINREPLY_W3 (NLS step A reply).
+extern "C" int pvpgn_v3_send_loginreply_w3(void* conn_ptr,
+                                           unsigned int message,
+                                           unsigned char const* salt,
+                                           unsigned char const* server_public_key) noexcept;
 #endif
 namespace pvpgn
 {
@@ -620,6 +675,42 @@ namespace pvpgn
 						packet_append_data(rpacket, padding, 128);
 					}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					// Strangler-fig: build the same bytes via the v3
+					// codec and dispatch through pvpgn_v3_send_packet_try.
+					// On success skip the legacy outqueue push (we
+					// still keep the legacy rpacket build above so any
+					// side effects -- e.g. file_to_mod_time, eventlog
+					// -- match the legacy path exactly).
+					{
+						const unsigned int v3_logontype =
+							(conn_get_clienttag(c) == CLIENTTAG_WARCRAFT3_UINT)
+								? SERVER_AUTHREQ_109_LOGONTYPE_W3
+								: (conn_get_clienttag(c) == CLIENTTAG_WAR3XP_UINT)
+									? SERVER_AUTHREQ_109_LOGONTYPE_W3XP
+									: SERVER_AUTHREQ_109_LOGONTYPE;
+						const int v3_w3sig =
+							((conn_get_clienttag(c) == CLIENTTAG_WARCRAFT3_UINT) ||
+							 (conn_get_clienttag(c) == CLIENTTAG_WAR3XP_UINT))
+								? 1 : 0;
+						const unsigned long long v3_timestamp =
+							bn_long_get(rpacket->u.server_authreq_109.timestamp);
+						int v3rc = pvpgn_v3_send_authinfo_reply(
+							c,
+							v3_logontype,
+							conn_get_sessionkey(c),
+							conn_get_sessionnum(c),
+							v3_timestamp,
+							std::get<0>(checkrevision).c_str(),
+							std::get<1>(checkrevision).c_str(),
+							v3_w3sig);
+						if (v3rc == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+#endif
+
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 				}
@@ -738,6 +829,13 @@ namespace pvpgn
 			{
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account not created (disabled)", conn_get_socket(c));
 				bn_int_set(&rpacket->u.server_createaccount_w3.result, SERVER_CREATEACCOUNT_W3_RESULT_EXIST);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_createaccount_w3(c,
+						bn_int_get(rpacket->u.server_createaccount_w3.result)) == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
@@ -747,6 +845,13 @@ namespace pvpgn
 			{
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account not created (invalid symbols)", conn_get_socket(c));
 				bn_int_set(&rpacket->u.server_createaccount_w3.result, SERVER_CREATEACCOUNT_W3_RESULT_INVALID);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_createaccount_w3(c,
+						bn_int_get(rpacket->u.server_createaccount_w3.result)) == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
@@ -785,6 +890,16 @@ namespace pvpgn
 				bn_int_set(&rpacket->u.server_createaccount_w3.result, SERVER_CREATEACCOUNT_W3_RESULT_OK);
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				unsigned int v3_result = bn_int_get(
+					rpacket->u.server_createaccount_w3.result);
+				if (pvpgn_v3_send_createaccount_w3(c, v3_result) == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+			}
+#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -832,6 +947,17 @@ namespace pvpgn
 			bn_int_set(&rpacket->u.server_createacctreply1.result, SERVER_CREATEACCTREPLY1_RESULT_OK);
 
 		out:
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				unsigned int v3_result = bn_int_get(
+					rpacket->u.server_createacctreply1.result);
+				int v3rc = pvpgn_v3_send_createacctreply1(c, v3_result);
+				if (v3rc == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+			}
+#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -886,6 +1012,17 @@ namespace pvpgn
 			bn_int_set(&rpacket->u.server_createacctreply2.result, SERVER_CREATEACCTREPLY2_RESULT_OK);
 
 		out:
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				unsigned int v3_result = bn_int_get(
+					rpacket->u.server_createacctreply2.result);
+				int v3rc = pvpgn_v3_send_createacctreply2(c, v3_result);
+				if (v3rc == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+			}
+#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -1030,12 +1167,22 @@ namespace pvpgn
 
 			auto send_failed_packet = [](t_connection *c)
 			{
+				conn_set_state(c, conn_state_untrusted);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				// v3 strangler-fig: build BADVERSION reply via the
+				// codec and ship through the registered handler.
+				if (pvpgn_v3_send_authreply1(
+				        c, SERVER_AUTHREPLY1_MESSAGE_BADVERSION,
+				        nullptr) == 1)
+				{
+					return;
+				}
+#endif
 				t_packet *rpacket = packet_create(packet_class_bnet);
 				if (rpacket)
 				{
 					packet_set_size(rpacket, sizeof(t_server_authreply1));
 					packet_set_type(rpacket, SERVER_AUTHREPLY1);
-					conn_set_state(c, conn_state_untrusted);
 
 					bn_int_set(&rpacket->u.server_authreply1.message, SERVER_AUTHREPLY1_MESSAGE_BADVERSION);
 					packet_append_string(rpacket, "");
@@ -1131,8 +1278,6 @@ namespace pvpgn
 					eventlog(eventlog_level_info, __FUNCTION__, "[{}] an upgrade for version {} is available \"{}\"", conn_get_socket(c), conn_get_versioncheck(c)->get_version_tag(), mpqfilename);
 					bn_int_set(&rpacket->u.server_authreply1.message, SERVER_AUTHREPLY1_MESSAGE_UPDATE);
 					packet_append_string(rpacket, mpqfilename);
-					
-					xfree(static_cast<void *>(mpqfilename));
 				}
 				else
 				{
@@ -1142,6 +1287,27 @@ namespace pvpgn
 				bn_int_set(&rpacket->u.server_authreply1.message, SERVER_AUTHREPLY1_MESSAGE_OK);
 				packet_append_string(rpacket, "");
 				packet_append_string(rpacket, ""); // FIXME: what's the second string for?
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				// v3 strangler-fig: emit the reply via the v3 codec
+				// instead of the legacy packet, when a send_packet
+				// handler is installed. Mirrors the legacy quirk
+				// that the message code is OK even when a mpq
+				// filename is present (filename is prepended; two
+				// trailing empties are always appended).
+				if (pvpgn_v3_send_authreply1(
+				        c, SERVER_AUTHREPLY1_MESSAGE_OK,
+				        mpqfilename) == 1)
+				{
+					packet_del_ref(rpacket);
+					if (mpqfilename)
+						xfree(static_cast<void *>(mpqfilename));
+					return 0;
+				}
+#endif
+
+				if (mpqfilename)
+					xfree(static_cast<void *>(mpqfilename));
 
 				conn_push_outqueue(c, rpacket);
 
@@ -1161,12 +1327,20 @@ namespace pvpgn
 
 			auto send_failed_packet = [](t_connection *c)
 			{
+				conn_set_state(c, conn_state_untrusted);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_authreply109(
+				        c, SERVER_AUTHREPLY_109_MESSAGE_BADVERSION,
+				        nullptr) == 1)
+				{
+					return;
+				}
+#endif
 				t_packet *rpacket = packet_create(packet_class_bnet);
 				if (rpacket)
 				{
 					packet_set_size(rpacket, sizeof(t_server_authreply_109));
 					packet_set_type(rpacket, SERVER_AUTHREPLY_109);
-					conn_set_state(c, conn_state_untrusted);
 
 					bn_int_set(&rpacket->u.server_authreply_109.message, SERVER_AUTHREPLY_109_MESSAGE_BADVERSION);
 					packet_append_string(rpacket, "");
@@ -1254,8 +1428,6 @@ namespace pvpgn
 					eventlog(eventlog_level_info, __FUNCTION__, "[{}] an upgrade for {} is available \"{}\"", conn_get_socket(c), conn_get_versioncheck(c)->get_version_tag(), mpqfilename);
 					bn_int_set(&rpacket->u.server_authreply_109.message, SERVER_AUTHREPLY_109_MESSAGE_UPDATE);
 					packet_append_string(rpacket, mpqfilename);
-
-					xfree(static_cast<void *>(mpqfilename));
 				}
 				else
 				{
@@ -1264,6 +1436,26 @@ namespace pvpgn
 
 				bn_int_set(&rpacket->u.server_authreply_109.message, SERVER_AUTHREPLY_109_MESSAGE_OK);
 				packet_append_string(rpacket, "");
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				// v3 strangler-fig: emit via the v3 codec when the
+				// send_packet handler is installed. Mirrors the
+				// legacy quirk that the final message code is OK
+				// regardless of whether an update filename was
+				// prepended.
+				if (pvpgn_v3_send_authreply109(
+				        c, SERVER_AUTHREPLY_109_MESSAGE_OK,
+				        mpqfilename) == 1)
+				{
+					if (mpqfilename)
+						xfree(static_cast<void *>(mpqfilename));
+					packet_del_ref(rpacket);
+					return 0;
+				}
+#endif
+
+				if (mpqfilename)
+					xfree(static_cast<void *>(mpqfilename));
 
 				conn_push_outqueue(c, rpacket);
 
@@ -1309,6 +1501,27 @@ namespace pvpgn
 				else
 					packet_append_string(rpacket, prefs_get_iconfile());
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					// Pull timestamp + appended filename back out of the
+					// legacy-built rpacket so all branch logic stays intact.
+					unsigned long long v3_ts = bn_long_get(
+						rpacket->u.server_iconreply.timestamp);
+					char const* v3_filename = nullptr;
+					if (packet_get_size(rpacket)
+					    > sizeof(t_server_iconreply)) {
+						v3_filename = reinterpret_cast<char const*>(
+							packet_get_data_const(
+								rpacket,
+								sizeof(t_server_iconreply),
+								1));
+					}
+					if (pvpgn_v3_send_iconreply(c, v3_ts, v3_filename) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -1598,6 +1811,13 @@ namespace pvpgn
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "[{}] login denied, too many concurrent logins. max: {}. current: {}.", conn_get_socket(c), prefs_get_max_concurrent_logins(), connlist_login_get_length());
 						bn_int_set(&rpacket->u.server_loginreply1.message, SERVER_LOGINREPLY1_MESSAGE_FAIL);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+						if (pvpgn_v3_send_loginreply1(
+								c, SERVER_LOGINREPLY1_MESSAGE_FAIL) == 1) {
+							packet_del_ref(rpacket);
+							return -1;
+						}
+#endif
 						conn_push_outqueue(c, rpacket);
 						packet_del_ref(rpacket);
 						return -1;
@@ -1683,6 +1903,21 @@ namespace pvpgn
 #endif
 					}
 				}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					// Strangler-fig: ship the same 8 bytes via the
+					// v3 codec. Read the final message field out of
+					// the legacy-built rpacket so all branch logic
+					// above stays intact.
+					unsigned int v3_msg = bn_int_get(
+						rpacket->u.server_loginreply1.message);
+					int v3rc = pvpgn_v3_send_loginreply1(c, v3_msg);
+					if (v3rc == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -1870,6 +2105,26 @@ namespace pvpgn
 					client_init_email(c, account);
 				}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					// Strangler-fig: ship LOGINREPLY2 via v3 codec
+					// for the no-reason case. If legacy already
+					// appended a reason cstring (supports_locked_reply
+					// branches), fall back to legacy emit so the
+					// reason bytes are preserved verbatim.
+					unsigned int v3_size = packet_get_size(rpacket);
+					if (v3_size == sizeof(t_server_loginreply2)) {
+						unsigned int v3_msg = bn_int_get(
+							rpacket->u.server_loginreply2.message);
+						int v3rc = pvpgn_v3_send_loginreply2(
+							c, v3_msg, nullptr);
+						if (v3rc == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -1988,6 +2243,28 @@ namespace pvpgn
 					}
 				}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					// Strangler-fig: ship the same 72 bytes via the
+					// v3 codec. Read message + salt + B back out of
+					// the legacy-built rpacket so all branch logic
+					// stays intact.
+					unsigned int v3_msg = bn_int_get(
+						rpacket->u.server_loginreply_w3.message);
+					unsigned char const* v3_salt =
+						reinterpret_cast<unsigned char const*>(
+							&rpacket->u.server_loginreply_w3.salt[0]);
+					unsigned char const* v3_spk =
+						reinterpret_cast<unsigned char const*>(
+							&rpacket->u.server_loginreply_w3.server_public_key[0]);
+					int v3rc = pvpgn_v3_send_loginreply_w3(
+						c, v3_msg, v3_salt, v3_spk);
+					if (v3rc == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 
@@ -2299,6 +2576,35 @@ namespace pvpgn
 						conn_increment_passfail_count(c);
 					}
 				}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					// Strangler-fig: ship via v3 codec. Read response
+					// + proof back out of the legacy-built rpacket.
+					// When the legacy CUSTOM-lock branch was taken,
+					// `packet_append_string` extended the rpacket past
+					// `sizeof(t_server_logonproofreply)` -- in that
+					// case skip the v3 path and let the legacy emit
+					// preserve the appended reason verbatim.
+					if (packet_get_size(rpacket)
+					    == sizeof(t_server_logonproofreply)) {
+						unsigned int v3_resp = bn_int_get(
+							rpacket->u.server_logonproofreply.response);
+						unsigned char const* v3_proof =
+							reinterpret_cast<unsigned char const*>(
+								&rpacket->u.server_logonproofreply
+								         .server_password_proof[0]);
+						int v3rc = pvpgn_v3_send_logonproof_reply(
+							c, v3_resp, v3_proof, nullptr);
+						if (v3rc == 1) {
+							packet_del_ref(rpacket);
+							conn_set_client_proof(c, NULL);
+							conn_set_server_proof(c, NULL);
+							clan_send_status_window(c);
+							return 0;
+						}
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				conn_set_client_proof(c, NULL);
