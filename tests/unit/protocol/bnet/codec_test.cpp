@@ -240,6 +240,56 @@ TEST_CASE("bnet codec: SID_CHATEVENT round-trip", "[protocol][bnet]") {
     REQUIRE(std::get<ChatEvent>(r.value()) == in);
 }
 
+TEST_CASE("bnet codec: SID_CHATEVENT (0x0F) TALK byte parity vs legacy",
+          "[protocol][bnet]") {
+    using namespace pvpgn::protocol::bnet;
+    // Reference layout produced by legacy `message_bnet_format` /
+    // `t_server_message` (src/bnetd/message.cpp, src/common/bnet_protocol.h):
+    //   header(4) + u32 type + u32 flags + u32 latency
+    //              + u32 player_ip (SERVER_MESSAGE_PLAYER_IP_DUMMY = 0)
+    //              + u32 account_num (BIG-endian SERVER_MESSAGE_ACCOUNT_NUM
+    //                                 = 0x0df0adba -> on-wire 0d f0 ad ba)
+    //              + u32 reg_auth   (LITTLE-endian SERVER_MESSAGE_REG_AUTH
+    //                                 = 0xBAADF00D -> on-wire 0d f0 ad ba)
+    //              + cstring username
+    //              + cstring text
+    //
+    // Both magic fields are intentionally arranged to emit identical
+    // 4-byte sequences on the wire. The v3 encoder uses LE for both
+    // fields, so byte parity requires the caller to set
+    //   acct_number  = 0xBAADF00Du
+    //   registration = 0xBAADF00Du
+    // which is exactly what the strangler-fig bridge will emit.
+    ChatEvent m;
+    m.event_id     = 0x05u;                    // SERVER_MESSAGE_TYPE_TALK
+    m.flags        = 0u;
+    m.ping_ms      = 0u;
+    m.user_ip      = 0u;
+    m.acct_number  = 0xBAADF00Du;
+    m.registration = 0xBAADF00Du;
+    m.username     = "Bob";
+    m.text         = "hi";
+
+    pvpgn::protocol::Writer w;
+    REQUIRE(encode(w, m).has_value());
+    auto bytes = w.take();
+    const std::uint8_t expected[] = {
+        0xFF, 0x0F, 0x23, 0x00,             // header, size = 35
+        0x05, 0x00, 0x00, 0x00,             // type = TALK
+        0x00, 0x00, 0x00, 0x00,             // flags
+        0x00, 0x00, 0x00, 0x00,             // latency
+        0x00, 0x00, 0x00, 0x00,             // player_ip
+        0x0D, 0xF0, 0xAD, 0xBA,             // account_num magic
+        0x0D, 0xF0, 0xAD, 0xBA,             // reg_auth magic
+        0x42, 0x6F, 0x62, 0x00,             // "Bob"
+        0x68, 0x69, 0x00                    // "hi"
+    };
+    REQUIRE(bytes.size() == sizeof(expected));
+    for (std::size_t i = 0; i < sizeof(expected); ++i)
+        REQUIRE(static_cast<std::uint8_t>(bytes[i]) == expected[i]);
+}
+
+
 TEST_CASE("bnet codec: SID_AUTH_CHECK reply round-trip", "[protocol][bnet]") {
     using namespace protocol::bnet;
     AuthCheckReply in{0x100u, "war3.mpq"};
@@ -2445,11 +2495,11 @@ TEST_CASE("bnet codec: SID_COUNTRYINFO1 (0x12) byte parity vs legacy",
     pvpgn::protocol::Writer w;
     REQUIRE(encode(w, m).has_value());
     auto bytes = w.take();
-    // header(4) + 8 + 8 + 4 + 4 + 4 + 4 + 4 + 3 + 4 + 10 = 53.
-    REQUIRE(bytes.size() == 53u);
+    // header(4) + 8 + 8 + 4 + 4 + 4 + 4 + 4 + 3 + 4 + 10 = 57.
+    REQUIRE(bytes.size() == 57u);
     REQUIRE(static_cast<std::uint8_t>(bytes[0]) == 0xFFu);
     REQUIRE(static_cast<std::uint8_t>(bytes[1]) == 0x12u);
-    REQUIRE(static_cast<std::uint8_t>(bytes[2]) == 53u);
+    REQUIRE(static_cast<std::uint8_t>(bytes[2]) == 57u);
     REQUIRE(static_cast<std::uint8_t>(bytes[3]) == 0u);
     // systemtime little-endian
     REQUIRE(static_cast<std::uint8_t>(bytes[4])  == 0x56u);

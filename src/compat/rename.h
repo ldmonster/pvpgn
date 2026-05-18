@@ -18,20 +18,28 @@
 #ifndef INCLUDED_RENAME_PROTOS
 #define INCLUDED_RENAME_PROTOS
 
-#include <cstdio>
-#include "compat/access.h"
+/*
+ * Legacy POSIX `rename` errors out on Windows when the destination
+ * already exists; the historical workaround was to unlink the
+ * destination first using `access()` + `std::remove()`.
+ *
+ * C++17 `std::filesystem::rename` is specified to overwrite the
+ * destination atomically on all platforms, so the workaround is
+ * gone.  `p_rename` keeps the legacy 0/-1 return convention so call
+ * sites do not have to change.
+ */
+
+#include <filesystem>
+#include <system_error>
 
 namespace pvpgn
 {
 
 	static inline int p_rename(const char * oldpath, const char * newpath)
 	{
-#ifdef WIN32
-		if (access(newpath, F_OK) == 0)
-		if (std::remove(newpath) < 0)
-			return -1;
-#endif
-		return std::rename(oldpath, newpath);
+		std::error_code ec;
+		std::filesystem::rename(oldpath, newpath, ec);
+		return ec ? -1 : 0;
 	}
 
 }

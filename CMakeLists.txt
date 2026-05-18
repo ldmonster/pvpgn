@@ -145,6 +145,29 @@ if(PVPGN_BUILD_LEGACY)
         # FetchContent'd fmt already exposes the bare `fmt` target,
         # so no alias is needed.
     endif()
+
+    # Prefer system / vcpkg `nlohmann_json`. The previous in-tree
+    # `src/json/json.hpp` snapshot (v3.1.2, 2018) has been retired in
+    # favour of the upstream package; legacy consumers
+    # (`adbanner.cpp`, `versioncheck.cpp`) now `#include
+    # <nlohmann/json.hpp>`. Fall back to FetchContent so a checkout
+    # without a vcpkg toolchain still builds.
+    find_package(nlohmann_json CONFIG QUIET)
+    if(nlohmann_json_FOUND)
+        message(STATUS "Using external nlohmann_json ${nlohmann_json_VERSION} (vcpkg/system)")
+    else()
+        message(STATUS "External nlohmann_json not found; fetching nlohmann/json via FetchContent")
+        include(FetchContent)
+        FetchContent_Declare(
+            nlohmann_json
+            GIT_REPOSITORY https://github.com/nlohmann/json.git
+            GIT_TAG        v3.11.3
+            GIT_SHALLOW    TRUE
+        )
+        set(JSON_BuildTests OFF CACHE INTERNAL "")
+        set(JSON_Install    OFF CACHE INTERNAL "")
+        FetchContent_MakeAvailable(nlohmann_json)
+    endif()
     add_subdirectory(man)
     add_subdirectory(src)
     if(WITH_LUA)

@@ -653,12 +653,14 @@ pvpgn_v3_add_library(application_chat
         application/chat/src/ban_from_channel.cpp
         application/chat/src/set_channel_topic.cpp
         application/chat/src/command_registry.cpp
+        application/chat/src/chat_event_compose.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/chat/include
     PUBLIC_DEPS
         core
         application_ports
         domain_chat
+        protocol_bnet
 )
 
 # ---- application/game ---------------------------------------------------
@@ -889,6 +891,7 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/send_logonproof_reply_bridge.cpp
         integration/legacy_bnetd/src/send_createacct_reply_bridge.cpp
         integration/legacy_bnetd/src/send_iconreply_bridge.cpp
+        integration/legacy_bnetd/src/send_chatevent_compose_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
     PUBLIC_DEPS
@@ -1045,6 +1048,10 @@ endif()
 # ---- tools (utilities for migration and administration) ----------------------
 
 add_subdirectory(tools/conf_converter)
+add_subdirectory(tools/bnpass)
+add_subdirectory(tools/bniutils)
+add_subdirectory(tools/bntrackd)
+add_subdirectory(tools/client)
 
 # ---- tests --------------------------------------------------------------
 

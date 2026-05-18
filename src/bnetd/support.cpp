@@ -22,8 +22,8 @@
 #include <cstdio>
 #include <cerrno>
 #include <cstring>
+#include <filesystem>
 
-#include "compat/access.h"
 #include "common/eventlog.h"
 #include "common/util.h"
 #include "common/xalloc.h"
@@ -71,7 +71,7 @@ namespace pvpgn
 				namebuff = (char*)xmalloc(filedirlen + 1 + std::strlen(buff) + 1);
 				std::sprintf(namebuff, "%s/%s", prefs_get_filedir(), buff);
 
-				if (access(namebuff, F_OK) < 0)
+				if (!std::filesystem::exists(namebuff))
 				{
 					eventlog(eventlog_level_fatal, __FUNCTION__, "necessary file \"{}\" missing", namebuff);
 					xfree((void *)namebuff);

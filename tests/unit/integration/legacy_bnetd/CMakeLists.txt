@@ -69,3 +69,12 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_send_createacct_reply_bridge
 pvpgn_v3_add_test(test_integration_legacy_bnetd_send_iconreply_bridge
     SOURCES send_iconreply_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_chatevent_compose_bridge
+    SOURCES send_chatevent_compose_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_chatevent_compose_e2e
+    SOURCES send_chatevent_compose_e2e_test.cpp
+    DEPS    integration_legacy_bnetd
+            protocol_bnet)

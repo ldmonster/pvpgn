@@ -23,6 +23,7 @@
 #include <cerrno>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -37,8 +38,6 @@
 #include "compat/strsep.h"
 #include "compat/mkdir.h"
 #include "compat/rename.h"
-#include "compat/access.h"
-#include "compat/statmacros.h"
 #include "compat/psock.h"
 #include "common/xstring.h"
 #include "common/eventlog.h"
@@ -138,14 +137,13 @@ namespace pvpgn
 			char filepath[MAX_PATH];
 			char filename[MAX_PATH];
 			std::FILE * fd;
-			struct stat statbuf;
 
 			strtolower(AccountName);
 			strtolower(CharName);
 
 			std::sprintf(filepath, "%s/%s", prefs_get_charinfo_bak_dir(), AccountName);
-			if (stat(filepath, &statbuf) == -1) {
-				p_mkdir(filepath, S_IRWXU | S_IRWXG | S_IRWXO);
+			if (!std::filesystem::is_directory(filepath)) {
+				p_mkdir(filepath);
 				eventlog(eventlog_level_info, __FUNCTION__, "created charinfo directory: {}", filepath);
 			}
 
@@ -197,7 +195,7 @@ namespace pvpgn
 
 			std::sprintf(filename, "%s/%s", d2dbs_prefs_get_charsave_dir(), CharName);
 			std::sprintf(filename_d2closed, "%s/%s.d2s", d2dbs_prefs_get_charsave_dir(), CharName);
-			if ((access(filename, F_OK) < 0) && (access(filename_d2closed, F_OK) == 0))
+			if ((!std::filesystem::exists(filename)) && std::filesystem::exists(filename_d2closed))
 			{
 				std::rename(filename_d2closed, filename);
 			}

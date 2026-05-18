@@ -26,7 +26,6 @@
 #include "compat/mkdir.h"
 #include "compat/pdir.h"
 #include "compat/psock.h"
-#include "compat/statmacros.h"
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "common/d2cs_d2dbs_ladder.h"
@@ -180,7 +179,7 @@ static int on_client_createcharreq(t_connection * c, t_packet * packet)
 		Directory dir(path);
 	} catch (const Directory::OpenError&) {
 		INFO1("(*{}) charinfo directory do not exist, building it",account);
-		p_mkdir(path,S_IRWXU);
+		p_mkdir(path);
 	}
 	xfree(path);
 
@@ -911,7 +910,7 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 			}
 			catch (const Directory::OpenError&) {
 				ERROR1("(*{}) charinfo directory do not exist, building it", account);
-				if (p_mkdir(path, S_IRWXU) == 0)
+				if (p_mkdir(path) == 0)
 				{
 					INFO1("Successfully created charinfo directory ({})", path);
 				}
@@ -1039,7 +1038,7 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 			}
 			catch (const Directory::OpenError&) {
 				ERROR1("(*{}) charinfo directory do not exist, building it", account);
-				if (p_mkdir(path, S_IRWXU) == 0)
+				if (p_mkdir(path) == 0)
 				{
 					INFO1("Successfully created charinfo directory ({})", path);
 				}

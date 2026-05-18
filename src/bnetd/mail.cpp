@@ -31,7 +31,6 @@
 
 #include "compat/strcasecmp.h"
 #include "compat/mkdir.h"
-#include "compat/statmacros.h"
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "common/xstring.h"
@@ -104,8 +103,8 @@ namespace pvpgn
 		void
 			Mailbox::createOpenDir()
 		{
-				p_mkdir(prefs_get_maildir(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-				p_mkdir(path.c_str(), S_IRWXU | S_IXGRP | S_IRGRP | S_IROTH | S_IXOTH);
+				p_mkdir(prefs_get_maildir());
+				p_mkdir(path.c_str());
 				mdir.open(path, false);
 			}
 

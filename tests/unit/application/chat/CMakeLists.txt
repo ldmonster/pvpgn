@@ -11,6 +11,11 @@ pvpgn_v3_add_test(test_application_chat_whisper_lookup
     SOURCES whisper_target_lookup_test.cpp
     DEPS    application_chat)
 
+pvpgn_v3_add_test(test_application_chat_event_compose
+    SOURCES chat_event_compose_test.cpp
+    DEPS    application_chat
+            protocol_bnet)
+
 pvpgn_v3_add_test(test_application_chat_reply_sink
     SOURCES chat_reply_sink_test.cpp
     DEPS    application_chat

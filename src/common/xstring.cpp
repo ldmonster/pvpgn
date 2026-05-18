@@ -27,7 +27,6 @@
 #include <sstream>
 #include <iomanip>
 
-#include "compat/strdup.h"
 #include "compat/strcasecmp.h"
 #include "common/xalloc.h"
 #include "common/setup_after.h"

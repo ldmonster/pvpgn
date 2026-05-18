@@ -20,14 +20,14 @@
 #include "pdir.h"
 
 #include <cstring>
+#include <filesystem>
+#include <system_error>
 
 #include "common/eventlog.h"
 #include "common/setup_after.h"
 #include "compat/strcasecmp.h"
 
-#ifdef WIN32
-#include "win32/dirent.h"
-#else
+#ifndef WIN32
 #include <dirent.h>
 #endif
 
@@ -157,30 +157,30 @@ namespace pvpgn
 	extern std::vector<std::string> dir_getfiles(const char * directory, const char* ext, bool recursive)
 	{
 		std::vector<std::string> files, dfiles;
-		const char* _ext;
 
-		DIR *dir;
-		struct dirent* ent;
-
-		dir = opendir(directory);
-		if (!dir)
+		std::error_code ec;
+		std::filesystem::directory_iterator it(directory, ec);
+		if (ec)
 			return files;
 
-		while ((ent = readdir(dir)) != NULL)
-		{
-			const std::string file_name = ent->d_name;
-			const std::string full_file_name = std::string(directory) + "/" + file_name;
+		const std::string ext_str = ext ? ext : "";
+		const bool any_ext = (ext_str == "*");
 
-			if (file_name[0] == '.')
+		for (const auto& entry : it)
+		{
+			const std::string file_name = entry.path().filename().string();
+			if (file_name.empty() || file_name[0] == '.')
 				continue;
 
-			if (is_directory(full_file_name.c_str()))
+			const std::string full_file_name = entry.path().generic_string();
+
+			std::error_code is_dir_ec;
+			if (entry.is_directory(is_dir_ec))
 			{
 				// iterate subdirectories
 				if (recursive)
 				{
 					std::vector<std::string> subfiles = dir_getfiles(full_file_name.c_str(), ext, recursive);
-
 					for (std::size_t i = 0; i < subfiles.size(); ++i)
 						dfiles.push_back(subfiles[i]);
 				}
@@ -188,14 +188,15 @@ namespace pvpgn
 			}
 
 			// filter by extension
-			_ext = strrchr(file_name.c_str(), '.');
-			if (strcmp(ext, "*") != 0)
-			if (!_ext || strcasecmp(_ext, ext) != 0)
-				continue;
+			if (!any_ext)
+			{
+				const char* _ext = std::strrchr(file_name.c_str(), '.');
+				if (!_ext || strcasecmp(_ext, ext_str.c_str()) != 0)
+					continue;
+			}
 
 			files.push_back(full_file_name);
 		}
-		closedir(dir);
 
 		// merge files and files from directories, so we will receive directories at begin, files at the end
 		//  (otherwise files and directories are read alphabetically - as is)
@@ -208,17 +209,7 @@ namespace pvpgn
 	{
 		if (pzPath == NULL) return false;
 
-		DIR *pDir;
-		bool bExists = false;
-
-		pDir = opendir(pzPath);
-
-		if (pDir != NULL)
-		{
-			bExists = true;
-			(void)closedir(pDir);
-		}
-
-		return bExists;
+		std::error_code ec;
+		return std::filesystem::is_directory(pzPath, ec);
 	}
 }

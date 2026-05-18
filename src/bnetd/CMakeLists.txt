@@ -41,7 +41,6 @@ set(BNETD_LIB_SOURCES
 	luafunctions.cpp luafunctions.h luainterface.cpp luainterface.h 
 	luaobjects.cpp luaobjects.h luawrapper.cpp luawrapper.h
 	i18n.cpp i18n.h userlog.cpp userlog.h
-	../json/json.hpp
 	)
 
 ## main.cpp + winmain.cpp stay with the executable so the library is
@@ -72,7 +71,7 @@ target_include_directories(bnetd_legacy
 )
 target_link_libraries(bnetd_legacy
     PUBLIC
-		common compat fmt win32
+		common compat fmt nlohmann_json::nlohmann_json win32
 		${NETWORK_LIBRARIES} ${ZLIB_LIBRARIES} ${MYSQL_LIBRARIES}
 		${SQLITE3_LIBRARIES} ${PGSQL_LIBRARIES} ${ODBC_LIBRARIES}
 		${LUA_LIBRARIES}

@@ -18,44 +18,44 @@
 #ifndef INCLUDED_MKDIR_PROTOS
 #define INCLUDED_MKDIR_PROTOS
 
-/* Unix puts this in unistd.h, Borland/Win32 puts it in dir.h, MSVC++/Win32 puts it in direct.h */
-/* Windows and MacOS also typically take only one argument */
-#ifdef HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
-#endif
-#ifdef HAVE_DIR_H
-# include <dir.h>
-#endif
-#ifdef HAVE_DIRECT_H
-# include <direct.h>
-#endif
-#ifdef HAVE_UNISTD_H
-# include <unistd.h>
-#endif
+/*
+ * Legacy bnetd / d2cs / d2dbs used to spell directory creation
+ * either as POSIX `mkdir(path, mode)` or MSVC `_mkdir(path)`. This
+ * header used to paper over the difference with a `p_mkdir` macro
+ * gated on a battery of HAVE_* feature tests.
+ *
+ * Modern toolchains have C++17 `<filesystem>`, which abstracts the
+ * platform difference natively. `p_mkdir` is now a thin inline
+ * wrapper around `std::filesystem::create_directory` that keeps the
+ * legacy 0/-1 return convention so call sites do not have to change.
+ *
+ * The `mode` argument is accepted for source compatibility but has
+ * no effect: `<filesystem>` creates directories with the OS-default
+ * mode and then the process umask is applied, which matches what
+ * the legacy POSIX `mkdir(path, 0777)` calls produced once umask
+ * was factored in. Sites that need a specific mode must call
+ * `std::filesystem::permissions` after creation.
+ */
 
-#ifdef MKDIR_TAKES_ONE_ARG
-# ifdef HAVE_MKDIR
-#  define p_mkdir(A,B) mkdir(A)
-# else
-#  ifdef HAVE__MKDIR
-#   define p_mkdir(A,B) _mkdir(A)
-#  else
-#   error "This program requires either mkdir() or _mkdir()"
-#  endif
-# endif
-#else
-# ifdef HAVE_MKDIR
-#  define p_mkdir mkdir
-# else
-#  ifdef HAVE__MKDIR
-#   define p_mkdir _mkdir
-#  else
-#   error "This program requires either mkdir() or _mkdir()"
-#  endif
-# endif
-#endif
+#include <filesystem>
+#include <string>
+#include <system_error>
+
+namespace pvpgn
+{
+
+	static inline int p_mkdir(const char * path)
+	{
+		std::error_code ec;
+		std::filesystem::create_directory(path, ec);
+		return ec ? -1 : 0;
+	}
+
+	static inline int p_mkdir(const std::string & path)
+	{
+		return p_mkdir(path.c_str());
+	}
+
+}
 
 #endif

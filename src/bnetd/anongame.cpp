@@ -23,7 +23,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "compat/strdup.h"
 #include "common/packet.h"
 #include "common/eventlog.h"
 #include "common/tag.h"

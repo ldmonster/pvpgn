@@ -9,6 +9,7 @@
       "platform": "windows"
     },
     "fmt",
+    "nlohmann-json",
     "boost-system",
     "boost-asio",
     "boost-fiber",

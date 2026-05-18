@@ -27,7 +27,6 @@
 #include "storage_sql.h"
 #endif
 
-#include "compat/strdup.h"
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "common/setup_after.h"

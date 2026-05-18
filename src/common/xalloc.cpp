@@ -22,7 +22,8 @@
 #include "xalloc.h"
 #undef XALLOC_INTERNAL_ACCESS
 
-#include "compat/strdup.h"
+#include <cstring>
+
 #include "common/eventlog.h"
 #include "common/setup_after.h"
 

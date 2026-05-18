@@ -43,7 +43,7 @@ RUN cmake -S . -B build/v3 \
       -D WITH_D2CS=OFF \
       -D WITH_D2DBS=OFF \
       -D CMAKE_BUILD_TYPE=Release \
-    && cmake --build build/v3 --config Release --target infra_compat test_infra_compat_process infra_crypto test_infra_crypto_bnet_hash common test_infra_crypto_parity test_protocol_udp_wire_types test_protocol_bnet_init_wire_types test_protocol_bnet_bot_wire_types test_protocol_d2cs_bnetd_wire_types test_protocol_file_wire_types test_protocol_d2gs_wire_types test_protocol_wolgameres_wire_types test_protocol_d2cs_wire_types test_protocol_d2gs_game_wire_types test_protocol_irc_wire_types test_protocol_bnet_anongame_wire_types test_protocol_bnet_wire_types test_protocol_bnet_w3route_wire_types test_protocol_bnet_auth_wire_types test_protocol_bnet_account_wire_types test_protocol_bnet_cdkey_wire_types test_protocol_bnet_realm_wire_types test_protocol_bnet_chat_wire_types test_protocol_bnet_game_wire_types test_protocol_bnet_clan_wire_types test_protocol_bnet_misc_wire_types test_protocol_packet test_protocol_reader test_protocol_writer test_integration_legacy_bnetd_send_packet_bridge test_application_init_conn_dispatch test_integration_legacy_bnetd_init_conn_bridge test_integration_legacy_bnetd_send_authreply1_bridge test_integration_legacy_bnetd_send_authreply109_bridge test_integration_legacy_bnetd_send_authinfo_reply_bridge test_integration_legacy_bnetd_send_loginreply_bridge test_integration_legacy_bnetd_send_loginreply_w3_bridge test_integration_legacy_bnetd_send_logonproof_reply_bridge test_integration_legacy_bnetd_send_createacct_reply_bridge test_integration_legacy_bnetd_send_iconreply_bridge test_protocol_bnet_codec -j"$(nproc)"
+    && cmake --build build/v3 --config Release --target infra_compat test_infra_compat_process infra_crypto test_infra_crypto_bnet_hash common test_infra_crypto_parity test_protocol_udp_wire_types test_protocol_bnet_init_wire_types test_protocol_bnet_bot_wire_types test_protocol_d2cs_bnetd_wire_types test_protocol_file_wire_types test_protocol_d2gs_wire_types test_protocol_wolgameres_wire_types test_protocol_d2cs_wire_types test_protocol_d2gs_game_wire_types test_protocol_irc_wire_types test_protocol_bnet_anongame_wire_types test_protocol_bnet_wire_types test_protocol_bnet_w3route_wire_types test_protocol_bnet_auth_wire_types test_protocol_bnet_account_wire_types test_protocol_bnet_cdkey_wire_types test_protocol_bnet_realm_wire_types test_protocol_bnet_chat_wire_types test_protocol_bnet_game_wire_types test_protocol_bnet_clan_wire_types test_protocol_bnet_misc_wire_types test_protocol_packet test_protocol_reader test_protocol_writer test_integration_legacy_bnetd_send_packet_bridge test_application_init_conn_dispatch test_integration_legacy_bnetd_init_conn_bridge test_integration_legacy_bnetd_send_authreply1_bridge test_integration_legacy_bnetd_send_authreply109_bridge test_integration_legacy_bnetd_send_authinfo_reply_bridge test_integration_legacy_bnetd_send_loginreply_bridge test_integration_legacy_bnetd_send_loginreply_w3_bridge test_integration_legacy_bnetd_send_logonproof_reply_bridge test_integration_legacy_bnetd_send_createacct_reply_bridge test_integration_legacy_bnetd_send_iconreply_bridge test_integration_legacy_bnetd_send_chatevent_compose_bridge test_integration_legacy_bnetd_send_chatevent_compose_e2e test_application_chat_event_compose test_common_bigint test_common_bnetsrp3 pvpgn-bnpass bnilist bni2tga bniextract bnibuild tgainfo bntrackd bnchat bnftp bnbot bnstat test_protocol_bnet_codec -j"$(nproc)"
 
 
 # -----------------------------------------------------------------------------
@@ -90,4 +90,34 @@ RUN /src/build/v3/tests/unit/infra/compat/test_infra_compat_process --reporter c
  && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_logonproof_reply_bridge --reporter compact \
  && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_createacct_reply_bridge --reporter compact \
  && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_iconreply_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_chatevent_compose_bridge --reporter compact \
+ && /src/build/v3/tests/unit/integration/legacy_bnetd/test_integration_legacy_bnetd_send_chatevent_compose_e2e --reporter compact \
+ && /src/build/v3/tests/unit/application/chat/test_application_chat_event_compose --reporter compact \
+ && /src/build/v3/tests/unit/infra/legacy_crypto/test_common_bigint --reporter compact \
+ && /src/build/v3/tests/unit/infra/legacy_crypto/test_common_bnetsrp3 --reporter compact \
  && /src/build/v3/tests/unit/protocol/bnet/test_protocol_bnet_codec --reporter compact
+
+# -----------------------------------------------------------------------------
+# Stage: v3-e2e
+# Runs end-to-end smoke tests against Python mock servers that mimic
+# the legacy bnetd surface.  Each smoke step builds a parameterized
+# wire mock, drives one v3 client binary against it, and asserts
+# something observable end-to-end (downloaded bytes for bnftp,
+# rendered chat line for bnchat).  Real bnetd is intentionally not
+# spun up here -- it would require full config / DB scaffolding.
+# -----------------------------------------------------------------------------
+FROM v3-test AS v3-e2e
+
+RUN apk --quiet --no-cache add python3
+
+RUN chmod +x /src/scripts/v3-e2e-bnftp-smoke.sh \
+             /src/scripts/v3-e2e-bnchat-smoke.sh \
+             /src/scripts/v3-e2e-bnstat-smoke.sh \
+             /src/scripts/v3-e2e-bnbot-smoke.sh \
+             /src/tests/e2e/fake_bnftp_server.py \
+             /src/tests/e2e/fake_bnet_server.py \
+             /src/tests/e2e/fake_bnbot_server.py \
+ && /src/scripts/v3-e2e-bnftp-smoke.sh  /src/build/v3/src/v3/tools/client/bnftp  \
+ && /src/scripts/v3-e2e-bnchat-smoke.sh /src/build/v3/src/v3/tools/client/bnchat \
+ && /src/scripts/v3-e2e-bnstat-smoke.sh /src/build/v3/src/v3/tools/client/bnstat \
+ && /src/scripts/v3-e2e-bnbot-smoke.sh  /src/build/v3/src/v3/tools/client/bnbot

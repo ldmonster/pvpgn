@@ -26,7 +26,6 @@
 #include <cctype>
 #include <chrono>
 
-#include "compat/strdup.h"
 #include "compat/strcasecmp.h"
 #include "compat/strncasecmp.h"
 #include "compat/pdir.h"

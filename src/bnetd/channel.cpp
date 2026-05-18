@@ -25,7 +25,6 @@
 #include <cerrno>
 #include <cstdlib>
 
-#include "compat/strdup.h"
 #include "compat/strcasecmp.h"
 #include "common/eventlog.h"
 #include "common/list.h"

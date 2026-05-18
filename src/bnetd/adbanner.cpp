@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "i18n.h"
-#include "json/json.hpp"
+#include <nlohmann/json.hpp>
 
 #include "common/bn_type.h"
 #include "common/tag.h"

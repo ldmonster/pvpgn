@@ -26,6 +26,7 @@
 #include <cerrno>
 #include <ctime>
 #include <cstdlib>
+#include <filesystem>
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
@@ -415,7 +416,7 @@ namespace pvpgn
 			if (accname && prefs_get_savebyname()) {
 				pathname = (char*)xmalloc(std::strlen(accountsdir) + 1 + std::strlen(accname) + 1);	/* dir + / + file + NUL */
 				std::sprintf(pathname, "%s/%s", accountsdir, accname);
-				if (access(pathname, F_OK))	/* if it doesn't exist */
+				if (!std::filesystem::exists(pathname))	/* if it doesn't exist */
 				{
 					xfree((void *)pathname);
 					return NULL;

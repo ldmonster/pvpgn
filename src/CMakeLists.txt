@@ -23,10 +23,17 @@ if (WITH_WIN32_GUI)
 endif (WITH_WIN32_GUI)
 
 
-add_subdirectory(bniutils)
-add_subdirectory(bnpass)
-add_subdirectory(bntrackd)
-add_subdirectory(client)
+# Legacy CLI utility dirs that have moved into the v3 tree (still
+# built from the same source, just relocated under src/v3/tools/):
+#   - `src/bnpass/`   -> `src/v3/tools/bnpass/`   (pvpgn-bnpass)
+#   - `src/bniutils/` -> `src/v3/tools/bniutils/` (bnilist, bni2tga,
+#                                                  bniextract, bnibuild,
+#                                                  tgainfo)
+#   - `src/bntrackd/` -> `src/v3/tools/bntrackd/` (bntrackd)
+#   - `src/client/`   -> `src/v3/tools/client/`   (bnchat, bnftp,
+#                                                  bnbot, bnstat)
+#   - `src/bnproxy/`  -> deleted (deprecated since 4.0)
+# See plans/refactoring-plan-legacy-tools.md for the migration plan.
 add_subdirectory(common)
 add_subdirectory(compat)
 add_subdirectory(win32)
@@ -45,7 +52,9 @@ if(WITH_D2DBS)
 endif(WITH_D2DBS)
 
 
-if(CMAKE_TESTING_ENABLED)
-    add_subdirectory(test)
-endif(CMAKE_TESTING_ENABLED)
+# `src/test/` removed: the legacy assertion-based bigint and bnetsrp3
+# binaries are now Catch2 tests under
+# `tests/unit/infra/legacy_crypto/{bigint,bnetsrp3}_test.cpp` and are
+# discovered by ctest through the v3 test tree. See
+# plans/refactoring-plan-testing.md "Legacy Test Removal".
 

@@ -39,7 +39,7 @@
 #include <unordered_map>
 
 #include <fmt/format.h>
-#include "json/json.hpp"
+#include <nlohmann/json.hpp>
 
 #include "common/eventlog.h"
 #include "common/field_sizes.h"

@@ -49,6 +49,28 @@
 #include "i18n.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Deeper strangler: takes pre-resolved chat fields and runs them
+// through the v3 `application_chat::compose_chat_event` module
+// before encoding + shipping. Lets `message_send` skip the entire
+// legacy `message_bnet_format` switch when v3 succeeds.
+extern "C" int pvpgn_v3_send_chatevent_compose(
+    void*        conn_ptr,
+    unsigned int legacy_type,
+    int          me_present,
+    unsigned int me_flags,
+    unsigned int me_latency,
+    unsigned int dstflags,
+    int          dstflags_mf_x,
+    int          dst_eq_me,
+    unsigned int channel_flags_bncflags,
+    char const*  chatcharname,
+    char const*  chatname,
+    char const*  playerinfo,
+    char const*  text,
+    char const*  servername);
+#endif
+
 namespace pvpgn
 {
 
@@ -1559,6 +1581,97 @@ namespace pvpgn
 				if (tname)
 					conn_unget_chatname(message->src, tname);
 			}
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// Deeper strangler-fig: for bnet-class destinations, route
+			// through the v3 `application_chat::compose_chat_event`
+			// module BEFORE the legacy `message_bnet_format` switch
+			// runs. This bypasses `message_cache_lookup` entirely on
+			// v3 success.  On v3 decline (rc=0) or transport failure
+			// (rc=-1) we fall through to the legacy path below.
+			//
+			// Only the base `message_type_adduser..message_type_emote`
+			// range (0..15) is recognised here; higher values (uniqueid,
+			// mode, kick, quit, nick, notice, ...) currently fall back
+			// to legacy. The compose module's own rejection contracts
+			// (me==NULL for types that need it, MF_X for talk/whisper/
+			// broadcast/emote, me==dst for join) are honoured: a
+			// rejection from compose surfaces as rc=0 from the bridge
+			// and the legacy path takes over — preserving the legacy
+			// `return -1` semantics for those edge cases since
+			// `message_bnet_format` rejects them too.
+			if (conn_get_class(dst) == conn_class_bnet
+			    && static_cast<unsigned int>(message->type) <= static_cast<unsigned int>(message_type_emote)) {
+
+				t_connection * const me = message->src;
+				int            const me_present  = (me != NULL) ? 1 : 0;
+				unsigned int   const me_flags    = (me != NULL) ? conn_get_flags(me)   : 0u;
+				unsigned int   const me_latency  = (me != NULL) ? conn_get_latency(me) : 0u;
+				int            const dst_eq_me   = (me != NULL && me == dst) ? 1 : 0;
+				int            const dstflags_mf_x = ((dstflags & MF_X) != 0) ? 1 : 0;
+
+				// Resolve channel_flags_bncflags (only meaningful for Channel).
+				unsigned int channel_flags_bnc = 0u;
+				if (me != NULL) {
+					t_channel const * ch = conn_get_channel(me);
+					if (ch != NULL) {
+						channel_flags_bnc = cflags_to_bncflags(channel_get_flags(ch));
+					}
+				}
+
+				// Resolve chatcharname (used by adduser/join/part/whisper/
+				// talk/broadcast/userflags/whisperack/emote).
+				std::string chatcharname_buf;
+				if (me != NULL) {
+					char const * p = conn_get_chatcharname(me, dst);
+					if (p != NULL) chatcharname_buf.assign(p);
+					conn_unget_chatcharname(me, p);
+				}
+
+				// Resolve chatname (used by channel/channeldoesnotexist).
+				std::string chatname_buf;
+				if (me != NULL) {
+					char const * p = conn_get_chatname(me);
+					if (p != NULL) chatname_buf.assign(p);
+					conn_unget_chatname(me, p);
+				}
+
+				// Resolve playerinfo (used by adduser/join/userflags).
+				std::string playerinfo_buf;
+				if (me != NULL) {
+					char const * pi = NULL;
+					if ((conn_get_clienttag(me) == CLIENTTAG_WARCRAFT3_UINT)
+					    || (conn_get_clienttag(me) == CLIENTTAG_WAR3XP_UINT)) {
+						pi = conn_get_w3_playerinfo(me);
+					} else {
+						pi = conn_get_playerinfo(me);
+					}
+					if (pi != NULL) playerinfo_buf.assign(pi);
+				}
+
+				int const v3_rc = pvpgn_v3_send_chatevent_compose(
+					dst,
+					static_cast<unsigned int>(message->type),
+					me_present,
+					me_flags,
+					me_latency,
+					dstflags,
+					dstflags_mf_x,
+					dst_eq_me,
+					channel_flags_bnc,
+					chatcharname_buf.c_str(),
+					chatname_buf.c_str(),
+					playerinfo_buf.c_str(),
+					message->text ? message->text : "",
+					prefs_get_servername());
+				if (v3_rc == 1) {
+					// v3 fully handled this send — skip the entire
+					// legacy format + cache + push path.
+					return 0;
+				}
+				// v3 declined or transport failure: fall through.
+			}
+#endif
 
 			if (!(packet = message_cache_lookup(message, dst, dstflags)))
 				return -1;

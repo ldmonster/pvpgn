@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 
@@ -254,11 +255,10 @@ namespace pvpgn
 			// create directories in path
 			if (force_create_path)
 			{
-				struct stat statbuf;
 				// create inside user dir
-				if (stat(filepath.c_str(), &statbuf) == -1)
+				if (!std::filesystem::exists(filepath))
 				{
-					p_mkdir(filepath.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+					p_mkdir(filepath.c_str());
 					eventlog(eventlog_level_info, __FUNCTION__, "created user directory: {}", filepath);
 				}
 			}

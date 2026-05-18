@@ -25,8 +25,8 @@
 #include <cstdio>
 #include <cctype>
 #include <cerrno>
+#include <filesystem>
 
-#include "compat/access.h"
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "common/d2char_checksum.h"
@@ -447,7 +447,7 @@ namespace pvpgn
 			/* bak charsave file */
 			file = (char*)xmalloc(std::strlen(prefs_get_bak_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
 			d2char_get_bak_infofile_name(file, account, charname);
-			if (access(file, F_OK) == 0) {
+			if (std::filesystem::exists(file)) {
 				if (std::remove(file) < 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "failed to delete bak charinfo file \"{}\" (std::remove: {})", file, std::strerror(errno));
 				}
@@ -457,7 +457,7 @@ namespace pvpgn
 			/* bak charinfo file */
 			file = (char*)xmalloc(std::strlen(prefs_get_bak_charsave_dir()) + 1 + std::strlen(charname) + 1);
 			d2char_get_bak_savefile_name(file, charname);
-			if (access(file, F_OK) == 0) {
+			if (std::filesystem::exists(file)) {
 				if (std::remove(file) < 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "failed to delete bak charsave file \"{}\" (std::remove: {})", file, std::strerror(errno));
 				}
