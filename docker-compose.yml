@@ -1,0 +1,59 @@
+# =============================================================================
+# PvPGN Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose up                        # build with default MODE=plain
+#   docker compose build --build-arg MODE=pgsql && docker compose up
+#
+# Supported MODE values: plain | mysql | pgsql | sqlite3 | odbc
+# Note: Alpine Linux has limited database support; plain mode is recommended.
+# =============================================================================
+
+version: "3.8"
+
+# =============================================================================
+# Services
+# =============================================================================
+services:
+
+  # ---------------------------------------------------------------------------
+  # bnetd – the PvPGN Battle.net emulation server
+  # ---------------------------------------------------------------------------
+  bnetd:
+    build:
+      context: .          # use the local Dockerfile at the repo root
+      dockerfile: Dockerfile
+      args:
+        # Select the database backend at build time (default: plain).
+        # Override with: docker compose build --build-arg MODE=pgsql
+        MODE: ${MODE:-plain}
+
+    # Restart the container automatically unless explicitly stopped
+    restart: unless-stopped
+
+    ports:
+      # Battle.net game traffic – TCP and UDP
+      - "6112:6112/tcp"
+      - "6112:6112/udp"
+      # Additional PvPGN service port (e.g. D2CS / D2DBS)
+      - "4000:4000/tcp"
+
+    volumes:
+      # Persistent game data (accounts, ladder, etc.)
+      - pvpgn_data:/var/pvpgn
+      # Persistent server configuration files
+      - pvpgn_conf:/etc/pvpgn
+
+    environment:
+      # Pass the chosen mode into the container for reference (informational)
+      MODE: ${MODE:-plain}
+
+# =============================================================================
+# Named Volumes
+# =============================================================================
+volumes:
+  # PvPGN runtime data (accounts, ladder files, etc.)
+  pvpgn_data:
+
+  # PvPGN configuration files
+  pvpgn_conf:
