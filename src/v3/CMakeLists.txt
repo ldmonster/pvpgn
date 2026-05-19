@@ -893,6 +893,31 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/send_iconreply_bridge.cpp
         integration/legacy_bnetd/src/send_channellist_bridge.cpp
         integration/legacy_bnetd/src/channel_state_bridge.cpp
+        integration/legacy_bnetd/src/game_report_bridge.cpp
+        integration/legacy_bnetd/src/startgame_bridge.cpp
+        integration/legacy_bnetd/src/gamelist_join_bridge.cpp
+        integration/legacy_bnetd/src/anongame_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/anongame_entry_bridge.cpp
+        integration/legacy_bnetd/src/anongame_infos_bridge.cpp
+        integration/legacy_bnetd/src/anongame_infos_get_bridge.cpp
+        integration/legacy_bnetd/src/clan_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/friends_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/auth_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/keepalive_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/realm_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/account_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/profile_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/ladder_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/d2_character_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/telemetry_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/ad_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/progident_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/gameport_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/cdkey_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/passemail_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/handshake_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/stub_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/file_dispatch_bridge.cpp
         integration/legacy_bnetd/src/send_chatevent_compose_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include

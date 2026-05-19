@@ -33,6 +33,30 @@
 #include "anongame_maplists.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Observation bridges for anongame_infos load/unload.
+extern "C" int pvpgn_v3_anongame_infos_load_try(char const* filename) noexcept;
+extern "C" int pvpgn_v3_anongame_infos_unload_try(void) noexcept;
+// Coalesced observation bridge for runtime data getters.
+extern "C" int pvpgn_v3_anongame_infos_get_try(char const* kind,
+                                               char const* arg0,
+                                               char const* arg1,
+                                               char const* arg2) noexcept;
+#include <cstdio>
+namespace {
+inline void v3_anongame_infos_get_observe(char const* kind,
+                                          int arg0,
+                                          int arg1,
+                                          char const* arg2) noexcept {
+    char b0[16];
+    char b1[16];
+    std::snprintf(b0, sizeof(b0), "%d", arg0);
+    std::snprintf(b1, sizeof(b1), "%d", arg1);
+    (void)pvpgn_v3_anongame_infos_get_try(kind, b0, b1, arg2);
+}
+}  // namespace
+#endif
+
 namespace pvpgn
 {
 
@@ -450,6 +474,9 @@ namespace pvpgn
 
 		extern char *anongame_infos_URL_get_URL(int member)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			v3_anongame_infos_get_observe("URL_get_URL", member, 0, nullptr);
+#endif
 			char **anongame_infos_URLs;
 
 			if (!(anongame_infos_URLs = anongame_infos->anongame_infos_URL))
@@ -513,6 +540,9 @@ namespace pvpgn
 
 		extern char *anongame_infos_DESC_get_DESC(char *langID, int member)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			v3_anongame_infos_get_observe("DESC_get_DESC", member, 0, langID);
+#endif
 			char *result;
 			t_anongame_infos_DESC * DESC;
 
@@ -531,6 +561,9 @@ namespace pvpgn
 		/**********/
 		extern char *anongame_infos_get_short_desc(char *langID, int queue)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			v3_anongame_infos_get_observe("get_short_desc", queue, 0, langID);
+#endif
 			int member = 0;
 
 			switch (queue)
@@ -597,6 +630,9 @@ namespace pvpgn
 
 		extern char *anongame_infos_get_long_desc(char *langID, int queue)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			v3_anongame_infos_get_observe("get_long_desc", queue, 0, langID);
+#endif
 			int member = 0;
 
 			switch (queue)
@@ -678,6 +714,9 @@ namespace pvpgn
 		/**********/
 		extern char anongame_infos_get_thumbsdown(int queue)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			v3_anongame_infos_get_observe("get_thumbsdown", queue, 0, nullptr);
+#endif
 			int member = 0;
 			switch (queue)
 			{
@@ -762,6 +801,12 @@ namespace pvpgn
 
 		extern short anongame_infos_get_ICON_REQ(int Level, t_clienttag clienttag)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				char ct[8]; tag_uint_to_str(ct, clienttag);
+				v3_anongame_infos_get_observe("get_ICON_REQ", Level, 0, ct);
+			}
+#endif
 			switch (clienttag)
 			{
 			case CLIENTTAG_WARCRAFT3_UINT:
@@ -806,6 +851,9 @@ namespace pvpgn
 
 		extern short anongame_infos_get_ICON_REQ_TOURNEY(int Level)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			v3_anongame_infos_get_observe("get_ICON_REQ_TOURNEY", Level, 0, nullptr);
+#endif
 			switch (Level)
 			{
 			case 0:
@@ -829,6 +877,12 @@ namespace pvpgn
 
 		extern char *anongame_infos_data_get_url(t_clienttag clienttag, int versionid, int *len)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				char ct[8]; tag_uint_to_str(ct, clienttag);
+				v3_anongame_infos_get_observe("data_get_url", versionid, 0, ct);
+			}
+#endif
 			if (clienttag == CLIENTTAG_WARCRAFT3_UINT)
 			{
 				if (versionid <= 0x0000000E)
@@ -859,6 +913,12 @@ namespace pvpgn
 
 		extern char *anongame_infos_data_get_map(t_clienttag clienttag, int versionid, int *len)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				char ct[8]; tag_uint_to_str(ct, clienttag);
+				v3_anongame_infos_get_observe("data_get_map", versionid, 0, ct);
+			}
+#endif
 			if (clienttag == CLIENTTAG_WARCRAFT3_UINT)
 			{
 				(*len) = anongame_infos->anongame_infos_data_war3->map_comp_len;
@@ -873,6 +933,12 @@ namespace pvpgn
 
 		extern char *anongame_infos_data_get_type(t_clienttag clienttag, int versionid, int *len)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				char ct[8]; tag_uint_to_str(ct, clienttag);
+				v3_anongame_infos_get_observe("data_get_type", versionid, 0, ct);
+			}
+#endif
 			if (clienttag == CLIENTTAG_WARCRAFT3_UINT)
 			{
 				(*len) = anongame_infos->anongame_infos_data_war3->type_comp_len;
@@ -887,6 +953,12 @@ namespace pvpgn
 
 		extern char *anongame_infos_data_get_desc(char const *langID, t_clienttag clienttag, int versionid, int *len)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				char ct[8]; tag_uint_to_str(ct, clienttag);
+				v3_anongame_infos_get_observe("data_get_desc", versionid, 0, ct);
+			}
+#endif
 			t_elem *curr;
 			t_anongame_infos_data_lang *entry;
 			if (clienttag == CLIENTTAG_WARCRAFT3_UINT)
@@ -925,6 +997,12 @@ namespace pvpgn
 
 		extern char *anongame_infos_data_get_ladr(char const *langID, t_clienttag clienttag, int versionid, int *len)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				char ct[8]; tag_uint_to_str(ct, clienttag);
+				v3_anongame_infos_get_observe("data_get_ladr", versionid, 0, ct);
+			}
+#endif
 			t_elem *curr;
 			t_anongame_infos_data_lang *entry;
 			if (clienttag == CLIENTTAG_WARCRAFT3_UINT)
@@ -1297,6 +1375,9 @@ namespace pvpgn
 
 		extern int anongame_infos_load(char const *filename)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_anongame_infos_load_try(filename);
+#endif
 			unsigned int line;
 			unsigned int pos;
 			char *buff;
@@ -1969,6 +2050,9 @@ namespace pvpgn
 
 		extern int anongame_infos_unload(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_anongame_infos_unload_try();
+#endif
 			return anongame_infos_destroy(anongame_infos);
 		}
 

@@ -41,6 +41,12 @@
 #include "icons.h"
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
+// Observation bridge for SID_FINDANONGAME (0x44) dispatch.
+extern "C" int pvpgn_v3_anongame_dispatch_try(void* conn_ptr,
+                                              unsigned int option) noexcept;
+#endif
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
 #include "integration/legacy_bnetd/strangler_macros.h"
 #endif
 
@@ -1092,6 +1098,10 @@ namespace pvpgn
 
 		extern int handle_anongame_packet(t_connection * c, t_packet const * const packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_anongame_dispatch_try(c,
+			    static_cast<unsigned int>(bn_byte_get(packet->u.client_anongame.option)));
+#endif
 			switch (bn_byte_get(packet->u.client_anongame.option))
 			{
 			case CLIENT_FINDANONGAME_PROFILE:

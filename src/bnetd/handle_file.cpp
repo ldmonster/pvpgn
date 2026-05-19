@@ -28,6 +28,11 @@
 #include "file.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+extern "C" int pvpgn_v3_file_dispatch_try(void* conn_ptr,
+                                          char const* op) noexcept;
+#endif
+
 
 namespace pvpgn
 {
@@ -62,6 +67,9 @@ namespace pvpgn
 				{
 				case CLIENT_FILE_REQ:
 				{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					(void)pvpgn_v3_file_dispatch_try(c, "file_req");
+#endif
 										char const * rawname;
 
 										if (!(rawname = packet_get_str_const(packet, sizeof(t_client_file_req), MAX_FILENAME_STR)))
@@ -81,6 +89,9 @@ namespace pvpgn
 
 				case CLIENT_FILE_REQ2:
 				{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					(void)pvpgn_v3_file_dispatch_try(c, "file_req2");
+#endif
 										 t_packet * rpacket = NULL;
 										 if ((rpacket = packet_create(packet_class_raw))) {
 											 packet_set_size(rpacket, sizeof(t_server_file_unknown1));
@@ -104,6 +115,9 @@ namespace pvpgn
 				{
 				case CLIENT_FILE_REQ3:
 				{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					(void)pvpgn_v3_file_dispatch_try(c, "file_req3");
+#endif
 					char rawname[MAX_FILENAME_STR] = {};
 
 					psock_recv(conn_get_socket(c), rawname, MAX_FILENAME_STR, 0);

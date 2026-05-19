@@ -78,6 +78,106 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_channel_state_bridge
     SOURCES channel_state_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
 
+pvpgn_v3_add_test(test_integration_legacy_bnetd_game_report_bridge
+    SOURCES game_report_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_startgame_bridge
+    SOURCES startgame_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_gamelist_join_bridge
+    SOURCES gamelist_join_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_anongame_dispatch_bridge
+    SOURCES anongame_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_anongame_entry_bridge
+    SOURCES anongame_entry_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_anongame_infos_bridge
+    SOURCES anongame_infos_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_anongame_infos_get_bridge
+    SOURCES anongame_infos_get_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_clan_dispatch_bridge
+    SOURCES clan_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_friends_dispatch_bridge
+    SOURCES friends_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_auth_dispatch_bridge
+    SOURCES auth_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_keepalive_dispatch_bridge
+    SOURCES keepalive_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_realm_dispatch_bridge
+    SOURCES realm_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_account_dispatch_bridge
+    SOURCES account_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_profile_dispatch_bridge
+    SOURCES profile_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_ladder_dispatch_bridge
+    SOURCES ladder_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_d2_character_dispatch_bridge
+    SOURCES d2_character_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_telemetry_dispatch_bridge
+    SOURCES telemetry_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_ad_dispatch_bridge
+    SOURCES ad_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_progident_dispatch_bridge
+    SOURCES progident_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_gameport_dispatch_bridge
+    SOURCES gameport_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_cdkey_dispatch_bridge
+    SOURCES cdkey_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_passemail_dispatch_bridge
+    SOURCES passemail_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_handshake_dispatch_bridge
+    SOURCES handshake_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_stub_dispatch_bridge
+    SOURCES stub_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_file_dispatch_bridge
+    SOURCES file_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
 pvpgn_v3_add_test(test_integration_legacy_bnetd_send_chatevent_compose_bridge
     SOURCES send_chatevent_compose_bridge_test.cpp
     DEPS    integration_legacy_bnetd)

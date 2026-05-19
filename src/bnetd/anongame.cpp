@@ -47,6 +47,12 @@
 #include "anongame_gameresult.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Observation bridge for handle_anongame_search / handle_anongame_join.
+extern "C" int pvpgn_v3_anongame_entry_try(void* conn_ptr,
+                                           char const* kind) noexcept;
+#endif
+
 #define MAX_LEVEL 100
 
 namespace pvpgn
@@ -1047,6 +1053,9 @@ namespace pvpgn
 		/**********/
 		extern int handle_anongame_search(t_connection * c, t_packet const *packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_anongame_entry_try(c, "search");
+#endif
 			return _handle_anongame_search(c, packet);
 		}
 
@@ -1869,6 +1878,9 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got NULL connection", conn_get_socket(c));
 				return -1;
 			}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_anongame_entry_try(c, "join");
+#endif
 			if (!(conn_get_routeconn(c))) {
 				eventlog(eventlog_level_info, __FUNCTION__, "[{}] no route connection", conn_get_socket(c));
 				return -1;

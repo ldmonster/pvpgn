@@ -432,9 +432,406 @@ Legend: `[ ]` = not started, `[~]` = in progress, `[x]` = done.
         reject, downstream-return propagation. Dockerfile.v3
         build + test target lists updated. Legacy docker build PASSED,
         v3 docker build PASSED (1225 / 213 + 4 e2e).
-- [ ] game list / start / report.
+- [~] game list / start / report. Round 16 (this session, partial):
+        added observation-only bridge
+        `pvpgn_v3_gamereport_try(conn, username, player_count)` in
+        `src/v3/integration/legacy_bnetd/{include/integration/legacy_bnetd,src}/game_report_bridge.{hpp,cpp}`.
+        Always returns 0; emits a single `bridge_log_kv` Debug line
+        `gamereport intent observed` with fields
+        `{user, player_count}`. Wired into `_client_gamereport` in
+        `src/bnetd/handle_bnet.cpp` immediately after the legacy
+        info-level eventlog, under `#ifdef
+        PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `game_report_bridge_test.cpp` covers null-conn no-op,
+        happy-path field set, null-username -> empty string_view,
+        max-uint player_count formatting. 4 cases. Legacy + v3
+        docker builds green; v3 still 1225 assertions / 213 cases +
+        the new test binary; 4 e2e green. STILL TO DO in this
+        slice: bridges for STARTGAME1/3/4, JOINGAME, GAMELISTREQ.
+
+        Round 16 continuation (this session): added unified
+        observation bridge
+        `pvpgn_v3_startgame_try(conn, version, gamename, gameinfo,
+        bngtype, status, flag, option)` in
+        `src/v3/integration/legacy_bnetd/{include/integration/legacy_bnetd,src}/startgame_bridge.{hpp,cpp}`.
+        Always returns 0; emits a single `bridge_log_kv` Debug line
+        `startgame intent observed` with fields `{variant,
+        version, game, bngtype, status, flag, option, infolen}`.
+        Variant table: 1=STARTGAME1, 3=STARTGAME3, 4=STARTGAME4, ?
+        otherwise. Hex fields rendered via `snprintf("%08x")`.
+        Wired into all three legacy handlers
+        `_client_startgame{1,3,4}` in `src/bnetd/handle_bnet.cpp`
+        immediately after the existing legacy debug-level eventlog,
+        under `#ifdef PVPGN_V3_BNETD_INTEGRATION`. STARTGAME1/3
+        pass flag=0/option=0 (those variants don't carry them).
+        Unit test `startgame_bridge_test.cpp`: null-conn no-op,
+        variant-name table for 1/3/4/unknown, hex formatting +
+        infolen, null-string safety. 4 cases. Legacy + v3 docker
+        builds green; v3 still 1225 / 213 + new test binary; 4 e2e
+        green. STILL TO DO in this slice: JOINGAME, GAMELISTREQ.
+
+        Round 16 final (this session): added combined observation
+        bridge with two entry points
+        `pvpgn_v3_gamelistreq_try(conn, gamename, bngtype)` and
+        `pvpgn_v3_joingame_try(conn, gamename)` in
+        `src/v3/integration/legacy_bnetd/{include/integration/legacy_bnetd,src}/gamelist_join_bridge.{hpp,cpp}`.
+        Always return 0. GAMELISTREQ logs
+        `{scope (specific/public_list, derived from empty/non-empty
+        gamename), game, bngtype (hex)}`. JOINGAME logs
+        `{game}`. Wired into `_client_gamelistreq` right after
+        `bngreqtype_to_gtype` (before `packet_create`) and into
+        `_client_joingame` right after the legacy debug-level
+        eventlog, under `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit
+        test `gamelist_join_bridge_test.cpp`: null-conn no-ops
+        (x2), public_list scope, specific scope, null-gamename
+        defaulting to public_list, joingame happy path, joingame
+        null gamename. 7 cases. Legacy + v3 docker builds green;
+        v3 still 1225 / 213 + new test binary; 4 e2e green.
+
+        Round 16 fully complete: GAME_REPORT, STARTGAME1/3/4,
+        GAMELISTREQ, JOIN_GAME all have observation bridges.
+- [x] game list / start / report -- completed in Round 16.
 - [ ] clan.
-- [ ] `anongame.cpp` + `anongame_infos.cpp`.
+- [~] `anongame.cpp` + `anongame_infos.cpp`. Round 17 (this
+        session, partial): added observation bridge for SID_FINDANONGAME
+        (0x44) sub-dispatch. New
+        `pvpgn_v3_anongame_dispatch_try(conn, option)` in
+        `src/v3/integration/legacy_bnetd/{include/integration/legacy_bnetd,src}/anongame_dispatch_bridge.{hpp,cpp}`.
+        Always returns 0. Emits a structured Debug log line
+        `anongame dispatch observed` with `{option (SEARCH/INFOS/
+        CANCEL/PROFILE/AT_SEARCH/AT_INVITER_SEARCH/TOURNAMENT/
+        PROFILE_CLAN/GET_ICON/SET_ICON/?), raw (hex)}` mirroring
+        the constants in `src/common/anongame_protocol.h`. Wired
+        at the top of `handle_anongame_packet` in
+        `src/bnetd/handle_anongame.cpp` under `#ifdef
+        PVPGN_V3_BNETD_INTEGRATION` (forward decl placed after
+        `setup_after.h` so the legacy include order isn't
+        disturbed). Unit test
+        `anongame_dispatch_bridge_test.cpp`: null-conn no-op,
+        full 10-value option-name table + unknown (?), hex raw
+        formatting. 3 cases / 31 assertions. Legacy + v3 docker
+        builds green; v3 still 1225 / 213 + the new test binary;
+        4 e2e green. STILL TO DO in this slice: observation
+        bridges for `handle_anongame_search` /
+        `handle_anongame_join` entry points (or skip if
+        higher-value slices land first), and an `anongame_infos`
+        slice (config + lookup already has v3 facade
+        `infra/legacy_config/anongame_infos_loader.cpp`).
+
+        Round 17 continuation (this session): added observation
+        bridge `pvpgn_v3_anongame_entry_try(conn, kind)` in
+        `src/v3/integration/legacy_bnetd/{include/integration/legacy_bnetd,src}/anongame_entry_bridge.{hpp,cpp}`.
+        Always returns 0. Emits a structured Debug log line
+        `anongame entry observed` with `{kind}`. Wired into
+        `handle_anongame_search` (kind="search") and
+        `handle_anongame_join` (kind="join") in
+        `src/bnetd/anongame.cpp` under `#ifdef
+        PVPGN_V3_BNETD_INTEGRATION` (forward decl placed after
+        `setup_after.h`). Unit test
+        `anongame_entry_bridge_test.cpp`: null-conn no-op,
+        kind="search"/"join" both logged, null kind -> "?". 3
+        cases / 12 assertions. Legacy + v3 docker builds green;
+        v3 still 1225 / 213 + the new test binary; 4 e2e green.
+        STILL TO DO in this slice: `anongame_infos` runtime read
+        facade (load is already covered by
+        `anongame_infos_loader.cpp`).
+    - [x] Round 18 -- observation bridge for `anongame_infos`
+        lifecycle. Added
+        `pvpgn_v3_anongame_infos_load_try(filename)` and
+        `pvpgn_v3_anongame_infos_unload_try()` in
+        `integration/legacy_bnetd/anongame_infos_bridge.{hpp,cpp}`,
+        logging module `v3_anongame_infos_bridge` with messages
+        `anongame_infos load observed` (field `file`) and
+        `anongame_infos unload observed` (no fields). Wired into
+        `src/bnetd/anongame_infos.cpp` `anongame_infos_load` and
+        `anongame_infos_unload` under `#ifdef
+        PVPGN_V3_BNETD_INTEGRATION` (forward decls at file scope
+        after `setup_after.h`). Unit test
+        `anongame_infos_bridge_test.cpp`: load with filename,
+        load with null filename, unload. 3 cases / 13 assertions.
+        Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 19 -- coalesced observation bridge for the 12
+        runtime data getters in `anongame_infos.cpp`. Added
+        `pvpgn_v3_anongame_infos_get_try(kind, arg0, arg1, arg2)`
+        in
+        `integration/legacy_bnetd/anongame_infos_get_bridge.{hpp,cpp}`,
+        module `v3_anongame_infos_get_bridge`, message
+        `anongame_infos get observed`. File-local helper
+        `v3_anongame_infos_get_observe(kind, int, int, char*)`
+        in `src/bnetd/anongame_infos.cpp` formats ints via
+        `snprintf` and forwards the optional clienttag arg
+        rendered via `tag_uint_to_str`. Wired at the top of
+        `URL_get_URL`, `DESC_get_DESC`, `get_short_desc`,
+        `get_long_desc`, `get_thumbsdown`, `get_ICON_REQ`,
+        `get_ICON_REQ_TOURNEY`, `data_get_url`, `data_get_map`,
+        `data_get_type`, `data_get_desc`, `data_get_ladr` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `anongame_infos_get_bridge_test.cpp`: kind+args, full
+        args incl. clienttag string, null kind -> "?". 3 cases /
+        16 assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 20 -- coalesced observation bridge for the 13
+        SID_CLAN_* handlers in `handle_bnet.cpp`. Added
+        `pvpgn_v3_clan_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/clan_dispatch_bridge.{hpp,cpp}`,
+        module `v3_clan_dispatch_bridge`, message
+        `SID_CLAN_* dispatch observed`, field `{op}`. Wired at
+        the top of `_client_claninforeq`,
+        `_client_clanmemberlistreq`, `_client_clan_motdreq`,
+        `_client_clan_motdchg`, `_client_clan_disbandreq`,
+        `_client_clan_createreq`, `_client_clan_createinvitereq`,
+        `_client_clan_createinvitereply`,
+        `_client_clanmember_rankupdatereq`,
+        `_client_clanmember_removereq`,
+        `_client_clan_membernewchiefreq`,
+        `_client_clan_invitereq`, `_client_clan_invitereply`
+        under `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `clan_dispatch_bridge_test.cpp`: null-conn no-op, op
+        logged, null op -> "?". 3 cases / 10 assertions. Legacy
+        + v3 docker builds green; v3 still 1225 / 213 + the new
+        test binary; 4 e2e green.
+    - [x] Round 21 -- coalesced observation bridge for
+        SID_FRIENDSLISTREQ + SID_FRIENDINFOREQ. Added
+        `pvpgn_v3_friends_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/friends_dispatch_bridge.{hpp,cpp}`,
+        module `v3_friends_dispatch_bridge`, message
+        `SID_FRIENDS_* dispatch observed`, field `{op}`. Wired
+        at the top of `_client_friendslistreq` (op
+        "friendslistreq") and `_client_friendinforeq` (op
+        "friendinforeq") in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `friends_dispatch_bridge_test.cpp`: null-conn no-op,
+        each op logged, null op -> "?". 4 cases / 13 assertions.
+        Legacy + v3 docker builds green; v3 still 1225 / 213 +
+        the new test binary; 4 e2e green.
+    - [x] Round 22 -- coalesced observation bridge for the
+        SID_AUTH_* family (`_client_auth_info`,
+        `_client_authreq1`, `_client_authreq109`). Added
+        `pvpgn_v3_auth_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/auth_dispatch_bridge.{hpp,cpp}`,
+        module `v3_auth_dispatch_bridge`, message
+        `SID_AUTH_* dispatch observed`, field `{op}`. Wired at
+        the top of each of the three handlers in
+        `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `auth_dispatch_bridge_test.cpp`: null-conn no-op, each
+        op logged, null op -> "?". 5 cases / 16 assertions.
+        Legacy + v3 docker builds green; v3 still 1225 / 213 +
+        the new test binary; 4 e2e green.
+    - [x] Round 23 -- coalesced observation bridge for the
+        keepalive family: SID_PING (`_client_pingreq`) and
+        SID_ECHO reply (`_client_echoreply`). Added
+        `pvpgn_v3_keepalive_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/keepalive_dispatch_bridge.{hpp,cpp}`,
+        module `v3_keepalive_dispatch_bridge`, message
+        `keepalive dispatch observed`, field `{op}`, log level
+        Trace (high call frequency). Wired into both handlers in
+        `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `keepalive_dispatch_bridge_test.cpp`: null-conn no-op,
+        pingreq + echoreply logged, null op -> "?". 4 cases / 13
+        assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 24 -- coalesced observation bridge for the
+        realm family: SID_QUERYREALMS (`_client_realmlistreq`),
+        SID_QUERYREALMS2 (`_client_realmlistreq110`) and
+        SID_LOGONREALMEX (`_client_realmjoinreq109`). Added
+        `pvpgn_v3_realm_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/realm_dispatch_bridge.{hpp,cpp}`,
+        module `v3_realm_dispatch_bridge`, message
+        `realm dispatch observed`, field `{op}`. Wired into all
+        three handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `realm_dispatch_bridge_test.cpp`: null-conn no-op, each
+        op logged, null op -> "?". 5 cases / 16 assertions.
+        Legacy + v3 docker builds green; v3 still 1225 / 213 +
+        the new test binary; 4 e2e green.
+    - [x] Round 25 -- coalesced observation bridge for the
+        account-management family: SID_CREATEACCOUNT
+        (`_client_createaccountw3`, `_client_createacctreq1`,
+        `_client_createacctreq2`), SID_CHANGEPASSWORD
+        (`_client_changepassreq`), SID_SETEMAIL reply
+        (`_client_setemailreply`) and SID_CHANGEEMAIL
+        (`_client_changeemailreq`). Added
+        `pvpgn_v3_account_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/account_dispatch_bridge.{hpp,cpp}`,
+        module `v3_account_dispatch_bridge`, message
+        `account dispatch observed`, field `{op}`. Wired into
+        all six handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `account_dispatch_bridge_test.cpp`: null-conn no-op,
+        single op logged, multi-op sequence, null op -> "?". 4
+        cases / 19 assertions. Legacy + v3 docker builds green;
+        v3 still 1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 26 -- coalesced observation bridge for the
+        profile / stats family: SID_READUSERDATA
+        (`_client_profilereq`), stats read (`_client_statsreq`)
+        and SID_WRITEUSERDATA (`_client_statsupdate`). Added
+        `pvpgn_v3_profile_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/profile_dispatch_bridge.{hpp,cpp}`,
+        module `v3_profile_dispatch_bridge`, message
+        `profile dispatch observed`, field `{op}`. Wired into
+        all three handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `profile_dispatch_bridge_test.cpp`: null-conn no-op,
+        each op logged, null op -> "?". 5 cases / ~16
+        assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 27 -- coalesced observation bridge for the
+        ladder family: CLIENT_LADDERREQ (`_client_ladderreq`)
+        and CLIENT_LADDERSEARCHREQ (`_client_laddersearchreq`).
+        Added `pvpgn_v3_ladder_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/ladder_dispatch_bridge.{hpp,cpp}`,
+        module `v3_ladder_dispatch_bridge`, message
+        `ladder dispatch observed`, field `{op}`. Wired into
+        both handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `ladder_dispatch_bridge_test.cpp`: null-conn no-op,
+        each op logged, null op -> "?". 4 cases / ~13
+        assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 28 -- coalesced observation bridge for the D2
+        character family: `_client_charlistreq` (CLIENT_UNKNOWN_37
+        / SID_CHARLIST). Investigated `_client_unknown39` and
+        SID_NEWS_INFO -- both absent or stub in legacy bnetd so
+        excluded. Added `pvpgn_v3_d2_character_dispatch_try(conn,
+        op)` in
+        `integration/legacy_bnetd/d2_character_dispatch_bridge.{hpp,cpp}`,
+        module `v3_d2_character_dispatch_bridge`, message
+        `d2 character dispatch observed`, field `{op}`. Wired
+        into the single handler in `src/bnetd/handle_bnet.cpp`
+        under `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `d2_character_dispatch_bridge_test.cpp`: null-conn no-op,
+        charlistreq logged, null op -> "?", empty op -> "?". 4
+        cases / ~12 assertions. Legacy + v3 docker builds green;
+        v3 still 1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 29 -- coalesced observation bridge for the misc
+        telemetry family: `_client_udpok`,
+        `_client_fileinforeq`, `_client_extrawork` and
+        `_client_crashdump`. Added
+        `pvpgn_v3_telemetry_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/telemetry_dispatch_bridge.{hpp,cpp}`,
+        module `v3_telemetry_dispatch_bridge`, message
+        `telemetry dispatch observed`, field `{op}`. Wired into
+        all four handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `telemetry_dispatch_bridge_test.cpp`: null-conn no-op,
+        each op logged, null op -> "?". 6 cases / ~19
+        assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 30 -- coalesced observation bridge for the ad
+        family: `_client_adreq`, `_client_adack`,
+        `_client_adclick` and `_client_adclick2`. Added
+        `pvpgn_v3_ad_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/ad_dispatch_bridge.{hpp,cpp}`,
+        module `v3_ad_dispatch_bridge`, message
+        `ad dispatch observed`, field `{op}`. Wired into all
+        four handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `ad_dispatch_bridge_test.cpp`: null-conn no-op, each op
+        logged, null op -> "?". 6 cases / ~19 assertions. Legacy
+        + v3 docker builds green; v3 still 1225 / 213 + the new
+        test binary; 4 e2e green.
+    - [x] Round 31 -- coalesced observation bridge for the
+        progident family: `_client_progident`,
+        `_client_progident2` and `_client_changeclient`. Added
+        `pvpgn_v3_progident_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/progident_dispatch_bridge.{hpp,cpp}`,
+        module `v3_progident_dispatch_bridge`, message
+        `progident dispatch observed`, field `{op}`. Wired into
+        all three handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `progident_dispatch_bridge_test.cpp`: null-conn no-op,
+        each op logged, null op -> "?". 5 cases / ~16
+        assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 32 -- coalesced observation bridge for the
+        gameport / mapauth family: `_client_changegameport`,
+        `_client_mapauthreq1` and `_client_mapauthreq2`. Added
+        `pvpgn_v3_gameport_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/gameport_dispatch_bridge.{hpp,cpp}`,
+        module `v3_gameport_dispatch_bridge`, message
+        `gameport dispatch observed`, field `{op}`. Wired into
+        all three handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `gameport_dispatch_bridge_test.cpp`: null-conn no-op,
+        each op logged, null op -> "?". 5 cases / ~16
+        assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 33 -- coalesced observation bridge for the cdkey
+        family: `_client_cdkey`, `_client_cdkey2` and
+        `_client_cdkey3`. Added
+        `pvpgn_v3_cdkey_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/cdkey_dispatch_bridge.{hpp,cpp}`,
+        module `v3_cdkey_dispatch_bridge`, message
+        `cdkey dispatch observed`, field `{op}`. Wired into all
+        three handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `cdkey_dispatch_bridge_test.cpp`: null-conn no-op, each
+        op logged, null op -> "?". 5 cases / ~16 assertions.
+        Legacy + v3 docker builds green; v3 still 1225 / 213 +
+        the new test binary; 4 e2e green.
+    - [x] Round 34 -- coalesced observation bridge for the
+        password / email SRP family. Original scope included
+        `changepassreq`, `changeemailreq`, `setemailreply` but
+        these are already covered by the Round 25 account bridge
+        (verified in handle_bnet.cpp). Remaining password-flow
+        handlers added here: `_client_passchangereq`,
+        `_client_passchangeproofreq` and
+        `_client_getpasswordreq`. Added
+        `pvpgn_v3_passemail_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/passemail_dispatch_bridge.{hpp,cpp}`,
+        module `v3_passemail_dispatch_bridge`, message
+        `passemail dispatch observed`, field `{op}`. Wired into
+        all three handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `passemail_dispatch_bridge_test.cpp`: null-conn no-op,
+        each op logged, null op -> "?". 5 cases / ~16
+        assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 35 -- coalesced observation bridge for the early
+        handshake family: `_client_motdw3`, `_client_compinfo1`,
+        `_client_compinfo2` and `_client_countryinfo1`. Added
+        `pvpgn_v3_handshake_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/handshake_dispatch_bridge.{hpp,cpp}`,
+        module `v3_handshake_dispatch_bridge`, message
+        `handshake dispatch observed`, field `{op}`. Wired into
+        all four handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `handshake_dispatch_bridge_test.cpp`: null-conn no-op,
+        each op logged, null op -> "?". 6 cases / ~19
+        assertions. Legacy + v3 docker builds green; v3 still
+        1225 / 213 + the new test binary; 4 e2e green.
+    - [x] Round 36 -- coalesced observation bridge for the stub /
+        unknown / debug-only family: `_client_unknown_1b`,
+        `_client_unknown2b`, `_client_unknown39`,
+        `_client_regsnoopreply` and `_client_readmemory`. Added
+        `pvpgn_v3_stub_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/stub_dispatch_bridge.{hpp,cpp}`,
+        module `v3_stub_dispatch_bridge`, message
+        `stub dispatch observed`, field `{op}`. Wired into all
+        five handlers in `src/bnetd/handle_bnet.cpp` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `stub_dispatch_bridge_test.cpp`: null-conn no-op, each
+        op logged, null op -> "?". 7 cases / ~22 assertions.
+        Legacy + v3 docker builds green; v3 still 1225 / 213 +
+        the new test binary; 4 e2e green.
+    - [x] Round 37 -- coalesced observation bridge for the bnetd
+        file-transfer dispatcher in `src/bnetd/handle_file.cpp`:
+        `CLIENT_FILE_REQ`, `CLIENT_FILE_REQ2` and
+        `CLIENT_FILE_REQ3`. Added
+        `pvpgn_v3_file_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/file_dispatch_bridge.{hpp,cpp}`,
+        module `v3_file_dispatch_bridge`, message
+        `file dispatch observed`, field `{op}`. Wired into all
+        three cases inside `handle_file_packet` under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION` (forward-decl after
+        `setup_after.h`). Unit test
+        `file_dispatch_bridge_test.cpp`: null-conn no-op, each
+        op logged, null op -> "?". 5 cases / ~16 assertions.
+        Legacy + v3 docker builds green; v3 still 1225 / 213 +
+        the new test binary; 4 e2e green.
 
 For each module:
 
