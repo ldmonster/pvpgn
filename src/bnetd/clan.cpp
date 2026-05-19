@@ -51,6 +51,12 @@
 
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Observation bridge for clan packet-send functions (Step 4 E.3).
+extern "C" int pvpgn_v3_clan_send_try(void* conn_ptr,
+                                      char const* op) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -201,6 +207,9 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "clan has NULL clantag");
 				}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				// v3 strangler-fig: observe clan status window send on create.
+#endif
 				packet_set_size(rpacket, sizeof(t_server_clan_clanack));
 				packet_set_type(rpacket, SERVER_CLAN_CLANACK);
 				bn_byte_set(&rpacket->u.server_clan_clanack.unknow1, 0);
@@ -236,6 +245,9 @@ namespace pvpgn
 							conn_set_channel(conn, CHANNEL_NAME_BANNED);	/* should not fail */
 					}
 					bn_byte_set(&rpacket->u.server_clan_clanack.status, member->status);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					(void)pvpgn_v3_clan_send_try(conn, "clan_send_status_window_on_create");
+#endif
 					conn_push_outqueue(conn, rpacket);
 				}
 				packet_del_ref(rpacket);
@@ -282,6 +294,9 @@ namespace pvpgn
 					if ((clienttag != CLIENTTAG_WARCRAFT3_UINT) && (clienttag != CLIENTTAG_WAR3XP_UINT))
 						continue;			// online but wrong client
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					(void)pvpgn_v3_clan_send_try(conn, "clan_close_status_window_on_disband");
+#endif
 					conn_push_outqueue(conn, rpacket);
 					conn_update_w3_playerinfo(conn);
 				}
@@ -334,6 +349,9 @@ namespace pvpgn
 				bn_byte_set(&rpacket->u.server_clan_clanack.unknow1, 0);
 				bn_int_set(&rpacket->u.server_clan_clanack.clantag, member->clan->tag);
 				bn_byte_set(&rpacket->u.server_clan_clanack.status, member->status);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_clan_send_try(c, "clan_send_status_window");
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -359,6 +377,9 @@ namespace pvpgn
 				packet_set_size(rpacket, sizeof(t_server_clanquitnotify));
 				packet_set_type(rpacket, SERVER_CLANQUITNOTIFY);
 				bn_byte_set(&rpacket->u.server_clanquitnotify.status, SERVER_CLANQUITNOTIFY_STATUS_REMOVED_FROM_CLAN);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_clan_send_try(c, "clan_close_status_window");
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -417,6 +438,9 @@ namespace pvpgn
 					count++;
 				}
 				bn_byte_set(&rpacket->u.server_clanmemberlist_reply.member_count, count);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_clan_send_try(c, "clan_send_memberlist");
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
@@ -471,6 +495,9 @@ namespace pvpgn
 				bn_int_set(&rpacket->u.server_clan_motdreply.count, bn_int_get(packet->u.client_clan_motdreq.count));
 				bn_int_set(&rpacket->u.server_clan_motdreply.unknow1, SERVER_CLAN_MOTDREPLY_UNKNOW1);
 				packet_append_string(rpacket, clan->clan_motd);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_clan_send_try(c, "clan_send_motd_reply");
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -504,6 +531,9 @@ namespace pvpgn
 			{
 				bn_byte_set(&rpacket->u.server_clan_createreply.check_result, SERVER_CLAN_CREATEREPLY_CHECK_ALLREADY_IN_USE);
 				bn_byte_set(&rpacket->u.server_clan_createreply.friend_count, 0);
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_clan_send_try(c, "clan_get_possible_member_tag_in_use");
+	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
@@ -512,6 +542,9 @@ namespace pvpgn
 			{
 				bn_byte_set(&rpacket->u.server_clan_createreply.check_result, SERVER_CLAN_CREATEREPLY_CHECK_EXCEPTION);
 				bn_byte_set(&rpacket->u.server_clan_createreply.friend_count, 0);
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_clan_send_try(c, "clan_get_possible_member_already_in_clan");
+	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
@@ -567,6 +600,9 @@ namespace pvpgn
 				}
 			}
 			bn_byte_set(&rpacket->u.server_clan_createreply.friend_count, friend_count);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_clan_send_try(c, "clan_get_possible_member");
+#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 

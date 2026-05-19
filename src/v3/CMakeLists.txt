@@ -883,9 +883,11 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/change_password_bridge.cpp
         integration/legacy_bnetd/src/send_packet_bridge.cpp
         integration/legacy_bnetd/src/init_conn_bridge.cpp
+        integration/legacy_bnetd/src/send_authreq1_server_bridge.cpp
         integration/legacy_bnetd/src/send_authreply1_bridge.cpp
         integration/legacy_bnetd/src/send_authreply109_bridge.cpp
         integration/legacy_bnetd/src/send_authinfo_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_handshake_bridge.cpp
         integration/legacy_bnetd/src/send_loginreply_bridge.cpp
         integration/legacy_bnetd/src/send_loginreply_w3_bridge.cpp
         integration/legacy_bnetd/src/send_logonproof_reply_bridge.cpp
@@ -901,6 +903,7 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/anongame_infos_bridge.cpp
         integration/legacy_bnetd/src/anongame_infos_get_bridge.cpp
         integration/legacy_bnetd/src/clan_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/clan_send_bridge.cpp
         integration/legacy_bnetd/src/friends_dispatch_bridge.cpp
         integration/legacy_bnetd/src/auth_dispatch_bridge.cpp
         integration/legacy_bnetd/src/keepalive_dispatch_bridge.cpp
@@ -918,7 +921,37 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/handshake_dispatch_bridge.cpp
         integration/legacy_bnetd/src/stub_dispatch_bridge.cpp
         integration/legacy_bnetd/src/file_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/send_cdkey_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_fileinforeply_bridge.cpp
+        integration/legacy_bnetd/src/send_passchange_bridge.cpp
+        integration/legacy_bnetd/src/send_statsreply_bridge.cpp
+        integration/legacy_bnetd/src/send_friendslist_bridge.cpp
+        integration/legacy_bnetd/src/send_friendinfo_bridge.cpp
+        integration/legacy_bnetd/src/send_atfriendscreen_bridge.cpp
+        integration/legacy_bnetd/src/send_atinvitefriend_bridge.cpp
+        integration/legacy_bnetd/src/send_atacceptdecline_bridge.cpp
+        integration/legacy_bnetd/src/send_motdw3_bridge.cpp
+        integration/legacy_bnetd/src/send_realmlist_bridge.cpp
+        integration/legacy_bnetd/src/send_realmlistlegacy_bridge.cpp
+        integration/legacy_bnetd/src/send_claninfo_bridge.cpp
+        integration/legacy_bnetd/src/send_profilereply_bridge.cpp
+        integration/legacy_bnetd/src/send_realmjoin_bridge.cpp
         integration/legacy_bnetd/src/send_chatevent_compose_bridge.cpp
+        integration/legacy_bnetd/src/send_charlistreply_bridge.cpp
+        integration/legacy_bnetd/src/send_adreply_bridge.cpp
+        integration/legacy_bnetd/src/send_adclick2reply_bridge.cpp
+        integration/legacy_bnetd/src/send_playerinforeply_bridge.cpp
+        integration/legacy_bnetd/src/send_gamelistreply_bridge.cpp
+        integration/legacy_bnetd/src/send_startgame1ack_bridge.cpp
+        integration/legacy_bnetd/src/send_startgame3ack_bridge.cpp
+        integration/legacy_bnetd/src/send_startgame4ack_bridge.cpp
+        integration/legacy_bnetd/src/send_ladderreply_bridge.cpp
+        integration/legacy_bnetd/src/send_laddersearchreply_bridge.cpp
+        integration/legacy_bnetd/src/send_mapauthreply1_bridge.cpp
+        integration/legacy_bnetd/src/send_mapauthreply2_bridge.cpp
+        integration/legacy_bnetd/src/send_clandisbandreply_bridge.cpp
+        integration/legacy_bnetd/src/send_clancreateinviteforward_bridge.cpp
+        integration/legacy_bnetd/src/send_clancreateinvitereply_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
     PUBLIC_DEPS

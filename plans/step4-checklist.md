@@ -491,7 +491,14 @@ Legend: `[ ]` = not started, `[~]` = in progress, `[x]` = done.
         Round 16 fully complete: GAME_REPORT, STARTGAME1/3/4,
         GAMELISTREQ, JOIN_GAME all have observation bridges.
 - [x] game list / start / report -- completed in Round 16.
-- [ ] clan.
+- [x] clan. Round 38: added `pvpgn_v3_clan_send_try(conn, op)` observation
+        bridge in `src/v3/integration/legacy_bnetd/{include/integration/legacy_bnetd,src}/clan_send_bridge.{hpp,cpp}`;
+        test in `tests/unit/integration/legacy_bnetd/clan_send_bridge_test.cpp`;
+        wired into `src/bnetd/clan.cpp` at all 8 `conn_push_outqueue` sites
+        (clan_send_status_window_on_create, clan_close_status_window_on_disband,
+        clan_send_status_window, clan_close_status_window, clan_send_memberlist,
+        clan_send_motd_reply, clan_get_possible_member x3) under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`.
 - [~] `anongame.cpp` + `anongame_infos.cpp`. Round 17 (this
         session, partial): added observation bridge for SID_FINDANONGAME
         (0x44) sub-dispatch. New
@@ -846,29 +853,181 @@ For each module:
 
 ### Audit: residual `packet_create()` call sites in `src/bnetd/`
 
-Snapshot (this session) — total **156 sites across 19 files**:
+Snapshot (this session) — total **156 sites across 19 files** (original);
+**Round 44** reduced `handle_bnet.cpp` by 1 (statsreq):
 
-|  Count | File                              |
-|-------:|-----------------------------------|
-|     68 | handle_bnet.cpp                    |
-|     11 | handle_bot.cpp                     |
-|     11 | handle_telnet.cpp                  |
-|      9 | anongame.cpp                       |
-|      9 | server.cpp                         |
-|      9 | clan.cpp                           |
-|      8 | handle_anongame.cpp                |
-|      5 | message.cpp                        |
-|      5 | handle_d2cs.cpp                    |
-|      5 | connection.cpp                     |
-|      4 | command.cpp                        |
-|      3 | irc.cpp                            |
-|      2 | file.cpp                           |
-|      2 | anongame_infos.cpp                 |
-|      1 | udptest_send.cpp                   |
-|      1 | handle_file.cpp                    |
-|      1 | handle_apireg.cpp                  |
-|      1 | handle_wol.cpp                     |
-|      1 | anongame_wol.cpp                   |
+|  Count | File                              | Notes                                                    |
+|-------:|-----------------------------------|----------------------------------------------------------|
+|     43 | handle_bnet.cpp                    | −4 Round 39 (compinfo1/2 handshake), −1 Round 40 (progident), −3 Round 41 (cdkey reply), −1 Round 42 (fileinforeply), −1 Round 42 (pingreply), −2 Round 43 (passchangereq/proofreq), −1 Round 44 (statsreq), −5 Round 45 (friendslist/friendinfo/atfriendscreen/atinvitefriendack/atmemberdecline), −7 Round 46 (motdw3/realmlistreq/realmlistreq110/claninforeq/profilereq/realmjoinreq109×2), −4 Round 47 (charlistreq/adreq/adclick2/playerinforeq)|
+|     11 | handle_bot.cpp                     |                                    |
+|     11 | handle_telnet.cpp                  |                                    |
+|      9 | anongame.cpp                       |                                    |
+|      9 | server.cpp                         |                                    |
+|      9 | clan.cpp                           |                                    |
+|      8 | handle_anongame.cpp                |                                    |
+|      5 | message.cpp                        |                                    |
+|      5 | handle_d2cs.cpp                    |                                    |
+|      5 | connection.cpp                     |                                    |
+|      4 | command.cpp                        |                                    |
+|      3 | irc.cpp                            |                                    |
+|      2 | file.cpp                           |                                    |
+|      2 | anongame_infos.cpp                 |                                    |
+|      1 | udptest_send.cpp                   |                                    |
+|      1 | handle_file.cpp                    |                                    |
+|      1 | handle_apireg.cpp                  |                                    |
+|      1 | handle_wol.cpp                     |                                    |
+|      1 | anongame_wol.cpp                   |                                    |
+
+**Round 39** (2026-05-19): `send_handshake_bridge` — covers 4 `packet_create`
+sites in `_client_compinfo1` and `_client_compinfo2` (`handle_bnet.cpp`).
+New files: `send_handshake_bridge.hpp`, `send_handshake_bridge.cpp`,
+`send_handshake_bridge_test.cpp`. Wire-parity tests for all 3 packets
+(SERVER_COMPREPLY 0x05, SERVER_SESSIONKEY1 0x28, SERVER_SESSIONKEY2 0x1D).
+Running total: **152 sites** remaining.
+
+**Round 40** (2026-05-19): `send_authreq1_server_bridge` — covers 1
+`packet_create` site in `_client_progident` (`handle_bnet.cpp`). Sends the
+`SERVER_AUTHREQ1` (0x06) CheckRevision challenge: 64-bit file timestamp +
+versioncheck filename + checksum equation. Uses the existing
+`encode(AuthReq1Server)` codec. New files:
+`send_authreq1_server_bridge.hpp`, `send_authreq1_server_bridge.cpp`,
+`send_authreq1_server_bridge_test.cpp` (9 test cases: null-safety, wire-parity
+for non-empty and empty strings, handler return propagation).
+Running total: **151 sites** remaining.
+
+**Round 41** (2026-05-19): `send_cdkey_reply_bridge` — covers 3 `packet_create`
+sites in `_client_cdkey`, `_client_cdkey2`, and `_client_cdkey3`
+(`handle_bnet.cpp`). Sends `SERVER_CDKEYREPLY` (0x30), `SERVER_CDKEYREPLY2`
+(0x36), and `SERVER_CDKEYREPLY3` (0x42): each is header(4) + u32 LE + NUL-
+terminated owner string. Uses `CdKeyLegacyReply`, `CdKey2Reply`, `CdKey3Reply`
+message types with existing `encode()` codec. New files:
+`send_cdkey_reply_bridge.hpp`, `send_cdkey_reply_bridge.cpp`,
+`send_cdkey_reply_bridge_test.cpp` (12 test cases: null-conn rejection,
+no-handler returns 0, wire-parity for non-empty and nullptr owner, handler
+return propagation for all 3 functions).
+Running total: **148 sites** remaining.
+
+**Round 42** (2026-05-19): `send_fileinforeply_bridge` — covers 2 `packet_create`
+sites in `_client_fileinforeq` and `_client_pingreq` (`handle_bnet.cpp`). Sends
+`SERVER_FILEINFOREPLY` (SID_GETFILETIME, 0x33): header(4) + u32 type LE + u32
+unknown2 LE + u64 timestamp LE + filename\0; and `SERVER_PINGREPLY` (SID_NULL,
+0x00): 4-byte header only. `pvpgn_v3_send_pingreply` was placed in the same
+bridge file. New files: `send_fileinforeply_bridge.hpp`,
+`send_fileinforeply_bridge.cpp`, `send_fileinforeply_bridge_test.cpp`.
+Wire-parity tests for both packets; null filename treated as empty string.
+Running total: **146 sites** remaining.
+
+**Round 43** (2026-05-19): `send_passchange_bridge` — covers 2 `packet_create`
+sites in `_client_passchangereq` and `_client_passchangeproofreq`
+(`handle_bnet.cpp`). Sends `SERVER_PASSCHANGEREPLY` (SID_PASSCHANGE, 0x55):
+header(4) + u32 message LE + salt[32] + server_public_key[32] = 72 bytes; and
+`SERVER_PASSCHANGEPROOFREPLY` (SID_PASSCHANGEPROOF, 0x56): header(4) + u32
+response LE + server_password_proof[20] = 28 bytes. Uses `PassChangeReply` and
+`PassChangeProofReply` message types with existing `encode()` codec. New files:
+`send_passchange_bridge.hpp`, `send_passchange_bridge.cpp`,
+`send_passchange_bridge_test.cpp`. Wire-parity tests for both packets (header
+bytes FF 55 48 00 and FF 56 1C 00 verified). Bridge reads message/salt/spk and
+response/proof back out of the legacy-built rpacket so all branch logic stays
+intact. `_client_pingreq` wired with existing `pvpgn_v3_send_pingreply`.
+Running total: **144 sites** remaining.
+
+**Round 44** (2026-05-19): `send_statsreply_bridge` — covers 1 `packet_create`
+site in `_client_statsreq` (`handle_bnet.cpp`). Sends `SERVER_STATSREPLY`
+(SID_READUSERDATA, 0x26): variable-length packet with header(4) + name_count(4)
++ key_count(4) + request_id(4) + NUL-terminated value strings. Uses
+`UserDataReadReply` message type with existing `encode()` codec. All 3 files
+(`send_statsreply_bridge.hpp`, `send_statsreply_bridge.cpp`,
+`send_statsreply_bridge_test.cpp`) were created during Round 44 setup; this
+round wires the bridge into `_client_statsreq` and registers it in the build
+system. Bridge collects appended value strings from the legacy-built rpacket
+into a `std::vector<char const*>` and passes them to `pvpgn_v3_send_statsreply`.
+Running total: **143 sites** remaining.
+
+**Round 45** (2026-05-19): 5 friends/arranged-team send bridges — covers 5
+`packet_create` sites in `handle_bnet.cpp`:
+- `_client_friendslistreq` → `pvpgn_v3_send_friendslistreply`
+  (`SERVER_FRIENDSLISTREPLY`, 0x65): header(4) + repeated (name\0 + 6-byte
+  status struct + location_name\0) entries + friendcount byte. Uses
+  `FriendsListReply` with `pvpgn_v3_friend_entry` C-ABI struct.
+- `_client_friendinforeq` → `pvpgn_v3_send_friendinforeply`
+  (`SERVER_FRIENDINFOREPLY`, 0x66): header(4) + friendnum(1) + type(1) +
+  status(1) + clienttag(4) + game_name\0. Both offline and online paths guarded.
+- `_client_atfriendscreen` → `pvpgn_v3_send_atfriendscreenreply`
+  (`SERVER_ARRANGEDTEAM_FRIENDSCREEN`, 0x60): header(4) + f_count(1) +
+  repeated name\0 strings. Bridge collects names from legacy packet payload.
+- `_client_atinvitefriend` (ACK only) → `pvpgn_v3_send_atinvitefriendack`
+  (`SERVER_ARRANGEDTEAM_INVITE_FRIEND_ACK`, 0x61): header(4) + count(4) +
+  id(4) + timestamp(4) + teamsize(1) + info[5](4 each). The
+  `SERVER_ARRANGEDTEAM_SEND_INVITE` to invitees is not yet bridged.
+- `_client_atacceptdeclineinvite` → `pvpgn_v3_send_atmemberdecline`
+  (`SERVER_ARRANGEDTEAM_MEMBER_DECLINE`, 0x62): header(4) + count(4) +
+  action(4) + decliner_name\0.
+New files (15): 5 headers, 5 implementations, 5 test files. All follow the
+FakeSink/ScopedSink pattern with null-guard, no-handler, wire-byte correctness,
+and return-propagation tests.
+Running total: **138 sites** remaining.
+
+**Round 46** (2026-05-19): 6 send bridges for motd/realm/clan/profile/realmjoin —
+covers 7 `packet_create` sites in `handle_bnet.cpp`:
+- `_client_motdw3` → `pvpgn_v3_send_motdw3`
+  (`SERVER_MOTD_W3`, SID_MOTD 0x1A): header(4) + msgtype(1) + timestamp(4) +
+  news_start(4) + news_end(4) + welcome(1) + text\0. Bridge passes `nullptr`
+  for text (strangler-fig stub; v3 side will read the file itself later).
+- `_client_realmlistreq` → `pvpgn_v3_send_realmlistlegacyreply`
+  (`SERVER_REALMLISTREPLY`, SID_REALMLISTLEGACY 0x34): header(4) + count(4) +
+  repeated 7-field `pvpgn_v3_realm_legacy_entry` structs (unknown[7] + name\0 +
+  description\0). Uses `RealmListLegacyReply` codec.
+- `_client_realmlistreq110` → `pvpgn_v3_send_realmlistreply`
+  (`SERVER_REALMLIST`, SID_REALMLIST 0x40): header(4) + count(4) + repeated
+  1-field `pvpgn_v3_realm_entry` structs (unknown + name\0 + description\0).
+  Uses `RealmListReply` codec.
+- `_client_claninforeq` → `pvpgn_v3_send_claninforeply`
+  (`SERVER_CLANINFOREPLY`, SID_CLANINFO 0x82): header(4) + cookie(4) + fail(1)
+  + [clan_name\0 + rank(1) + join_time(4) on success]. join_time cast from
+  `std::time_t` to `unsigned int` (u32 LE).
+- `_client_profilereq` → `pvpgn_v3_send_profilereply`
+  (`SERVER_PROFILEREPLY`, SID_PROFILE 0x35): header(4) + cookie(4) + fail(1)
+  + description\0 + location\0 + clan_tag(4). clan_tag resolved from account's
+  clanmember before the bridge call.
+- `_client_realmjoinreq109` success path → `pvpgn_v3_send_realmjoinreply`
+  (`SERVER_REALMJOINREPLY_109`, SID_REALMJOIN 0x3C): full 16-field layout
+  including seqno/salt, addr/port (via `trans_net`), sessionnum, sessionkey,
+  versionid, clienttag, secret_hash[5], account_name\0.
+- `_client_realmjoinreq109` failure path → `pvpgn_v3_send_realmjoinreply`
+  with all-zero fields and empty account_name.
+New files (18): 6 headers, 6 implementations, 6 test files. All follow the
+FakeSink/ScopedSink pattern with null-guard, no-handler, wire-byte correctness,
+and return-propagation tests.
+Running total: **131 sites** remaining.
+
+**Round 47** (2026-05-19): 4 send bridges for charlist/ad/playerinfo —
+covers 4 `packet_create` sites in `handle_bnet.cpp`:
+- `_client_charlistreq` → `pvpgn_v3_send_charlistreply`
+  (`SERVER_UNKNOWN_37`, SID_CHARLIST 0x37): header(4) + unknown1(4LE) +
+  max_chars(4LE) + count(4LE) + raw char_data bytes (variable). Bridge
+  passes char_data extracted from the freshly-built legacy rpacket after
+  the fixed header. Empty-list path (no charlist) also guarded.
+- `_client_adreq` → `pvpgn_v3_send_adreply`
+  (`SERVER_ADREPLY`, SID_CHECKAD 0x15): header(4) + adid(4LE) +
+  extension_tag(4LE) + timestamp(8LE) + filename\0 + link\0. Timestamp
+  extracted via `bn_long_get()` from the legacy rpacket after
+  `file_to_mod_time()` fills it.
+- `_client_adclick2` → `pvpgn_v3_send_adclick2reply`
+  (`SERVER_ADCLICKREPLY2`, SID_ADCLICK2 0x41): header(4) + adid(4LE) +
+  link\0. Uses `AdClick2Reply` codec struct.
+- `_client_playerinforeq` → `pvpgn_v3_send_playerinforeply`
+  (`SERVER_PLAYERINFOREPLY`, SID_USERDATA 0x0A): header(4) + account_name\0
+  + player_info\0 + username\0. No codec struct — raw write via
+  `w.begin_bnet_packet(0x0a)` + 3 `w.write_cstring()` calls. Both the
+  account-present and account-absent paths guarded.
+- `_client_progident2` already had `pvpgn_v3_send_channellist` from a
+  prior round — no new bridge needed.
+- `_client_adack`, `_client_adclick`, `_client_readmemory`,
+  `_client_statsupdate` have no `packet_create` calls — no bridge needed.
+New files (12): 4 headers, 4 implementations, 4 test files. All follow the
+FakeSink/ScopedSink pattern with null-guard, no-handler, wire-byte
+correctness, and return-propagation tests.
+Running total: **127 sites** remaining.
 
 E.4 cutover (delete `src/common/packet.{cpp,h}` and
 `src/common/queue.{cpp,h}`) is gated on bringing each of these to
@@ -2179,3 +2338,78 @@ Next refactoring-plan-legacy-common steps to consider:
 - Step 3: migrate protocol definitions
 - Step 5: migrate type utilities to core/
 - Step 7: eliminate t_list / t_hashtable in legacy consumers
+
+## Round 48 — send bridges: gamelistreply, startgame1ack, startgame3ack, startgame4ack, ladderreply, laddersearchreply
+
+### Bridges implemented
+- [x] `send_gamelistreply_bridge` (header + impl) — `pvpgn_v3_send_gamelistreply`
+- [x] `send_startgame1ack_bridge` (header + impl) — `pvpgn_v3_send_startgame1ack`
+- [x] `send_startgame3ack_bridge` (header + impl) — `pvpgn_v3_send_startgame3ack`
+- [x] `send_startgame4ack_bridge` (header + impl) — `pvpgn_v3_send_startgame4ack`
+- [x] `send_ladderreply_bridge` (header + impl) — `pvpgn_v3_send_ladderreply`
+- [x] `send_laddersearchreply_bridge` (header + impl) — `pvpgn_v3_send_laddersearchreply`
+
+### Tests written
+- [x] `send_gamelistreply_bridge_test.cpp`
+- [x] `send_startgame1ack_bridge_test.cpp`
+- [x] `send_startgame3ack_bridge_test.cpp`
+- [x] `send_startgame4ack_bridge_test.cpp`
+- [x] `send_ladderreply_bridge_test.cpp`
+- [x] `send_laddersearchreply_bridge_test.cpp`
+
+### handle_bnet.cpp guards added
+- [x] `_client_gamelistreq` line ~5276: `pvpgn_v3_send_gamelistreply` guard before `conn_push_outqueue`
+- [x] `_client_startgame1` line ~5423: `pvpgn_v3_send_startgame1ack` guard wrapping `conn_push_outqueue`
+- [x] `_client_startgame3` line ~5524: `pvpgn_v3_send_startgame3ack` guard wrapping `conn_push_outqueue`
+- [x] `_client_startgame4` line ~5681: `pvpgn_v3_send_startgame4ack` guard wrapping `conn_push_outqueue` (ACK only; ECHOREQ keepalive left for later)
+- [x] `_client_ladderreq` line ~5993: `pvpgn_v3_send_ladderreply` guard before `conn_push_outqueue`
+- [x] `_client_laddersearchreq` line ~6100: `pvpgn_v3_send_laddersearchreply` guard before `conn_push_outqueue`
+
+### Build system
+- [x] `src/v3/CMakeLists.txt` — 6 new `.cpp` sources added
+- [x] `tests/unit/integration/legacy_bnetd/CMakeLists.txt` — 6 new `pvpgn_v3_add_test` entries
+- [x] `Dockerfile.v3` — 6 new build targets + 6 new RUN lines
+
+### packet_create count
+- Before: 127 remaining
+- After:  121 remaining (6 sites guarded)
+
+## Round 49 — send bridges: mapauthreply1, mapauthreply2, clandisbandreply, clancreateinviteforward, clancreateinvitereply
+
+### Bridges implemented
+- [x] `send_mapauthreply1_bridge` (header + impl) — `pvpgn_v3_send_mapauthreply1`
+- [x] `send_mapauthreply2_bridge` (header + impl) — `pvpgn_v3_send_mapauthreply2`
+- [x] `send_clandisbandreply_bridge` (header + impl) — `pvpgn_v3_send_clandisbandreply`
+- [x] `send_clancreateinviteforward_bridge` (header + impl) — `pvpgn_v3_send_clancreateinviteforward`
+- [x] `send_clancreateinvitereply_bridge` (header + impl) — `pvpgn_v3_send_clancreateinvitereply`
+
+### Tests written
+- [x] `send_mapauthreply1_bridge_test.cpp`
+- [x] `send_mapauthreply2_bridge_test.cpp`
+- [x] `send_clandisbandreply_bridge_test.cpp`
+- [x] `send_clancreateinviteforward_bridge_test.cpp`
+- [x] `send_clancreateinvitereply_bridge_test.cpp`
+
+### handle_bnet.cpp guards added
+- [x] `_client_mapauthreq1` line ~6224: `pvpgn_v3_send_mapauthreply1` guard wrapping `conn_push_outqueue`
+- [x] `_client_mapauthreq2` line ~6299: `pvpgn_v3_send_mapauthreply2` guard wrapping `conn_push_outqueue`
+- [x] `_client_clan_disbandreq` line ~6406: `pvpgn_v3_send_clandisbandreply` guard on NOT_AUTHORIZED and FAIL branches
+- [x] `_client_clan_createinvitereq` success path: `pvpgn_v3_send_clancreateinviteforward` guard on `conn_push_outqueue(conn, rpacket)`
+- [x] `_client_clan_createinvitereq` failure path: `pvpgn_v3_send_clancreateinvitereply` guard (no `conn_push_outqueue` — bridge-only path)
+- [x] `_client_clan_createinvitereply` decline path: `pvpgn_v3_send_clancreateinvitereply` guard wrapping `conn_push_outqueue(conn, rpacket)`
+- [x] `_client_clan_createinvitereply` success path: `pvpgn_v3_send_clancreateinvitereply` guard wrapping `conn_push_outqueue(conn, rpacket)`
+
+### Handlers skipped (no direct packet_create)
+- `_client_clanmemberlistreq` — delegates to `clan_send_memberlist()`
+- `_client_clan_motdreq` — delegates to `clan_send_motd_reply()`
+- `_client_clan_motdchg` — delegates to `clan_save_motd_chg()`
+- `_client_clan_createreq` — delegates to `clan_get_possible_member()`
+
+### Build system
+- [x] `src/v3/CMakeLists.txt` — 5 new `.cpp` sources added
+- [x] `tests/unit/integration/legacy_bnetd/CMakeLists.txt` — 5 new `pvpgn_v3_add_test` entries
+- [x] `Dockerfile.v3` — 5 new build targets + 5 new RUN lines
+
+### packet_create count
+- Before: 121 remaining
+- After:  114 remaining (7 sites guarded)

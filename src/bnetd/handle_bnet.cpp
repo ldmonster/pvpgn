@@ -221,6 +221,227 @@ extern "C" int pvpgn_v3_send_loginreply_w3(void* conn_ptr,
                                            unsigned int message,
                                            unsigned char const* salt,
                                            unsigned char const* server_public_key) noexcept;
+// Strangler-fig hooks for early-handshake server replies (Step 4 E.4).
+// Covers the 4 packet_create sites in _client_compinfo1 / _client_compinfo2.
+extern "C" int pvpgn_v3_send_compreply(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_send_sessionkey1(void* conn_ptr,
+                                         unsigned int sessionkey) noexcept;
+extern "C" int pvpgn_v3_send_sessionkey2(void* conn_ptr,
+                                         unsigned int sessionnum,
+                                         unsigned int sessionkey) noexcept;
+// Strangler-fig hook for SERVER_AUTHREQ1 (0x06) — CheckRevision challenge
+// sent in response to CLIENT_PROGIDENT. Covers the 1 packet_create site in
+// _client_progident.
+extern "C" int pvpgn_v3_send_authreq1_server(void*                conn_ptr,
+                                              unsigned long long   timestamp,
+                                              char const*          filename,
+                                              char const*          equation) noexcept;
+// Strangler-fig hooks for CD-key reply packets.
+// Covers the 3 packet_create sites in _client_cdkey / _client_cdkey2 /
+// _client_cdkey3.
+extern "C" int pvpgn_v3_send_cdkeyreply(void* conn_ptr,
+                                         unsigned int message,
+                                         char const* owner) noexcept;
+extern "C" int pvpgn_v3_send_cdkeyreply2(void* conn_ptr,
+                                          unsigned int result,
+                                          char const* owner) noexcept;
+extern "C" int pvpgn_v3_send_cdkeyreply3(void* conn_ptr,
+                                          unsigned int message,
+                                          char const* owner_name) noexcept;
+// Strangler-fig hooks for SERVER_FILEINFOREPLY (SID_GETFILETIME, 0x33) and
+// SERVER_PINGREPLY (SID_NULL, 0x00).
+// Covers the 1 packet_create site in _client_fileinforeq.
+extern "C" int pvpgn_v3_send_fileinforeply(void*                conn_ptr,
+                                            std::uint32_t        type,
+                                            std::uint32_t        unknown2,
+                                            std::uint64_t        timestamp,
+                                            char const*          filename) noexcept;
+extern "C" int pvpgn_v3_send_pingreply(void* conn_ptr) noexcept;
+// Strangler-fig hooks for SERVER_PASSCHANGEREPLY (SID_PASSCHANGE, 0x55) and
+// SERVER_PASSCHANGEPROOFREPLY (SID_PASSCHANGEPROOF, 0x56).
+// Covers the 2 packet_create sites in _client_passchangereq /
+// _client_passchangeproofreq.
+extern "C" int pvpgn_v3_send_passchangereply(void*                conn_ptr,
+                                              unsigned int         message,
+                                              unsigned char const* salt,
+                                              unsigned char const* server_public_key) noexcept;
+extern "C" int pvpgn_v3_send_passchangeproofreply(void*                conn_ptr,
+                                                   unsigned int         response,
+                                                   unsigned char const* server_password_proof) noexcept;
+// Strangler-fig hook for SERVER_STATSREPLY (SID_READUSERDATA, 0x26).
+// Covers the 1 packet_create site in _client_statsreq.
+extern "C" int pvpgn_v3_send_statsreply(void*              conn_ptr,
+                                         unsigned int       name_count,
+                                         unsigned int       key_count,
+                                         unsigned int       request_id,
+                                         char const* const* values,
+                                         unsigned int       value_count) noexcept;
+// Strangler-fig hook for SERVER_FRIENDSLISTREPLY (SID_FRIENDSLIST, 0x65).
+// Covers the 1 packet_create site in _client_friendslistreq.
+struct pvpgn_v3_friend_entry;
+extern "C" int pvpgn_v3_send_friendslistreply(
+    void*                              conn_ptr,
+    struct pvpgn_v3_friend_entry const* entries,
+    unsigned int                        count) noexcept;
+// Strangler-fig hook for SERVER_FRIENDINFOREPLY (SID_FRIENDINFO, 0x66).
+// Covers the 1 packet_create site in _client_friendinforeq.
+extern "C" int pvpgn_v3_send_friendinforeply(void*        conn_ptr,
+                                              unsigned int friend_num,
+                                              unsigned int type,
+                                              unsigned int status,
+                                              unsigned int client_tag,
+                                              char const*  game_name) noexcept;
+// Strangler-fig hook for SERVER_ARRANGEDTEAM_FRIENDSCREEN (0x60).
+// Covers the 1 packet_create site in _client_atfriendscreen.
+extern "C" int pvpgn_v3_send_atfriendscreenreply(void*              conn_ptr,
+                                                  char const* const* names,
+                                                  unsigned int       count) noexcept;
+// Strangler-fig hook for SERVER_ARRANGEDTEAM_INVITE_FRIEND_ACK (0x61).
+// Covers the ACK packet_create site in _client_atinvitefriend.
+extern "C" int pvpgn_v3_send_atinvitefriendack(void*               conn_ptr,
+                                                unsigned int        count,
+                                                unsigned int        id,
+                                                unsigned int        timestamp,
+                                                unsigned int        team_size,
+                                                unsigned int const* info) noexcept;
+// Strangler-fig hook for SERVER_ARRANGEDTEAM_MEMBER_DECLINE (0x62).
+// Covers the 1 packet_create site in _client_atacceptdeclineinvite.
+extern "C" int pvpgn_v3_send_atmemberdecline(void*        conn_ptr,
+                                              unsigned int count,
+                                              unsigned int action,
+                                              char const*  decliner_name) noexcept;
+// Strangler-fig hook for SERVER_MOTD_W3 (SID_MOTD, 0x1A).
+// Covers the welcome-message packet_create site in _client_motdw3.
+extern "C" int pvpgn_v3_send_motdw3(void*        conn_ptr,
+                                     unsigned int msg_type,
+                                     unsigned int curr_time,
+                                     unsigned int first_news_time,
+                                     unsigned int timestamp,
+                                     unsigned int timestamp2,
+                                     char const*  text) noexcept;
+// Strangler-fig hook for SERVER_REALMLISTREPLY (SID_REALMLIST, 0x40).
+// Covers the 1 packet_create site in _client_realmlistreq.
+struct pvpgn_v3_realm_entry;
+extern "C" int pvpgn_v3_send_realmlistreply(void*                             conn_ptr,
+                                             struct pvpgn_v3_realm_entry const* entries,
+                                             unsigned int                       count) noexcept;
+// Strangler-fig hook for SERVER_REALMLISTREPLY_110 (SID_REALMLISTLEGACY, 0x34).
+// Covers the 1 packet_create site in _client_realmlistreq110.
+struct pvpgn_v3_realm_legacy_entry;
+extern "C" int pvpgn_v3_send_realmlistlegacyreply(
+    void*                                     conn_ptr,
+    struct pvpgn_v3_realm_legacy_entry const* entries,
+    unsigned int                              count) noexcept;
+// Strangler-fig hook for SERVER_CLANINFOREPLY (SID_CLANINFO, 0x82).
+// Covers the 1 packet_create site in _client_claninforeq.
+extern "C" int pvpgn_v3_send_claninforeply(void*        conn_ptr,
+                                            unsigned int cookie,
+                                            unsigned int fail,
+                                            char const*  clan_name,
+                                            unsigned int rank,
+                                            unsigned int join_time) noexcept;
+// Strangler-fig hook for SERVER_PROFILEREPLY (SID_PROFILE, 0x35).
+// Covers the 1 packet_create site in _client_profilereq.
+extern "C" int pvpgn_v3_send_profilereply(void*        conn_ptr,
+                                           unsigned int cookie,
+                                           unsigned int fail,
+                                           char const*  description,
+                                           char const*  location,
+                                           unsigned int clan_tag) noexcept;
+// Strangler-fig hook for SERVER_REALMJOINREPLY_109 (SID_REALMJOIN, 0x3C).
+// Covers the 2 packet_create sites in _client_realmjoinreq109.
+extern "C" int pvpgn_v3_send_realmjoinreply(void*               conn_ptr,
+                                             unsigned int        seqno,
+                                             unsigned int        u1,
+                                             unsigned int        bncs_addr1,
+                                             unsigned int        session_num,
+                                             unsigned int        addr,
+                                             unsigned int        port,
+                                             unsigned int        u3,
+                                             unsigned int        session_key,
+                                             unsigned int        u5,
+                                             unsigned int        u6,
+                                             unsigned int        client_tag,
+                                             unsigned int        version_id,
+                                             unsigned int        bncs_addr2,
+                                             unsigned int        u7,
+                                             unsigned int const* secret_hash,
+                                             char const*         account_name) noexcept;
+extern "C" int pvpgn_v3_send_charlistreply(void*                conn_ptr,
+                                            unsigned int         unknown1,
+                                            unsigned int         max_chars,
+                                            unsigned int         count,
+                                            unsigned char const* char_data,
+                                            unsigned int         char_data_len) noexcept;
+extern "C" int pvpgn_v3_send_adreply(void*                conn_ptr,
+                                      unsigned int         adid,
+                                      unsigned int         extension_tag,
+                                      unsigned long long   timestamp,
+                                      char const*          filename,
+                                      char const*          link) noexcept;
+extern "C" int pvpgn_v3_send_adclick2reply(void*        conn_ptr,
+                                            unsigned int adid,
+                                            char const*  link) noexcept;
+extern "C" int pvpgn_v3_send_playerinforeply(void*       conn_ptr,
+                                              char const* account_name,
+                                              char const* player_info,
+                                              char const* username) noexcept;
+struct pvpgn_v3_game_list_entry;
+extern "C" int pvpgn_v3_send_gamelistreply(
+    void*                                    conn_ptr,
+    std::uint32_t                            sstatus,
+    struct pvpgn_v3_game_list_entry const*   entries,
+    unsigned int                             count) noexcept;
+extern "C" int pvpgn_v3_send_startgame1ack(void*        conn_ptr,
+                                            unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_send_startgame3ack(void*        conn_ptr,
+                                            unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_send_startgame4ack(void*        conn_ptr,
+                                            unsigned int reply) noexcept;
+struct pvpgn_v3_ladder_list_entry;
+extern "C" int pvpgn_v3_send_ladderreply(
+    void*                                      conn_ptr,
+    unsigned int                               client_tag,
+    unsigned int                               id,
+    unsigned int                               type,
+    unsigned int                               start,
+    unsigned int                               count,
+    struct pvpgn_v3_ladder_list_entry const*   entries) noexcept;
+extern "C" int pvpgn_v3_send_laddersearchreply(void*        conn_ptr,
+                                                unsigned int rank) noexcept;
+// Strangler-fig hook for SERVER_MAPAUTHREPLY1 (SID_MAPAUTH1, 0x32).
+// Covers the 1 packet_create site in _client_mapauthreq1.
+extern "C" int pvpgn_v3_send_mapauthreply1(void*        conn_ptr,
+                                            unsigned int response) noexcept;
+// Strangler-fig hook for SERVER_MAPAUTHREPLY2 (SID_MAPAUTH2, 0x3C).
+// Covers the 1 packet_create site in _client_mapauthreq2.
+extern "C" int pvpgn_v3_send_mapauthreply2(void*        conn_ptr,
+                                            unsigned int response) noexcept;
+// Strangler-fig hook for SERVER_CLAN_DISBANDREPLY (SID_CLAN_DISBAND, 0x73).
+// Covers the 1 packet_create site in _client_clan_disbandreq.
+extern "C" int pvpgn_v3_send_clandisbandreply(void*        conn_ptr,
+                                               unsigned int cookie,
+                                               unsigned int result) noexcept;
+// Strangler-fig hook for SERVER_CLAN_CREATEINVITEREQ (SID_CLAN_CREATEINVITE2,
+// 0x72) -- forwarded invite sent to each prospective member.
+// Covers the packet_create site in _client_clan_createinvitereq (success path).
+extern "C" int pvpgn_v3_send_clancreateinviteforward(
+    void*                conn_ptr,
+    unsigned int         cookie,
+    unsigned int         clan_tag,
+    char const*          clan_name,
+    char const*          clan_creator,
+    char const* const*   member_names,
+    unsigned int         member_count) noexcept;
+// Strangler-fig hook for SERVER_CLAN_CREATEINVITEREPLY (SID_CLAN_CREATEINVITE2,
+// 0x72) -- reply sent to the clan creator.
+// Covers the packet_create sites in _client_clan_createinvitereq (failure path)
+// and _client_clan_createinvitereply.
+extern "C" int pvpgn_v3_send_clancreateinvitereply(void*        conn_ptr,
+                                                    unsigned int cookie,
+                                                    unsigned int clan_tag,
+                                                    char const*  clan_creator,
+                                                    unsigned int reply) noexcept;
 #endif
 namespace pvpgn
 {
@@ -548,25 +769,31 @@ namespace pvpgn
 				conn_set_user(c, user);
 			}
 
-			if ((rpacket = packet_create(packet_class_bnet))) {
-				packet_set_size(rpacket, sizeof(t_server_compreply));
-				packet_set_type(rpacket, SERVER_COMPREPLY);
-				bn_int_set(&rpacket->u.server_compreply.reg_version, SERVER_COMPREPLY_REG_VERSION);
-				bn_int_set(&rpacket->u.server_compreply.reg_auth, SERVER_COMPREPLY_REG_AUTH);
-				bn_int_set(&rpacket->u.server_compreply.client_id, SERVER_COMPREPLY_CLIENT_ID);
-				bn_int_set(&rpacket->u.server_compreply.client_token, SERVER_COMPREPLY_CLIENT_TOKEN);
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_compreply(c) <= 0)
+	#endif
+				if ((rpacket = packet_create(packet_class_bnet))) {
+					packet_set_size(rpacket, sizeof(t_server_compreply));
+					packet_set_type(rpacket, SERVER_COMPREPLY);
+					bn_int_set(&rpacket->u.server_compreply.reg_version, SERVER_COMPREPLY_REG_VERSION);
+					bn_int_set(&rpacket->u.server_compreply.reg_auth, SERVER_COMPREPLY_REG_AUTH);
+					bn_int_set(&rpacket->u.server_compreply.client_id, SERVER_COMPREPLY_CLIENT_ID);
+					bn_int_set(&rpacket->u.server_compreply.client_token, SERVER_COMPREPLY_CLIENT_TOKEN);
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+				}
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_sessionkey1(c, static_cast<unsigned int>(conn_get_sessionkey(c))) <= 0)
+	#endif
+				if ((rpacket = packet_create(packet_class_bnet))) {
+					packet_set_size(rpacket, sizeof(t_server_sessionkey1));
+					packet_set_type(rpacket, SERVER_SESSIONKEY1);
+					bn_int_set(&rpacket->u.server_sessionkey1.sessionkey, conn_get_sessionkey(c));
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+				}
+				return 0;
 			}
-			if ((rpacket = packet_create(packet_class_bnet))) {
-				packet_set_size(rpacket, sizeof(t_server_sessionkey1));
-				packet_set_type(rpacket, SERVER_SESSIONKEY1);
-				bn_int_set(&rpacket->u.server_sessionkey1.sessionkey, conn_get_sessionkey(c));
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-			}
-			return 0;
-		}
 
 		static int _client_compinfo2(t_connection * c, t_packet const *const packet)
 		{
@@ -597,28 +824,36 @@ namespace pvpgn
 				conn_set_user(c, user);
 			}
 
-			if ((rpacket = packet_create(packet_class_bnet))) {
-				packet_set_size(rpacket, sizeof(t_server_compreply));
-				packet_set_type(rpacket, SERVER_COMPREPLY);
-				bn_int_set(&rpacket->u.server_compreply.reg_version, SERVER_COMPREPLY_REG_VERSION);
-				bn_int_set(&rpacket->u.server_compreply.reg_auth, SERVER_COMPREPLY_REG_AUTH);
-				bn_int_set(&rpacket->u.server_compreply.client_id, SERVER_COMPREPLY_CLIENT_ID);
-				bn_int_set(&rpacket->u.server_compreply.client_token, SERVER_COMPREPLY_CLIENT_TOKEN);
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_compreply(c) <= 0)
+	#endif
+				if ((rpacket = packet_create(packet_class_bnet))) {
+					packet_set_size(rpacket, sizeof(t_server_compreply));
+					packet_set_type(rpacket, SERVER_COMPREPLY);
+					bn_int_set(&rpacket->u.server_compreply.reg_version, SERVER_COMPREPLY_REG_VERSION);
+					bn_int_set(&rpacket->u.server_compreply.reg_auth, SERVER_COMPREPLY_REG_AUTH);
+					bn_int_set(&rpacket->u.server_compreply.client_id, SERVER_COMPREPLY_CLIENT_ID);
+					bn_int_set(&rpacket->u.server_compreply.client_token, SERVER_COMPREPLY_CLIENT_TOKEN);
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+				}
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_sessionkey2(c,
+				                              static_cast<unsigned int>(conn_get_sessionnum(c)),
+				                              static_cast<unsigned int>(conn_get_sessionkey(c))) <= 0)
+	#endif
+				if ((rpacket = packet_create(packet_class_bnet))) {
+					packet_set_size(rpacket, sizeof(t_server_sessionkey2));
+					packet_set_type(rpacket, SERVER_SESSIONKEY2);
+					bn_int_set(&rpacket->u.server_sessionkey2.sessionnum, conn_get_sessionnum(c));
+					bn_int_set(&rpacket->u.server_sessionkey2.sessionkey, conn_get_sessionkey(c));
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+				}
+	
+				return 0;
 			}
-
-			if ((rpacket = packet_create(packet_class_bnet))) {
-				packet_set_size(rpacket, sizeof(t_server_sessionkey2));
-				packet_set_type(rpacket, SERVER_SESSIONKEY2);
-				bn_int_set(&rpacket->u.server_sessionkey2.sessionnum, conn_get_sessionnum(c));
-				bn_int_set(&rpacket->u.server_sessionkey2.sessionkey, conn_get_sessionkey(c));
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-			}
-
-			return 0;
-		}
 
 		static int _client_countryinfo1(t_connection * c, t_packet const *const packet)
 		{
@@ -846,23 +1081,44 @@ namespace pvpgn
 			conn_set_clienttag(c, bn_int_get(packet->u.client_progident.clienttag));
 			conn_set_versionid(c, bn_int_get(packet->u.client_progident.versionid));
 
-			if ((rpacket = packet_create(packet_class_bnet)))
 			{
-				packet_set_size(rpacket, sizeof(t_server_authreq1));
-				packet_set_type(rpacket, SERVER_AUTHREQ1);
-
-
-				// CheckRevision
+				// CheckRevision challenge — compute filename + equation first so
+				// both the v3 bridge and the legacy path can use them.
 				std::tuple<std::string, std::string> checkrevision = select_checkrevision(bn_int_get(packet->u.client_progident.archtag), bn_int_get(packet->u.client_progident.clienttag), bn_int_get(packet->u.client_progident.versionid));
-				file_to_mod_time(c, std::get<0>(checkrevision).c_str(), &rpacket->u.server_authreq1.timestamp); // Checkrevision file timestamp
-				packet_append_string(rpacket, std::get<0>(checkrevision).c_str()); // CheckRevision filename
-				packet_append_string(rpacket, std::get<1>(checkrevision).c_str()); // CheckRevision equation
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] selected \"{}\" \"{}\"", conn_get_socket(c), std::get<0>(checkrevision), std::get<1>(checkrevision));
-					
 
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
+				// Obtain the file modification timestamp (needed by both paths).
+				bn_long ts_bn{};
+				file_to_mod_time(c, std::get<0>(checkrevision).c_str(), &ts_bn);
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				// v3 strangler-fig: build SERVER_AUTHREQ1 via the codec and
+				// ship through the registered send_packet handler.
+				if (pvpgn_v3_send_authreq1_server(
+				        c,
+				        static_cast<unsigned long long>(bn_long_get(ts_bn)),
+				        std::get<0>(checkrevision).c_str(),
+				        std::get<1>(checkrevision).c_str()) == 1)
+				{
+					// Bridge succeeded — skip legacy emit path.
+					goto _client_progident_done;
+				}
+#endif
+
+				if ((rpacket = packet_create(packet_class_bnet)))
+				{
+					packet_set_size(rpacket, sizeof(t_server_authreq1));
+					packet_set_type(rpacket, SERVER_AUTHREQ1);
+
+					rpacket->u.server_authreq1.timestamp = ts_bn; // Checkrevision file timestamp
+					packet_append_string(rpacket, std::get<0>(checkrevision).c_str()); // CheckRevision filename
+					packet_append_string(rpacket, std::get<1>(checkrevision).c_str()); // CheckRevision equation
+
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+				}
 			}
+			_client_progident_done:
 
 			return 0;
 		}
@@ -1680,6 +1936,11 @@ namespace pvpgn
 				conn_set_cdkey(c, cdkey);
 				conn_set_owner(c, owner);
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_cdkeyreply(c,
+				                             SERVER_CDKEYREPLY_MESSAGE_OK,
+				                             owner) <= 0)
+	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_cdkeyreply));
 					packet_set_type(rpacket, SERVER_CDKEYREPLY);
@@ -1726,6 +1987,11 @@ namespace pvpgn
 
 				conn_set_owner(c, owner);
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_cdkeyreply2(c,
+				                              SERVER_CDKEYREPLY2_MESSAGE_OK,
+				                              owner) <= 0)
+	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_cdkeyreply2));
 					packet_set_type(rpacket, SERVER_CDKEYREPLY2);
@@ -1761,6 +2027,11 @@ namespace pvpgn
 
 				conn_set_owner(c, owner);
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_cdkeyreply3(c,
+				                              SERVER_CDKEYREPLY3_MESSAGE_OK,
+				                              nullptr) <= 0)
+	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_cdkeyreply3));
 					packet_set_type(rpacket, SERVER_CDKEYREPLY3);
@@ -1825,6 +2096,21 @@ namespace pvpgn
 					 */
 					file_to_mod_time(c, filename, &rpacket->u.server_fileinforeply.timestamp);
 					packet_append_string(rpacket, filename);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					{
+						const unsigned long long v3_ts =
+							bn_long_get(rpacket->u.server_fileinforeply.timestamp);
+						if (pvpgn_v3_send_fileinforeply(
+								c,
+								static_cast<std::uint32_t>(bn_int_get(rpacket->u.server_fileinforeply.type)),
+								static_cast<std::uint32_t>(bn_int_get(rpacket->u.server_fileinforeply.unknown2)),
+								static_cast<std::uint64_t>(v3_ts),
+								filename) == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 				}
@@ -1906,6 +2192,44 @@ namespace pvpgn
 				}
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				// Strangler-fig: collect the appended value strings
+				// from the legacy-built rpacket and ship via v3 codec.
+				// The values start immediately after the fixed header
+				// (sizeof(t_server_statsreply) bytes).
+				unsigned int v3_req_id = bn_int_get(
+					rpacket->u.server_statsreply.requestid);
+				unsigned int v3_pkt_size = packet_get_size(rpacket);
+				unsigned int v3_fixed = static_cast<unsigned int>(
+					sizeof(t_server_statsreply));
+				// Build a flat array of C-string pointers into the
+				// packet payload for the bridge.
+				std::vector<char const*> v3_vals;
+				if (v3_pkt_size > v3_fixed) {
+					char const* p = static_cast<char const*>(
+						packet_get_data_const(rpacket, v3_fixed,
+							v3_pkt_size - v3_fixed));
+					char const* end = p + (v3_pkt_size - v3_fixed);
+					while (p && p < end) {
+						v3_vals.push_back(p);
+						std::size_t slen = std::strlen(p);
+						p += slen + 1;
+					}
+				}
+				int v3rc = pvpgn_v3_send_statsreply(
+					c,
+					name_count,
+					key_count,
+					v3_req_id,
+					v3_vals.empty() ? nullptr : v3_vals.data(),
+					static_cast<unsigned int>(v3_vals.size()));
+				if (v3rc == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+			}
+#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -2513,6 +2837,27 @@ namespace pvpgn
 					}
 				}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					// Strangler-fig: ship SERVER_PASSCHANGEREPLY (0x55) via
+					// the v3 codec. Read message + salt + B back out of the
+					// legacy-built rpacket so all branch logic stays intact.
+					unsigned int v3_msg = bn_int_get(
+						rpacket->u.server_passchangereply.message);
+					unsigned char const* v3_salt =
+						reinterpret_cast<unsigned char const*>(
+							&rpacket->u.server_passchangereply.salt[0]);
+					unsigned char const* v3_spk =
+						reinterpret_cast<unsigned char const*>(
+							&rpacket->u.server_passchangereply.server_public_key[0]);
+					int v3rc = pvpgn_v3_send_passchangereply(
+						c, v3_msg, v3_salt, v3_spk);
+					if (v3rc == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 
@@ -2589,15 +2934,34 @@ namespace pvpgn
 						conn_increment_passfail_count(c);
 					}
 				}
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					// Strangler-fig: ship SERVER_PASSCHANGEPROOFREPLY (0x56) via
+					// the v3 codec. Read response + server_password_proof back out
+					// of the legacy-built rpacket so all branch logic stays intact.
+					unsigned int v3_resp = bn_int_get(
+						rpacket->u.server_passchangeproofreply.response);
+					unsigned char const* v3_proof =
+						reinterpret_cast<unsigned char const*>(
+							&rpacket->u.server_passchangeproofreply.server_password_proof[0]);
+					int v3rc = pvpgn_v3_send_passchangeproofreply(c, v3_resp, v3_proof);
+					if (v3rc == 1) {
+						packet_del_ref(rpacket);
+						conn_set_client_proof(c, NULL);
+						conn_set_server_proof(c, NULL);
+						return 0;
+					}
+				}
+	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				conn_set_client_proof(c, NULL);
 				conn_set_server_proof(c, NULL);
 			}
-
+	
 			return 0;
 		}
-
+	
 		static int _client_pingreq(t_connection * c, t_packet const *const packet)
 		{
 #ifdef PVPGN_V3_BNETD_INTEGRATION
@@ -2610,12 +2974,15 @@ namespace pvpgn
 				return -1;
 			}
 
-			if ((rpacket = packet_create(packet_class_bnet))) {
-				packet_set_size(rpacket, sizeof(t_server_pingreply));
-				packet_set_type(rpacket, SERVER_PINGREPLY);
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-			}
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_pingreply(c) <= 0)
+	#endif
+				if ((rpacket = packet_create(packet_class_bnet))) {
+					packet_set_size(rpacket, sizeof(t_server_pingreply));
+					packet_set_type(rpacket, SERVER_PINGREPLY);
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+				}
 
 			return 0;
 		}
@@ -2871,12 +3238,75 @@ namespace pvpgn
 						packet_append_string(rpacket, "");
 
 					friendcount++;
-				}
-
-				bn_byte_set(&rpacket->u.server_friendslistreply.friendcount, friendcount);
-
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
+					}
+	
+					bn_byte_set(&rpacket->u.server_friendslistreply.friendcount, friendcount);
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					{
+						// Collect entries from the legacy-built packet payload and
+						// ship via v3 codec.  The payload starts after the fixed
+						// header (sizeof(t_server_friendslistreply) bytes) and
+						// consists of repeated (NUL-terminated name, 6-byte status,
+						// NUL-terminated location_name) tuples.
+						std::vector<pvpgn_v3_friend_entry> v3_entries;
+						v3_entries.reserve(static_cast<std::size_t>(friendcount));
+	
+						// Re-walk the friend list in the same order to rebuild the
+						// C-ABI entry array.
+						if (flist) {
+							for (int v3i = 0; v3i < n; v3i++) {
+								int v3uid = account_get_friend(account, v3i);
+								t_friend *v3fr = friendlist_find_uid(flist, v3uid);
+								if (!v3fr) continue;
+	
+								pvpgn_v3_friend_entry v3e{};
+								v3e.username = account_get_name(friend_get_account(v3fr));
+	
+								t_connection *v3dc = connlist_find_connection_by_uid(v3uid);
+								if (!v3dc) {
+									v3e.status     = 0;
+									v3e.location   = FRIENDSTATUS_OFFLINE;
+									v3e.client_tag = 0;
+									v3e.location_name = "";
+								} else {
+									v3e.client_tag = static_cast<unsigned int>(conn_get_clienttag(v3dc));
+									char v3stat = 0;
+									if (friend_get_mutual(v3fr))       v3stat |= FRIEND_TYPE_MUTUAL;
+									if (conn_get_dndstr(v3dc))         v3stat |= FRIEND_TYPE_DND;
+									if (conn_get_awaystr(v3dc))        v3stat |= FRIEND_TYPE_AWAY;
+									v3e.status = static_cast<unsigned char>(v3stat);
+									t_game    *v3g = conn_get_game(v3dc);
+									t_channel *v3ch = conn_get_channel(v3dc);
+									if (v3g) {
+										v3e.location = (game_get_flag(v3g) != game_flag_private)
+											? FRIENDSTATUS_PUBLIC_GAME : FRIENDSTATUS_PRIVATE_GAME;
+										v3e.location_name = game_get_name(v3g);
+									} else if (v3ch) {
+										v3e.location      = FRIENDSTATUS_CHAT;
+										v3e.location_name = channel_get_name(v3ch);
+									} else {
+										v3e.location      = FRIENDSTATUS_ONLINE;
+										v3e.location_name = "";
+									}
+								}
+								v3_entries.push_back(v3e);
+							}
+						}
+	
+						int v3rc = pvpgn_v3_send_friendslistreply(
+							c,
+							v3_entries.empty() ? nullptr : v3_entries.data(),
+							static_cast<unsigned int>(v3_entries.size()));
+						if (v3rc == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+	#endif
+	
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
 			}
 
 			return 0;
@@ -2935,6 +3365,21 @@ namespace pvpgn
 					bn_byte_set(&rpacket->u.server_friendinforeply.status, FRIENDSTATUS_OFFLINE);
 					bn_int_set(&rpacket->u.server_friendinforeply.clienttag, 0);
 					packet_append_string(rpacket, "");
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					{
+						int v3rc = pvpgn_v3_send_friendinforeply(
+							c,
+							static_cast<unsigned int>(bn_byte_get(packet->u.client_friendinforeq.friendnum)),
+							static_cast<unsigned int>(FRIEND_TYPE_NON_MUTUAL),
+							static_cast<unsigned int>(FRIENDSTATUS_OFFLINE),
+							0u,
+							"");
+						if (v3rc == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+	#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 					return 0;
@@ -2965,16 +3410,43 @@ namespace pvpgn
 				}
 
 				bn_int_set(&rpacket->u.server_friendinforeply.clienttag, conn_get_clienttag(dest_c));
-
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					{
+						unsigned int v3_type   = static_cast<unsigned int>(bn_byte_get(rpacket->u.server_friendinforeply.type));
+						unsigned int v3_status = static_cast<unsigned int>(bn_byte_get(rpacket->u.server_friendinforeply.status));
+						unsigned int v3_ctag   = static_cast<unsigned int>(bn_int_get(rpacket->u.server_friendinforeply.clienttag));
+						unsigned int v3_fixed  = static_cast<unsigned int>(sizeof(t_server_friendinforeply));
+						unsigned int v3_psize  = packet_get_size(rpacket);
+						char const  *v3_gname  = "";
+						if (v3_psize > v3_fixed) {
+							char const *p = static_cast<char const*>(
+								packet_get_data_const(rpacket, v3_fixed, v3_psize - v3_fixed));
+							if (p) v3_gname = p;
+						}
+						int v3rc = pvpgn_v3_send_friendinforeply(
+							c,
+							static_cast<unsigned int>(bn_byte_get(packet->u.client_friendinforeq.friendnum)),
+							v3_type,
+							v3_status,
+							v3_ctag,
+							v3_gname);
+						if (v3rc == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+	#endif
+	
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+	
+				}
+	
+				return 0;
 			}
-
-			return 0;
-		}
-
-		static int _client_atfriendscreen(t_connection * c, t_packet const *const packet)
+	
+			static int _client_atfriendscreen(t_connection * c, t_packet const *const packet)
 		{
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got CLIENT_ARRANGEDTEAM_FRIENDSCREEN packet", conn_get_socket(c));
 
@@ -3132,6 +3604,35 @@ namespace pvpgn
 
 			bn_byte_set(&rpacket->u.server_arrangedteam_friendscreen.f_count, available_players);
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				// Collect the appended player name strings from the legacy-built
+				// packet payload and ship via v3 codec.
+				unsigned int v3_fixed = static_cast<unsigned int>(
+					sizeof(t_server_arrangedteam_friendscreen));
+				unsigned int v3_psize = packet_get_size(rpacket);
+				std::vector<char const*> v3_names;
+				if (v3_psize > v3_fixed) {
+					char const *p = static_cast<char const*>(
+						packet_get_data_const(rpacket, v3_fixed, v3_psize - v3_fixed));
+					char const *end = p + (v3_psize - v3_fixed);
+					while (p && p < end) {
+						v3_names.push_back(p);
+						std::size_t slen = std::strlen(p);
+						p += slen + 1;
+					}
+				}
+				int v3rc = pvpgn_v3_send_atfriendscreenreply(
+					c,
+					v3_names.empty() ? nullptr : v3_names.data(),
+					static_cast<unsigned int>(v3_names.size()));
+				if (v3rc == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+			}
+#endif
+
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -3280,15 +3781,34 @@ namespace pvpgn
 					}
 				}
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					{
+						unsigned int v3_info[5];
+						for (int v3i = 0; v3i < 5; ++v3i)
+							v3_info[v3i] = static_cast<unsigned int>(
+								bn_int_get(rpacket->u.server_arrangedteam_invite_friend_ack.info[v3i]));
+						int v3rc = pvpgn_v3_send_atinvitefriendack(
+							c,
+							static_cast<unsigned int>(bn_int_get(rpacket->u.server_arrangedteam_invite_friend_ack.count)),
+							static_cast<unsigned int>(bn_int_get(rpacket->u.server_arrangedteam_invite_friend_ack.id)),
+							static_cast<unsigned int>(bn_int_get(rpacket->u.server_arrangedteam_invite_friend_ack.timestamp)),
+							static_cast<unsigned int>(bn_byte_get(rpacket->u.server_arrangedteam_invite_friend_ack.teamsize)),
+							v3_info);
+						if (v3rc == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+	#endif
 				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-
+					packet_del_ref(rpacket);
+	
+				}
+	
+				return 0;
 			}
-
-			return 0;
-		}
-
-		static int _client_atacceptdeclineinvite(t_connection * c, t_packet const *const packet)
+	
+			static int _client_atacceptdeclineinvite(t_connection * c, t_packet const *const packet)
 		{
 			t_packet *rpacket;
 			t_clienttag ctag;
@@ -3317,11 +3837,25 @@ namespace pvpgn
 					packet_set_type(rpacket, SERVER_ARRANGEDTEAM_MEMBER_DECLINE);
 
 					bn_int_set(&rpacket->u.server_arrangedteam_member_decline.count, bn_int_get(packet->u.client_arrangedteam_accept_decline_invite.count));
-					bn_int_set(&rpacket->u.server_arrangedteam_member_decline.action, SERVER_ARRANGEDTEAM_DECLINE);
-					packet_append_string(rpacket, conn_get_username(c));
-
-					conn_push_outqueue(dest_c, rpacket);
-					packet_del_ref(rpacket);
+						bn_int_set(&rpacket->u.server_arrangedteam_member_decline.action, SERVER_ARRANGEDTEAM_DECLINE);
+						packet_append_string(rpacket, conn_get_username(c));
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+						{
+							int v3rc = pvpgn_v3_send_atmemberdecline(
+								dest_c,
+								static_cast<unsigned int>(bn_int_get(rpacket->u.server_arrangedteam_member_decline.count)),
+								static_cast<unsigned int>(bn_int_get(rpacket->u.server_arrangedteam_member_decline.action)),
+								conn_get_username(c));
+							if (v3rc == 1) {
+								packet_del_ref(rpacket);
+								return 0;
+							}
+						}
+	#endif
+	
+						conn_push_outqueue(dest_c, rpacket);
+						packet_del_ref(rpacket);
 				}
 			}
 
@@ -3407,6 +3941,21 @@ namespace pvpgn
 			news_traverse(_news_cb, &motdd);
 
 			/* Welcome Message */
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				int v3rc = pvpgn_v3_send_motdw3(
+				    c,
+				    SERVER_MOTD_W3_MSGTYPE,
+				    static_cast<unsigned int>(now),
+				    static_cast<unsigned int>(motdd.fnews),
+				    static_cast<unsigned int>(motdd.fnews + 1),
+				    SERVER_MOTD_W3_WELCOME,
+				    nullptr);
+				if (v3rc == 1) {
+					return 0;
+				}
+			}
+#endif
 			rpacket = packet_create(packet_class_bnet);
 			if (!rpacket)
 				return -1;
@@ -3468,6 +4017,38 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				// Build entry array from active realms for the v3 bridge.
+				std::vector<pvpgn_v3_realm_legacy_entry> v3entries;
+				{
+					t_elem const *curr;
+					LIST_TRAVERSE_CONST(realmlist(), curr) {
+						t_realm const *realm = (t_realm*)elem_get_data(curr);
+						if (!realm_get_active(realm))
+							continue;
+						pvpgn_v3_realm_legacy_entry e;
+						e.unknown3    = SERVER_REALMLISTREPLY_DATA_UNKNOWN3;
+						e.unknown4    = SERVER_REALMLISTREPLY_DATA_UNKNOWN4;
+						e.unknown5    = SERVER_REALMLISTREPLY_DATA_UNKNOWN5;
+						e.unknown6    = SERVER_REALMLISTREPLY_DATA_UNKNOWN6;
+						e.unknown7    = SERVER_REALMLISTREPLY_DATA_UNKNOWN7;
+						e.unknown8    = SERVER_REALMLISTREPLY_DATA_UNKNOWN8;
+						e.unknown9    = SERVER_REALMLISTREPLY_DATA_UNKNOWN9;
+						e.name        = realm_get_name(realm);
+						e.description = realm_get_description(realm);
+						v3entries.push_back(e);
+					}
+				}
+				int v3rc = pvpgn_v3_send_realmlistlegacyreply(
+				    c,
+				    v3entries.empty() ? nullptr : v3entries.data(),
+				    static_cast<unsigned int>(v3entries.size()));
+				if (v3rc == 1) {
+					return 0;
+				}
+			}
+#endif
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				t_elem const *curr;
 				t_realm const *realm;
@@ -3514,6 +4095,32 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				// Build entry array from active realms for the v3 bridge.
+				std::vector<pvpgn_v3_realm_entry> v3entries;
+				{
+					t_elem const *curr;
+					LIST_TRAVERSE_CONST(realmlist(), curr) {
+						t_realm const *realm = (t_realm*)elem_get_data(curr);
+						if (!realm_get_active(realm))
+							continue;
+						pvpgn_v3_realm_entry e;
+						e.unknown     = SERVER_REALMLISTREPLY_110_DATA_UNKNOWN1;
+						e.name        = realm_get_name(realm);
+						e.description = realm_get_description(realm);
+						v3entries.push_back(e);
+					}
+				}
+				int v3rc = pvpgn_v3_send_realmlistreply(
+				    c,
+				    v3entries.empty() ? nullptr : v3entries.data(),
+				    static_cast<unsigned int>(v3entries.size()));
+				if (v3rc == 1) {
+					return 0;
+				}
+			}
+#endif
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				t_elem const *curr;
 				t_realm const *realm;
@@ -3579,6 +4186,20 @@ namespace pvpgn
 			else
 				clantag2 = 0;
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				int v3rc = pvpgn_v3_send_claninforeply(
+					c,
+					static_cast<unsigned int>(count),
+					(clantag1 == clantag2) ? 0u : 1u,
+					(clantag1 == clantag2) ? clan_get_name(clan) : nullptr,
+					(clantag1 == clantag2) ? static_cast<unsigned int>(clanmember_get_status(clanmember)) : 0u,
+					(clantag1 == clantag2) ? static_cast<unsigned int>(clanmember_get_join_time(clanmember)) : 0u);
+				if (v3rc == 1) {
+					return 0;
+				}
+			}
+#endif
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				packet_set_size(rpacket, sizeof(t_server_claninforeply));
 				packet_set_type(rpacket, SERVER_CLANINFOREPLY);
@@ -3638,6 +4259,23 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "requested profile for non-existant account");
 				return -1;
 			}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				unsigned int v3_clan_tag = 0u;
+				if ((clanmember = account_get_clanmember(account)) && (clan = clanmember_get_clan(clanmember)))
+					v3_clan_tag = static_cast<unsigned int>(clan_get_clantag(clan));
+				int v3rc = pvpgn_v3_send_profilereply(
+					c,
+					static_cast<unsigned int>(count),
+					0u,
+					account_get_desc(account).c_str(),
+					account_get_loc(account).c_str(),
+					v3_clan_tag);
+				if (v3rc == 1) {
+					return 0;
+				}
+			}
+#endif
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				packet_set_size(rpacket, sizeof(t_server_profilereply));
 				packet_set_type(rpacket, SERVER_PROFILEREPLY);
@@ -3718,6 +4356,34 @@ namespace pvpgn
 							bn_int_set(&temp.secret, conn_get_secret(c));
 							bnet_hash(&secret_hash, sizeof(temp), &temp);
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+							{
+								unsigned int v3_addr = realm_get_ip(realm);
+								unsigned short v3_port = realm_get_port(realm);
+								trans_net(conn_get_addr(c), &v3_addr, &v3_port);
+								int v3rc = pvpgn_v3_send_realmjoinreply(
+									c,
+									static_cast<unsigned int>(salt),
+									0u,
+									0u,
+									static_cast<unsigned int>(conn_get_sessionnum(c)),
+									v3_addr,
+									static_cast<unsigned int>(v3_port),
+									0u,
+									static_cast<unsigned int>(conn_get_sessionkey(c)),
+									0u,
+									0u,
+									static_cast<unsigned int>(conn_get_clienttag(c)),
+									static_cast<unsigned int>(conn_get_versionid(c)),
+									0u,
+									0u,
+									reinterpret_cast<unsigned int const*>(&secret_hash),
+									conn_get_username(c));
+								if (v3rc == 1) {
+									return 0;
+								}
+							}
+	#endif
 							if ((rpacket = packet_create(packet_class_bnet))) {
 								packet_set_size(rpacket, sizeof(t_server_realmjoinreply_109));
 								packet_set_type(rpacket, SERVER_REALMJOINREPLY_109);
@@ -3729,9 +4395,9 @@ namespace pvpgn
 								{	/* trans support */
 									unsigned int addr = realm_get_ip(realm);
 									unsigned short port = realm_get_port(realm);
-
+	
 									trans_net(conn_get_addr(c), &addr, &port);
-
+	
 									bn_int_nset(&rpacket->u.server_realmjoinreply_109.addr, addr);
 									bn_short_nset(&rpacket->u.server_realmjoinreply_109.port, port);
 								}
@@ -3759,6 +4425,32 @@ namespace pvpgn
 				else
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not find active realm \"{}\"", conn_get_socket(c), realmname);
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					static const unsigned int zero_hash[5] = {0, 0, 0, 0, 0};
+					int v3rc = pvpgn_v3_send_realmjoinreply(
+						c,
+						static_cast<unsigned int>(bn_int_get(packet->u.client_realmjoinreq_109.seqno)),
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						0u,
+						zero_hash,
+						"");
+					if (v3rc == 1) {
+						return 0;
+					}
+				}
+	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_realmjoinreply_109));
 					packet_set_type(rpacket, SERVER_REALMJOINREPLY_109);
@@ -3818,6 +4510,17 @@ namespace pvpgn
 
 				if (!(charlist = account_get_closed_characterlist(conn_get_account(c), conn_get_clienttag(c), realm_get_name(conn_get_realm(c))))) {
 					bn_int_set(&rpacket->u.server_unknown_37.count, 0);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_charlistreply(c,
+					        SERVER_UNKNOWN_37_UNKNOWN1,
+					        SERVER_UNKNOWN_37_UNKNOWN2,
+					        0u,
+					        nullptr,
+					        0u) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 					return 0;
@@ -3855,6 +4558,30 @@ namespace pvpgn
 					delete[] temp;
 
 					bn_int_set(&rpacket->u.server_unknown_37.count, count);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					{
+						// Extract char_data bytes from the freshly-built rpacket
+						// (everything after the fixed header).
+						std::size_t v3_hdr = sizeof(t_server_unknown_37);
+						std::size_t v3_end = packet_get_size(rpacket);
+						unsigned char const* v3_data = nullptr;
+						unsigned int v3_data_len = 0u;
+						if (v3_end > v3_hdr) {
+							v3_data = reinterpret_cast<unsigned char const*>(
+							    packet_get_data_const(rpacket, v3_hdr, 1));
+							v3_data_len = static_cast<unsigned int>(v3_end - v3_hdr);
+						}
+						if (pvpgn_v3_send_charlistreply(c,
+						        SERVER_UNKNOWN_37_UNKNOWN1,
+						        SERVER_UNKNOWN_37_UNKNOWN2,
+						        count,
+						        v3_data,
+						        v3_data_len) == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 				}
@@ -3910,11 +4637,22 @@ namespace pvpgn
 			file_to_mod_time(c, ad->get_filename().c_str(), &rpacket->u.server_adreply.timestamp);
 			packet_append_string(rpacket, ad->get_filename().c_str());
 			packet_append_string(rpacket, ad->get_url().c_str());
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_send_adreply(c,
+			        ad->get_id(),
+			        ad->get_extension_tag(),
+			        bn_long_get(rpacket->u.server_adreply.timestamp),
+			        ad->get_filename().c_str(),
+			        ad->get_url().c_str()) == 1) {
+				packet_del_ref(rpacket);
+				return 0;
+			}
+	#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
-
+	
 			return 0;
-		}
+			}
 
 		static int _client_adack(t_connection * c, t_packet const *const packet)
 		{
@@ -3981,6 +4719,14 @@ namespace pvpgn
 			packet_set_type(rpacket, SERVER_ADCLICKREPLY2);
 			bn_int_set(&rpacket->u.server_adclickreply2.adid, ad->get_id());
 			packet_append_string(rpacket, ad->get_url().c_str());
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_send_adclick2reply(c,
+			        ad->get_id(),
+			        ad->get_url().c_str()) == 1) {
+				packet_del_ref(rpacket);
+				return 0;
+			}
+#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -4112,7 +4858,7 @@ namespace pvpgn
 					return -1;
 				packet_set_size(rpacket, sizeof(t_server_playerinforeply));
 				packet_set_type(rpacket, SERVER_PLAYERINFOREPLY);
-
+	
 				if (account) {
 					packet_append_string(rpacket, username);
 					packet_append_string(rpacket, conn_get_playerinfo(c));
@@ -4123,6 +4869,20 @@ namespace pvpgn
 					packet_append_string(rpacket, "");
 					packet_append_string(rpacket, "");
 				}
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					char const* v3_acct = account ? username : "";
+					char const* v3_info = account ? conn_get_playerinfo(c) : "";
+					char const* v3_user = account ? username : "";
+					if (pvpgn_v3_send_playerinforeply(c,
+					        v3_acct,
+					        v3_info,
+					        v3_user) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -4547,6 +5307,18 @@ namespace pvpgn
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] GAMELISTREPLY sent {} of {} games", conn_get_socket(c), cbdata.counter, cbdata.tcount);
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				const unsigned int v3_sstatus =
+				    bn_int_get(rpacket->u.server_gamelistreply.sstatus);
+				if (pvpgn_v3_send_gamelistreply(c,
+				        static_cast<std::uint32_t>(v3_sstatus),
+				        nullptr, 0u) == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+			}
+#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -4697,14 +5469,24 @@ namespace pvpgn
 					if ((rpacket = packet_create(packet_class_bnet))) {
 						packet_set_size(rpacket, sizeof(t_server_startgame1_ack));
 						packet_set_type(rpacket, SERVER_STARTGAME1_ACK);
-
+	
 						if (conn_get_game(c))
 							bn_int_set(&rpacket->u.server_startgame1_ack.reply, SERVER_STARTGAME1_ACK_OK);
 						else
 							bn_int_set(&rpacket->u.server_startgame1_ack.reply, SERVER_STARTGAME1_ACK_NO);
-
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+						if (pvpgn_v3_send_startgame1ack(c,
+						        bn_int_get(rpacket->u.server_startgame1_ack.reply)) == 1) {
+							packet_del_ref(rpacket);
+						} else {
+							conn_push_outqueue(c, rpacket);
+							packet_del_ref(rpacket);
+						}
+	#else
 						conn_push_outqueue(c, rpacket);
 						packet_del_ref(rpacket);
+	#endif
 					}
 				}
 				else
@@ -4787,14 +5569,24 @@ namespace pvpgn
 					if ((rpacket = packet_create(packet_class_bnet))) {
 						packet_set_size(rpacket, sizeof(t_server_startgame3_ack));
 						packet_set_type(rpacket, SERVER_STARTGAME3_ACK);
-
+	
 						if (conn_get_game(c))
 							bn_int_set(&rpacket->u.server_startgame3_ack.reply, SERVER_STARTGAME3_ACK_OK);
 						else
 							bn_int_set(&rpacket->u.server_startgame3_ack.reply, SERVER_STARTGAME3_ACK_NO);
-
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+						if (pvpgn_v3_send_startgame3ack(c,
+						        bn_int_get(rpacket->u.server_startgame3_ack.reply)) == 1) {
+							packet_del_ref(rpacket);
+						} else {
+							conn_push_outqueue(c, rpacket);
+							packet_del_ref(rpacket);
+						}
+	#else
 						conn_push_outqueue(c, rpacket);
 						packet_del_ref(rpacket);
+	#endif
 					}
 				}
 				else
@@ -4927,8 +5719,18 @@ namespace pvpgn
 					bn_int_set(&rpacket->u.server_startgame4_ack.reply, SERVER_STARTGAME4_ACK_OK);
 				else
 					bn_int_set(&rpacket->u.server_startgame4_ack.reply, SERVER_STARTGAME4_ACK_NO);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_startgame4ack(c,
+				        bn_int_get(rpacket->u.server_startgame4_ack.reply)) == 1) {
+					packet_del_ref(rpacket);
+				} else {
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+				}
+#else
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
+#endif
 			}
 
 			/* First, send an ECHO_REQ */
@@ -5231,14 +6033,34 @@ namespace pvpgn
 						packet_append_string(rpacket, " ");	/* use a space so the client won't show the user's own account when double-clicked on */
 				}
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					const unsigned int v3_clienttag =
+					    bn_int_get(rpacket->u.server_ladderreply.clienttag);
+					const unsigned int v3_id =
+					    bn_int_get(rpacket->u.server_ladderreply.id);
+					const unsigned int v3_type =
+					    bn_int_get(rpacket->u.server_ladderreply.type);
+					const unsigned int v3_start =
+					    bn_int_get(rpacket->u.server_ladderreply.startplace);
+					const unsigned int v3_count =
+					    bn_int_get(rpacket->u.server_ladderreply.count);
+					if (pvpgn_v3_send_ladderreply(c,
+					        v3_clienttag, v3_id, v3_type, v3_start, v3_count,
+					        nullptr) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+	#endif
 				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
+					packet_del_ref(rpacket);
+				}
+	
+				return 0;
 			}
-
-			return 0;
-		}
-
-		static int _client_laddersearchreq(t_connection * c, t_packet const *const packet)
+	
+			static int _client_laddersearchreq(t_connection * c, t_packet const *const packet)
 		{
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_ladder_dispatch_try(c, "laddersearchreq");
@@ -5327,6 +6149,13 @@ namespace pvpgn
 				packet_set_size(rpacket, sizeof(t_server_laddersearchreply));
 				packet_set_type(rpacket, SERVER_LADDERSEARCHREPLY);
 				bn_int_set(&rpacket->u.server_laddersearchreply.rank, rank);
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_laddersearchreply(c,
+				        bn_int_get(rpacket->u.server_laddersearchreply.rank)) == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -5395,8 +6224,17 @@ namespace pvpgn
 					packet_set_size(rpacket, sizeof(t_server_mapauthreply1));
 					packet_set_type(rpacket, SERVER_MAPAUTHREPLY1);
 					bn_int_set(&rpacket->u.server_mapauthreply1.response, val);
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_mapauthreply1(c, bn_int_get(rpacket->u.server_mapauthreply1.response)) == 1) {
+						packet_del_ref(rpacket);
+					} else {
+						conn_push_outqueue(c, rpacket);
+						packet_del_ref(rpacket);
+					}
+	#else
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
+	#endif
 				}
 			}
 
@@ -5464,8 +6302,17 @@ namespace pvpgn
 					packet_set_size(rpacket, sizeof(t_server_mapauthreply2));
 					packet_set_type(rpacket, SERVER_MAPAUTHREPLY2);
 					bn_int_set(&rpacket->u.server_mapauthreply2.response, val);
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_mapauthreply2(c, bn_int_get(rpacket->u.server_mapauthreply2.response)) == 1) {
+						packet_del_ref(rpacket);
+					} else {
+						conn_push_outqueue(c, rpacket);
+						packet_del_ref(rpacket);
+					}
+	#else
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
+	#endif
 				}
 			}
 
@@ -5564,8 +6411,19 @@ namespace pvpgn
 				if (!((account = conn_get_account(c)) && (clan = account_get_clan(account)) && (member = account_get_clanmember(account)) && (clanmember_get_status(member) >= CLAN_CHIEFTAIN))) {
 					eventlog(eventlog_level_warn, __FUNCTION__, "[{}] got suspicious CLAN_DISBANDREQ packet (request without required privileges)", conn_get_socket(c));
 					bn_byte_set(&rpacket->u.server_clan_disbandreply.result, CLAN_RESPONSE_NOT_AUTHORIZED);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_clandisbandreply(c,
+					        bn_int_get(rpacket->u.server_clan_disbandreply.count),
+					        bn_byte_get(rpacket->u.server_clan_disbandreply.result)) == 1) {
+						packet_del_ref(rpacket);
+					} else {
+						conn_push_outqueue(c, rpacket);
+						packet_del_ref(rpacket);
+					}
+#else
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
+#endif
 				}
 				else if ((clanlist_remove_clan(clan) == 0) && (clan_remove(clan_get_clantag(clan)) == 0)) {
 					bn_byte_set(&rpacket->u.server_clan_disbandreply.result, CLAN_RESPONSE_SUCCESS);
@@ -5576,8 +6434,19 @@ namespace pvpgn
 				}
 				else {
 					bn_byte_set(&rpacket->u.server_clan_disbandreply.result, CLAN_RESPONSE_FAIL);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_clandisbandreply(c,
+					        bn_int_get(rpacket->u.server_clan_disbandreply.count),
+					        bn_byte_get(rpacket->u.server_clan_disbandreply.result)) == 1) {
+						packet_del_ref(rpacket);
+					} else {
+						conn_push_outqueue(c, rpacket);
+						packet_del_ref(rpacket);
+					}
+#else
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
+#endif
 				}
 			}
 
@@ -5664,7 +6533,20 @@ namespace pvpgn
 									clanmember = clan_add_member(clan, conn_get_account(conn), CLAN_PEON);
 									clanmember_set_fullmember(clanmember, 1);      /* FIXME: do only this here and no clan_add_member() */
 								}
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+								if (pvpgn_v3_send_clancreateinviteforward(
+								        conn,
+								        bn_int_get(rpacket->u.server_clan_createinvitereq.count),
+								        bn_int_get(rpacket->u.server_clan_createinvitereq.clantag),
+								        clanname,
+								        conn_get_username(c),
+								        nullptr,
+								        0) != 1) {
+									conn_push_outqueue(conn, rpacket);
+								}
+	#else
 								conn_push_outqueue(conn, rpacket);
+	#endif
 							}
 						}
 					} while (username && (offset < size));
@@ -5674,6 +6556,14 @@ namespace pvpgn
 					packet_set_type(rpacket, SERVER_CLAN_CREATEINVITEREPLY);
 					bn_int_set(&rpacket->u.server_clan_createinvitereply.count, bn_int_get(packet->u.client_clan_createinvitereply.count));
 					bn_byte_set(&rpacket->u.server_clan_createinvitereply.status, 0);
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					(void)pvpgn_v3_send_clancreateinvitereply(
+								 c,
+								 bn_int_get(rpacket->u.server_clan_createinvitereply.count),
+								 0u,
+								 "",
+								 bn_byte_get(rpacket->u.server_clan_createinvitereply.status));
+	#endif
 				}
 				packet_del_ref(rpacket);
 			}
@@ -5719,8 +6609,22 @@ namespace pvpgn
 				bn_int_set(&rpacket->u.server_clan_createinvitereply.count, bn_int_get(packet->u.client_clan_createinvitereply.count));
 				bn_byte_set(&rpacket->u.server_clan_createinvitereply.status, status);
 				packet_append_string(rpacket, conn_get_username(c));
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_clancreateinvitereply(
+				        conn,
+				        bn_int_get(rpacket->u.server_clan_createinvitereply.count),
+				        0u,
+				        conn_get_username(c),
+				        bn_byte_get(rpacket->u.server_clan_createinvitereply.status)) == 1) {
+					packet_del_ref(rpacket);
+				} else {
+					conn_push_outqueue(conn, rpacket);
+					packet_del_ref(rpacket);
+				}
+	#else
 				conn_push_outqueue(conn, rpacket);
 				packet_del_ref(rpacket);
+	#endif
 				if (clan) {
 					clanlist_remove_clan(clan);
 					clan_destroy(clan);
@@ -5741,8 +6645,22 @@ namespace pvpgn
 					bn_int_set(&rpacket->u.server_clan_createinvitereply.count, bn_int_get(packet->u.client_clan_createinvitereply.count));
 					bn_byte_set(&rpacket->u.server_clan_createinvitereply.status, CLAN_RESPONSE_SUCCESS);
 					packet_append_string(rpacket, "");
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_clancreateinvitereply(
+					        conn,
+					        bn_int_get(rpacket->u.server_clan_createinvitereply.count),
+					        0u,
+					        "",
+					        CLAN_RESPONSE_SUCCESS) == 1) {
+						packet_del_ref(rpacket);
+					} else {
+						conn_push_outqueue(conn, rpacket);
+						packet_del_ref(rpacket);
+					}
+	#else
 					conn_push_outqueue(conn, rpacket);
 					packet_del_ref(rpacket);
+	#endif
 					clan_send_status_window_on_create(clan);
 					clan_save(clan);
 				}
