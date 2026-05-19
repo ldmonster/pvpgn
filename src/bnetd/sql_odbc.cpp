@@ -242,7 +242,7 @@ namespace pvpgn
 			}
 
 			/* Create a result. */
-			res = (t_odbc_res *)xmalloc(sizeof *res);
+			res = new t_odbc_res{};
 			res->stmt = stmt;
 			rowSet = odbc_alloc_rowSet();
 			res->rowSet = rowSet;
@@ -267,7 +267,7 @@ namespace pvpgn
 				else {
 					sql_odbc_free_fields(row);
 				}
-				if (sizes) xfree(sizes);
+				if (sizes) delete[] sizes;
 			} while (odbc_Result(result));
 			ROWCOUNT = res->rowCount;
 			if (result == SQL_NO_DATA_FOUND) {
@@ -336,11 +336,11 @@ namespace pvpgn
 					while (rowSet) {
 						t_odbc_rowSet *temp = (rowSet->next);
 						sql_odbc_free_fields(rowSet->row);
-						xfree(rowSet);
+						delete rowSet;
 						rowSet = temp;
 					}
 				}
-				xfree(result);
+				delete static_cast<t_odbc_res*>(result);
 			}
 		}
 
@@ -382,7 +382,7 @@ namespace pvpgn
 			}
 			res = (t_odbc_res *)result;
 			fieldCount = sql_odbc_num_fields(result);
-			fields = (t_sql_field *)xcalloc(sizeof *fields, fieldCount + 1);
+			fields = new t_sql_field[fieldCount + 1]{};
 			if (!fields) {
 				return NULL;
 			}
@@ -391,7 +391,7 @@ namespace pvpgn
 			{
 				SQLSMALLINT fNameSz;
 				p_SQLColAttribute(res->stmt, i + 1, SQL_DESC_NAME, NULL, 0, &fNameSz, NULL);
-				char* fName = (char*)xmalloc(fNameSz);
+				char* fName = new char[fNameSz];
 				if (!fName)
 				{
 					return NULL;
@@ -412,10 +412,10 @@ namespace pvpgn
 			if (fields) {
 				int i = 0;
 				while (fields[i]) {
-					xfree(fields[i]);
+					delete[] fields[i];
 					i++;
 				}
-				xfree(fields);
+				delete[] fields;
 			}
 			return 0;
 		}
@@ -446,18 +446,18 @@ namespace pvpgn
 
 			fieldCount = sql_odbc_num_fields(result);
 			/* Create a new row. */
-			row = (t_sql_row *)xcalloc(sizeof *row, fieldCount + 1);
+			row = new t_sql_row[fieldCount + 1]{};
 			if (!row) {
 				return NULL;
 			}
 			row[fieldCount] = NULL;
-			sizes = (SQLINTEGER *)xcalloc(sizeof *sizes, fieldCount);
+			sizes = new SQLINTEGER[fieldCount]{};
 
 			for (i = 0; i < fieldCount; i++)
 			{
 				SQLLEN cellSz;
 				p_SQLColAttribute(stmt, i + 1, SQL_DESC_DISPLAY_SIZE, NULL, 0, NULL, &cellSz);
-				char* cell = (char*)xcalloc(sizeof *cell, ++cellSz);
+				char* cell = new char[cellSz]{};
 				if (!cell)
 				{
 					return NULL;
@@ -471,7 +471,7 @@ namespace pvpgn
 
 		static t_odbc_rowSet* odbc_alloc_rowSet()
 		{
-			t_odbc_rowSet *rowSet = (t_odbc_rowSet *)xmalloc(sizeof *rowSet);
+			t_odbc_rowSet *rowSet = new t_odbc_rowSet{};
 			rowSet->row = NULL;
 			rowSet->next = NULL;
 			return rowSet;
@@ -485,10 +485,10 @@ namespace pvpgn
 			short i = 0;
 
 			while (p_SQLGetDiagRec(type, obj, ++i, NULL, NULL, NULL, 0, &mTextLen) != SQL_NO_DATA) {
-				SQLCHAR *mText = (SQLCHAR *)xcalloc(sizeof *mText, ++mTextLen);
+				SQLCHAR *mText = new SQLCHAR[mTextLen]{};
 				p_SQLGetDiagRec(type, obj, i, mState, &native, mText, mTextLen, NULL);
 				eventlog(level, function, "ODBC Error: State {}, Native {}: {}", mState, native, mText);
-				xfree(mText);
+				delete[] mText;
 			}
 		}
 

@@ -23,6 +23,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
+#include <vector>
 
 #include "fileio.h"
 
@@ -35,52 +37,43 @@ namespace pvpgn
 		namespace
 		{
 
-			unsigned char *alloc_bytes(std::size_t n) {
-				auto *p = static_cast<unsigned char *>(std::malloc(n != 0 ? n : 1));
-				if (!p) { std::fputs("tga: out of memory\n", stderr); std::abort(); }
-				return p;
-			}
-
 			int rotate_updown(t_tgaimg *img) {
-				unsigned char *ndata;
 				int pixelsize;
 				int y;
 				if (img == NULL) return -1;
-				if (img->data == NULL) return -1;
+				if (img->data.empty()) return -1;
 				pixelsize = getpixelsize(img);
 				if (pixelsize == 0) return -1;
-				ndata = alloc_bytes(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+				std::vector<std::uint8_t> ndata(static_cast<std::size_t>(img->width)*img->height*pixelsize);
 				for (y = 0; y < img->height; y++) {
-					std::memcpy(ndata + (y*img->width*pixelsize),
-						img->data + ((img->width*img->height*pixelsize) - ((y + 1)*img->width*pixelsize)),
+					std::memcpy(ndata.data() + (y*img->width*pixelsize),
+						img->data.data() + ((img->width*img->height*pixelsize) - ((y + 1)*img->width*pixelsize)),
 						img->width*pixelsize);
 				}
-				std::free(img->data);
-				img->data = ndata;
+				img->data = std::move(ndata);
 				return 0;
 			}
 
 			int rotate_leftright(t_tgaimg *img) {
-				unsigned char *ndata, *datap;
+				unsigned char *datap;
 				int pixelsize;
 				int y, x;
 				std::fprintf(stderr, "WARNING: rotate_leftright: this function is untested!\n");
 				if (img == NULL) return -1;
-				if (img->data == NULL) return -1;
+				if (img->data.empty()) return -1;
 				pixelsize = getpixelsize(img);
 				if (pixelsize == 0) return -1;
-				ndata = alloc_bytes(static_cast<std::size_t>(img->width)*img->height*pixelsize);
-				datap = img->data;
+				std::vector<std::uint8_t> ndata(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+				datap = img->data.data();
 				for (y = 0; y < img->height; y++) {
-					unsigned char *linep = (ndata + (((y + 1)*img->width*pixelsize) - pixelsize));
+					unsigned char *linep = (ndata.data() + (((y + 1)*img->width*pixelsize) - pixelsize));
 					for (x = 0; x < img->width; x++) {
 						std::memcpy(linep, datap, pixelsize);
 						linep -= pixelsize;
 						datap += pixelsize;
 					}
 				}
-				std::free(img->data);
-				img->data = ndata;
+				img->data = std::move(ndata);
 
 				return 0;
 			}
@@ -91,20 +84,16 @@ namespace pvpgn
 				unsigned char temp[8]; /* MAXPIXELSIZE */
 				int bufi;
 				int count;
-
-				file_rpush(f);
 				bufp = static_cast<unsigned char*>(buf);
 				for (bufi = 0; bufi<bufsize;) {
-					pt = file_readb();
+					pt = file_readb(f);
 					if (std::feof(f)) {
 						std::fprintf(stderr, "RLE_decompress: after final packet only got %d of %d bytes\n", bufi, bufsize);
-						file_rpop();
 						return -1;
 					}
 					count = (pt & 0x7f) + 1;
 					if (bufi + count*pixelsize>bufsize) {
 						std::fprintf(stderr, "RLE_decompress: buffer too short for next packet (need %d bytes, have %d)\n", bufi + count*pixelsize, bufsize);
-						file_rpop();
 						return -1;
 					}
 					if ((pt & 0x80) == 0) {	/* RAW PACKET */
@@ -114,7 +103,6 @@ namespace pvpgn
 							else
 								std::fprintf(stderr, "RLE_decompress: short RAW packet (expected %d bytes) (std::fread: %s)\n", pixelsize*count, std::strerror(errno));
 #if 0
-							file_rpop();
 							return -1;
 #endif
 						}
@@ -128,7 +116,6 @@ namespace pvpgn
 							else
 								std::fprintf(stderr, "RLE_decompress: short RLE packet (expected %d bytes) (std::fread: %s)\n", pixelsize, std::strerror(errno));
 #if 0
-							file_rpop();
 							return -1;
 #endif
 						}
@@ -142,7 +129,6 @@ namespace pvpgn
 						}
 					}
 				}
-				file_rpop();
 				return 0;
 			}
 
@@ -188,12 +174,13 @@ namespace pvpgn
 				pktdatap = NULL;
 
 				if (img == NULL) return -1;
-				if (img->data == NULL) return -1;
+				if (img->data.empty()) return -1;
 				pixelsize = getpixelsize(img);
 				if (pixelsize == 0) return -1;
 
-				datap = img->data;
-				pktdata = alloc_bytes(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+				datap = img->data.data();
+				std::vector<unsigned char> pktdata_vec(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+				pktdata = pktdata_vec.data();
 				pktlen = 0;
 
 				for (i = 0; i < img->width*img->height;) {
@@ -258,7 +245,6 @@ namespace pvpgn
 					pktlen = 0;
 				}
 				std::fprintf(stderr, "RLE_compress: wrote %u bytes (%u uncompressed)\n", actual, perceived);
-				std::free(pktdata);
 				return 0;
 			}
 
@@ -283,10 +269,7 @@ namespace pvpgn
 
 
 		extern t_tgaimg * new_tgaimg(unsigned int width, unsigned int height, unsigned int bpp, t_tgaimgtype imgtype) {
-			t_tgaimg *img;
-
-			img = static_cast<t_tgaimg*>(std::malloc(sizeof(t_tgaimg)));
-			if (!img) { std::fputs("tga: out of memory\n", stderr); std::abort(); }
+			auto *img = new t_tgaimg{};
 			img->idlen = 0;
 			img->cmaptype = tgacmap_none;
 			img->imgtype = imgtype;
@@ -299,31 +282,26 @@ namespace pvpgn
 			img->height = height;
 			img->bpp = bpp;
 			img->desc = 0; /* no attribute bits, top, left, and zero reserved */
-			img->data = NULL;
 			img->extareaoff = 0;
 			img->devareaoff = 0;
 
 			return img;
 		}
 
-		extern t_tgaimg * load_tgaheader(void) {
-			t_tgaimg *img;
-
-			img = static_cast<t_tgaimg*>(std::malloc(sizeof(t_tgaimg)));
-			if (!img) { std::fputs("tga: out of memory\n", stderr); std::abort(); }
-			img->idlen = file_readb();
-			img->cmaptype = file_readb();
-			img->imgtype = file_readb();
-			img->cmapfirst = file_readw_le();
-			img->cmaplen = file_readw_le();
-			img->cmapes = file_readb();
-			img->xorigin = file_readw_le();
-			img->yorigin = file_readw_le();
-			img->width = file_readw_le();
-			img->height = file_readw_le();
-			img->bpp = file_readb();
-			img->desc = file_readb();
-			img->data = NULL;
+		extern t_tgaimg * load_tgaheader(std::FILE *f) {
+			auto *img = new t_tgaimg{};
+			img->idlen = file_readb(f);
+			img->cmaptype = file_readb(f);
+			img->imgtype = file_readb(f);
+			img->cmapfirst = file_readw_le(f);
+			img->cmaplen = file_readw_le(f);
+			img->cmapes = file_readb(f);
+			img->xorigin = file_readw_le(f);
+			img->yorigin = file_readw_le(f);
+			img->width = file_readw_le(f);
+			img->height = file_readw_le(f);
+			img->bpp = file_readb(f);
+			img->desc = file_readb(f);
 			img->extareaoff = 0; /* ignored when reading */
 			img->devareaoff = 0; /* ignored when reading */
 
@@ -333,25 +311,23 @@ namespace pvpgn
 		extern t_tgaimg * load_tga(std::FILE *f) {
 			t_tgaimg *img;
 			int pixelsize;
-
-			file_rpush(f);
-			img = load_tgaheader();
+			img = load_tgaheader(f);
 
 			/* make sure we understand the header fields */
 			if (img->cmaptype != tgacmap_none) {
 				std::fprintf(stderr, "load_tga: Color-mapped images are not (yet?) supported!\n");
-				std::free(img);
+				delete img;
 				return NULL;
 			}
 			if (img->imgtype != tgaimgtype_uncompressed_truecolor && img->imgtype != tgaimgtype_rlecompressed_truecolor) {
 				std::fprintf(stderr, "load_tga: imagetype %u is not supported. (only 2 and 10 are supported)\n", img->imgtype);
-				std::free(img);
+				delete img;
 				return NULL;
 			}
 
 			pixelsize = getpixelsize(img);
 			if (pixelsize == 0) {
-				std::free(img);
+				delete img;
 				return NULL;
 			}
 			/* Skip the ID if there is one */
@@ -362,24 +338,21 @@ namespace pvpgn
 			}
 
 			/* Now, we can alloc img->data */
-			img->data = alloc_bytes(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+			img->data.resize(static_cast<std::size_t>(img->width)*img->height*pixelsize);
 			if (img->imgtype == tgaimgtype_uncompressed_truecolor) {
-				if (std::fread(img->data, pixelsize, img->width*img->height, f) < static_cast<unsigned>(img->width*img->height)) {
+				if (std::fread(img->data.data(), pixelsize, img->width*img->height, f) < static_cast<unsigned>(img->width*img->height)) {
 					std::fprintf(stderr, "load_tga: error while reading data!\n");
-					std::free(img->data);
-					std::free(img);
+					delete img;
 					return NULL;
 				}
 			}
 			else { /* == tgaimgtype_rlecompressed_truecolor */
-				if (RLE_decompress(f, img->data, img->width*img->height*pixelsize, pixelsize) < 0) {
+				if (RLE_decompress(f, img->data.data(), img->width*img->height*pixelsize, pixelsize) < 0) {
 					std::fprintf(stderr, "load_tga: error while decompressing data!\n");
-					std::free(img->data);
-					std::free(img);
+					delete img;
 					return NULL;
 				}
 			}
-			file_rpop();
 			if ((img->desc & tgadesc_horz) != 0) { /* right, want left */
 				if (rotate_leftright(img) < 0) {
 					std::fprintf(stderr, "ERROR: rotate_leftright failed!\n");
@@ -396,24 +369,22 @@ namespace pvpgn
 		extern int write_tga(std::FILE *f, t_tgaimg *img) {
 			if (f == NULL) return -1;
 			if (img == NULL) return -1;
-			if (img->data == NULL) return -1;
+			if (img->data.empty()) return -1;
 			if (img->idlen != 0) return -1;
 			if (img->cmaptype != tgacmap_none) return -1;
 			if (img->imgtype != tgaimgtype_uncompressed_truecolor && img->imgtype != tgaimgtype_rlecompressed_truecolor) return -1;
-			file_wpush(f);
-
-			file_writeb(img->idlen);
-			file_writeb(img->cmaptype);
-			file_writeb(img->imgtype);
-			file_writew_le(img->cmapfirst);
-			file_writew_le(img->cmaplen);
-			file_writeb(img->cmapes);
-			file_writew_le(img->xorigin);
-			file_writew_le(img->yorigin);
-			file_writew_le(img->width);
-			file_writew_le(img->height);
-			file_writeb(img->bpp);
-			file_writeb(img->desc);
+			file_writeb(f, img->idlen);
+			file_writeb(f, img->cmaptype);
+			file_writeb(f, img->imgtype);
+			file_writew_le(f, img->cmapfirst);
+			file_writew_le(f, img->cmaplen);
+			file_writeb(f, img->cmapes);
+			file_writew_le(f, img->xorigin);
+			file_writew_le(f, img->yorigin);
+			file_writew_le(f, img->width);
+			file_writew_le(f, img->height);
+			file_writeb(f, img->bpp);
+			file_writeb(f, img->desc);
 
 			if ((img->desc&tgadesc_horz) != 0) { /* right, want left */
 				std::fprintf(stderr, "write_tga: flipping horizontally\n");
@@ -432,9 +403,8 @@ namespace pvpgn
 
 				pixelsize = getpixelsize(img);
 				if (pixelsize == 0) return -1;
-				if (std::fwrite(img->data, pixelsize, img->width*img->height, f) < static_cast<unsigned>(img->width*img->height)) {
+				if (std::fwrite(img->data.data(), pixelsize, img->width*img->height, f) < static_cast<unsigned>(img->width*img->height)) {
 					std::fprintf(stderr, "write_tga: could not write %d pixels (std::fwrite: %s)\n", img->width*img->height, std::strerror(errno));
-					file_wpop();
 					return -1;
 				}
 			}
@@ -445,21 +415,16 @@ namespace pvpgn
 				}
 			}
 			/* Write the file-footer */
-			file_writed_le(img->extareaoff);
-			file_writed_le(img->devareaoff);
+			file_writed_le(f, img->extareaoff);
+			file_writed_le(f, img->devareaoff);
 			if (std::fwrite(TGAMAGIC, std::strlen(TGAMAGIC) + 1, 1, f) < 1)
 				std::fprintf(stderr, "write_tga: could not write TGA footer magic (std::fwrite: %s)\n", std::strerror(errno));
 			/* Ready */
-			file_wpop();
 			return 0;
 		}
 
 		extern void destroy_img(t_tgaimg * img) {
-			if (img == NULL) return;
-
-			if (img->data)
-				std::free(img->data);
-			std::free(img);
+			delete img;
 		}
 
 		extern void print_tga_info(t_tgaimg const * img, std::FILE * fp) {

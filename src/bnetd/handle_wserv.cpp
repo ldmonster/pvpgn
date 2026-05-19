@@ -25,7 +25,7 @@
 #include <cctype>
 #include <cstdlib>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/irc_protocol.h"
 #include "common/eventlog.h"
 #include "common/tag.h"
@@ -119,7 +119,7 @@ namespace pvpgn
 					ftppassword = prefs_get_wol_autoupdate_password();
 					std::snprintf(temp, sizeof(temp), ":%s %s %s %s 131075 %s REQ", ftphostname, ftpusername, ftppassword, filestring, params[0]);
 					irc_send(conn, RPL_UPDATE_FTP, temp);
-					xfree((void*)filestring);
+					delete[] const_cast<char*>(filestring);
 				}
 				else
 				{

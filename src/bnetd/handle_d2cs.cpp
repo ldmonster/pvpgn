@@ -21,7 +21,7 @@
 #include <cstring>
 #include <cstdio>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/bn_type.h"
 #include "common/addr.h"
@@ -293,15 +293,15 @@ namespace pvpgn
 				char revtag[8];
 
 				realmname = realm_get_name(realm);
-				temp = (char*)xmalloc(std::strlen(clienttag) + std::strlen(realmname) + 1 + std::strlen(charname) + 1 +
-					std::strlen(portrait) + 1);
+				temp = new char[std::strlen(clienttag) + std::strlen(realmname) + 1 + std::strlen(charname) + 1 +
+					std::strlen(portrait) + 1];
 				reply = BNETD_D2CS_CHARLOGINREPLY_SUCCEED;
 				std::strcpy(revtag, clienttag);
 				strreverse(revtag);
 				std::sprintf(temp, "%4s%s,%s,%s", revtag, realmname, charname, portrait);
 				conn_set_charname(client, charname);
 				conn_set_realminfo(client, temp);
-				xfree(temp);
+				delete[] temp;
 				eventlog(eventlog_level_debug, __FUNCTION__,
 					"loaded portrait for character {}", charname);
 			}

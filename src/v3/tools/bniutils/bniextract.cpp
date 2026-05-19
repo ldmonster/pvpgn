@@ -55,12 +55,11 @@ namespace
 		if (pixelsize == 0) return NULL;
 
 		dst = new_tgaimg(width, height, src->bpp, type);
-		dst->data = static_cast<std::uint8_t*>(std::malloc(static_cast<std::size_t>(width)*height*pixelsize));
-		if (!dst->data) { std::fputs("bniextract: out of memory\n", stderr); std::abort(); }
+		dst->data.resize(static_cast<std::size_t>(width)*height*pixelsize);
 
-		datap = src->data;
+		datap = src->data.data();
 		datap += y*src->width*pixelsize;
-		destp = dst->data;
+		destp = dst->data.data();
 		for (i = 0; i < height; i++) {
 			datap += x*pixelsize;
 			std::memcpy(destp, datap, width*pixelsize);
@@ -224,14 +223,14 @@ extern int main(int argc, char * argv[])
 			std::FILE *dsttga;
 			std::string name;
 			t_tgaimg *icn;
-			icn = area2img(iconimg, 0, curry, bni->icons->icon[i].x, bni->icons->icon[i].y, tgaimgtype_uncompressed_truecolor);
+			icn = area2img(iconimg, 0, curry, bni->icons[i].x, bni->icons[i].y, tgaimgtype_uncompressed_truecolor);
 			if (icn == NULL) {
 				std::fprintf(stderr, "Error: area2img failed!\n");
 				return EXIT_FAILURE;
 			}
 			char buf[1024];
-			if (bni->icons->icon[i].id == 0) {
-				int tag = bni->icons->icon[i].tag;
+			if (bni->icons[i].id == 0) {
+				int tag = bni->icons[i].tag;
 				std::snprintf(buf, sizeof(buf), "%s/%c%c%c%c.tga", outdir,
 					static_cast<unsigned char>((tag >> 24) & 0xff),
 					static_cast<unsigned char>((tag >> 16) & 0xff),
@@ -239,7 +238,7 @@ extern int main(int argc, char * argv[])
 					static_cast<unsigned char>(tag & 0xff));
 			}
 			else {
-				std::snprintf(buf, sizeof(buf), "%s/%08x.tga", outdir, bni->icons->icon[i].id);
+				std::snprintf(buf, sizeof(buf), "%s/%08x.tga", outdir, bni->icons[i].id);
 			}
 			name = buf;
 			std::fprintf(stderr, "Info: Writing icon %u(%ux%u) to file \"%s\" ... \n", i + 1, icn->width, icn->height, name.c_str());
@@ -253,17 +252,17 @@ extern int main(int argc, char * argv[])
 					std::fprintf(stderr, "Error: Writing to TGA failed.\n");
 				}
 				else {
-					int tag = bni->icons->icon[i].tag;
-					if (bni->icons->icon[i].id == 0) {
+					int tag = bni->icons[i].tag;
+					if (bni->icons[i].id == 0) {
 						std::fprintf(indexfile, "icon !%c%c%c%c %d %d %08x\n",
 							static_cast<unsigned char>((tag >> 24) & 0xff),
 							static_cast<unsigned char>((tag >> 16) & 0xff),
 							static_cast<unsigned char>((tag >> 8) & 0xff),
 							static_cast<unsigned char>(tag & 0xff),
-							bni->icons->icon[i].x, bni->icons->icon[i].y, bni->icons->icon[i].unknown);
+							bni->icons[i].x, bni->icons[i].y, bni->icons[i].unknown);
 					}
 					else {
-						std::fprintf(indexfile, "icon #%08x %d %d %08x\n", bni->icons->icon[i].id, bni->icons->icon[i].x, bni->icons->icon[i].y, bni->icons->icon[i].unknown);
+						std::fprintf(indexfile, "icon #%08x %d %d %08x\n", bni->icons[i].id, bni->icons[i].x, bni->icons[i].y, bni->icons[i].unknown);
 					}
 				}
 				if (std::fclose(dsttga) < 0)

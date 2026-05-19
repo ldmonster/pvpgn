@@ -21,7 +21,8 @@
 
 #include <ctime>
 
-#include "compat/strcasecmp.h"
+#include <cstring>
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "prefs.h"
@@ -166,10 +167,10 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "game {} already exist", gamename);
 				return NULL;
 			}
-			game = (t_game*)xmalloc(sizeof(t_game));
-			game->name = xstrdup(gamename);
-			game->pass = xstrdup(gamepass);
-			game->desc = xstrdup(gamedesc);
+			game = new t_game{};
+			{ const char* s = gamename; char* tmp = new char[std::strlen(s)+1]; std::strcpy(tmp, s); game->name = tmp; }
+			{ const char* s = gamepass; char* tmp = new char[std::strlen(s)+1]; std::strcpy(tmp, s); game->pass = tmp; }
+			{ const char* s = gamedesc; char* tmp = new char[std::strlen(s)+1]; std::strcpy(tmp, s); game->desc = tmp; }
 			game->charlist = list_create();
 			now = std::time(NULL);
 			game_id++;
@@ -210,8 +211,8 @@ namespace pvpgn
 			LIST_TRAVERSE(game->charlist, curr)
 			{
 				if ((charinfo = (t_game_charinfo*)elem_get_data(curr))) {
-					if (charinfo->charname) xfree((void *)charinfo->charname);
-					xfree(charinfo);
+					if (charinfo->charname) delete[] const_cast<char*>(charinfo->charname);
+					delete charinfo;
 				}
 				list_remove_elem(game->charlist, &curr);
 			}
@@ -221,10 +222,10 @@ namespace pvpgn
 				d2gs_add_gamenum(game->d2gs, -1);
 				gqlist_check_creategame(d2gs_get_maxgame(game->d2gs) - d2gs_get_gamenum(game->d2gs));
 			}
-			if (game->desc) xfree((void *)game->desc);
-			if (game->pass) xfree((void *)game->pass);
-			if (game->name) xfree((void *)game->name);
-			xfree(game);
+			if (game->desc) delete[] const_cast<char*>(game->desc);
+			if (game->pass) delete[] const_cast<char*>(game->pass);
+			if (game->name) delete[] const_cast<char*>(game->name);
+			delete game;
 			return 0;
 		}
 
@@ -261,8 +262,8 @@ namespace pvpgn
 				charinfo->level = level;
 				return 0;
 			}
-			charinfo = (t_game_charinfo*)xmalloc(sizeof(t_game_charinfo));
-			charinfo->charname = xstrdup(charname);
+			charinfo = new t_game_charinfo{};
+			{ char* tmp = new char[std::strlen(charname)+1]; std::strcpy(tmp, charname); charinfo->charname = tmp; }
 			charinfo->chclass = chclass;
 			charinfo->level = level;
 			list_append_data(game->charlist, charinfo);
@@ -287,8 +288,8 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "error remove character {} from game {}", charname, game->name);
 				return -1;
 			}
-			if (charinfo->charname) xfree((void *)charinfo->charname);
-			xfree(charinfo);
+			if (charinfo->charname) delete[] const_cast<char*>(charinfo->charname);
+			delete charinfo;
 			game->currchar--;
 			game->lastaccess_time = std::time(NULL);
 			eventlog(eventlog_level_info, __FUNCTION__, "removed character {} from game {} ({} left)", charname, game->name, game->currchar);

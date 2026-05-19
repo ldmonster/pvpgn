@@ -93,7 +93,6 @@ namespace pvpgn
 	extern void queue_push_packet(t_queue * * queue, t_packet * packet)
 	{
 		t_queue * temp;
-		void *ptr;
 
 		//    eventlog(eventlog_level_debug, __FUNCTION__, "entered: queue {:p} packet {:p}", queue, packet);
 		if (!queue)
@@ -112,7 +111,7 @@ namespace pvpgn
 		if (!temp)
 		{
 			//	eventlog(eventlog_level_debug, __FUNCTION__, "queue is NULL , initilizing");
-			temp = (t_queue*)xmalloc(sizeof(t_queue));
+			temp = new t_queue{};
 			temp->alen = temp->ulen = 0;
 			temp->ring = NULL;
 			temp->head = temp->tail = 0;
@@ -125,8 +124,12 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "queue is full (resizing) (oldsize: {})", temp->alen);
 				*/
 
-			ptr = xrealloc(temp->ring, sizeof(t_packet *)* (temp->alen + QUEUE_QUANTUM));
-			temp->ring = (t_packet **)ptr;
+			t_packet ** newring = new t_packet*[temp->alen + QUEUE_QUANTUM]{};
+			if (temp->ring) {
+				std::memcpy(newring, temp->ring, sizeof(t_packet *) * temp->alen);
+				delete[] temp->ring;
+			}
+			temp->ring = newring;
 			temp->alen += QUEUE_QUANTUM;
 
 			//	eventlog(eventlog_level_debug, __FUNCTION__, "queue new size {}/{} head/tail {}/{}", temp->alen, temp->ulen, temp->head, temp->tail);
@@ -185,8 +188,8 @@ namespace pvpgn
 			while ((temp = queue_pull_packet(queue)))
 				packet_del_ref(temp);
 
-			if ((*queue)->ring) xfree((void*)((*queue)->ring));
-			xfree((void*)(*queue));
+			if ((*queue)->ring) delete[] (*queue)->ring;
+			delete *queue;
 			/* poison the queue, this should make invalid
 			 * accessed queues crash earlier */
 			*queue = 0;

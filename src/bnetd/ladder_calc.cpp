@@ -543,8 +543,8 @@ namespace pvpgn
 				return -1;
 			}
 
-			rating = (unsigned int*)xmalloc(sizeof(unsigned int)*count);
-			sorted = (unsigned int*)xmalloc(sizeof(unsigned int)*count);
+			rating = new unsigned int[count]{};
+			sorted = new unsigned int[count]{};
 
 			for (curr = 0; curr < count; curr++)
 				rating[curr] = account_get_ladder_rating(players[curr], clienttag, id);
@@ -607,8 +607,8 @@ namespace pvpgn
 					break;
 				default:
 					eventlog(eventlog_level_error, __FUNCTION__, "sorry, unsupported number of ladder opponents ({})", opponent_count);
-					xfree((void *)rating);
-					xfree((void *)sorted);
+					delete[] rating;
+					delete[] sorted;
 					return -1;
 				}
 
@@ -626,8 +626,8 @@ namespace pvpgn
 				info[curr].oldrank = account_get_ladder_rank(players[curr], clienttag, id);
 			}
 
-			xfree((void *)rating);
-			xfree((void *)sorted);
+			delete[] rating;
+			delete[] sorted;
 
 			return 0;
 		}

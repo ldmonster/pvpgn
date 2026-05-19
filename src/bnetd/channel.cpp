@@ -25,7 +25,7 @@
 #include <cerrno>
 #include <cstdlib>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/list.h"
 #include "common/util.h"
@@ -52,6 +52,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ch_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_list * channellist_head = NULL;
 
 		static t_channelmember * memberlist_curr = NULL;
@@ -106,7 +116,7 @@ namespace pvpgn
 				}
 			}
 
-			channel = (t_channel*)xmalloc(sizeof(t_channel));
+			channel = new t_channel{};
 
 			if (permflag)
 			{
@@ -139,22 +149,22 @@ namespace pvpgn
 				realmname ? "\"" : ")");
 
 
-			channel->name = xstrdup(fullname);
+			channel->name = ch_strdup(fullname);
 
 			if (!shortname)
 				channel->shortname = NULL;
 			else
-				channel->shortname = xstrdup(shortname);
+				channel->shortname = ch_strdup(shortname);
 
 			channel->clienttag = clienttag;
 
 			if (country)
-				channel->country = xstrdup(country);
+				channel->country = ch_strdup(country);
 			else
 				channel->country = NULL;
 
 			if (realmname)
-				channel->realmname = xstrdup(realmname);
+				channel->realmname = ch_strdup(realmname);
 			else
 				channel->realmname = NULL;
 
@@ -194,7 +204,7 @@ namespace pvpgn
 					tmnow->tm_min,
 					tmnow->tm_sec);
 
-				channel->logname = (char*)xmalloc(std::strlen(prefs_get_chanlogdir()) + 9 + std::strlen(dstr) + 1 + 6 + 1); /* dir + "/chanlog-" + dstr + "-" + id + NUL */
+				channel->logname = new char[std::strlen(prefs_get_chanlogdir()) + 9 + std::strlen(dstr) + 1 + 6 + 1]; /* dir + "/chanlog-" + dstr + "-" + id + NUL */
 				std::sprintf(channel->logname, "%s/chanlog-%s-%06u", prefs_get_chanlogdir(), dstr, channel->id);
 
 				if (!(channel->log = std::fopen(channel->logname, "w")))
@@ -272,7 +282,7 @@ namespace pvpgn
 			eventlog(eventlog_level_info, __FUNCTION__, "destroying channel \"{}\"", channel->name);
 
 			if (channel->gameExtension)
-				xfree(channel->gameExtension);
+				delete[] channel->gameExtension;
 
 			LIST_TRAVERSE(channel->banlist, ban)
 			{
@@ -281,7 +291,7 @@ namespace pvpgn
 				if (!(banned = (char*)elem_get_data(ban)))
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL name in banlist");
 				else
-					xfree((void *)banned); /* avoid warning */
+					delete[] const_cast<char*>(banned); /* avoid warning */
 				if (list_remove_elem(channel->banlist, &ban) < 0)
 					eventlog(eventlog_level_error, __FUNCTION__, "unable to remove item from list");
 			}
@@ -305,20 +315,20 @@ namespace pvpgn
 			}
 
 			if (channel->logname)
-				xfree((void *)channel->logname); /* avoid warning */
+				delete[] channel->logname; /* avoid warning */
 
 			if (channel->country)
-				xfree((void *)channel->country); /* avoid warning */
+				delete[] const_cast<char*>(channel->country); /* avoid warning */
 
 			if (channel->realmname)
-				xfree((void *)channel->realmname); /* avoid warning */
+				delete[] const_cast<char*>(channel->realmname); /* avoid warning */
 
 			if (channel->shortname)
-				xfree((void *)channel->shortname); /* avoid warning */
+				delete[] const_cast<char*>(channel->shortname); /* avoid warning */
 
-			xfree((void *)channel->name); /* avoid warning */
+			delete[] const_cast<char*>(channel->name); /* avoid warning */
 
-			xfree(channel);
+			delete channel;
 
 			return 0;
 		}
@@ -417,11 +427,11 @@ namespace pvpgn
 			if (!(temp = channel_get_name(channel)))
 				return -1;
 
-			chname = xstrdup(temp);
+			chname = ch_strdup(temp);
 			conn_part_channel(conn);
 			if (conn_set_channel(conn, chname) < 0)
 				conn_set_channel(conn, CHANNEL_NAME_BANNED);
-			xfree((void *)chname);
+			delete[] const_cast<char*>(chname);
 			return 0;
 		}
 
@@ -448,7 +458,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			member = (t_channelmember*)xmalloc(sizeof(t_channelmember));
+			member = new t_channelmember{};
 			member->connection = connection;
 			member->next = channel->memberlist;
 			channel->memberlist = member;
@@ -523,7 +533,7 @@ namespace pvpgn
 			if (curr->connection == connection)
 			{
 				channel->memberlist = channel->memberlist->next;
-				xfree(curr);
+				delete curr;
 			}
 			else
 			{
@@ -534,7 +544,7 @@ namespace pvpgn
 				{
 					temp = curr->next;
 					curr->next = curr->next->next;
-					xfree(temp);
+					delete temp;
 				}
 				else
 				{
@@ -798,7 +808,7 @@ namespace pvpgn
 			if (strcasecmp((char*)elem_get_data(curr), user) == 0)
 				return 0;
 
-			temp = xstrdup(user);
+			temp = ch_strdup(user);
 			list_append_data(channel->banlist, temp);
 
 			return 0;
@@ -836,7 +846,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "unable to remove item from list");
 						return -1;
 					}
-					xfree((void *)banned); /* avoid warning */
+					delete[] const_cast<char*>(banned); /* avoid warning */
 					return 0;
 				}
 			}
@@ -1103,7 +1113,7 @@ namespace pvpgn
 					if (newname)
 					{
 						channel_create(newname, sname, clienttag, 1, botflag, operflag, logflag, country, realmname, std::atoi(max), modflag, 0, 1);
-						xfree(newname);
+						delete[] newname;
 					}
 					else
 					{
@@ -1140,7 +1150,7 @@ namespace pvpgn
 				len = len + std::strlen(realmname) + 1;
 			len = len + 32 + 1;
 
-			fullname = (char*)xmalloc(len);
+			fullname = new char[len];
 			std::sprintf(fullname, "%s%s%s%s%s-%u",
 				realmname ? realmname : "",
 				realmname ? " " : "",
@@ -1177,15 +1187,15 @@ namespace pvpgn
 					{
 						/* we need only channel name and memberlist */
 
-						old_channel = (t_channel *)xmalloc(sizeof(t_channel));
-						old_channel->shortname = xstrdup(channel->shortname);
+						old_channel = new t_channel{};
+						old_channel->shortname = ch_strdup(channel->shortname);
 						old_channel->memberlist = NULL;
 						member = channel->memberlist;
 
 						/* First pass */
 						while (member)
 						{
-							old_member = (t_channelmember*)xmalloc(sizeof(t_channelmember));
+							old_member = new t_channelmember{};
 							old_member->connection = member->connection;
 
 							if (old_channel->memberlist)
@@ -1259,15 +1269,15 @@ namespace pvpgn
 					{
 						member = memberlist;
 						memberlist = memberlist->next;
-						xfree((void*)member);
+						delete member;
 					}
 
 					if (channel->shortname)
-						xfree((void*)channel->shortname);
+						delete[] const_cast<char*>(channel->shortname);
 
 					if (list_remove_data(channellist_old, channel, &curr) < 0)
 						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
-					xfree((void*)channel);
+					delete channel;
 
 				}
 
@@ -1549,7 +1559,7 @@ namespace pvpgn
 				}
 
 				channel = channel_create(channelname, saveshortname, savetag, 1, savebotflag, saveoperflag, savelogflag, savecountry, saverealmname, savemaxmembers, savemoderated, 0, 1);
-				xfree(channelname);
+				delete[] channelname;
 
 				eventlog(eventlog_level_debug, __FUNCTION__, "created copy \"{}\" of channel \"{}\"", (channel) ? (channel->name) : ("<failed>"), name);
 				return channel;
@@ -1700,9 +1710,9 @@ namespace pvpgn
 			}
 
 			if (channel->gameExtension)
-				xfree(channel->gameExtension);
+				delete[] channel->gameExtension;
 
-			channel->gameExtension = xstrdup(gameExtension);
+			channel->gameExtension = ch_strdup(gameExtension);
 
 			return 0;
 		}

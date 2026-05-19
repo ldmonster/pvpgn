@@ -1,4 +1,4 @@
-﻿/*
+/*
 * Copyright (C) 2014  HarpyWar (harpywar@gmail.com)
 *
 * This program is free software; you can redistribute it and/or
@@ -38,7 +38,7 @@
 
 #include <fmt/format.h>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "compat/pdir.h"
 
 #include "common/token.h"
@@ -68,6 +68,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 		const char * commonfile = "common.xml"; // filename template, actually file name is "common-{lang}.xml"
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* i18n_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 
 		/* Array with string translations, each string has array with pair language=translation
 			{
@@ -154,7 +164,7 @@ namespace pvpgn
 				language_find_by_tag(lang_tag_uint, found);
 				if (!found)
 				{
-					languages.push_back({ lang_tag_uint, xstrdup(lang_name.c_str()), countries });
+					languages.push_back({ lang_tag_uint, i18n_strdup(lang_name.c_str()), countries });
 				}
 
 				

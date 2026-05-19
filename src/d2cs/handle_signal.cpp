@@ -22,6 +22,7 @@
 #include <ctime>
 #include <cstring>
 #include <csignal>
+#include <string>
 
 #include "common/eventlog.h"
 #include "common/trans.h"
@@ -54,7 +55,6 @@ extern int handle_signal(void)
 {
 	std::time_t		now;
     char const * levels;
-    char *       temp;
     char const * tok;
 
 
@@ -103,8 +103,8 @@ extern int handle_signal(void)
         eventlog_clear_level();
         if ((levels = d2cs_prefs_get_loglevels()))
         {
-            temp = xstrdup(levels);
-            tok = std::strtok(temp,","); /* std::strtok modifies the string it is passed */
+            std::string temp(levels);
+            tok = std::strtok(temp.data(),","); /* std::strtok modifies the string it is passed */
 
             while (tok)
             {
@@ -112,8 +112,6 @@ extern int handle_signal(void)
               eventlog(eventlog_level_error,__FUNCTION__,"could not add std::log level \"{}\"",tok);
               tok = std::strtok(NULL,",");
             }
-
-            xfree(temp);
         }
 #ifdef DO_DAEMONIZE
 		if (!cmdline_get_foreground())

@@ -27,7 +27,7 @@
 #include <cstdlib>
 #include <cmath>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "compat/pdir.h"
 #include "common/tag.h"
 #include "common/util.h"
@@ -62,6 +62,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 		lua::vm vm;
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* lua_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 
 		char _msgtemp[MAX_MESSAGE_LEN];
 		char _msgtemp2[MAX_MESSAGE_LEN];
@@ -429,7 +439,7 @@ namespace pvpgn
 				for (std::vector<std::string>::size_type i = 1; i < data.size(); i += columns.size())
 				{
 					// init empty game struct
-					t_game * game = (t_game*)xmalloc(sizeof(t_game));
+					t_game * game = new t_game{};
 					game->id = 0;
 					game->name = NULL;
 
@@ -439,7 +449,7 @@ namespace pvpgn
 						if (columns[j] == "id")
 							game->id = atoi(data[i+j-1].c_str());
 						else if (columns[j] == "name")
-							game->name = xstrdup(data[i + j - 1].c_str());
+							game->name = lua_strdup(data[i + j - 1].c_str());
 					}
 					result.push_back(game);
 				}

@@ -70,6 +70,14 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_send_iconreply_bridge
     SOURCES send_iconreply_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
 
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_channellist_bridge
+    SOURCES send_channellist_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_channel_state_bridge
+    SOURCES channel_state_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
 pvpgn_v3_add_test(test_integration_legacy_bnetd_send_chatevent_compose_bridge
     SOURCES send_chatevent_compose_bridge_test.cpp
     DEPS    integration_legacy_bnetd)

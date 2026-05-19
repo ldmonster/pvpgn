@@ -23,6 +23,7 @@
 #include <cstring>
 #include <cerrno>
 #include <cassert>
+#include <string>
 
 #include "compat/psock.h"
 #include "common/eventlog.h"
@@ -168,8 +169,13 @@ namespace pvpgn
 	{
 		t_addr * temp;
 
-		temp = (t_addr*)xmalloc(sizeof(t_addr));
-		temp->str = xstrdup(addr_num_to_addr_str(ipaddr, port));
+		temp = new t_addr{};
+		{
+			const char* _s = addr_num_to_addr_str(ipaddr, port);
+			char* _tmp = new char[std::strlen(_s) + 1];
+			std::strcpy(_tmp, _s);
+			temp->str = _tmp;
+		}
 		temp->ip = ipaddr;
 		temp->port = port;
 		temp->data.p = NULL;
@@ -180,6 +186,7 @@ namespace pvpgn
 
 	extern t_addr * addr_create_str(char const * str, unsigned int defipaddr, unsigned short defport)
 	{
+		std::string tstr_storage;
 		char *             tstr;
 		t_addr *           temp;
 		unsigned int       ipaddr;
@@ -194,7 +201,8 @@ namespace pvpgn
 			return NULL;
 		}
 
-		tstr = xstrdup(str);
+		tstr_storage = str;
+		tstr = tstr_storage.empty() ? nullptr : &tstr_storage[0];
 
 		if ((portstr = std::strrchr(tstr, ':')))
 		{
@@ -220,7 +228,6 @@ namespace pvpgn
 #endif
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "could not convert \"{}\" to a port number", portstr);
-						xfree(tstr);
 						return NULL;
 					}
 #ifdef HAVE_GETSERVBYNAME
@@ -251,13 +258,15 @@ namespace pvpgn
 		if (!(hostname = host_lookup(hoststr, &ipaddr)))
 		{
 			eventlog(eventlog_level_error, __FUNCTION__, "could not lookup host \"{}\"", hoststr);
-			xfree(tstr);
 			return NULL;
 		}
 
-		temp = (t_addr*)xmalloc(sizeof(t_addr));
-		temp->str = xstrdup(hostname);
-		xfree(tstr);
+		temp = new t_addr{};
+		{
+			char* _tmp = new char[std::strlen(hostname) + 1];
+			std::strcpy(_tmp, hostname);
+			temp->str = _tmp;
+		}
 
 		temp->ip = ipaddr;
 		temp->port = port;
@@ -276,8 +285,8 @@ namespace pvpgn
 		}
 
 		if (addr->str)
-			xfree((void *)addr->str); /* avoid warning */
-		xfree((void *)addr); /* avoid warning */
+			delete[] const_cast<char*>(addr->str); /* avoid warning */
+		delete const_cast<t_addr*>(addr); /* avoid warning */
 
 		return 0;
 	}
@@ -396,7 +405,6 @@ namespace pvpgn
 	extern t_netaddr * netaddr_create_str(char const * netstr)
 	{
 		t_netaddr *  netaddr;
-		char *       temp;
 		char const * netipstr;
 		char const * netmaskstr;
 		unsigned int netip;
@@ -408,26 +416,24 @@ namespace pvpgn
 			return NULL;
 		}
 
-		temp = xstrdup(netstr);
+		std::string temp_storage = netstr;
+		char* temp = temp_storage.empty() ? nullptr : &temp_storage[0];
 		if (!(netipstr = std::strtok(temp, "/")))
 		{
-			xfree(temp);
 			return NULL;
 		}
 		if (!(netmaskstr = std::strtok(NULL, "/")))
 		{
-			xfree(temp);
 			return NULL;
 		}
 
-		netaddr = (t_netaddr*)xmalloc(sizeof(t_netaddr));
+		netaddr = new t_netaddr{};
 
 		/* FIXME: call getnetbyname() first, then host_lookup() */
 		if (!host_lookup(netipstr, &netip))
 		{
 			eventlog(eventlog_level_error, __FUNCTION__, "could not lookup net");
-			xfree(netaddr);
-			xfree(temp);
+			delete netaddr;
 			return NULL;
 		}
 		netaddr->ip = netip;
@@ -441,8 +447,7 @@ namespace pvpgn
 			else
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not convert mask");
-				xfree(netaddr);
-				xfree(temp);
+				delete netaddr;
 				return NULL;
 			}
 		}
@@ -451,8 +456,7 @@ namespace pvpgn
 			if (netmask > 32)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "network bits must be less than or equal to 32 ({})", netmask);
-				xfree(netaddr);
-				xfree(temp);
+				delete netaddr;
 				return NULL;
 			}
 			/* for example, 8 -> 11111111000000000000000000000000 */
@@ -460,8 +464,6 @@ namespace pvpgn
 				netmask = ~((1 << (32 - netmask)) - 1);
 		}
 		netaddr->mask = netmask;
-
-		xfree(temp);
 
 		return netaddr;
 	}
@@ -475,7 +477,7 @@ namespace pvpgn
 			return -1;
 		}
 
-		xfree((void *)netaddr); /* avoid warning */
+		delete const_cast<t_netaddr*>(netaddr); /* avoid warning */
 
 		return 0;
 	}
@@ -521,7 +523,6 @@ namespace pvpgn
 	extern int addrlist_append(t_addrlist * addrlist, char const * str, unsigned int defipaddr, unsigned short defport)
 	{
 		t_addr *     addr;
-		char *       tstr;
 		char *       tok;
 
 		assert(addrlist != NULL);
@@ -532,19 +533,17 @@ namespace pvpgn
 			return -1;
 		}
 
-		tstr = xstrdup(str);
+		std::string tstr_storage = str;
+		char* tstr = tstr_storage.empty() ? nullptr : &tstr_storage[0];
 		for (tok = std::strtok(tstr, ","); tok; tok = std::strtok(NULL, ",")) /* std::strtok modifies the string it is passed */
 		{
 			if (!(addr = addr_create_str(tok, defipaddr, defport)))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not create addr");
-				xfree(tstr);
 				return -1;
 			}
 			list_append_data(addrlist, addr);
 		}
-
-		xfree(tstr);
 
 		return 0;
 	}

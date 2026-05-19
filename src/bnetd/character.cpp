@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <cstring>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/list.h"
 #include "common/bnet_protocol.h"
@@ -40,6 +40,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ca_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_list * characterlist_head = NULL;
 
 
@@ -287,19 +297,19 @@ namespace pvpgn
 				return -1;
 			}
 
-			t_character* ch = (t_character*)xmalloc(sizeof(t_character));
-			ch->name = xstrdup(name);
-			ch->realmname = xstrdup(realmname);
-			ch->guildname = xstrdup(""); /* FIXME: how does this work on Battle.net? */
+			t_character* ch = new t_character{};
+			ch->name = ca_strdup(name);
+			ch->realmname = ca_strdup(realmname);
+			ch->guildname = ca_strdup(""); /* FIXME: how does this work on Battle.net? */
 
 			load_initial_data(ch, chclass, expansion);
 
 			account_add_closed_character(account, clienttag, ch);
 
-			xfree((void *)ch->name);
-			xfree((void *)ch->realmname);
-			xfree((void *)ch->guildname);
-			xfree(ch);
+			delete[] const_cast<char*>(ch->name);
+			delete[] const_cast<char*>(ch->realmname);
+			delete[] const_cast<char*>(ch->guildname);
+			delete ch;
 
 			return 0;
 		}
@@ -427,7 +437,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			temp = xstrdup(charlist);
+			temp = ca_strdup(charlist);
 
 			tok1 = (char const *)std::strtok(temp, ","); /* std::strtok modifies the string it is passed */
 			tok2 = std::strtok(NULL, ",");
@@ -441,14 +451,14 @@ namespace pvpgn
 
 				if (strcasecmp(tok1, ch->realmname) == 0 && strcasecmp(tok2, ch->name) == 0)
 				{
-					xfree(temp);
+					delete[] temp;
 					return 0;
 				}
 
 				tok1 = std::strtok(NULL, ",");
 				tok2 = std::strtok(NULL, ",");
 			}
-			xfree(temp);
+			delete[] temp;
 
 			return -1;
 		}
@@ -479,7 +489,7 @@ namespace pvpgn
 
 					if (list_remove_elem(characterlist_head, &curr) < 0)
 						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
-					xfree(ch);
+					delete ch;
 				}
 
 				if (list_destroy(characterlist_head) < 0)

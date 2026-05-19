@@ -34,8 +34,7 @@
 #include <sstream>
 #include <tuple>
 
-#include "compat/strcasecmp.h"
-#include "compat/strncasecmp.h"
+#include <strings.h>
 #include "common/packet.h"
 #include "common/eventlog.h"
 #include "common/tag.h"
@@ -133,6 +132,15 @@ extern "C" int pvpgn_v3_send_createaccount_w3(void* conn_ptr,
 extern "C" int pvpgn_v3_send_iconreply(void* conn_ptr,
                                        unsigned long long timestamp,
                                        char const* filename) noexcept;
+// Strangler-fig hook for SERVER_CHANNELLIST (0x0b).
+extern "C" int pvpgn_v3_send_channellist(void* conn_ptr,
+                                         char const* const* names,
+                                         unsigned int count) noexcept;
+// Observation bridges for SID_JOINCHANNEL / SID_LEAVECHANNEL.
+extern "C" int pvpgn_v3_joinchannel_try(void* conn_ptr,
+                                        char const* channel_name,
+                                        unsigned int flag) noexcept;
+extern "C" int pvpgn_v3_leavechannel_try(void* conn_ptr) noexcept;
 // Strangler-fig hook for SERVER_LOGONPROOFREPLY (NLS step M1/M2).
 extern "C" int pvpgn_v3_send_logonproof_reply(void* conn_ptr,
                                               unsigned int response,
@@ -1301,13 +1309,13 @@ namespace pvpgn
 				{
 					packet_del_ref(rpacket);
 					if (mpqfilename)
-						xfree(static_cast<void *>(mpqfilename));
+						delete[] mpqfilename;
 					return 0;
 				}
 #endif
 
 				if (mpqfilename)
-					xfree(static_cast<void *>(mpqfilename));
+					delete[] mpqfilename;
 
 				conn_push_outqueue(c, rpacket);
 
@@ -1448,14 +1456,14 @@ namespace pvpgn
 				        mpqfilename) == 1)
 				{
 					if (mpqfilename)
-						xfree(static_cast<void *>(mpqfilename));
+						delete[] mpqfilename;
 					packet_del_ref(rpacket);
 					return 0;
 				}
 #endif
 
 				if (mpqfilename)
-					xfree(static_cast<void *>(mpqfilename));
+					delete[] mpqfilename;
 
 				conn_push_outqueue(c, rpacket);
 
@@ -2205,7 +2213,7 @@ namespace pvpgn
 						eventlog(eventlog_level_info, __FUNCTION__, "[{}] (W3) \"{}\" passed account check (even though account has no verifier)", conn_get_socket(c), username);
 						conn_set_loggeduser(c, username);
 						bn_int_set(&rpacket->u.server_loginreply_w3.message, SERVER_LOGINREPLY_W3_MESSAGE_SUCCESS);
-						xfree((void*)account_salt);
+						delete[] const_cast<char*>(account_salt);
 					}
 					else {
 
@@ -2232,10 +2240,10 @@ namespace pvpgn
 						conn_set_client_proof(c, conn_client_proof);
 						conn_set_server_proof(c, conn_server_proof);
 
-						xfree((void*)account_verifier);
-						xfree((void*)account_salt);
-						xfree(conn_client_proof);
-						xfree(conn_server_proof);
+						delete[] const_cast<char*>(account_verifier);
+						delete[] const_cast<char*>(account_salt);
+						delete[] conn_client_proof;
+						delete[] conn_server_proof;
 
 						eventlog(eventlog_level_info, __FUNCTION__, "[{}] (W3) \"{}\" passed account check", conn_get_socket(c), username);
 						conn_set_loggeduser(c, username);
@@ -2331,7 +2339,7 @@ namespace pvpgn
 						/* fail if no verifier */
 					if ((account_verifier = account_get_verifier(account)) == NULL)  {
 						eventlog(eventlog_level_info, __FUNCTION__, "[{}] (W3) passchange for \"{}\" refused (no VERIFIER)", conn_get_socket(c), username);
-						xfree((void*)account_salt);
+						delete[] const_cast<char*>(account_salt);
 					}
 					else {
 
@@ -2358,10 +2366,10 @@ namespace pvpgn
 						conn_set_client_proof(c, conn_client_proof);
 						conn_set_server_proof(c, conn_server_proof);
 
-						xfree((void*)account_verifier);
-						xfree((void*)account_salt);
-						xfree(conn_client_proof);
-						xfree(conn_server_proof);
+						delete[] const_cast<char*>(account_verifier);
+						delete[] const_cast<char*>(account_salt);
+						delete[] conn_client_proof;
+						delete[] conn_server_proof;
 
 						eventlog(eventlog_level_info, __FUNCTION__, "[{}] (W3) \"{}\" passed account passchange check", conn_get_socket(c), username);
 						conn_set_loggeduser(c, username);
@@ -3277,7 +3285,7 @@ namespace pvpgn
 						// no longer accepts a memory_buffer directly as
 						// the output target -- it needs an iterator.
 						fmt::format_to(std::back_inserter(serverinfo), "{}\n", (line + 1));
-						xfree((void*)line);
+						delete[] line;
 					}
 
 					if (std::fclose(fp) == EOF)
@@ -3642,7 +3650,7 @@ namespace pvpgn
 					packet_del_ref(rpacket);
 					return 0;
 				}
-				temp = xstrdup(charlist);
+				temp = ([&](){ std::size_t n = std::strlen(charlist) + 1; char* r = new char[n]; std::memcpy(r, charlist, n); return r; })();
 
 				{
 					char const *tok1;
@@ -3672,7 +3680,7 @@ namespace pvpgn
 						tok1 = std::strtok(NULL, ",");
 						tok2 = std::strtok(NULL, ",");
 					}
-					xfree(temp);
+					delete[] temp;
 
 					bn_int_set(&rpacket->u.server_unknown_37.count, count);
 					conn_push_outqueue(c, rpacket);
@@ -3969,6 +3977,31 @@ namespace pvpgn
 					}
 				}
 				packet_append_string(rpacket, "");
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					// Re-collect names from the freshly-built rpacket so
+					// all filter logic above stays in legacy. Walk the
+					// NUL-terminated cstrings starting after the fixed
+					// header until we hit the empty terminator.
+					std::vector<char const*> v3_names;
+					std::size_t v3_off = sizeof(t_server_channellist);
+					std::size_t v3_end = packet_get_size(rpacket);
+					while (v3_off < v3_end) {
+						char const* s = reinterpret_cast<char const*>(
+							packet_get_data_const(rpacket, v3_off, 1));
+						if (s == nullptr || *s == '\0') break;
+						v3_names.push_back(s);
+						v3_off += std::strlen(s) + 1;
+					}
+					if (pvpgn_v3_send_channellist(
+						    c,
+						    v3_names.empty() ? nullptr : v3_names.data(),
+						    static_cast<unsigned int>(v3_names.size())) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -3997,6 +4030,17 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad JOINCHANNEL (missing or too long cname)", conn_get_socket(c));
 				return -1;
 			}
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// Observation-only: structured-log the join intent so the
+			// v3 telemetry layer sees every JOINCHANNEL. Bridge always
+			// returns 0 -- legacy retains full ownership of the
+			// channel-state side effects.
+			(void)pvpgn_v3_joinchannel_try(
+				c, cname,
+				static_cast<unsigned int>(bn_int_get(
+					packet->u.client_joinchannel.channelflag)));
+#endif
 
 			if ((channel = conn_get_channel(c)) && (strcasecmp(channel_get_name(channel), cname) == 0))
 				return 0;		//we are already in this channel
@@ -4728,7 +4772,7 @@ namespace pvpgn
 				eventlog(eventlog_level_info, __FUNCTION__, "[{}] CLIENT_GAME_REPORT: {} ({} players)", conn_get_socket(c), conn_get_username(c), player_count);
 				my_account = conn_get_account(c);
 
-				results = (t_game_result*)xmalloc(sizeof(t_game_result)* game_get_count(game));
+				results = new t_game_result[game_get_count(game)]{};
 
 				for (i = 0; i < game_get_count(game); i++)
 					results[i] = game_result_none;
@@ -4794,7 +4838,7 @@ namespace pvpgn
 				}
 
 				if (game_set_reported_results(game, my_account, results) < 0)
-					xfree((void *)results);
+					delete[] results;
 
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] finished parsing result... now leaving game", conn_get_socket(c));
 				conn_set_game(c, NULL, NULL, NULL, game_type_none, 0);
@@ -4805,6 +4849,10 @@ namespace pvpgn
 
 		static int _client_leavechannel(t_connection * c, t_packet const *const packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// Observation-only: structured-log the leave intent.
+			(void)pvpgn_v3_leavechannel_try(c);
+#endif
 			/* If this user in a channel, notify everyone that the user has left */
 			if (conn_get_channel(c))
 				conn_part_channel(c);

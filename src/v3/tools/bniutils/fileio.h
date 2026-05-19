@@ -29,21 +29,16 @@ namespace pvpgn
 	namespace bni
 	{
 
-		extern void file_rpush(std::FILE *f);
-		extern void file_rpop(void);
-		extern void file_wpush(std::FILE *f);
-		extern void file_wpop(void);
-
-		extern std::uint8_t file_readb(void);
-		extern std::uint16_t file_readw_le(void);
-		extern std::uint16_t file_readw_be(void);
-		extern std::uint32_t file_readd_le(void);
-		extern std::uint32_t file_readd_be(void);
-		extern int file_writeb(std::uint8_t u);
-		extern int file_writew_le(std::uint16_t u);
-		extern int file_writew_be(std::uint16_t u);
-		extern int file_writed_le(std::uint32_t u);
-		extern int file_writed_be(std::uint32_t u);
+		extern std::uint8_t  file_readb(std::FILE *f);
+		extern std::uint16_t file_readw_le(std::FILE *f);
+		extern std::uint16_t file_readw_be(std::FILE *f);
+		extern std::uint32_t file_readd_le(std::FILE *f);
+		extern std::uint32_t file_readd_be(std::FILE *f);
+		extern int file_writeb   (std::FILE *f, std::uint8_t  u);
+		extern int file_writew_le(std::FILE *f, std::uint16_t u);
+		extern int file_writew_be(std::FILE *f, std::uint16_t u);
+		extern int file_writed_le(std::FILE *f, std::uint32_t u);
+		extern int file_writed_be(std::FILE *f, std::uint32_t u);
 
 	}
 

@@ -21,6 +21,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -109,12 +110,12 @@ static int setup_daemon(void)
 
 static char * write_to_pidfile(void)
 {
-	char *pidfile = xstrdup(prefs_get_pidfile());
+	const char* _pf_src = prefs_get_pidfile(); char* pidfile = new char[std::strlen(_pf_src)+1]; std::strcpy(pidfile, _pf_src);
 
 	if (pidfile)
 	{
 		if (pidfile[0] == '\0') {
-			xfree((void *)pidfile); /* avoid warning */
+			delete[] pidfile; /* avoid warning */
 			return NULL;
 		}
 #ifdef HAVE_GETPID
@@ -122,7 +123,7 @@ static char * write_to_pidfile(void)
 
 		if (!(fp = std::fopen(pidfile,"w"))) {
 			eventlog(eventlog_level_error,__FUNCTION__,"unable to open pid file \"{}\" for writing (std::fopen: {})",pidfile,std::strerror(errno));
-			xfree((void *)pidfile); /* avoid warning */
+			delete[] pidfile; /* avoid warning */
 			return NULL;
 		} else {
 			std::fprintf(fp,"%u",(unsigned int)getpid());
@@ -132,7 +133,7 @@ static char * write_to_pidfile(void)
 
 #else
 		eventlog(eventlog_level_warn,__FUNCTION__,"no getpid() std::system call, disable pid file in d2cs.conf");
-		xfree((void *)pidfile); /* avoid warning */
+		delete[] pidfile; /* avoid warning */
 		return NULL;
 #endif
 	}
@@ -173,7 +174,6 @@ static int cleanup(void)
 static int config_init(int argc, char * * argv)
 {
     char const * levels;
-    char *       temp;
     char const * tok;
 
 	if (cmdline_load(argc, argv) != 1) {
@@ -198,8 +198,8 @@ static int config_init(int argc, char * * argv)
     eventlog_clear_level();
     if ((levels = d2cs_prefs_get_loglevels()))
     {
-        temp = xstrdup(levels);
-        tok = std::strtok(temp,","); /* std::strtok modifies the string it is passed */
+        std::string temp(levels);
+        tok = std::strtok(temp.data(),","); /* std::strtok modifies the string it is passed */
 
         while (tok)
         {
@@ -207,8 +207,6 @@ static int config_init(int argc, char * * argv)
             eventlog(eventlog_level_error,__FUNCTION__,"could not add std::log level \"{}\"",tok);
         tok = std::strtok(NULL,",");
         }
-
-        xfree(temp);
     }
 
 #ifdef WIN32_GUI
@@ -271,7 +269,7 @@ extern int main(int argc, char ** argv)
 	if (init()<0) {
 		eventlog(eventlog_level_error,__FUNCTION__,"failed to init");
 		if (pidfile)
-			xfree((void*)pidfile);
+			delete[] pidfile;
 		return -1;
 	} else {
 		eventlog(eventlog_level_info,__FUNCTION__,"server initialized");
@@ -279,14 +277,14 @@ extern int main(int argc, char ** argv)
 	if (d2cs_server_process()<0) {
 		eventlog(eventlog_level_error,__FUNCTION__,"failed to run server");
 		if (pidfile)
-			xfree((void*)pidfile);
+			delete[] pidfile;
 		return -1;
 	}
 	cleanup();
 	if (pidfile) {
 		if (std::remove(pidfile)<0)
 			eventlog(eventlog_level_error,__FUNCTION__,"could not remove pid file \"{}\" (std::remove: {})",pidfile,std::strerror(errno));
-		xfree((void *)pidfile); /* avoid warning */
+		delete[] pidfile; /* avoid warning */
 	}
 	config_cleanup();
 	eventlog_close();

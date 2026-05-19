@@ -101,9 +101,7 @@ extern int main(int argc, char * argv[])
 
 	{
 		t_tgaimg * tgaimg;
-
-		file_rpush(fp);
-		if (!(tgaimg = load_tgaheader()))
+		if (!(tgaimg = load_tgaheader(fp)))
 		{
 			std::fprintf(stderr, "%s: could not load TGA header\n", argv[0]);
 			if (tgafile != dash && std::fclose(fp) < 0)
@@ -111,7 +109,6 @@ extern int main(int argc, char * argv[])
 			return EXIT_FAILURE;
 		}
 		print_tga_info(tgaimg, stdout);
-		file_rpop();
 	}
 
 	if (tgafile != dash && std::fclose(fp) < 0)

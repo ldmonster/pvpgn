@@ -25,7 +25,7 @@
 #include <cctype>
 #include <cstdlib>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/irc_protocol.h"
 #include "common/eventlog.h"
 #include "common/bnethash.h"

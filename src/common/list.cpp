@@ -36,7 +36,7 @@ namespace pvpgn
 	{
 		t_list * newl;
 
-		newl = (t_list*)xmalloc(sizeof(t_list));
+		newl = new t_list{};
 		newl->head = NULL;
 		newl->tail = NULL;
 		newl->len = 0;
@@ -56,7 +56,7 @@ namespace pvpgn
 		if (list->head)
 			eventlog(eventlog_level_error, __FUNCTION__, "got non-empty list");
 
-		xfree(list);
+		delete list;
 
 		return 0;
 	}
@@ -79,7 +79,7 @@ namespace pvpgn
 
 		assert(list != NULL);
 
-		elem = (t_elem*)xmalloc(sizeof(t_elem));
+		elem = new t_elem{};
 		elem->data = data;
 
 		if (list->head)
@@ -101,7 +101,7 @@ namespace pvpgn
 
 		assert(list != NULL);
 
-		elem = (t_elem*)xmalloc(sizeof(t_elem));
+		elem = new t_elem{};
 		elem->data = data;
 
 		elem->next = NULL;
@@ -199,7 +199,7 @@ namespace pvpgn
 
 		target->next = NULL;
 		target->prev = NULL;
-		xfree(target);
+		delete target;
 
 		list->len--;
 

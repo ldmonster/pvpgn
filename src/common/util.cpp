@@ -21,12 +21,12 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
 #include <cctype>
 #include <cstdio>
 #include <string>
 
-#include "compat/strcasecmp.h"
-#include "compat/strncasecmp.h"
+#include <strings.h>
 #include "common/xalloc.h"
 #include "common/setup_after.h"
 
@@ -69,14 +69,14 @@ namespace pvpgn
 		{
 			len = 0;
 			if ((line))
-				xfree((void *)line);
+				delete[] line;
 			line = NULL;
 			return NULL;
 		}
 
 		if (!(line))
 		{
-			line = (char*)xmalloc(DEF_LEN);
+			line = new char[DEF_LEN]{};
 			len = DEF_LEN;
 		}
 
@@ -98,8 +98,12 @@ namespace pvpgn
 			line[pos++] = (char)curr_char;
 			if ((pos + 1) >= len)
 			{
-				len += INC_LEN;
-				line = (char*)xrealloc(line, len);
+				unsigned int newlen = len + INC_LEN;
+				char* newline = new char[newlen]{};
+				std::memcpy(newline, line, len);
+				delete[] line;
+				line = newline;
+				len = newlen;
 			}
 		}
 
@@ -327,7 +331,7 @@ namespace pvpgn
 
 		if (!in)
 			return NULL;
-		out = (char*)xmalloc(len * 3 + 1); /* if all turn into %XX */
+		out = new char[len * 3 + 1]{}; /* if all turn into %XX */
 
 		for (inpos = 0, outpos = 0; inpos < len; inpos++)
 		{
@@ -357,7 +361,7 @@ namespace pvpgn
 
 		if (!in)
 			return NULL;
-		out = (char*)xmalloc(len * 4 + 1); /* if all turn into \xxx */
+		out = new char[len * 4 + 1]{}; /* if all turn into \xxx */
 
 		for (inpos = 0, outpos = 0; inpos < len; inpos++)
 		{
@@ -434,7 +438,7 @@ namespace pvpgn
 			return NULL;
 
 		inlen = std::strlen(in);
-		out = (char*)xmalloc(inlen + 1);
+		out = new char[inlen + 1]{};
 
 		for (inpos = 0, outpos = 0; inpos < inlen; inpos++)
 		{

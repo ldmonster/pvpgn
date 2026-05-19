@@ -25,7 +25,7 @@
 #include <cassert>
 
 #include "compat/rename.h"
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/addr.h"
 #include "common/bnettime.h"
@@ -54,6 +54,16 @@ namespace pvpgn
 		DECLARE_ELIST_INIT(gamelist_head);
 		static int glist_length = 0;
 		static int totalcount = 0;
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* game_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 
 
 		static void game_choose_host(t_game * game);
@@ -406,17 +416,17 @@ namespace pvpgn
 				return NULL; /* already have a game by that name */
 			}
 
-			game = (t_game*)xmalloc(sizeof(t_game));
-			game->name = xstrdup(name);
-			game->pass = xstrdup(pass);
-			game->info = xstrdup(info);
+			game = new t_game{};
+			game->name = game_strdup(name);
+			game->pass = game_strdup(pass);
+			game->info = game_strdup(info);
 			if (!(game->clienttag = clienttag))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got UNKNOWN clienttag");
-				xfree((void *)game->info); /* avoid warning */
-				xfree((void *)game->pass); /* avoid warning */
-				xfree((void *)game->name); /* avoid warning */
-				xfree(game);
+				delete[] const_cast<char*>(game->info);
+				delete[] const_cast<char*>(game->pass);
+				delete[] const_cast<char*>(game->name);
+				delete game;
 				return NULL;
 			}
 
@@ -492,35 +502,35 @@ namespace pvpgn
 			for (i = 0; i < game->count; i++)
 			{
 				if (game->report_bodies && game->report_bodies[i])
-					xfree((void *)game->report_bodies[i]); /* avoid warning */
+					delete[] const_cast<char*>(game->report_bodies[i]);
 				if (game->report_heads && game->report_heads[i])
-					xfree((void *)game->report_heads[i]); /* avoid warning */
+					delete[] const_cast<char*>(game->report_heads[i]);
 				if (game->reported_results && game->reported_results[i])
-					xfree((void *)game->reported_results[i]);
+					delete[] game->reported_results[i];
 			}
 			if (game->realmname)
-				xfree((void *)game->realmname); /* avoid warining */
+				delete[] const_cast<char*>(game->realmname);
 			if (game->report_bodies)
-				xfree((void *)game->report_bodies); /* avoid warning */
+				delete[] const_cast<char**>(game->report_bodies);
 			if (game->report_heads)
-				xfree((void *)game->report_heads); /* avoid warning */
+				delete[] const_cast<char**>(game->report_heads);
 			if (game->results)
-				xfree((void *)game->results); /* avoid warning */
+				delete[] game->results;
 			if (game->reported_results)
-				xfree((void *)game->reported_results);
+				delete[] game->reported_results;
 			if (game->connections)
-				xfree((void *)game->connections); /* avoid warning */
+				delete[] game->connections;
 			if (game->players)
-				xfree((void *)game->players); /* avoid warning */
+				delete[] game->players;
 			if (game->mapname)
-				xfree((void *)game->mapname); /* avoid warning */
+				delete[] const_cast<char*>(game->mapname);
 			if (game->description)
-				xfree((void *)game->description); /* avoid warning */
+				delete[] const_cast<char*>(game->description);
 
-			xfree((void *)game->info); /* avoid warning */
-			xfree((void *)game->pass); /* avoid warning */
-			if (game->name) xfree((void *)game->name); /* avoid warning */
-			xfree((void *)game); /* avoid warning */
+			delete[] const_cast<char*>(game->info);
+			delete[] const_cast<char*>(game->pass);
+			if (game->name) delete[] const_cast<char*>(game->name);
+			delete game;
 
 			eventlog(eventlog_level_info, __FUNCTION__, "game deleted");
 
@@ -629,7 +639,7 @@ namespace pvpgn
 
 			if (!gametypes || !gametypes[0]) return 0;
 
-			gametypes = p = xstrdup(gametypes);
+			gametypes = p = game_strdup(gametypes);
 			res = 0;
 			do {
 				q = std::strchr(p, ',');
@@ -649,7 +659,7 @@ namespace pvpgn
 				if (q) p = q + 1;
 			} while (q);
 
-			free((void*)gametypes);
+			delete[] const_cast<char*>(gametypes);
 			return res;
 		}
 
@@ -896,12 +906,12 @@ namespace pvpgn
 						ladder_update_wol(game->clienttag, id, game->players, game->results);
 					}
 					else {
-						ladder_info = (t_ladder_info*)xmalloc(sizeof(t_ladder_info)*realcount);
+						ladder_info = new t_ladder_info[realcount]{};
 						if (ladder_update(game->clienttag, id,
 							realcount, game->players, game->results, ladder_info) < 0)
 						{
 							eventlog(eventlog_level_info, __FUNCTION__, "unable to update ladder stats");
-							xfree(ladder_info);
+							delete[] ladder_info;
 							ladder_info = NULL;
 						}
 					}
@@ -946,7 +956,7 @@ namespace pvpgn
 
 				if (ladder_info)
 				{
-					xfree(ladder_info);
+					delete[] ladder_info;
 				}
 
 				return 0;
@@ -967,9 +977,9 @@ namespace pvpgn
 					tmval->tm_min,
 					tmval->tm_sec);
 
-				tempname = (char*)xmalloc(std::strlen(prefs_get_reportdir()) + 1 + 1 + 5 + 1 + 2 + 1 + std::strlen(dstr) + 1 + 6 + 1);
+				tempname = new char[std::strlen(prefs_get_reportdir()) + 1 + 1 + 5 + 1 + 2 + 1 + std::strlen(dstr) + 1 + 6 + 1];
 				std::sprintf(tempname, "%s/_bnetd-gr_%s_%06u", prefs_get_reportdir(), dstr, game->id);
-				realname = (char*)xmalloc(std::strlen(prefs_get_reportdir()) + 1 + 2 + 1 + std::strlen(dstr) + 1 + 6 + 1);
+				realname = new char[std::strlen(prefs_get_reportdir()) + 1 + 2 + 1 + std::strlen(dstr) + 1 + 6 + 1];
 				std::sprintf(realname, "%s/gr_%s_%06u", prefs_get_reportdir(), dstr, game->id);
 			}
 
@@ -977,9 +987,9 @@ namespace pvpgn
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open report file \"{}\" for writing (std::fopen: {})", tempname, std::strerror(errno));
 				if (ladder_info)
-					xfree(ladder_info);
-				xfree(realname);
-				xfree(tempname);
+					delete[] ladder_info;
+				delete[] realname;
+				delete[] tempname;
 				return -1;
 			}
 
@@ -1057,7 +1067,7 @@ namespace pvpgn
 			std::fprintf(fp, "\n\n");
 
 			if (ladder_info)
-				xfree(ladder_info);
+				delete[] ladder_info;
 
 			for (i = 0; i < realcount; i++)
 			{
@@ -1123,22 +1133,22 @@ namespace pvpgn
 			if (std::fclose(fp) < 0)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not close report file \"{}\" after writing (std::fclose: {})", tempname, std::strerror(errno));
-				xfree(realname);
-				xfree(tempname);
+				delete[] realname;
+				delete[] tempname;
 				return -1;
 			}
 
 			if (p_rename(tempname, realname) < 0)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not std::rename report file to \"{}\" (std::rename: {})", realname, std::strerror(errno));
-				xfree(realname);
-				xfree(tempname);
+				delete[] realname;
+				delete[] tempname;
 				return -1;
 			}
 
 			eventlog(eventlog_level_debug, __FUNCTION__, "game report saved as \"{}\"", realname);
-			xfree(realname);
-			xfree(tempname);
+			delete[] realname;
+			delete[] tempname;
 			return 0;
 		}
 
@@ -1361,8 +1371,8 @@ namespace pvpgn
 				return -1;
 			}
 
-			if (game->description != NULL) xfree((void *)game->description);
-			game->description = xstrdup(description);
+			if (game->description != NULL) delete[] const_cast<char*>(game->description);
+			game->description = game_strdup(description);
 
 			return 0;
 		}
@@ -1641,38 +1651,38 @@ namespace pvpgn
 			{
 
 				if (!game->connections) /* some std::realloc()s are broken */
-					tempc = (t_connection**)xmalloc((game->count + 1)*sizeof(t_connection *));
+					tempc = new t_connection*[game->count + 1]{};
 				else
-					tempc = (t_connection**)xrealloc(game->connections, (game->count + 1)*sizeof(t_connection *));
+					tempc = ([&]{ auto* _p = new t_connection*[game->count + 1]{}; std::memcpy(_p, game->connections, game->count*sizeof(t_connection*)); delete[] game->connections; return _p; })();
 				game->connections = tempc;
 				if (!game->players) /* some std::realloc()s are broken */
-					tempp = (t_account**)xmalloc((game->count + 1)*sizeof(t_account *));
+					tempp = new t_account*[game->count + 1]{};
 				else
-					tempp = (t_account**)xrealloc(game->players, (game->count + 1)*sizeof(t_account *));
+					tempp = ([&]{ auto* _p = new t_account*[game->count + 1]{}; std::memcpy(_p, game->players, game->count*sizeof(t_account*)); delete[] game->players; return _p; })();
 				game->players = tempp;
 
 				if (!game->results) /* some std::realloc()s are broken */
-					tempr = (t_game_result*)xmalloc((game->count + 1)*sizeof(t_game_result));
+					tempr = new t_game_result[game->count + 1]{};
 				else
-					tempr = (t_game_result*)xrealloc(game->results, (game->count + 1)*sizeof(t_game_result));
+					tempr = ([&]{ auto* _p = new t_game_result[game->count + 1]{}; std::memcpy(_p, game->results, game->count*sizeof(t_game_result)); delete[] game->results; return _p; })();
 				game->results = tempr;
 
 				if (!game->reported_results)
-					temprr = (t_game_result**)xmalloc((game->count + 1)*sizeof(t_game_result *));
+					temprr = new t_game_result*[game->count + 1]{};
 				else
-					temprr = (t_game_result**)xrealloc(game->reported_results, (game->count + 1)*sizeof(t_game_result *));
+					temprr = ([&]{ auto* _p = new t_game_result*[game->count + 1]{}; std::memcpy(_p, game->reported_results, game->count*sizeof(t_game_result*)); delete[] game->reported_results; return _p; })();
 				game->reported_results = temprr;
 
 				if (!game->report_heads) /* some xrealloc()s are broken */
-					temprh = (const char**)xmalloc((game->count + 1)*sizeof(char const *));
+					temprh = new const char*[game->count + 1]{};
 				else
-					temprh = (const char**)xrealloc((void *)game->report_heads, (game->count + 1)*sizeof(char const *)); /* avoid compiler warning */
+					temprh = ([&]{ auto* _p = new const char*[game->count + 1]{}; std::memcpy((void*)_p, (void*)game->report_heads, game->count*sizeof(char const*)); delete[] const_cast<char**>(game->report_heads); return _p; })(); /* avoid compiler warning */
 				game->report_heads = temprh;
 
 				if (!game->report_bodies) /* some xrealloc()s are broken */
-					temprb = (const char**)xmalloc((game->count + 1)*sizeof(char const *));
+					temprb = new const char*[game->count + 1]{};
 				else
-					temprb = (const char**)xrealloc((void *)game->report_bodies, (game->count + 1)*sizeof(char const *)); /* avoid compiler warning */
+					temprb = ([&]{ auto* _p = new const char*[game->count + 1]{}; std::memcpy((void*)_p, (void*)game->report_bodies, game->count*sizeof(char const*)); delete[] const_cast<char**>(game->report_bodies); return _p; })(); /* avoid compiler warning */
 				game->report_bodies = temprb;
 
 				game->connections[game->count] = c;
@@ -1837,8 +1847,8 @@ namespace pvpgn
 				return -1;
 			}
 
-			game->report_heads[pos] = xstrdup(rephead);
-			game->report_bodies[pos] = xstrdup(repbody);
+			game->report_heads[pos] = game_strdup(rephead);
+			game->report_bodies[pos] = game_strdup(repbody);
 
 			return 0;
 		}
@@ -1957,7 +1967,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			results = (t_game_result*)xmalloc(sizeof(t_game_result)*game->count);
+			results = new t_game_result[game->count]{};
 
 			for (i = 0; i < game->count; i++)
 			{
@@ -2046,9 +2056,9 @@ namespace pvpgn
 				return -1;
 			}
 
-			if (game->mapname != NULL) xfree((void *)game->mapname);
+			if (game->mapname != NULL) delete[] const_cast<char*>(game->mapname);
 
-			game->mapname = xstrdup(mapname);
+			game->mapname = game_strdup(mapname);
 
 			return 0;
 		}
@@ -2216,7 +2226,7 @@ namespace pvpgn
 						if (game = gamelist_find_game_byid(gamelist[i]->id))
 						{
 							if (gamelist[i]->name)
-								game->name = xstrdup(gamelist[i]->name); // override game name
+								game->name = game_strdup(gamelist[i]->name); // override game name
 							cb(game, data); // display game item
 						}
 					}
@@ -2269,12 +2279,12 @@ namespace pvpgn
 			}
 
 			if (realmname)
-				temp = xstrdup(realmname);
+				temp = game_strdup(realmname);
 			else
 				temp = NULL;
 
 			if (game->realmname)
-				xfree((void *)game->realmname); /* avoid warning */
+				delete[] const_cast<char*>(game->realmname);
 			game->realmname = temp;
 			return 0;
 		}

@@ -22,6 +22,8 @@
 
 #include <cstring>
 #include <ctime>
+#include <string>
+#include <vector>
 
 #include "compat/mkdir.h"
 #include "compat/pdir.h"
@@ -173,7 +175,8 @@ static int on_client_createcharreq(t_connection * c, t_packet * packet)
 	chclass=bn_short_get(packet->u.client_d2cs_createcharreq.chclass);
 	status=bn_short_get(packet->u.client_d2cs_createcharreq.status);
 
-	path=(char*)xmalloc(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	std::vector<char> path_buf(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	path = path_buf.data();
 	d2char_get_infodir_name(path,account);
 	try {
 		Directory dir(path);
@@ -181,7 +184,6 @@ static int on_client_createcharreq(t_connection * c, t_packet * packet)
 		INFO1("(*{}) charinfo directory do not exist, building it",account);
 		p_mkdir(path);
 	}
-	xfree(path);
 
 	if (d2char_create(account,charname,chclass,status)<0) {
 		eventlog(eventlog_level_warn,__FUNCTION__,"error create character {} for account {}",charname,account);
@@ -740,28 +742,24 @@ static int d2cs_send_client_ladder(t_connection * c, unsigned char type, unsigne
 static int on_client_motdreq(t_connection * c, t_packet * packet)
 {
 	t_packet	* rpacket;
-	char		* motd;
-	int		motd_len;
 
 	if (!packet)
 	    return -1;
 
 	/* client will crash if motd is too long */
-	motd = xstrdup(prefs_get_motd());
-	motd_len = std::strlen(motd);
-	if (motd_len > MAX_MOTD_LENGTH) {
-		WARN2("motd length ({}) exceeds maximun value ({})",motd_len,MAX_MOTD_LENGTH);
-		motd[MAX_MOTD_LENGTH]='\0';
+	std::string motd(prefs_get_motd() ? prefs_get_motd() : "");
+	if (motd.size() > MAX_MOTD_LENGTH) {
+		WARN2("motd length ({}) exceeds maximun value ({})", (int)motd.size(), MAX_MOTD_LENGTH);
+		motd.resize(MAX_MOTD_LENGTH);
 	}
 	if ((rpacket=packet_create(packet_class_d2cs))) {
 		packet_set_size(rpacket,sizeof(t_d2cs_client_motdreply));
 		packet_set_type(rpacket,D2CS_CLIENT_MOTDREPLY);
 		bn_byte_set(&rpacket->u.d2cs_client_motdreply.u1,0);
-		packet_append_string(rpacket,motd);
+		packet_append_string(rpacket,motd.c_str());
 		conn_push_outqueue(c,rpacket);
 		packet_del_ref(rpacket);
 	}
-	xfree(motd);
 	return 0;
 }
 
@@ -841,7 +839,8 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 		eventlog(eventlog_level_error,__FUNCTION__,"missing account for connection");
 		return -1;
 	}
-	path=(char*)xmalloc(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	std::vector<char> path_buf(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	path = path_buf.data();
 	charlist_sort_order = prefs_get_charlist_sort_order();
 
 	elist_init(&charlist_head);
@@ -859,10 +858,10 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 			try {
 				Directory dir(path);
 				while ((charname = dir.read())) {
-					charinfo = (t_d2charinfo_file*)xmalloc(sizeof(t_d2charinfo_file));
+					charinfo = new t_d2charinfo_file{};
 					if (d2charinfo_load(account, charname, charinfo) < 0) {
 						eventlog(eventlog_level_error, __FUNCTION__, "error loading charinfo for {}(*{})", charname, account);
-						xfree((void*)charinfo);
+						delete charinfo;
 						continue;
 					}
 					eventlog(eventlog_level_debug, __FUNCTION__, "adding char {} (*{})", charname, account);
@@ -886,8 +885,8 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 						ccharlist = elist_entry(curr, t_d2charlist, list);
 						packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
 						packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
-						xfree((void*)ccharlist->charinfo);
-						xfree((void*)ccharlist);
+						delete ccharlist->charinfo;
+						delete ccharlist;
 					}
 				}
 				else
@@ -900,8 +899,8 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 						ccharlist = elist_entry(curr, t_d2charlist, list);
 						packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
 						packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
-						xfree((void*)ccharlist->charinfo);
-						xfree((void*)ccharlist);
+						delete ccharlist->charinfo;
+						delete ccharlist;
 
 					}
 				}
@@ -927,7 +926,6 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 		conn_push_outqueue(c,rpacket);
 		packet_del_ref(rpacket);
 	}
-	xfree(path);
 	return 0;
 }
 
@@ -953,7 +951,8 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 		eventlog(eventlog_level_error,__FUNCTION__,"missing account for connection");
 		return -1;
 	}
-	path=(char*)xmalloc(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	std::vector<char> path_buf(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	path = path_buf.data();
 	charlist_sort_order = prefs_get_charlist_sort_order();
 
 	elist_init(&charlist_head);
@@ -977,10 +976,10 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 
 				exp_time = prefs_get_char_expire_time();
 				while ((charname = dir.read())) {
-					charinfo = (t_d2charinfo_file*)xmalloc(sizeof(t_d2charinfo_file));
+					charinfo = new t_d2charinfo_file{};
 					if (d2charinfo_load(account, charname, charinfo) < 0) {
 						eventlog(eventlog_level_error, __FUNCTION__, "error loading charinfo for {}(*{})", charname, account);
-						xfree(charinfo);
+						delete charinfo;
 						continue;
 					}
 					if (exp_time) {
@@ -1011,8 +1010,8 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 						packet_append_data(rpacket, bn_exp_time, sizeof(bn_exp_time));
 						packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
 						packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
-						xfree((void*)ccharlist->charinfo);
-						xfree((void*)ccharlist);
+						delete ccharlist->charinfo;
+						delete ccharlist;
 					}
 				}
 				else
@@ -1029,8 +1028,8 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 						packet_append_data(rpacket, bn_exp_time, sizeof(bn_exp_time));
 						packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
 						packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
-						xfree((void*)ccharlist->charinfo);
-						xfree((void*)ccharlist);
+						delete ccharlist->charinfo;
+						delete ccharlist;
 					}
 				}
 
@@ -1057,7 +1056,6 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 		conn_push_outqueue(c,rpacket);
 		packet_del_ref(rpacket);
 	}
-	xfree(path);
 	return 0;
 }
 

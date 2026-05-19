@@ -24,7 +24,7 @@
 #include <cstdlib>
 #include <string>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/util.h"
 #include "common/irc_protocol.h"
@@ -45,6 +45,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* irc_common_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static int handle_irc_common_con_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
 		{
 			if (!conn) {
@@ -185,7 +195,7 @@ namespace pvpgn
 				tmp[MAX_IRC_MESSAGE_LEN] = '\0';
 			}
 
-			line = xstrdup(ircline);
+			line = irc_common_strdup(ircline);
 
 			/* split the message */
 			if (line[0] == ':') {
@@ -193,7 +203,7 @@ namespace pvpgn
 				prefix = line;
 				if (!(command = std::strchr(line, ' '))) {
 					eventlog(eventlog_level_warn, __FUNCTION__, "got malformed line (missing command)");
-					xfree(line);
+					delete[] line;
 					return -1;
 				}
 				*command++ = '\0';
@@ -283,16 +293,16 @@ namespace pvpgn
 				if (handle_irc_common_log_command(conn, command, numparams, params, text) != -1) {}
 				else if ((strstart(command, "LAG") != 0) && (strstart(command, "JOIN") != 0)){
 					linelen = std::strlen(ircline);
-					bnet_command = (char*)xmalloc(linelen + 2);
+					bnet_command = new char[linelen + 2];
 					bnet_command[0] = '/';
 					std::strcpy(bnet_command + 1, ircline);
 					handle_command(conn, bnet_command);
-					xfree((void*)bnet_command);
+					delete[] bnet_command;
 				}
 			} /* loggedin */
 			if (params)
 				irc_unget_paramelems(params);
-			xfree(line);
+			delete[] line;
 			return 0;
 		}
 

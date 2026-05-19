@@ -130,6 +130,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* sv_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 #ifdef DO_POSIXSIG
 		static void quit_sig_handle(int unused);
 		static void restart_sig_handle(int unused);
@@ -1114,7 +1124,7 @@ namespace pvpgn
 #endif
 
 			if (server_hostname) {
-				xfree((void *)server_hostname); /* avoid warning */
+				delete[] const_cast<char*>(server_hostname); /* avoid warning */
 				server_hostname = NULL;
 			}
 
@@ -1132,7 +1142,7 @@ namespace pvpgn
 				hp = gethostbyname(temp);
 				if (!hp || !hp->h_name) {
 #endif
-					server_hostname = xstrdup(temp);
+					server_hostname = sv_strdup(temp);
 #ifdef HAVE_GETHOSTBYNAME
 				}
 				else {
@@ -1140,21 +1150,21 @@ namespace pvpgn
 
 					if (std::strchr(hp->h_name, '.'))
 						/* Default name is already a FQDN */
-						server_hostname = xstrdup(hp->h_name);
+						server_hostname = sv_strdup(hp->h_name);
 					/* ... if not we have to examine the aliases */
 					while (!server_hostname && hp->h_aliases && hp->h_aliases[i]) {
 						if (std::strchr(hp->h_aliases[i], '.'))
-							server_hostname = xstrdup(hp->h_aliases[i]);
+							server_hostname = sv_strdup(hp->h_aliases[i]);
 						i++;
 					}
 					if (!server_hostname)
 						/* Fall back to default name which might not be a FQDN */
-						server_hostname = xstrdup(hp->h_name);
+						server_hostname = sv_strdup(hp->h_name);
 				}
 #endif
 			}
 			else {
-				server_hostname = xstrdup(hn);
+				server_hostname = sv_strdup(hn);
 			}
 			server_check_and_fix_hostname(server_hostname);
 			eventlog(eventlog_level_info, __FUNCTION__, "set hostname to \"{}\"", server_hostname);
@@ -1172,7 +1182,7 @@ namespace pvpgn
 		extern void server_clear_hostname(void)
 		{
 			if (server_hostname) {
-				xfree((void *)server_hostname); /* avoid warning */
+				delete[] const_cast<char*>(server_hostname); /* avoid warning */
 				server_hostname = NULL;
 			}
 		}
@@ -1224,7 +1234,7 @@ namespace pvpgn
 				curr_laddr = (t_addr*)elem_get_data(acurr);
 				if (addr_get_data(curr_laddr).p)
 					continue;
-				laddr_info = (t_laddr_info*)xmalloc(sizeof(t_laddr_info));
+				laddr_info = new t_laddr_info{};
 				laddr_info->usocket = -1;
 				laddr_info->ssocket = -1;
 				laddr_info->type = type;
@@ -1919,7 +1929,7 @@ namespace pvpgn
 						psock_close(laddr_info->usocket);
 					if (laddr_info->ssocket != -1)
 						psock_close(laddr_info->ssocket);
-					xfree(laddr_info);
+					delete laddr_info;
 				}
 			}
 			addrlist_destroy(laddrs);

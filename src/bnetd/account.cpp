@@ -26,8 +26,8 @@
 #include <cctype>
 #include <chrono>
 
-#include "compat/strcasecmp.h"
-#include "compat/strncasecmp.h"
+#include <cstring>
+#include <strings.h>
 #include "compat/pdir.h"
 #include "common/list.h"
 #include "common/elist.h"
@@ -62,6 +62,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ac_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_hashtable * accountlist_head = NULL;
 		static t_hashtable * accountlist_uid_head = NULL;
 
@@ -115,7 +125,7 @@ namespace pvpgn
 				return NULL;
 			}
 
-			account = (t_account*)xmalloc(sizeof(t_account));
+			account = new t_account{};
 
 			account->name = NULL;
 			account->clanmember = NULL;
@@ -146,7 +156,7 @@ namespace pvpgn
 					goto err;
 				}
 
-				account->name = xstrdup(username);
+				account->name = ac_strdup(username);
 
 				if (account_set_strattr(account, "BNET\\acct\\username", username) < 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "could not set username");
@@ -185,9 +195,9 @@ namespace pvpgn
 			if (account->attrgroup)
 				attrgroup_destroy(account->attrgroup);
 			if (account->name)
-				xfree(account->name);
+				delete[] account->name;
 
-			xfree(account);
+			delete account;
 		}
 
 
@@ -758,7 +768,7 @@ namespace pvpgn
 			if (!(temp = account_get_strattr(account, "BNET\\acct\\username")))
 				eventlog(eventlog_level_error, __FUNCTION__, "account has no username");
 			else
-				account->name = xstrdup(temp);
+				account->name = ac_strdup(temp);
 			return account->name;
 		}
 

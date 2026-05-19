@@ -26,7 +26,8 @@
 # include "win32/service.h"
 #endif
 
-#include "compat/strcasecmp.h"
+#include <cstring>
+#include <strings.h>
 #include "common/xalloc.h"
 #include "common/conf.h"
 #include "common/eventlog.h"
@@ -314,7 +315,7 @@ namespace pvpgn
 				}
 
 				exitflag = 1;
-				xfree((void *)tmp);
+				delete[] const_cast<char*>(tmp);
 			}
 
 			return 0;

@@ -36,6 +36,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* cg_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_list * command_groups_head = NULL;
 		static std::FILE * fp = NULL;
 
@@ -87,9 +97,9 @@ namespace pvpgn
 					continue;
 				}
 				while ((command = std::strtok(NULL, " \t"))) {
-					entry = (t_command_groups*)xmalloc(sizeof(t_command_groups));
+					entry = new t_command_groups{};
 					entry->group = 1 << (group - 1);
-					entry->command = xstrdup(command);
+					entry->command = cg_strdup(command);
 					list_append_data(command_groups_head, entry);
 #ifdef COMMANDGROUPSDEBUG
 					eventlog(eventlog_level_info, __FUNCTION__, "Added command: {} - with group {}", entry->command, entry->group);
@@ -111,8 +121,8 @@ namespace pvpgn
 					if (!(entry = (t_command_groups*)elem_get_data(curr)))
 						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
 					else {
-						xfree(entry->command);
-						xfree(entry);
+						delete[] entry->command;
+						delete entry;
 					}
 					list_remove_elem(command_groups_head, &curr);
 				}

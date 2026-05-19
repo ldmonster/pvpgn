@@ -41,8 +41,11 @@
 
 #include "compat/stdfileno.h"
 #include "compat/psock.h"
-#include "compat/uname.h"
 #include "compat/pgetpid.h"
+
+#ifdef HAVE_SYS_UTSNAME_H
+# include <sys/utsname.h>
+#endif
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "common/fdwatch.h"
@@ -206,14 +209,14 @@ int eventlog_startup(void)
 
 	eventlog_clear_level();
 	if ((levels = prefs_get_loglevels())) {
-		temp = xstrdup(levels);
+		temp = ([&](){ std::size_t n = std::strlen(levels) + 1; char* r = new char[n]; std::memcpy(r, levels, n); return r; })();
 		tok = std::strtok(temp, ","); /* std::strtok modifies the string it is passed */
 		while (tok) {
 			if (eventlog_add_level(tok) < 0)
 				eventlog(eventlog_level_error, __FUNCTION__, "could not add std::log level \"{}\"", tok);
 			tok = std::strtok(NULL, ",");
 		}
-		xfree(temp);
+		delete[] temp;
 	}
 
 #ifdef WIN32_GUI
@@ -297,12 +300,12 @@ int fork_bnetd(int foreground)
 
 char * write_to_pidfile(void)
 {
-	char *pidfile = xstrdup(prefs_get_pidfile());
+	char *pidfile = ([&](){ char const* _s = prefs_get_pidfile(); if (!_s) return (char*)nullptr; std::size_t n = std::strlen(_s) + 1; char* r = new char[n]; std::memcpy(r, _s, n); return r; })();
 
 	if (pidfile)
 	{
 		if (pidfile[0] == '\0') {
-			xfree((void *)pidfile); /* avoid warning */
+			delete[] pidfile; /* avoid warning */
 			return NULL;
 		}
 
@@ -311,7 +314,7 @@ char * write_to_pidfile(void)
 
 		if (!(fp = std::fopen(pidfile, "w"))) {
 			eventlog(eventlog_level_error, __FUNCTION__, "unable to open pid file \"{}\" for writing (std::fopen: {})", pidfile, std::strerror(errno));
-			xfree((void *)pidfile); /* avoid warning */
+			delete[] pidfile; /* avoid warning */
 			return NULL;
 		}
 		else {
@@ -321,7 +324,7 @@ char * write_to_pidfile(void)
 		}
 #else
 		eventlog(eventlog_level_warn, __FUNCTION__, "no getpid() std::system call, disable pid file in bnetd.conf");
-		xfree((void *)pidfile); /* avoid warning */
+		delete[] pidfile; /* avoid warning */
 		return NULL;
 #endif
 	}
@@ -511,6 +514,7 @@ void pvpgn_greeting()
 	eventlog(eventlog_level_info, __FUNCTION__, PVPGN_SOFTWARE" version "PVPGN_VERSION);
 #endif
 
+#ifdef HAVE_UNAME
 	struct utsname utsbuf = {};
 	if (uname(&utsbuf) == 0)
 	{
@@ -520,6 +524,7 @@ void pvpgn_greeting()
 	{
 		eventlog(eventlog_level_info, __FUNCTION__, "uname() failed");
 	}
+#endif
 
 #ifdef WIN32_GUI
 	gui_lvprintf(eventlog_level_info, "You are currently running " PVPGN_SOFTWARE " " PVPGN_VERSION "\n");
@@ -677,7 +682,7 @@ extern int main(int argc, char ** argv)
 		if (pidfile) {
 			if (std::remove(pidfile) < 0)
 				eventlog(eventlog_level_error, __FUNCTION__, "could not remove pid file \"{}\" (std::remove: {})", pidfile, std::strerror(errno));
-			xfree((void *)pidfile); /* avoid warning */
+			delete[] pidfile; /* avoid warning */
 		}
 
 		if (a == 0)

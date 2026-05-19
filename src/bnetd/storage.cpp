@@ -17,7 +17,7 @@
    */
 
 #include "common/setup_before.h"
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include <cstring>
 #include <cstdlib>
 

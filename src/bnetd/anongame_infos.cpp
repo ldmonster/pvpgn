@@ -39,6 +39,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ai_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static std::FILE *fp = NULL;
 
 		static t_anongame_infos *anongame_infos;
@@ -57,7 +67,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			anongame_infos_URL = (char**)xmalloc(sizeof(char*)*anongame_infos_URL_count);
+			anongame_infos_URL = new char*[anongame_infos_URL_count]{};
 
 			for (i = 0; i < anongame_infos_URL_count; i++)
 				anongame_infos_URL[i] = NULL;
@@ -81,11 +91,11 @@ namespace pvpgn
 			{
 				if (anongame_infos_URL[i])
 				{
-					xfree((void *)anongame_infos_URL[i]);
+					delete[] anongame_infos_URL[i];
 				}
 			}
 
-			xfree((void *)anongame_infos_URL);
+			delete[] anongame_infos_URL;
 
 			return 0;
 		}
@@ -96,10 +106,10 @@ namespace pvpgn
 			char ** descs;
 			t_anongame_infos_DESC *anongame_infos_DESC;
 
-			anongame_infos_DESC = (t_anongame_infos_DESC*)xmalloc(sizeof(t_anongame_infos_DESC));
+			anongame_infos_DESC = new t_anongame_infos_DESC{};
 
 			anongame_infos_DESC->langID = NULL;
-			descs = (char**)xmalloc(sizeof(char *)*anongame_infos_DESC_count);
+			descs = new char*[anongame_infos_DESC_count]{};
 
 			for (i = 0; i < anongame_infos_DESC_count; i++)
 				descs[i] = NULL;
@@ -121,18 +131,18 @@ namespace pvpgn
 			}
 
 			if (anongame_infos_DESC->langID)
-				xfree((void *)anongame_infos_DESC->langID);
+				delete[] const_cast<char*>(anongame_infos_DESC->langID);
 			if ((descs = anongame_infos_DESC->descs))
 			{
 				for (i = 0; i < anongame_infos_DESC_count; i++)
 				{
 					if ((descs[i]))
-						xfree((void *)descs[i]);
+						delete[] descs[i];
 				}
-				xfree((void *)descs);
+				delete[] descs;
 			}
 
-			xfree((void *)anongame_infos_DESC);
+			delete anongame_infos_DESC;
 
 			return 0;
 		}
@@ -192,9 +202,9 @@ namespace pvpgn
 		{
 			t_anongame_infos_data_lang *anongame_infos_data_lang;
 
-			anongame_infos_data_lang = (t_anongame_infos_data_lang*)xmalloc(sizeof(t_anongame_infos_data_lang));
+			anongame_infos_data_lang = new t_anongame_infos_data_lang{};
 
-			anongame_infos_data_lang->langID = xstrdup(langID);
+			anongame_infos_data_lang->langID = ai_strdup(langID);
 
 			anongame_infos_data_lang->desc_data = NULL;
 			anongame_infos_data_lang->ladr_data = NULL;
@@ -220,19 +230,19 @@ namespace pvpgn
 			}
 
 			if (anongame_infos_data_lang->langID)
-				xfree((void *)anongame_infos_data_lang->langID);
+				delete[] const_cast<char*>(anongame_infos_data_lang->langID);
 
 			if (anongame_infos_data_lang->desc_data)
-				xfree((void *)anongame_infos_data_lang->desc_data);
+				delete[] const_cast<char*>(anongame_infos_data_lang->desc_data);
 			if (anongame_infos_data_lang->ladr_data)
-				xfree((void *)anongame_infos_data_lang->ladr_data);
+				delete[] const_cast<char*>(anongame_infos_data_lang->ladr_data);
 
 			if (anongame_infos_data_lang->desc_comp_data)
-				xfree((void *)anongame_infos_data_lang->desc_comp_data);
+				delete[] const_cast<char*>(anongame_infos_data_lang->desc_comp_data);
 			if (anongame_infos_data_lang->ladr_comp_data)
-				xfree((void *)anongame_infos_data_lang->ladr_comp_data);
+				delete[] const_cast<char*>(anongame_infos_data_lang->ladr_comp_data);
 
-			xfree((void *)anongame_infos_data_lang);
+			delete anongame_infos_data_lang;
 
 			return 0;
 		}
@@ -248,7 +258,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			anongame_infos_data = (t_anongame_infos_data*)xmalloc(sizeof(t_anongame_infos_data));
+			anongame_infos_data = new t_anongame_infos_data{};
 
 			anongame_infos_data_lang = list_create();
 
@@ -269,7 +279,7 @@ namespace pvpgn
 			anongame_infos->anongame_infos_data_war3 = anongame_infos_data;
 			anongame_infos->anongame_infos_data_lang_war3 = anongame_infos_data_lang;
 
-			anongame_infos_data = (t_anongame_infos_data*)xmalloc(sizeof(t_anongame_infos_data));
+			anongame_infos_data = new t_anongame_infos_data{};
 
 			anongame_infos_data_lang = list_create();
 
@@ -299,19 +309,19 @@ namespace pvpgn
 			t_anongame_infos_data_lang *entry;
 
 			if (anongame_infos_data->url_comp_data)
-				xfree((void *)anongame_infos_data->url_comp_data);
+				delete[] const_cast<char*>(anongame_infos_data->url_comp_data);
 			if (anongame_infos_data->url_comp_data_115)
-				xfree((void *)anongame_infos_data->url_comp_data_115);
+				delete[] const_cast<char*>(anongame_infos_data->url_comp_data_115);
 			if (anongame_infos_data->map_comp_data)
-				xfree((void *)anongame_infos_data->map_comp_data);
+				delete[] const_cast<char*>(anongame_infos_data->map_comp_data);
 			if (anongame_infos_data->type_comp_data)
-				xfree((void *)anongame_infos_data->type_comp_data);
+				delete[] const_cast<char*>(anongame_infos_data->type_comp_data);
 			if (anongame_infos_data->desc_comp_data)
-				xfree((void *)anongame_infos_data->desc_comp_data);
+				delete[] const_cast<char*>(anongame_infos_data->desc_comp_data);
 			if (anongame_infos_data->ladr_comp_data)
-				xfree((void *)anongame_infos_data->ladr_comp_data);
+				delete[] const_cast<char*>(anongame_infos_data->ladr_comp_data);
 
-			xfree((void *)anongame_infos_data);
+			delete anongame_infos_data;
 
 			if (anongame_infos_data_lang)
 			{
@@ -334,32 +344,32 @@ namespace pvpgn
 		{
 			t_anongame_infos *anongame_infos;
 
-			anongame_infos = (t_anongame_infos*)xmalloc(sizeof(t_anongame_infos));
+			anongame_infos = new t_anongame_infos{};
 
 			if (anongame_infos_URL_init(anongame_infos) != 0)
 			{
-				xfree((void *)anongame_infos);
+				delete anongame_infos;
 				return NULL;
 			}
 
 			if (anongame_infos_THUMBSDOWN_init(anongame_infos) != 0)
 			{
 				anongame_infos_URL_destroy(anongame_infos->anongame_infos_URL);
-				xfree((void *)anongame_infos);
+				delete anongame_infos;
 				return NULL;
 			}
 
 			if (anongame_infos_ICON_REQ_init(anongame_infos) != 0)
 			{
 				anongame_infos_URL_destroy(anongame_infos->anongame_infos_URL);
-				xfree((void *)anongame_infos);
+				delete anongame_infos;
 				return NULL;
 			}
 
 			if (anongame_infos_data_init(anongame_infos) != 0)
 			{
 				anongame_infos_URL_destroy(anongame_infos->anongame_infos_URL);
-				xfree((void *)anongame_infos);
+				delete anongame_infos;
 				return NULL;
 			}
 
@@ -402,7 +412,7 @@ namespace pvpgn
 			anongame_infos_data_destroy(anongame_infos->anongame_infos_data_war3, anongame_infos->anongame_infos_data_lang_war3);
 			anongame_infos_data_destroy(anongame_infos->anongame_infos_data_w3xp, anongame_infos->anongame_infos_data_lang_w3xp);
 
-			xfree((void *)anongame_infos);
+			delete anongame_infos;
 
 			return 0;
 		}
@@ -417,9 +427,9 @@ namespace pvpgn
 				return -1;
 			}
 
-			temp = xstrdup(src);
+			temp = ai_strdup(src);
 			if (*dst)
-				xfree((void *)*dst);
+				delete[] const_cast<char*>(*dst);
 			*dst = temp;
 
 			return 0;
@@ -1415,7 +1425,7 @@ namespace pvpgn
 										   parse_state = unchanged;
 										   eventlog(eventlog_level_info, __FUNCTION__, "got langID: [{}]", langID);
 										   if (langID[0] != '\0')
-											   anongame_infos_DESC->langID = xstrdup(langID);
+											   anongame_infos_DESC->langID = ai_strdup(langID);
 									   }
 
 									   variable = buff;
@@ -1942,12 +1952,12 @@ namespace pvpgn
 					packet_append_string(raw, anongame_infos_DESC_get_DESC(langID, ladder_clan_4v4_desc));
 					packet_append_string(raw, anongame_infos_URL_get_URL(URL_ladder_clan_4v4));
 					anongame_infos_data_lang_war3->ladr_len = packet_get_size(raw);
-					anongame_infos_data_lang_war3->ladr_data = (char *)xmalloc(anongame_infos_data_lang_war3->ladr_len);
+					anongame_infos_data_lang_war3->ladr_data = new char[anongame_infos_data_lang_war3->ladr_len];
 					std::memcpy(anongame_infos_data_lang_war3->ladr_data, packet_get_data_const(raw, 0, anongame_infos_data_lang_war3->ladr_len), anongame_infos_data_lang_war3->ladr_len);
 					zlib_compress(anongame_infos_data_lang_war3->ladr_data, anongame_infos_data_lang_war3->ladr_len, &anongame_infos_data_lang_war3->ladr_comp_data, &anongame_infos_data_lang_war3->ladr_comp_len);
 					list_append_data(anongame_infos->anongame_infos_data_lang_war3, anongame_infos_data_lang_war3);
 					anongame_infos_data_lang_w3xp->ladr_len = packet_get_size(raw);
-					anongame_infos_data_lang_w3xp->ladr_data = (char *)xmalloc(anongame_infos_data_lang_w3xp->ladr_len);
+					anongame_infos_data_lang_w3xp->ladr_data = new char[anongame_infos_data_lang_w3xp->ladr_len];
 					std::memcpy(anongame_infos_data_lang_w3xp->ladr_data, packet_get_data_const(raw, 0, anongame_infos_data_lang_w3xp->ladr_len), anongame_infos_data_lang_w3xp->ladr_len);
 					zlib_compress(anongame_infos_data_lang_w3xp->ladr_data, anongame_infos_data_lang_w3xp->ladr_len, &anongame_infos_data_lang_w3xp->ladr_comp_data, &anongame_infos_data_lang_w3xp->ladr_comp_len);
 					list_append_data(anongame_infos->anongame_infos_data_lang_w3xp, anongame_infos_data_lang_w3xp);
@@ -1976,7 +1986,7 @@ namespace pvpgn
 			lorigdone = 0;
 			*dest = NULL;
 
-			tmpdata = (char *)xmalloc(srclen + (srclen / 0x10) + 0x200 + 0x8000);
+			tmpdata = new char[srclen + (srclen / 0x10) + 0x200 + 0x8000];
 
 			std::memset(&zcpr, 0, sizeof(z_stream));
 			deflateInit(&zcpr, 9);
@@ -1995,7 +2005,7 @@ namespace pvpgn
 			(*destlen) = zcpr.total_out;
 			if ((*destlen) > 0)
 			{
-				(*dest) = (char*)xmalloc((*destlen) + 4);
+				(*dest) = new char[(*destlen) + 4];
 				bn_short_set((bn_short *)(*dest), lorigdone);
 				bn_short_set((bn_short *)(*dest + 2), *destlen);
 				std::memcpy((*dest) + 4, tmpdata, (*destlen));
@@ -2003,7 +2013,7 @@ namespace pvpgn
 			}
 			deflateEnd(&zcpr);
 
-			xfree((void *)tmpdata);
+			delete[] const_cast<char*>(tmpdata);
 
 			return 0;
 		}

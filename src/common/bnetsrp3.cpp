@@ -74,7 +74,7 @@ namespace pvpgn
 			}
 
 			username_length = std::strlen(username_);
-			username = (char*)xmalloc(username_length + 1);
+			username = new char[username_length + 1]{};
 			source = username_;
 			symbol = username;
 			for (i = 0; i < username_length; i++)
@@ -89,7 +89,7 @@ namespace pvpgn
 
 			if (password_ != NULL) {
 				password_length = std::strlen(password_);
-				password = (char*)xmalloc(password_length + 1);
+				password = new char[password_length + 1]{};
 				source = password_;
 				symbol = password;
 				for (i = 0; i < password_length; i++)
@@ -137,10 +137,10 @@ namespace pvpgn
 	BnetSRP3::~BnetSRP3()
 	{
 		if (username)
-			xfree(username);
+			delete[] username;
 
 		if (password)
-			xfree(password);
+			delete[] password;
 
 		delete B;
 	}
@@ -153,13 +153,13 @@ namespace pvpgn
 			char private_value[32 + 20];	// s, H(userpass)
 			t_hash private_value_hash;
 
-			userpass = (char*)xmalloc(username_length + 1 + password_length + 1);
+			userpass = new char[username_length + 1 + password_length + 1]{};
 			std::memcpy(userpass, username, username_length);
 			userpass[username_length] = ':';
 			std::memcpy(userpass + username_length + 1, password, password_length);
 			userpass[username_length + 1 + password_length] = '\0';
 			little_endian_sha1_hash(&userpass_hash, username_length + 1 + password_length, userpass);
-			xfree(userpass);
+			delete[] userpass;
 
 			std::memcpy(&private_value[0], raw_salt, 32);
 			std::memcpy(&private_value[32], userpass_hash, 20);
@@ -220,7 +220,7 @@ namespace pvpgn
 				*(evenPointer++) = *(secretPointer++);
 			}
 
-			xfree(raw_secret);
+			delete[] raw_secret;
 			little_endian_sha1_hash(&odd_hash, 16, odd);
 			little_endian_sha1_hash(&even_hash, 16, even);
 

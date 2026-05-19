@@ -32,7 +32,7 @@
 # include <unistd.h>
 #endif
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "compat/pdir.h"
 #include "compat/rename.h"
 #include "common/eventlog.h"
@@ -56,6 +56,16 @@ namespace pvpgn
 
 	namespace bnetd
 	{
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* sf_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 
 		/* file storage API functions */
 
@@ -133,7 +143,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			copy = xstrdup(path);
+			copy = sf_strdup(path);
 			tmp = copy;
 			while ((tok = std::strtok(tmp, ";")) != NULL)
 			{
@@ -141,7 +151,7 @@ namespace pvpgn
 				if ((p = std::strchr(tok, '=')) == NULL)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "invalid storage_path, no '=' present in token");
-					xfree((void *)copy);
+					delete[] const_cast<char*>(copy);
 					return -1;
 				}
 				*p = '\0';
@@ -162,7 +172,7 @@ namespace pvpgn
 			if (def == NULL || clan == NULL || team == NULL || dir == NULL || driver == NULL)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "invalid storage_path line for file module (doesnt have a 'dir', a 'clan', a 'team', a 'default' token and a 'mode' token)");
-				xfree((void *)copy);
+				delete[] const_cast<char*>(copy);
 				return -1;
 			}
 
@@ -171,19 +181,19 @@ namespace pvpgn
 			else
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "unknown mode '{}', mode must be plain", driver);
-				xfree((void *)copy);
+				delete[] const_cast<char*>(copy);
 				return -1;
 			}
 
 			if (accountsdir)
 				file_close();
 
-			accountsdir = xstrdup(dir);
-			clansdir = xstrdup(clan);
-			teamsdir = xstrdup(team);
-			defacct = xstrdup(def);
+			accountsdir = sf_strdup(dir);
+			clansdir = sf_strdup(clan);
+			teamsdir = sf_strdup(team);
+			defacct = sf_strdup(def);
 
-			xfree((void *)copy);
+			delete[] const_cast<char*>(copy);
 
 			return 0;
 		}
@@ -191,19 +201,19 @@ namespace pvpgn
 		static int file_close(void)
 		{
 			if (accountsdir)
-				xfree((void *)accountsdir);
+				delete[] const_cast<char*>(accountsdir);
 			accountsdir = NULL;
 
 			if (clansdir)
-				xfree((void *)clansdir);
+				delete[] const_cast<char*>(clansdir);
 			clansdir = NULL;
 
 			if (teamsdir)
-				xfree((void *)teamsdir);
+				delete[] const_cast<char*>(teamsdir);
 			teamsdir = NULL;
 
 			if (defacct)
-				xfree((void *)defacct);
+				delete[] const_cast<char*>(defacct);
 			defacct = NULL;
 
 			file = NULL;
@@ -236,13 +246,13 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "could not escape username");
 					return NULL;
 				}
-				temp = (char*)xmalloc(std::strlen(accountsdir) + 1 + std::strlen(safename) + 1);	/* dir + / + name + NUL */
+				temp = new char[std::strlen(accountsdir) + 1 + std::strlen(safename) + 1];	/* dir + / + name + NUL */
 				std::sprintf(temp, "%s/%s", accountsdir, safename);
-				xfree((void *)safename);	/* avoid warning */
+				delete[] const_cast<char*>(safename);
 			}
 			else
 			{
-				temp = (char*)xmalloc(std::strlen(accountsdir) + 1 + 8 + 1);	/* dir + / + uid + NUL */
+				temp = new char[std::strlen(accountsdir) + 1 + 8 + 1];	/* dir + / + uid + NUL */
 				std::sprintf(temp, "%s/%06u", accountsdir, maxuserid + 1);	/* FIXME: hmm, maybe up the %06 to %08... */
 			}
 
@@ -271,24 +281,24 @@ namespace pvpgn
 				return -1;
 			}
 
-			tempname = (char*)xmalloc(std::strlen(accountsdir) + 1 + std::strlen(BNETD_ACCOUNT_TMP) + 1);
+			tempname = new char[std::strlen(accountsdir) + 1 + std::strlen(BNETD_ACCOUNT_TMP) + 1];
 			std::sprintf(tempname, "%s/%s", accountsdir, BNETD_ACCOUNT_TMP);
 
 			if (file->write_attrs(tempname, attributes))
 			{
 				/* no eventlog here, it should be reported from the file layer */
-				xfree(tempname);
+				delete[] tempname;
 				return -1;
 			}
 
 			if (p_rename(tempname, (const char *)info) < 0)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not std::rename account file to \"{}\" (std::rename: {})", (char *)info, std::strerror(errno));
-				xfree(tempname);
+				delete[] tempname;
 				return -1;
 			}
 
-			xfree(tempname);
+			delete[] tempname;
 
 			return 0;
 		}
@@ -350,7 +360,7 @@ namespace pvpgn
 		static int file_free_info(t_storage_info * info)
 		{
 			if (info)
-				xfree((void *)info);
+				delete[] static_cast<char*>(const_cast<void*>(info));
 			return 0;
 		}
 
@@ -364,7 +374,7 @@ namespace pvpgn
 				return NULL;
 			}
 
-			info = xstrdup(defacct);
+			info = sf_strdup(defacct);
 
 			return info;
 		}
@@ -389,7 +399,7 @@ namespace pvpgn
 					std::ostringstream ostr;
 					ostr << accountsdir << '/' << dentry;
 
-					cb(xstrdup(ostr.str().c_str()), data);
+					cb(sf_strdup(ostr.str().c_str()), data);
 				}
 			}
 			catch (const Directory::OpenError& ex) {
@@ -414,11 +424,11 @@ namespace pvpgn
 			 * PS: yes its kind of a hack, we will make a proper index file
 			 */
 			if (accname && prefs_get_savebyname()) {
-				pathname = (char*)xmalloc(std::strlen(accountsdir) + 1 + std::strlen(accname) + 1);	/* dir + / + file + NUL */
+				pathname = new char[std::strlen(accountsdir) + 1 + std::strlen(accname) + 1];	/* dir + / + file + NUL */
 				std::sprintf(pathname, "%s/%s", accountsdir, accname);
 				if (!std::filesystem::exists(pathname))	/* if it doesn't exist */
 				{
-					xfree((void *)pathname);
+					delete[] const_cast<char*>(pathname);
 					return NULL;
 				}
 				return pathname;
@@ -462,7 +472,7 @@ namespace pvpgn
 
 				eventlog(eventlog_level_trace, __FUNCTION__, "start reading clans");
 
-				pathname = (char*)xmalloc(std::strlen(clansdir) + 1 + 4 + 1);
+				pathname = new char[std::strlen(clansdir) + 1 + 4 + 1];
 				while ((dentry = clandir.read()))
 				{
 					if (std::strlen(dentry) > 4)
@@ -481,13 +491,13 @@ namespace pvpgn
 						continue;
 					}
 
-					clan = (t_clan*)xmalloc(sizeof(t_clan));
+					clan = new t_clan{};
 					clan->tag = clantag;
 
 					if (!std::fgets(line, 1024, fp))
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "invalid clan file: no first line");
-						xfree((void*)clan);
+						delete clan;
 						continue;
 					}
 
@@ -495,7 +505,7 @@ namespace pvpgn
 					if (*clanname != '"')
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "invalid clan file: invalid first line");
-						xfree((void*)clan);
+						delete clan;
 						continue;
 					}
 					clanname++;
@@ -503,14 +513,14 @@ namespace pvpgn
 					if (!p)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "invalid clan file: invalid first line");
-						xfree((void*)clan);
+						delete clan;
 						continue;
 					}
 					*p = '\0';
 					if (std::strlen(clanname) >= CLAN_NAME_MAX)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "invalid clan file: invalid first line");
-						xfree((void*)clan);
+						delete clan;
 						continue;
 					}
 
@@ -518,14 +528,14 @@ namespace pvpgn
 					if (*p != ',')
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "invalid clan file: invalid first line");
-						xfree((void*)clan);
+						delete clan;
 						continue;
 					}
 					p++;
 					if (*p != '"')
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "invalid clan file: invalid first line");
-						xfree((void*)clan);
+						delete clan;
 						continue;
 					}
 					motd = p + 1;
@@ -533,7 +543,7 @@ namespace pvpgn
 					if (!p)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "invalid clan file: invalid first line");
-						xfree((void*)clan);
+						delete clan;
 						continue;
 					}
 					*p = '\0';
@@ -541,11 +551,11 @@ namespace pvpgn
 					if (std::sscanf(p + 1, ",%d,%d\n", &cid, &creation_time) != 2)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "invalid first line in clanfile");
-						xfree((void*)clan);
+						delete clan;
 						continue;
 					}
-					clan->clanname = xstrdup(clanname);
-					clan->clan_motd = xstrdup(motd);
+					clan->clanname = sf_strdup(clanname);
+					clan->clan_motd = sf_strdup(motd);
 					clan->clanid = cid;
 					clan->creation_time = (std::time_t) creation_time;
 					clan->created = 1;
@@ -558,11 +568,11 @@ namespace pvpgn
 
 					while (std::fscanf(fp, "%i,%c,%i\n", &member_uid, &member_status, &member_join_time) == 3)
 					{
-						member = (t_clanmember*)xmalloc(sizeof(t_clanmember));
+						member = new t_clanmember{};
 						if (!(member->memberacc = accountlist_find_account_by_uid(member_uid)))
 						{
 							eventlog(eventlog_level_error, __FUNCTION__, "cannot find uid {}", member_uid);
-							xfree((void *)member);
+							delete member;
 							continue;
 						}
 						member->status = member_status - '0';
@@ -588,7 +598,7 @@ namespace pvpgn
 
 				}
 
-				xfree((void *)pathname);
+				delete[] const_cast<char*>(pathname);
 
 			}
 			catch (const Directory::OpenError& ex) {
@@ -609,13 +619,13 @@ namespace pvpgn
 			char *clanfile;
 			t_clan *clan = (t_clan *)data;
 
-			clanfile = (char*)xmalloc(std::strlen(clansdir) + 1 + 4 + 1);
+			clanfile = new char[std::strlen(clansdir) + 1 + 4 + 1];
 			std::sprintf(clanfile, "%s/%s", clansdir, clantag_to_str(clan->tag));
 
 			if ((fp = std::fopen(clanfile, "w")) == NULL)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "can't open clanfile \"{}\"", clanfile);
-				xfree((void *)clanfile);
+				delete[] const_cast<char*>(clanfile);
 				return -1;
 			}
 
@@ -635,7 +645,7 @@ namespace pvpgn
 			}
 
 			std::fclose(fp);
-			xfree((void *)clanfile);
+			delete[] const_cast<char*>(clanfile);
 			return 0;
 		}
 
@@ -643,15 +653,15 @@ namespace pvpgn
 		{
 			char *tempname;
 
-			tempname = (char*)xmalloc(std::strlen(clansdir) + 1 + 4 + 1);
+			tempname = new char[std::strlen(clansdir) + 1 + 4 + 1];
 			std::sprintf(tempname, "%s/%s", clansdir, clantag_to_str(clantag));
 			if (std::remove((const char *)tempname) < 0)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not delete clan file \"{}\" (std::remove: {})", (char *)tempname, std::strerror(errno));
-				xfree(tempname);
+				delete[] tempname;
 				return -1;
 			}
-			xfree(tempname);
+			delete[] tempname;
 			return 0;
 		}
 
@@ -684,7 +694,7 @@ namespace pvpgn
 
 				eventlog(eventlog_level_trace, __FUNCTION__, "start reading teams");
 
-				pathname = (char*)xmalloc(std::strlen(teamsdir) + 1 + 8 + 1);
+				pathname = new char[std::strlen(teamsdir) + 1 + 8 + 1];
 				while ((dentry = teamdir.read()))
 				{
 					if (std::strlen(dentry) != 8)
@@ -703,7 +713,7 @@ namespace pvpgn
 						continue;
 					}
 
-					team = (t_team*)xmalloc(sizeof(t_team));
+					team = new t_team{};
 					team->teamid = teamid;
 
 					if (!(line = file_get_line(fp)))
@@ -790,7 +800,7 @@ namespace pvpgn
 
 					goto load_team_success;
 				load_team_failure:
-					xfree((void*)team);
+					delete team;
 					eventlog(eventlog_level_error, __FUNCTION__, "error while reading file \"{}\"", dentry);
 
 				load_team_success:
@@ -801,7 +811,7 @@ namespace pvpgn
 
 				}
 
-				xfree((void *)pathname);
+				delete[] const_cast<char*>(pathname);
 
 			}
 			catch (const Directory::OpenError& ex) {
@@ -820,13 +830,13 @@ namespace pvpgn
 			char *teamfile;
 			t_team *team = (t_team *)data;
 
-			teamfile = (char*)xmalloc(std::strlen(teamsdir) + 1 + 8 + 1);
+			teamfile = new char[std::strlen(teamsdir) + 1 + 8 + 1];
 			std::sprintf(teamfile, "%s/%08x", teamsdir, team->teamid);
 
 			if ((fp = std::fopen(teamfile, "w")) == NULL)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "can't open teamfile \"{}\"", teamfile);
-				xfree((void *)teamfile);
+				delete[] const_cast<char*>(teamfile);
 				return -1;
 			}
 
@@ -835,7 +845,7 @@ namespace pvpgn
 			std::fprintf(fp, "%d,%d,%d,%d,%d\n", team->wins, team->losses, team->xp, team->level, team->rank);
 
 			std::fclose(fp);
-			xfree((void *)teamfile);
+			delete[] const_cast<char*>(teamfile);
 
 			return 0;
 		}
@@ -845,15 +855,15 @@ namespace pvpgn
 
 			char *tempname;
 
-			tempname = (char*)xmalloc(std::strlen(clansdir) + 1 + 8 + 1);
+			tempname = new char[std::strlen(clansdir) + 1 + 8 + 1];
 			std::sprintf(tempname, "%s/%08x", clansdir, teamid);
 			if (std::remove((const char *)tempname) < 0)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not delete team file \"{}\" (std::remove: {})", (char *)tempname, std::strerror(errno));
-				xfree(tempname);
+				delete[] tempname;
 				return -1;
 			}
-			xfree(tempname);
+			delete[] tempname;
 
 			return 0;
 		}

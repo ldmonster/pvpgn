@@ -29,7 +29,7 @@
 #include <cstdlib>
 #include <cstdio>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/flags.h"
 #include "common/list.h"
@@ -63,6 +63,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* sc_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		unsigned int sql_defacct;
 		t_sql_engine *sql = NULL;
 
@@ -87,7 +97,7 @@ namespace pvpgn
 			const char *def = NULL;
 			const char *pref = NULL;
 
-			path = xstrdup(dbpath);
+			path = sc_strdup(dbpath);
 			tmp = path;
 			while ((tok = std::strtok(tmp, ";")) != NULL)
 			{
@@ -95,7 +105,7 @@ namespace pvpgn
 				if ((p = std::strchr(tok, '=')) == NULL)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "invalid storage_path, no '=' present in token");
-					xfree((void *)path);
+					delete[] path;
 					return -1;
 				}
 				*p = '\0';
@@ -124,7 +134,7 @@ namespace pvpgn
 			if (driver == NULL)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "no mode specified");
-				xfree((void *)path);
+				delete[] path;
 				return -1;
 			}
 
@@ -136,7 +146,7 @@ namespace pvpgn
 			if (pref == NULL)
 				tab_prefix = SQL_DEFAULT_PREFIX;
 			else
-				tab_prefix = xstrdup(pref);
+				tab_prefix = sc_strdup(pref);
 
 			do
 			{
@@ -148,7 +158,7 @@ namespace pvpgn
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "got error init db");
 						sql = NULL;
-						xfree((void *)path);
+						delete[] path;
 						return -1;
 					}
 					break;
@@ -162,7 +172,7 @@ namespace pvpgn
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "got error init db");
 						sql = NULL;
-						xfree((void *)path);
+						delete[] path;
 						return -1;
 					}
 					break;
@@ -176,7 +186,7 @@ namespace pvpgn
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "got error init db");
 						sql = NULL;
-						xfree((void *)path);
+						delete[] path;
 						return -1;
 					}
 					break;
@@ -197,11 +207,11 @@ namespace pvpgn
 				}
 #endif				/* WITH_SQL_ODBC */
 				eventlog(eventlog_level_error, __FUNCTION__, "no driver found for '{}'", driver);
-				xfree((void *)path);
+				delete[] path;
 				return -1;
 			} while (0);
 
-			xfree((void *)path);
+			delete[] path;
 
 			sql_dbcreator(sql);
 
@@ -219,7 +229,7 @@ namespace pvpgn
 			sql->close();
 			sql = NULL;
 			if (strcmp(tab_prefix, SQL_DEFAULT_PREFIX) != 0) {
-				xfree((void*)tab_prefix);
+				delete[] tab_prefix;
 				tab_prefix = NULL;
 			}
 
@@ -306,7 +316,7 @@ namespace pvpgn
 					if ((unsigned int)std::atoi(row[0]) == sql_defacct)
 						continue;	/* skip default account */
 
-					info = xmalloc(sizeof(t_sql_info));
+					info = new unsigned int{0};
 					*((unsigned int *)info) = std::atoi(row[0]);
 					cb(info, data);
 				}
@@ -329,7 +339,7 @@ namespace pvpgn
 		extern int sql_free_info(t_storage_info * info)
 		{
 			if (info)
-				xfree((void *)info);
+				delete static_cast<unsigned int*>(info);
 
 			return 0;
 		}
@@ -338,7 +348,7 @@ namespace pvpgn
 		{
 			t_storage_info *info;
 
-			info = xmalloc(sizeof(t_sql_info));
+			info = new unsigned int{0};
 			*((unsigned int *)info) = sql_defacct;
 
 			return info;
@@ -384,7 +394,7 @@ namespace pvpgn
 						continue;
 					}
 
-					clan = (t_clan *)xmalloc(sizeof(t_clan));
+					clan = new t_clan{};
 
 					if (!(clan->clanid = std::atoi(row[0])))
 					{
@@ -395,8 +405,8 @@ namespace pvpgn
 
 					clan->tag = std::atoi(row[1]);
 
-					clan->clanname = xstrdup(row[2]);
-					clan->clan_motd = xstrdup(row[3]);
+					clan->clanname = sc_strdup(row[2]);
+					clan->clan_motd = sc_strdup(row[3]);
 					clan->creation_time = std::atoi(row[4]);
 					clan->created = 1;
 					clan->modified = 0;
@@ -410,7 +420,7 @@ namespace pvpgn
 						if (sql->num_rows(result2) >= 1)
 						while ((row2 = sql->fetch_row(result2)) != NULL)
 						{
-							member = (t_clanmember *)xmalloc(sizeof(t_clanmember));
+							member = new t_clanmember{};
 							if (row2[0] == NULL)
 							{
 								eventlog(eventlog_level_error, __FUNCTION__, "got NULL uid from db");
@@ -421,7 +431,7 @@ namespace pvpgn
 							if (!(member->memberacc = accountlist_find_account_by_uid(member_uid)))
 							{
 								eventlog(eventlog_level_error, __FUNCTION__, "cannot find uid {}", member_uid);
-								xfree((void *)member);
+								delete member;
 								continue;
 							}
 							member->status = std::atoi(row2[1]);
@@ -660,7 +670,7 @@ namespace pvpgn
 						continue;
 					}
 
-					team = (t_team *)xmalloc(sizeof(t_team));
+					team = new t_team{};
 
 					if (!(team->teamid = std::atoi(row[0])))
 					{

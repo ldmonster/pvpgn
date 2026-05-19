@@ -218,8 +218,8 @@ namespace pvpgn
 				return NULL;
 			}
 
-			res = (t_pgsql_res *)xmalloc(sizeof(t_pgsql_res));
-			res->rowbuf = (char **)xmalloc(sizeof(char *)* p_PQnfields(pgres));
+			res = new t_pgsql_res{};
+			res->rowbuf = new char*[p_PQnfields(pgres)]{};
 			res->pgres = pgres;
 			res->crow = 0;
 
@@ -299,8 +299,8 @@ namespace pvpgn
 			/*    eventlog(eventlog_level_debug, __FUNCTION__, "res: {:p} res->rowbuf: {:p} res->crow: {} res->pgres: {:p}", res, res->rowbuf, res->crow, res->pgres); */
 
 			if (res->pgres) p_PQclear(res->pgres);
-			if (res->rowbuf) xfree((void*)res->rowbuf);
-			xfree((void*)res);
+			if (res->rowbuf) delete[] res->rowbuf;
+			delete res;
 		}
 
 		static unsigned int sql_pgsql_num_rows(t_sql_res *result)
@@ -341,7 +341,7 @@ namespace pvpgn
 
 			fieldno = p_PQnfields(res->pgres);
 
-			rfields = (t_sql_field *)xmalloc(sizeof(t_sql_field)* (fieldno + 1));
+			rfields = new t_sql_field[fieldno + 1]{};
 			for (i = 0; i < fieldno; i++)
 				rfields[i] = p_PQfname(res->pgres, i);
 			rfields[i] = NULL;
@@ -356,7 +356,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			xfree((void*)fields);
+			delete[] fields;
 			return 0; /* PQclear() should free the rest properly */
 		}
 

@@ -176,11 +176,11 @@ namespace pvpgn
 				return NULL;
 			}
 
-			res = (t_sqlite3_res *)xmalloc(sizeof(t_sqlite3_res));
+			res = new t_sqlite3_res{};
 
 			if (p_sqlite3_get_table(db, query, &res->results, &res->rows, &res->columns, NULL) != SQLITE_OK) {
 				/*        eventlog(eventlog_level_debug, __FUNCTION__, "got error ({}) from query ({})", p_sqlite3_errmsg(db), query); */
-				xfree((void*)res);
+				delete res;
 				return NULL;
 			}
 
@@ -224,7 +224,7 @@ namespace pvpgn
 			}
 
 			p_sqlite3_free_table(((t_sqlite3_res *)result)->results);
-			xfree(result);
+			delete static_cast<t_sqlite3_res*>(result);
 		}
 
 		static unsigned int sql_sqlite3_num_rows(t_sql_res *result)

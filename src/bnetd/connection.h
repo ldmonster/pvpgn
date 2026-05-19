@@ -22,6 +22,7 @@
 #ifdef CONNECTION_INTERNAL_ACCESS
 
 #include <ctime>
+#include <string>
 
 #ifdef JUST_NEED_TYPES
 # include "game.h"
@@ -139,7 +140,7 @@ namespace pvpgn
 					t_tag			archtag;
 					t_tag			gamelang;
 					t_clienttag			clienttag;
-					char const *		clientver;
+					std::string			clientver;
 					unsigned long		versionid; /* AKA bnversion */
 					unsigned long		gameversion;
 					unsigned long		checksum;
@@ -147,7 +148,7 @@ namespace pvpgn
 					int				tzbias;
 					char const *		host;
 					char const *		user;
-					char const *		clientexe;
+					std::string		clientexe;
 					char const *		owner;
 					char const *		cdkey;
 					const VersionCheck *versioncheck;
@@ -177,7 +178,7 @@ namespace pvpgn
 					} irc; /* irc chat specific data */
 				} chat; /* chat and messages specific data */
 				t_game *		game;
-				const char *		loggeduser;   /* username as logged in or given (not taken from account) */
+				std::string			loggeduser;   /* username as logged in or given (not taken from account) */
 				struct connection *	bound; /* matching Diablo II auth connection */
 				t_elist			timers; /* cached list of timers for cleaning */
 				/* FIXME: this d2/w3 specific data could be unified into an union */

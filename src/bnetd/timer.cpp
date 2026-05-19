@@ -46,7 +46,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			timer = (t_timer*)xmalloc(sizeof(t_timer));
+			timer = new t_timer{};
 			timer->owner = owner;
 			timer->when = when;
 			timer->cb = cb;
@@ -85,7 +85,7 @@ namespace pvpgn
 					timer->cb(timer->owner, (std::time_t)0, timer->data);
 				elist_del(&timer->owners);
 				elist_del(&timer->timers);
-				xfree((void*)timer);
+				delete timer;
 			}
 
 			return 0;
@@ -106,7 +106,7 @@ namespace pvpgn
 						timer->cb(timer->owner, timer->when, timer->data);
 					elist_del(&timer->owners);
 					elist_del(&timer->timers);
-					xfree((void*)timer);
+					delete timer;
 				}
 				else break; /* beeing sorted there is no need to go beyond this point */
 			}
@@ -131,7 +131,7 @@ namespace pvpgn
 				timer = elist_entry(curr, t_timer, timers);
 				elist_del(&timer->owners);
 				elist_del(&timer->timers);
-				xfree((void*)timer);
+				delete timer;
 			}
 			elist_init(&timerlist_head);
 

@@ -28,8 +28,7 @@
 #ifdef WIN32_GUI
 #include <win32/winmain.h>
 #endif
-#include "compat/strcasecmp.h"
-#include "compat/strncasecmp.h"
+#include <strings.h>
 #include "compat/socket.h"
 #include "compat/psock.h"
 #include "common/eventlog.h"
@@ -94,6 +93,16 @@ namespace pvpgn
 		} t_conn_entry;
 
 		t_conn_entry *connarray = NULL;
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* conn_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		t_elist arrayflist;
 
 		static int      totalcount = 0;
@@ -363,7 +372,7 @@ namespace pvpgn
 				return NULL;
 			}
 
-			temp = (t_connection*)xmalloc(sizeof(t_connection));
+			temp = new t_connection{};
 			temp->socket.tcp_sock = tsock;
 			temp->socket.tcp_addr = addr;
 			temp->socket.tcp_port = port;
@@ -393,13 +402,11 @@ namespace pvpgn
 			temp->protocol.client.checksum = 0;
 			temp->protocol.client.archtag = 0;
 			temp->protocol.client.clienttag = 0;
-			temp->protocol.client.clientver = NULL;
 			temp->protocol.client.gamelang = 0;
 			temp->protocol.client.country = NULL;
 			temp->protocol.client.tzbias = 0;
 			temp->protocol.client.host = NULL;
 			temp->protocol.client.user = NULL;
-			temp->protocol.client.clientexe = NULL;
 			temp->protocol.client.owner = NULL;
 			temp->protocol.client.cdkey = NULL;
 			temp->protocol.client.versioncheck = nullptr;
@@ -418,7 +425,6 @@ namespace pvpgn
 			temp->protocol.queues.outsizep = 0;
 			temp->protocol.queues.inqueue = NULL;
 			temp->protocol.queues.insize = 0;
-			temp->protocol.loggeduser = NULL;
 			temp->protocol.d2.realm = NULL;
 			rcm_regref_init(&temp->protocol.d2.realm_regref, &conn_set_realm_cb, temp);
 			temp->protocol.d2.character = NULL;
@@ -469,7 +475,7 @@ namespace pvpgn
 				return c->protocol.w3.anongame;
 			}
 
-			temp = (t_anongame*)xmalloc(sizeof(t_anongame));
+			temp = new t_anongame{};
 			temp->count = 0;
 			temp->id = 0;
 			temp->tid = 0;
@@ -535,7 +541,7 @@ namespace pvpgn
 			else {
 				anongame_unqueue(c, a->queue);
 			}
-			xfree(c->protocol.w3.anongame);
+			delete c->protocol.w3.anongame;
 			c->protocol.w3.anongame = NULL;
 		}
 
@@ -589,7 +595,7 @@ namespace pvpgn
 				LIST_TRAVERSE(c->protocol.chat.quota.list, curr)
 				{
 					qline = (t_qline*)elem_get_data(curr);
-					xfree(qline);
+					delete qline;
 					list_remove_elem(c->protocol.chat.quota.list, &curr);
 				}
 				list_destroy(c->protocol.chat.quota.list);
@@ -620,55 +626,51 @@ namespace pvpgn
 				watchlist->dispatch(c->protocol.account, NULL, c->protocol.client.clienttag, Watch::ET_logout);
 
 			if (c->protocol.chat.lastsender)
-				xfree((void *)c->protocol.chat.lastsender); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.lastsender);
 
 			if (c->protocol.chat.away)
-				xfree((void *)c->protocol.chat.away); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.away);
 			if (c->protocol.chat.dnd)
-				xfree((void *)c->protocol.chat.dnd); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.dnd);
 			if (c->protocol.chat.tmpOP_channel)
-				xfree((void *)c->protocol.chat.tmpOP_channel); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.tmpOP_channel);
 			if (c->protocol.chat.tmpVOICE_channel)
-				xfree((void *)c->protocol.chat.tmpVOICE_channel); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.tmpVOICE_channel);
 
-			if (c->protocol.client.clientver)
-				xfree((void *)c->protocol.client.clientver); /* avoid warning */
 			if (c->protocol.client.country)
-				xfree((void *)c->protocol.client.country); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.country);
 			if (c->protocol.client.host)
-				xfree((void *)c->protocol.client.host); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.host);
 			if (c->protocol.client.user)
-				xfree((void *)c->protocol.client.user); /* avoid warning */
-			if (c->protocol.client.clientexe)
-				xfree((void *)c->protocol.client.clientexe); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.user);
 			if (c->protocol.client.owner)
-				xfree((void *)c->protocol.client.owner); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.owner);
 			if (c->protocol.client.cdkey)
-				xfree((void *)c->protocol.client.cdkey); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.cdkey);
 			if (c->protocol.d2.realminfo)
-				xfree((void *)c->protocol.d2.realminfo); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.d2.realminfo);
 			if (c->protocol.d2.charname)
-				xfree((void *)c->protocol.d2.charname); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.d2.charname);
 			if (c->protocol.chat.irc.ircline)
-				xfree((void *)c->protocol.chat.irc.ircline); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.irc.ircline);
 			if (c->protocol.chat.irc.ircpass)
-				xfree((void *)c->protocol.chat.irc.ircpass); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.irc.ircpass);
 
 			if (c->protocol.wol.apgar)
-				xfree((void *)c->protocol.wol.apgar); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.wol.apgar);
 
 			if (c->protocol.wol.anongame_player)
 				anongame_wol_destroy(c);
 
 			/* ADDED BY UNDYING SOULZZ 4/8/02 */
 			if (c->protocol.w3.w3_playerinfo)
-				xfree((void *)c->protocol.w3.w3_playerinfo); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.w3.w3_playerinfo);
 
 			if (c->protocol.w3.client_proof)
-				xfree((void *)c->protocol.w3.client_proof); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.w3.client_proof);
 
 			if (c->protocol.w3.server_proof)
-				xfree((void *)c->protocol.w3.server_proof); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.w3.server_proof);
 
 			if (c->protocol.bound)
 				c->protocol.bound->protocol.bound = NULL;
@@ -681,7 +683,7 @@ namespace pvpgn
 				}
 				else
 				{
-					xfree(c->protocol.chat.ignore_list);
+					delete[] c->protocol.chat.ignore_list;
 				}
 			}
 
@@ -706,8 +708,7 @@ namespace pvpgn
 				c->protocol.account = NULL; /* the account code will free the memory later */
 			}
 
-			/* logged user is no longer only for logged in users */
-			if (c->protocol.loggeduser) xfree((void*)c->protocol.loggeduser);
+			/* logged user is no longer only for logged in users (std::string auto-cleanup) */
 
 			/* make sure the connection is closed */
 			if (c->protocol.v3_owns_socket) {
@@ -741,7 +742,7 @@ namespace pvpgn
 
 			eventlog(eventlog_level_info, __FUNCTION__, "[{}] closed {} connection", c->socket.tcp_sock, classstr);
 
-			xfree(c);
+			delete c;
 		}
 
 
@@ -1064,8 +1065,8 @@ namespace pvpgn
 			}
 
 			if (c->protocol.client.host)
-				xfree((void *)c->protocol.client.host); /* avoid warning */
-			c->protocol.client.host = xstrdup(host);
+				delete[] const_cast<char*>(c->protocol.client.host);
+			c->protocol.client.host = conn_strdup(host);
 		}
 
 
@@ -1083,8 +1084,8 @@ namespace pvpgn
 			}
 
 			if (c->protocol.client.user)
-				xfree((void *)c->protocol.client.user); /* avoid warning */
-			c->protocol.client.user = xstrdup(user);
+				delete[] const_cast<char*>(c->protocol.client.user);
+			c->protocol.client.user = conn_strdup(user);
 		}
 
 
@@ -1102,8 +1103,8 @@ namespace pvpgn
 			}
 
 			if (c->protocol.client.owner)
-				xfree((void *)c->protocol.client.owner); /* avoid warning */
-			c->protocol.client.owner = xstrdup(owner);
+				delete[] const_cast<char*>(c->protocol.client.owner);
+			c->protocol.client.owner = conn_strdup(owner);
 		}
 
 		extern const char * conn_get_user(t_connection const * c)
@@ -1138,8 +1139,8 @@ namespace pvpgn
 			}
 
 			if (c->protocol.client.cdkey)
-				xfree((void *)c->protocol.client.cdkey); /* avoid warning */
-			c->protocol.client.cdkey = xstrdup(cdkey);
+				delete[] const_cast<char*>(c->protocol.client.cdkey);
+			c->protocol.client.cdkey = conn_strdup(cdkey);
 		}
 
 
@@ -1151,16 +1152,14 @@ namespace pvpgn
 				return NULL;
 			}
 
-			if (!c->protocol.client.clientexe)
+			if (c->protocol.client.clientexe.empty())
 				return "";
-			return c->protocol.client.clientexe;
+			return c->protocol.client.clientexe.c_str();
 		}
 
 
 		extern void conn_set_clientexe(t_connection * c, char const * clientexe)
 		{
-			char const * temp;
-
 			if (!c)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
@@ -1172,10 +1171,7 @@ namespace pvpgn
 				return;
 			}
 
-			temp = xstrdup(clientexe);
-			if (c->protocol.client.clientexe)
-				xfree((void *)c->protocol.client.clientexe); /* avoid warning */
-			c->protocol.client.clientexe = temp;
+			c->protocol.client.clientexe = clientexe;
 		}
 
 
@@ -1187,16 +1183,14 @@ namespace pvpgn
 				return NULL;
 			}
 
-			if (!c->protocol.client.clientver)
+			if (c->protocol.client.clientver.empty())
 				return "";
-			return c->protocol.client.clientver;
+			return c->protocol.client.clientver.c_str();
 		}
 
 
 		extern void conn_set_clientver(t_connection * c, char const * clientver)
 		{
-			char const * temp;
-
 			if (!c)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
@@ -1208,10 +1202,7 @@ namespace pvpgn
 				return;
 			}
 
-			temp = xstrdup(clientver);
-			if (c->protocol.client.clientver)
-				xfree((void *)c->protocol.client.clientver); /* avoid warning */
-			c->protocol.client.clientver = temp;
+			c->protocol.client.clientver = clientver;
 		}
 
 
@@ -1471,27 +1462,26 @@ namespace pvpgn
 
 			if (c->protocol.client.host)
 			{
-				xfree((void *)c->protocol.client.host); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.host);
 				c->protocol.client.host = NULL;
 			}
 			if (c->protocol.client.user)
 			{
-				xfree((void *)c->protocol.client.user); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.user);
 				c->protocol.client.user = NULL;
 			}
-			if (c->protocol.client.clientexe)
+			if (!c->protocol.client.clientexe.empty())
 			{
-				xfree((void *)c->protocol.client.clientexe); /* avoid warning */
-				c->protocol.client.clientexe = NULL;
+				c->protocol.client.clientexe.clear();
 			}
 			if (c->protocol.client.owner)
 			{
-				xfree((void *)c->protocol.client.owner); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.owner);
 				c->protocol.client.owner = NULL;
 			}
 			if (c->protocol.client.cdkey)
 			{
-				xfree((void *)c->protocol.client.cdkey); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.client.cdkey);
 				c->protocol.client.cdkey = NULL;
 			}
 
@@ -1531,13 +1521,13 @@ namespace pvpgn
 
 		extern int conn_set_loggeduser(t_connection * c, char const * username)
 		{
-			const char * temp;
+			std::string temp;
 
 			assert(c != NULL);
 			assert(username != NULL);
 
 			if (username[0] != '#')
-				temp = xstrdup(username);
+				temp = username;
 			else {
 				unsigned int userid = 0;
 				str_to_uint(&username[1], &userid);
@@ -1546,21 +1536,20 @@ namespace pvpgn
 					if (prefs_get_account_force_username())
 					{
 						t_account* account = accountlist_find_account_by_uid(userid);
-						temp = xstrdup(account_get_name(account));
+						temp = account_get_name(account);
 					}
 					else
-						temp = xstrdup(std::string("#" + userid).c_str());
+						temp = std::string("#" + userid).c_str();
 				}
 				else
 				{  //theoretically this should never happen...
 					eventlog(eventlog_level_error, __FUNCTION__, "got invalid numeric uid \"{}\"", username);
 					// set value that would have been set prior to this bugfix...
-					temp = xstrdup(username);
+					temp = username;
 				}
 			}
-			if (c->protocol.loggeduser) xfree((void*)c->protocol.loggeduser);
 
-			c->protocol.loggeduser = temp;
+			c->protocol.loggeduser = std::move(temp);
 
 			return 0;
 		}
@@ -1570,9 +1559,9 @@ namespace pvpgn
 		{
 			assert(c != NULL);
 
-			if (!c->protocol.loggeduser && c->protocol.account)
+			if (c->protocol.loggeduser.empty() && c->protocol.account)
 				return account_get_name(c->protocol.account);
-			return c->protocol.loggeduser;
+			return c->protocol.loggeduser.c_str();
 		}
 
 
@@ -1690,11 +1679,11 @@ namespace pvpgn
 			}
 
 			if (c->protocol.chat.away)
-				xfree((void *)c->protocol.chat.away); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.away);
 			if (!away)
 				c->protocol.chat.away = NULL;
 			else
-				c->protocol.chat.away = xstrdup(away);
+				c->protocol.chat.away = conn_strdup(away);
 
 			return 0;
 		}
@@ -1721,11 +1710,11 @@ namespace pvpgn
 			}
 
 			if (c->protocol.chat.dnd)
-				xfree((void *)c->protocol.chat.dnd); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.dnd);
 			if (!dnd)
 				c->protocol.chat.dnd = NULL;
 			else
-				c->protocol.chat.dnd = xstrdup(dnd);
+				c->protocol.chat.dnd = conn_strdup(dnd);
 
 			return 0;
 		}
@@ -1746,7 +1735,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			newlist = (t_account**)xrealloc(c->protocol.chat.ignore_list, sizeof(t_account const *)*(c->protocol.chat.ignore_count + 1));
+			{ int _oldn = c->protocol.chat.ignore_count; int _newn = _oldn + 1; t_account** _nl = new t_account*[_newn]{}; if (c->protocol.chat.ignore_list && _oldn > 0) { std::memcpy(_nl, c->protocol.chat.ignore_list, _oldn * sizeof(t_account*)); delete[] c->protocol.chat.ignore_list; } newlist = _nl; }
 			newlist[c->protocol.chat.ignore_count++] = account;
 			c->protocol.chat.ignore_list = newlist;
 
@@ -1794,11 +1783,11 @@ namespace pvpgn
 
 			if (c->protocol.chat.ignore_count == 1) /* some realloc()s are buggy */
 			{
-				xfree(c->protocol.chat.ignore_list);
+				delete[] c->protocol.chat.ignore_list;
 				newlist = NULL;
 			}
 			else
-				newlist = (t_account**)xrealloc(c->protocol.chat.ignore_list, sizeof(t_account const *)*(c->protocol.chat.ignore_count - 1));
+				{ int _oldn = c->protocol.chat.ignore_count; int _newn = _oldn - 1; t_account** _nl = (_newn > 0) ? new t_account*[_newn]{} : nullptr; if (_nl && c->protocol.chat.ignore_list) std::memcpy(_nl, c->protocol.chat.ignore_list, _newn * sizeof(t_account*)); delete[] c->protocol.chat.ignore_list; newlist = _nl; }
 
 			c->protocol.chat.ignore_count--;
 			c->protocol.chat.ignore_list = newlist;
@@ -2483,10 +2472,10 @@ namespace pvpgn
 
 				if (c->protocol.d2.charname) mychar = c->protocol.d2.charname;
 				else mychar = "";
-				chatcharname = (char*)xmalloc(std::strlen(accname) + 2 + std::strlen(mychar));
+				chatcharname = new char[std::strlen(accname) + 2 + std::strlen(mychar)];
 				std::sprintf(chatcharname, "%s*%s", mychar, accname);
 			}
-			else chatcharname = xstrdup(accname);
+			else chatcharname = conn_strdup(accname);
 
 			return chatcharname;
 		}
@@ -2505,7 +2494,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			xfree((void *)name); /* avoid warning */
+			delete[] const_cast<char*>(name);
 			return 0;
 		}
 
@@ -2846,12 +2835,12 @@ namespace pvpgn
 			}
 
 			if (realminfo)
-				temp = xstrdup(realminfo);
+				temp = conn_strdup(realminfo);
 			else
 				temp = NULL;
 
 			if (c->protocol.d2.realminfo) /* if it was set before, free it now */
-				xfree((void *)c->protocol.d2.realminfo); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.d2.realminfo);
 			c->protocol.d2.realminfo = temp;
 			return 0;
 		}
@@ -2879,12 +2868,12 @@ namespace pvpgn
 			}
 
 			if (charname)
-				temp = xstrdup(charname);
+				temp = conn_strdup(charname);
 			else
 				temp = charname;
 
 			if (c->protocol.d2.charname) /* free it, if it was previously set */
-				xfree((void *)c->protocol.d2.charname); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.d2.charname);
 			c->protocol.d2.charname = temp;
 			return 0;
 		}
@@ -3004,8 +2993,8 @@ namespace pvpgn
 			}
 
 			if (c->protocol.client.country)
-				xfree((void *)c->protocol.client.country); /* avoid warning */
-			c->protocol.client.country = xstrdup(country);
+				delete[] const_cast<char*>(c->protocol.client.country);
+			c->protocol.client.country = conn_strdup(country);
 		}
 
 
@@ -3052,8 +3041,8 @@ namespace pvpgn
 				return -1;
 			}
 			if (c->protocol.chat.irc.ircline)
-				xfree((void *)c->protocol.chat.irc.ircline); /* avoid warning */
-			c->protocol.chat.irc.ircline = xstrdup(line);
+				delete[] const_cast<char*>(c->protocol.chat.irc.ircline);
+			c->protocol.chat.irc.ircline = conn_strdup(line);
 			return 0;
 		}
 
@@ -3075,11 +3064,11 @@ namespace pvpgn
 				return -1;
 			}
 			if (c->protocol.chat.irc.ircpass)
-				xfree((void *)c->protocol.chat.irc.ircpass); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.irc.ircpass);
 			if (!pass)
 				c->protocol.chat.irc.ircpass = NULL;
 			else
-				c->protocol.chat.irc.ircpass = xstrdup(pass);
+				c->protocol.chat.irc.ircpass = conn_strdup(pass);
 
 			return 0;
 		}
@@ -3150,10 +3139,10 @@ namespace pvpgn
 				return -1;
 			}
 
-			temp = xstrdup(w3_playerinfo);
+			temp = conn_strdup(w3_playerinfo);
 
 			if (c->protocol.w3.w3_playerinfo)
-				xfree((void *)c->protocol.w3.w3_playerinfo);
+				delete[] const_cast<char*>(c->protocol.w3.w3_playerinfo);
 
 			c->protocol.w3.w3_playerinfo = temp;
 
@@ -3199,13 +3188,13 @@ namespace pvpgn
 					if (qline->count > con->protocol.chat.quota.totcount)
 						eventlog(eventlog_level_error, __FUNCTION__, "qline->count={} but con->protocol.chat.quota.totcount={}", qline->count, con->protocol.chat.quota.totcount);
 					con->protocol.chat.quota.totcount -= qline->count;
-					xfree(qline);
+					delete qline;
 				}
 				else
 					break; /* old items are first, so we know nothing else will match */
 			}
 
-			qline = (t_qline*)xmalloc(sizeof(t_qline));
+			qline = new t_qline{};
 			qline->inf = now; /* set the moment */
 			if (std::strlen(text) > prefs_get_quota_wrapline()) /* round up on the divide */
 				qline->count = (std::strlen(text) + prefs_get_quota_wrapline() - 1) / prefs_get_quota_wrapline();
@@ -3242,13 +3231,13 @@ namespace pvpgn
 				return -1;
 			}
 			if (c->protocol.chat.lastsender)
-				xfree((void *)c->protocol.chat.lastsender); /* avoid warning */
+				delete[] const_cast<char*>(c->protocol.chat.lastsender);
 			if (!sender)
 			{
 				c->protocol.chat.lastsender = NULL;
 				return 0;
 			}
-			c->protocol.chat.lastsender = xstrdup(sender);
+			c->protocol.chat.lastsender = conn_strdup(sender);
 
 			return 0;
 		}
@@ -3911,12 +3900,12 @@ namespace pvpgn
 			}
 
 			if (c->protocol.w3.client_proof){
-				xfree((void*)c->protocol.w3.client_proof);
+				delete[] const_cast<char*>(c->protocol.w3.client_proof);
 				c->protocol.w3.client_proof = NULL;
 			}
 
 			if (client_proof != NULL) {
-				char * proof = (char *)xmalloc(20);
+				char * proof = new char[20]{};
 				std::memcpy(proof, client_proof, 20);
 				c->protocol.w3.client_proof = proof;
 			}
@@ -3944,12 +3933,12 @@ namespace pvpgn
 			}
 
 			if (c->protocol.w3.server_proof){
-				xfree((void*)c->protocol.w3.server_proof);
+				delete[] const_cast<char*>(c->protocol.w3.server_proof);
 				c->protocol.w3.server_proof = NULL;
 			}
 
 			if (server_proof != NULL) {
-				char * proof = (char *)xmalloc(20);
+				char * proof = new char[20]{};
 				std::memcpy(proof, server_proof, 20);
 				c->protocol.w3.server_proof = proof;
 			}
@@ -3967,12 +3956,12 @@ namespace pvpgn
 
 			if (c->protocol.chat.tmpOP_channel)
 			{
-				xfree((void *)c->protocol.chat.tmpOP_channel);
+				delete[] const_cast<char*>(c->protocol.chat.tmpOP_channel);
 				c->protocol.chat.tmpOP_channel = NULL;
 			}
 
 			if (tmpOP_channel)
-				c->protocol.chat.tmpOP_channel = xstrdup(tmpOP_channel);
+				c->protocol.chat.tmpOP_channel = conn_strdup(tmpOP_channel);
 
 			return 0;
 		}
@@ -3998,12 +3987,12 @@ namespace pvpgn
 
 			if (c->protocol.chat.tmpVOICE_channel)
 			{
-				xfree((void *)c->protocol.chat.tmpVOICE_channel);
+				delete[] const_cast<char*>(c->protocol.chat.tmpVOICE_channel);
 				c->protocol.chat.tmpVOICE_channel = NULL;
 			}
 
 			if (tmpVOICE_channel)
-				c->protocol.chat.tmpVOICE_channel = xstrdup(tmpVOICE_channel);
+				c->protocol.chat.tmpVOICE_channel = conn_strdup(tmpVOICE_channel);
 
 			return 0;
 		}
@@ -4025,7 +4014,7 @@ namespace pvpgn
 			t_conn_entry *curr;
 
 			if (connarray) connarray_destroy();
-			connarray = (t_conn_entry*)xmalloc(sizeof(t_conn_entry)* fdw_maxcons);
+			connarray = new t_conn_entry[fdw_maxcons]{};
 
 			elist_init(&arrayflist);
 			/* put all elements as free */
@@ -4040,7 +4029,7 @@ namespace pvpgn
 
 		static void connarray_destroy(void)
 		{
-			if (connarray) xfree((void*)connarray);
+			if (connarray) delete[] connarray;
 			connarray = NULL;
 		}
 
@@ -4123,8 +4112,8 @@ namespace pvpgn
 			}
 
 			if (c->protocol.wol.apgar)
-				xfree((void *)c->protocol.wol.apgar); /* avoid warning */
-			c->protocol.wol.apgar = xstrdup(apgar);
+				delete[] const_cast<char*>(c->protocol.wol.apgar);
+			c->protocol.wol.apgar = conn_strdup(apgar);
 		}
 
 		extern char const * conn_wol_get_apgar(t_connection * c)

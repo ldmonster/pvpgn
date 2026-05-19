@@ -20,7 +20,7 @@
 #define __ATTR_INCLUDED__
 
 #include "common/elist.h"
-#include "common/xalloc.h"
+#include <cstring>
 
 namespace pvpgn
 {
@@ -35,25 +35,35 @@ namespace pvpgn
 			t_hlist		link;
 		} t_attr;
 
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static inline char* attr_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
+
 		static inline t_attr *attr_create(const char *key, const char *val)
 		{
 			t_attr *attr;
 
-			attr = (t_attr*)xmalloc(sizeof(t_attr));
+			attr = new t_attr{};
 			attr->dirty = 0;
 			hlist_init(&attr->link);
-			attr->key = key ? xstrdup(key) : NULL;
-			attr->val = val ? xstrdup(val) : NULL;
+			attr->key = key ? attr_strdup(key) : nullptr;
+			attr->val = val ? attr_strdup(val) : nullptr;
 
 			return attr;
 		}
 
 		static inline int attr_destroy(t_attr *attr)
 		{
-			if (attr->key) xfree((void*)attr->key);
-			if (attr->val) xfree((void*)attr->val);
+			if (attr->key) delete[] const_cast<char*>(attr->key);
+			if (attr->val) delete[] const_cast<char*>(attr->val);
 
-			xfree((void*)attr);
+			delete attr;
 
 			return 0;
 		}
@@ -80,10 +90,10 @@ namespace pvpgn
 
 		static inline void attr_set_val(t_attr *attr, const char *val)
 		{
-			if (attr->val) xfree((void*)attr->val);
+			if (attr->val) delete[] const_cast<char*>(attr->val);
 
-			if (val) attr->val = xstrdup(val);
-			else attr->val = NULL;
+			if (val) attr->val = attr_strdup(val);
+			else attr->val = nullptr;
 		}
 
 		static inline void attr_set_dirty(t_attr *attr)

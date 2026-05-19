@@ -22,8 +22,7 @@
 
 #include <cstring>
 
-#include "compat/strcasecmp.h"
-#include "compat/strncasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "prefs.h"
@@ -42,7 +41,7 @@ namespace pvpgn
 			t_elist * curr;
 
 			d2char_sort = prefs_get_charlist_sort();
-			charlist = (t_d2charlist*)xmalloc(sizeof(t_d2charlist));
+			charlist = new t_d2charlist{};
 			charlist->charinfo = charinfo;
 			charlist->expiration_time = expiration_time;
 

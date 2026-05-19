@@ -29,7 +29,8 @@
 #ifdef WIN32_GUI
 # include "common/gui_printf.h"
 #endif
-#include "compat/strcasecmp.h"
+#include <cstring>
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/conf.h"
 #include "common/setup_after.h"
@@ -310,7 +311,7 @@ namespace pvpgn
 				}
 
 				exitflag = 1;
-				xfree((void *)tmp);
+				delete[] const_cast<char*>(tmp);
 			}
 
 			return 0;

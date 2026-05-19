@@ -25,7 +25,8 @@
 #include <string>
 #include <utility>
 
-#include "compat/strcasecmp.h"
+#include <cstring>
+#include <strings.h>
 
 #include "common/eventlog.h"
 #include "common/field_sizes.h"

@@ -531,7 +531,7 @@ namespace pvpgn
 			if (!matchlists[queue][level])
 				matchlists[queue][level] = list_create();
 
-			md = (t_matchdata*)xmalloc(sizeof(t_matchdata));
+			md = new t_matchdata{};
 			md->c = c;
 			md->map_prefs = map_prefs;
 			md->versiontag = conn_get_versioncheck(c) ? conn_get_versioncheck(c)->get_version_tag().c_str() : nullptr;
@@ -942,7 +942,7 @@ namespace pvpgn
 			}
 
 			/* create data to be appended to end of packet */
-			pt2 = (t_saf_pt2*)xmalloc(sizeof(t_saf_pt2));
+			pt2 = new t_saf_pt2{};
 			bn_int_set(&pt2->unknown1, 0xFFFFFFFF);
 			bn_int_set(&pt2->anongame_string, _anongame_get_gametype_tab(queue));
 			bn_byte_set(&pt2->totalplayers, _anongame_totalplayers(queue));
@@ -957,7 +957,7 @@ namespace pvpgn
 				if (!(a = conn_get_anongame(player[queue][i])))
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "no anongame struct for queued player");
-					xfree(pt2);
+					delete pt2;
 					anongameinfo_destroy(info);
 					return -1;
 				}
@@ -971,7 +971,7 @@ namespace pvpgn
 				}
 
 				if (!(rpacket = packet_create(packet_class_bnet))) {
-					xfree(pt2);
+					delete pt2;
 					anongameinfo_destroy(info);
 					return -1;
 				}
@@ -1011,7 +1011,7 @@ namespace pvpgn
 
 			/* clear queue */
 			players[queue] = 0;
-			xfree(pt2);
+			delete pt2;
 
 			return 0;
 		}
@@ -1085,7 +1085,7 @@ namespace pvpgn
 					if (md->c == c) {
 						eventlog(eventlog_level_trace, __FUNCTION__, "unqueued player [{}] level {}", conn_get_socket(c), i);
 						list_remove_elem(matchlists[queue][i], &curr);
-						xfree(md);
+						delete md;
 						return 0;
 					}
 				}
@@ -1348,7 +1348,7 @@ namespace pvpgn
 			t_anongameinfo *temp;
 			int i;
 
-			temp = (t_anongameinfo*)xmalloc(sizeof(t_anongameinfo));
+			temp = new t_anongameinfo{};
 
 			temp->totalplayers = temp->currentplayers = totalplayers;
 			for (i = 0; i < ANONGAME_MAX_GAMECOUNT; i++) {
@@ -1372,7 +1372,7 @@ namespace pvpgn
 			for (j = 0; j < ANONGAME_MAX_GAMECOUNT; j++)
 			if (i->results[j])
 				gameresult_destroy(i->results[j]);
-			xfree(i);
+			delete i;
 		}
 
 		/**********/

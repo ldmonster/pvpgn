@@ -390,11 +390,48 @@ Legend: `[ ]` = not started, `[~]` = in progress, `[x]` = done.
         WHISPER (me=NULL fallback) / INFO / CHANNELFULL. 6 cases
         / 63 assertions. Proves caller -> compose -> encode ->
         wire -> decode parity end-to-end.
-  - [ ] SID_JOINCHANNEL / LEAVECHANNEL handlers (mostly side-effect
-        only — no direct server reply; channel JOIN events go out
+  - [x] SID_JOINCHANNEL / LEAVECHANNEL handlers (mostly side-effect
+        only -- no direct server reply; channel JOIN events go out
         as SID_CHATEVENT subtype JOIN, covered by the bridge
-        above).
-  - [ ] SID_CHANNELLIST (0x0B) — server emits list of channels.
+        above). Round 15 (this session): added observation-only
+        bridges `pvpgn_v3_joinchannel_try(conn, name, flag)` and
+        `pvpgn_v3_leavechannel_try(conn)` in
+        `src/v3/integration/legacy_bnetd/{include/integration/legacy_bnetd,src}/channel_state_bridge.{hpp,cpp}`.
+        Bridges always return 0 (legacy retains full state
+        ownership) and emit a structured `bridge_log_kv` line at
+        Debug level. JOIN logs `{channel, flag (NORMAL/GENERIC/
+        CREATE/?), raw}`; LEAVE logs no fields. Wired into
+        `_client_joinchannel` and `_client_leavechannel` in
+        `src/bnetd/handle_bnet.cpp` under `#ifdef
+        PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `channel_state_bridge_test.cpp` uses a recording
+        `core::ILogger` (full virtual override: log/log_kv/level/
+        set_level) + `BridgeLoggerOverride` RAII to assert
+        return-0 contract, null-conn no-op, flag-name table,
+        null-channel safety, empty-field LEAVE line. 6 cases.
+        Both docker builds green; v3 still 1225 assertions / 213
+        cases + the new test as a separate binary; 4 e2e green.
+  - [ ] SID_JOINCHANNEL / LEAVECHANNEL handlers placeholder (kept
+        for any future state-machine slice promotion).
+  - [x] SID_CHANNELLIST (0x0B) — server emits list of channels.
+        Round 14 (this session): added
+        [src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/send_channellist_bridge.hpp](src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/send_channellist_bridge.hpp)
+        + [src/v3/integration/legacy_bnetd/src/send_channellist_bridge.cpp](src/v3/integration/legacy_bnetd/src/send_channellist_bridge.cpp)
+        exposing `pvpgn_v3_send_channellist(conn, names, count)`. Wire
+        layout: header(4) + N NUL-terminated channel names + trailing
+        NUL. Legacy `_client_progident2` keeps building rpacket with
+        all the existing filter logic; under
+        `PVPGN_V3_BNETD_INTEGRATION` we re-walk the already-built
+        rpacket's cstrings into a `std::vector<char const*>` and offer
+        them to the bridge before falling through to the legacy
+        outqueue. Tests:
+        [tests/unit/integration/legacy_bnetd/send_channellist_bridge_test.cpp](tests/unit/integration/legacy_bnetd/send_channellist_bridge_test.cpp)
+        -- 8 cases / 18 assertions: no-handler, null-conn, empty list
+        (FF 0B 05 00 00), three-name parity, skip-null-and-empty
+        entries, oversize-count reject, non-zero-with-null-array
+        reject, downstream-return propagation. Dockerfile.v3
+        build + test target lists updated. Legacy docker build PASSED,
+        v3 docker build PASSED (1225 / 213 + 4 e2e).
 - [ ] game list / start / report.
 - [ ] clan.
 - [ ] `anongame.cpp` + `anongame_infos.cpp`.
@@ -1292,3 +1329,456 @@ replace the bundled MSVC dirent shim with `<filesystem>`.
 - compat lib carries `target_compile_features(compat PUBLIC cxx_std_17)` which propagates transitively.
 - Verified: legacy docker build (compat/bnetd/d2cs/d2dbs all Built) and v3 e2e (bnftp/bnchat/bnstat/bnbot all OK).
 
+
+## Side track: compat/strdup retirement
+
+- Deleted `src/compat/strdup.h` and `src/compat/strdup.cpp` (HAVE_STRDUP fallback was dead on every supported toolchain).
+- Dropped stale `#include `compat/strdup.h`` from bnetd/account.cpp, bnetd/channel.cpp, bnetd/anongame.cpp, bnetd/storage.cpp, common/xstring.cpp (none of them call strdup).
+- In common/xalloc.cpp the include was swapped to `<cstring>` (only true caller of unqualified strdup via xstrdup_real).
+- Removed strdup.h and strdup.cpp from COMPAT_SOURCES in src/compat/CMakeLists.txt.
+- Verified: legacy docker build (compat/bnetd/d2cs/d2dbs all Built) and v3 e2e (all four OK).
+
+
+## Side track: compat/strcasecmp + compat/strncasecmp retirement
+
+- Deleted `src/compat/strcasecmp.{h,cpp}` and `src/compat/strncasecmp.{h,cpp}`.
+- Removed them from COMPAT_SOURCES in src/compat/CMakeLists.txt.
+- Global sweep across 51 call sites: `#include `compat/strcasecmp.h`` and `#include `compat/strncasecmp.h`` rewritten to portable POSIX `#include <strings.h>`; adjacent duplicates collapsed in 7 files; 8 files received an added `#include <cstring>` to keep `std::strXXX` visible after losing the transitive include.
+- Verified: legacy docker build (compat/bnetd/d2cs/d2dbs all Built) and v3 e2e (all four OK).
+- Note: `<strings.h>` is POSIX-only; if a Windows build path is revived, a single mapping (`_stricmp`/`_strnicmp`) will need to be added to setup_before.h.
+
+
+## Side track: bniutils modernization (stateless fileio + RAII t_bnifile)
+
+- `fileio.{h,cpp}` rewritten: dropped the global `std::stack<std::FILE*>` plus the `file_rpush`/`rpop`/`wpush`/`wpop` API. Every reader/writer now takes `std::FILE*` as its first argument.
+- `bni.h`: removed `BNI_MAXICONS` cap, removed `bni_iconlist_struct` middle hop, and replaced the fixed-size icon array with `std::vector<t_bniicon> icons`. Added `destroy_bni` for callers that want explicit cleanup.
+- `bni.cpp`: `load_bni` now `new t_bnifile{}` + `icons.resize(numicons)`; `write_bni` and `load_bni` thread `f` through every read/write.
+- Swept call sites with a regex pass (PowerShell): tga.cpp/tgainfo.cpp/bni2tga.cpp/bnilist.cpp all dropped push/pop and gained explicit FILE* args. `load_tgaheader` signature changed from `()` to `(std::FILE *f)`; updated tgainfo, bnilist, and tga internal load_tga caller.
+- `bnibuild.cpp::read_list` replaced its manual `malloc/realloc` on `bni_iconlist_struct` with `icons.push_back(t_bniicon{...})`.
+- `bniextract.cpp`/`bni2tga.cpp`: rewrote `bni->icons->icon[i]` to `bni->icons[i]` (vector indexing).
+- Verified: v3 docker build green; all 5 bniutils tools (bnilist/bni2tga/bniextract/bnibuild/tgainfo) compile and link; v3 e2e smokes (bnftp/bnchat/bnstat/bnbot) still OK.
+
+
+## Side track: bniutils malloc+abort retirement (RAII vector data)
+
+- t_tgaimg::data: `std::uint8_t*` -> `std::vector<std::uint8_t>`. Header pulls in `<vector>`.
+- new_tgaimg / load_tgaheader: `std::malloc(sizeof(t_tgaimg))` + abort -> `new t_tgaimg{}` (default-constructs vector empty; throws std::bad_alloc on OOM).
+- destroy_img: now a single `delete img;` (vector destructor frees data).
+- load_tga error paths: `std::free(img)` / `std::free(img->data)` cleanups -> `delete img;`.
+- rotate_updown / rotate_leftright / RLE_compress: `alloc_bytes` + manual free -> stack-local `std::vector<std::uint8_t>` scratch buffer; final assignment via `std::move`.
+- Removed unused `alloc_bytes` helper from tga.cpp anonymous namespace.
+- bniextract::cutimg + bnibuild main: `dst->data = malloc(...)` + abort -> `dst->data.resize(...)`; raw pointer arithmetic now uses `.data()`.
+- CMakeLists.txt comment block: dropped stale `xalloc_shim.hpp` reference; documents RAII / std::bad_alloc behavior.
+- v3 docker e2e: all 5 bniutils targets compile; 4 e2e smokes still `OK:` (bnftp, bnchat, bnstat, bnbot).
+
+## Side track: bniutils fileio rewired onto core::endian
+
+- src/v3/tools/bniutils/CMakeLists.txt: tools now link the v3 `core` library (header propagation for `core/bytes.hpp` / `core/endian.hpp`).
+- src/v3/tools/bniutils/fileio.cpp: hand-rolled shift+OR sequences for u8/u16/u32 read/write LE/BE deleted. Replaced with templated `read_le_from_file<T>` / `read_be_from_file<T>` / `write_le_to_file<T>` / `write_be_to_file<T>` helpers backed by `core::read_le<T>` / `core::write_le<T>` on a `std::array<std::byte, sizeof(T)>` scratch buffer.
+- CMakeLists.txt header comment updated to describe the new core dependency.
+
+## Side track: compat/strsep retirement
+
+- 3 consumers: src/d2dbs/dbspacket.cpp, src/bnetd/game_conv.cpp, src/bnetd/ipban.cpp.
+- dbspacket.cpp: rewrote `dbs_verify_ipaddr` to walk a `std::string_view` with `find(',')` (drops the xstrdup+strsep+xfree pair and the `adlist` buffer).
+- game_conv.cpp: introduced a file-local `bn_strsep` helper (anonymous namespace, ~6 lines using `std::strcspn`) and swept all 9 `strsep(` -> `bn_strsep(` via regex.
+- ipban.cpp: the single `strsep` site inlined directly into the loop body (no helper needed).
+- Deleted src/compat/strsep.{h,cpp}; removed from src/compat/CMakeLists.txt.
+
+## Side track: compat/gettimeofday retirement (std::chrono)
+
+- src/common/bnettime.cpp: `bnettime()` now uses `std::chrono::system_clock::now()` decomposed into seconds + microseconds via `duration_cast`.
+- src/bnetd/tick.cpp: `get_ticks()` simplified to a `static` chrono baseline (one second before first call) and `duration_cast<milliseconds>` of the delta - no errno path needed.
+- Deleted src/compat/gettimeofday.{h,cpp}; removed from src/compat/CMakeLists.txt.
+
+## Side track: compat/uname retirement (direct <sys/utsname.h>)
+
+- src/bnetd/main.cpp: replaced `compat/uname.h` with `HAVE_SYS_UTSNAME_H`-gated direct include; wrapped the print block in `#ifdef HAVE_UNAME` (Win32 build skips the line silently).
+- src/bnetd/tracker.cpp: same swap; wrapped the entire utsbuf/snprintf block in `#ifdef HAVE_UNAME` with a `memset` fallback on the else branch.
+- Deleted src/compat/uname.{h,cpp}; removed from src/compat/CMakeLists.txt.
+
+## Side track: compat/mmap retirement (dead code)
+
+- `pmmap` / `pmunmap` had no callers anywhere in the tree (only definitions and the macro forwarders in compat itself).
+- Deleted src/compat/mmap.{h,cpp}; removed from src/compat/CMakeLists.txt.
+
+## Side track: NOT retired this round
+
+- compat/strerror: kept. Its Win32 branch decodes the full WSA error table (WSAEINTR / WSAEACCES / WSAENETUNREACH / ...) into human-readable strings, which std::strerror does not. Removing would silently regress error messages on the Windows build.
+
+## Verification
+
+- Legacy docker build (compat + bnetd + d2cs + d2dbs on Alpine GCC): all 4 targets green.
+- v3 docker build (Dockerfile.v3 target v3-e2e): all 5 bniutils tools rebuilt; 4 e2e smokes still OK (bnftp, bnchat, bnstat, bnbot).
+
+## Side track: compat survey documented (pgetopt + psock kept)
+
+- Wrote docs/compat-survey.md cataloguing the remaining 14 compat shim files: which were retired this session, which stay, and why the two big ones (pgetopt, psock) are intentionally left alone.
+- pgetopt: 27 KB of vendored `getopt_long`, but the entire body is gated by `#ifndef HAVE_GETOPT`. On Alpine/glibc/musl/BSD the .cpp compiles to nothing - no callers are paying for it. Useful only on Win32. Leave.
+- psock + socket/read/recv/send: hides four real POSIX vs Win32 differences (closesocket, fcntl/ioctl FIONBIO, errno/WSAGetLastError, SOCKET vs int). Replacing requires Boost.Asio or netts, touches every connection loop in bnetd/d2cs/d2dbs. Belongs in its own networking refactor plan, not this side-track.
+
+
+## Side track: t_connection per-field migration round 1 (clientexe, clientver, loggeduser)
+
+Per user direction "Change one t_connection field at a time ... Aim for 3-5 fields per round". Round 1: 3 fields.
+
+Changes:
+- src/bnetd/connection.h: added `#include <string>`; `char const * clientver` -> `std::string clientver`, `char const * clientexe` -> `std::string clientexe`, `const char * loggeduser` -> `std::string loggeduser`.
+- src/bnetd/connection.cpp:
+  - `xmalloc(sizeof(t_connection))` -> `new t_connection{}` so std::string members get default-constructed.
+  - `xfree(c)` -> `delete c` to invoke destructor (frees the new std::string members).
+  - Dropped three NULL initializers (`clientver = NULL`, `clientexe = NULL`, `loggeduser = NULL`) in `conn_create`.
+  - Dropped three xfree calls (`clientver`, `clientexe`, `loggeduser`) in conn_destroy.
+  - `conn_set_clientexe` / `conn_set_clientver`: removed xstrdup+xfree temp pattern, direct std::string assignment.
+  - `conn_get_clientexe` / `conn_get_clientver`: `.empty()` check + `.c_str()` return; public API still `char const *`.
+  - `conn_set_loggeduser`: kept branching logic incl. the latent `std::string("#" + userid)` bug (preserved per minimal-change rule); replaced `xstrdup`/xfree with std::string assignment; `std::move(temp)` into struct.
+  - `conn_get_loggeduser`: `.empty()` instead of NULL, `.c_str()` return.
+  - The mid-handshake reset block (around line 1463) now uses `.empty()` / `.clear()` for clientexe instead of xfree+NULL.
+- All callers use getters/setters; only two log-string literals in handle_wol.cpp/irc.cpp reference `loggeduser` and remain valid as plain text.
+
+Validation: legacy docker build (compat, common, bnetd_legacy, bnetd, d2cs, d2dbs) green; v3 docker build (5 bniutils + 4 e2e smokes OK: bnftp, bnchat, bnstat, bnbot) green.
+
+Remaining char-const-star fields in t_connection that follow the same xstrdup/xfree pattern (candidates for round 2):
+- struct client: country, host, user, owner, cdkey.
+- struct chat: tmpOP_channel, tmpVOICE_channel, away, dnd, lastsender, irc.ircline, irc.ircpass.
+- struct d2: realminfo, charname.
+- struct w3: w3_playerinfo, client_proof, server_proof.
+- struct wol: apgar (and a few more).
+
+
+## Side track: blanket xmalloc/xfree audit + 4 leaf modernizations
+
+Per user request "find all malloc or xmalloc and modernize them" -- the codebase has 500+ matches across src/, well beyond a single round. Catalogued the full inventory in `docs/alloc-survey.md` (categories 1-5 by risk/scope). This round picks four small, self-contained leaf cleanups:
+
+- src/d2cs/handle_signal.cpp: handle_signal()'s loglevels strtok loop now uses `std::string temp(levels); std::strtok(temp.data(), ",");` instead of `xstrdup(...) ... xfree(temp)`.
+- src/d2cs/main.cpp: config_init()'s loglevels strtok loop migrated the same way. Also added `#include <string>`.
+- src/d2cs/s2s.cpp: s2s_create()'s tserver buffer migrated to std::string with `find(':')` / `resize()` instead of `strchr` + writing '\0' into an xstrdup'd buffer.
+- src/bnetd/anongame_wol.cpp: anongame_wol_tokenize_line()'s `line = xmalloc(strlen(text)+2)` working buffer migrated to `std::vector<char>`; dropped the xfree on every return path.
+
+Validation: legacy docker build (compat, common, bnetd_legacy, bnetd, d2cs, d2dbs) green.
+
+Sites still pending (full inventory in docs/alloc-survey.md):
+- Category 1: 11 nearly identical path-building blocks in src/d2cs/d2charfile.cpp + 3 in handle_d2cs.cpp + 1 in d2ladder.cpp.
+- Category 2: pidfile path in src/d2cs/main.cpp (signature change required); alias and attrgroup helpers.
+- Category 3: ~15 struct xmalloc/xfree pairs (anongame, attrgroup, d2cs::connection, d2gs, d2charlist, d2ladder, handle_d2cs, serverqueue).
+- Category 4: maplist_* globals in anongame_maplists.cpp; base64/hex buffers in account_wrap.cpp.
+- Category 5: anongame_infos.cpp lifetime-of-daemon globals (deferred).
+
+## Round 3: sweep all xmalloc/xfree/xstrdup in d2cs + bnetd
+
+Eliminated remaining xalloc usage across the bulk of d2cs and 8 bnetd files.
+All sites converted to std::vector<char>/std::string for transient buffers,
+new T{}/delete or new T[]{}/delete[] for owning struct/array allocations.
+
+Files changed (12):
+- src/d2cs/d2charfile.cpp - 11 path string sites -> std::vector<char>.
+- src/d2cs/handle_d2cs.cpp - 4 path strings, motd xstrdup, charinfo/ccharlist
+  struct lifecycles. Added <string> + <vector>.
+- src/d2cs/d2charlist.cpp - t_d2charlist xmalloc -> new.
+- src/d2cs/d2ladder.cpp - ladderfile/ladderheader/ladderinfo transient
+  vectors; ladder_data + ladder_data[].info global arrays via new[]/delete[].
+- src/d2cs/d2gs.cpp - t_d2gs xmalloc -> new.
+- src/d2cs/serverqueue.cpp - t_sq xmalloc -> new.
+- src/bnetd/account_wrap.cpp - temp_buffer xmalloc -> std::vector<char>.
+  Skipped account_get_rawattr (existing caller-leak; needs API change).
+- src/bnetd/anongame_gameresult.cpp - gameresult/players/heroes -> new[]/delete[].
+- src/bnetd/anongame_wol.cpp - t_anongame_wol_player -> new/delete.
+- src/bnetd/anongame.cpp - t_matchdata, t_saf_pt2, t_anongameinfo -> new/delete.
+- src/bnetd/alias_command.cpp - replace_args growable buffer + offsets array +
+  alias/output struct + xstrdup'd strings -> new[]/delete[] (with const_cast
+  on delete for char const* members).
+- src/bnetd/anongame_maplists.cpp - 4 maplist xstrdup'd globals -> new char[].
+- src/bnetd/attrgroup.cpp - t_attrgroup + escape_key tmp + key_get_tab return
+  -> new[]/delete[] with const_cast on free sites.
+
+Validation:
+- Legacy docker build: green (fmt, common, compat, win32, bnetd_legacy,
+  bnetd, d2cs, d2dbs all built).
+- v3 docker build + e2e: green (all 5 bniutils, 4 e2e smokes OK).
+
+Deferred (still using xmalloc/xfree on purpose):
+- account_get_rawattr in account_wrap.cpp - existing memory leak; callers
+  treat return as borrowed; requires owning-type API change.
+- Other category-5 lifetime-of-daemon globals catalogued in
+  docs/alloc-survey.md.
+## Round 3 extension: common/ foundational sweep
+
+Additional 3 common/ files modernized after Round 3:
+- src/common/list.cpp - t_list and t_elem allocs -> new/delete.
+- src/common/queue.cpp - t_queue alloc -> new/delete; ring buffer xrealloc
+  -> new t_packet*[]/memcpy/delete[] grow pattern.
+- src/common/tag.cpp - tag_check_in_list xstrdup'd working copy -> std::string;
+  refactored away the two goto labels.
+
+Validation:
+- Legacy docker build: green.
+
+Remaining sites in src/ (per latest survey):
+  ~870 xalloc references across ~70 files. High-count files:
+  - bnetd/message.cpp (75), connection.cpp (72), game.cpp (64),
+    storage_file.cpp (56), ipban.cpp (51), handle_apireg.cpp (47),
+    anongame_infos.cpp (40, category 5 - lifetime-of-daemon), icons.cpp (34),
+    sql_dbcreator.cpp (34), channel.cpp (32), tournament.cpp (28).
+  - common/addr.cpp (25), bigint.cpp (24, needs vector<bigint_base> refactor),
+    trans.cpp (15), hashtable.cpp (8), bnetsrp3.cpp (7), util.cpp (6).
+  - d2dbs/d2ladder.cpp (24), d2cs/connection.cpp (15), d2cs/game.cpp (14).
+## Round 4: complete d2cs + d2dbs sweep
+
+Per user request, finished all remaining xalloc sites in d2cs and d2dbs.
+
+d2cs files swept this round:
+- src/d2cs/connection.cpp - t_connection + char* fields (account, charname)
+  + t_d2charinfo_summary -> new/delete with const_cast on delete[].
+- src/d2cs/game.cpp - t_game + t_game_charinfo + xstrdup'd name/pass/desc/
+  charname -> new/delete with const_cast on delete[].
+- src/d2cs/gamequeue.cpp - t_gq -> new/delete.
+- src/d2cs/main.cpp - pidfile xstrdup -> new char[]/delete[].
+
+d2dbs files swept this round:
+- src/d2dbs/d2ladder.cpp - 24 sites: ladder_file/backup_file (lifetime globals),
+  t_d2ladder struct, ladderindex/ladderinfo arrays, info per-type array, raw
+  ladder file buffers - all moved to new T[]/delete[] or new T{}/delete.
+- src/d2dbs/main.cpp - pidfile xstrdup + loglevels std::strtok working copy
+  -> new char[]/delete[] and std::string respectively.
+- src/d2dbs/handle_signal.cpp - loglevels std::strtok working copy
+  -> std::string.
+- src/d2dbs/charlock.cpp - clitbl/gsqtbl arrays + t_charlockinfo entries
+  -> new[]/delete[] and new/delete.
+- src/d2dbs/dbserver.cpp - t_d2dbs_connection + t_preset_d2gsid -> new/delete.
+
+Remaining intentionally-skipped in d2cs/d2dbs:
+- src/d2cs/cmdline.cpp + src/d2dbs/cmdline.cpp: one xfree each, paired with
+  common/conf.cpp's internal xstrdup in conf_set_str. Conversion requires
+  changing the conf_ API or its internals; deferred.
+
+Validation:
+- Legacy docker build: green (all 8 targets built).
+
+Status:
+- d2cs/d2dbs subtrees effectively complete (only conf-API-coupled sites
+  remain).
+- common/ partially done (list, queue, tag); foundational refactors
+  (bigint vector, hashtable key ownership, addr/trans/util) still pending.
+- bnetd/ partially done (7 files from Round 3); high-count files
+  (message, connection, game, storage_*, ipban, channel, tournament, etc.)
+  still pending.
+## Round 5: common/ sweep
+
+Per user request, swept remaining common/ files (excluding bigint and
+bnetsrp3 which require coordinated refactor with BigInt's getData).
+
+Files swept this round:
+- src/common/util.cpp - file_get_line static buffer (xrealloc -> manual
+  grow with new char[]/memcpy/delete[]), 3 escape_* functions (xmalloc ->
+  new char[]).
+- src/bnetd/file_plain.cpp - esckey/escval allocations + paired delete[]
+  cleanup (matches util.cpp's allocator change).
+- src/common/packet.cpp - t_packet -> new/delete.
+- src/common/peerchat.cpp - gs_peerchat_ctx -> new/delete.
+- src/common/xstr.cpp - t_xstr + str grow buffer (new[]/memcpy/delete[]);
+  removed common/xalloc.h include.
+- src/common/conf.cpp - conf_set_str + conf_load_cmdline newkey ->
+  new char[]/delete[] + std::string for cmdline working copies.
+- src/bnetd/cmdline.cpp + src/d2cs/cmdline.cpp + src/d2dbs/cmdline.cpp -
+  xfree of conf-managed tmp -> delete[] const_cast<char*>(tmp). Resolves
+  the cross-TU coupling that previously deferred these sites.
+- src/common/addr.cpp - t_addr/t_netaddr -> new/delete; xstrdup'd
+  temp->str (const char*) -> new char[]; tstr/temp strtok working copies
+  -> std::string with empty-check; addrlist_append tstr -> std::string.
+- src/common/trans.cpp - t_trans entries -> new/delete; two xstrdup'd
+  tmp buffers (exclude/include) -> shared std::string tmp_storage with
+  empty-check pointer.
+- src/common/xstring.cpp - hexstrdup, strtoargv (5 sites), arraytostr
+  (4 sites), str_replace -> new char[]/delete[] with manual grow for
+  xrealloc paths.
+- src/common/hashtable.cpp - t_hashtable, t_entry, t_internentry,
+  rows[] array - all new/delete (fully internal, no API surface change).
+
+Skipped intentionally:
+- src/common/bigint.cpp - 24 sites tied to BigInt's getData(int,...)
+  whose ownership is held by handle_bnet.cpp and BnetSRP3. Needs a
+  proper class refactor (move BigInt::segment to std::vector<bigint_base>
+  and getData to return owned buffer via std::vector<unsigned char>).
+- src/common/bnetsrp3.cpp - 7 sites pair with BigInt::getData's
+  xmalloc'd return buffer; defer with bigint.cpp.
+
+Validation:
+- Legacy docker build: green (all 8 targets built).
+- v3 docker build: green - 1225 assertions in 213 test cases pass;
+  bniutils round-trip + 4 e2e smoke tests (bnftp/bnchat/bnstat/bnbot) OK.
+
+Status:
+- common/ effectively complete (only BigInt-coupled allocations remain).
+- d2cs/d2dbs subtrees complete.
+- bnetd/ still has ~50 files with ~700+ sites pending.
+## Round 6 - BigInt + bnetsrp3 + account_wrap/handle_bnet (DONE)
+
+- src/common/bigint.cpp: added static helper bigint_resize(uint32_t*, copy_count, new_count);
+  6 ctor xmalloc -> new bigint_base[]{}, 13 xrealloc -> bigint_resize (DISCARD/PRESERVE),
+  xfree(in)/xfree(segment) -> delete[], getData() returns new unsigned char[].
+- Header note: bigint_base is a private typedef inside class BigInt; the file-scope
+  helper uses std::uint32_t directly (same underlying type). Member storage is still
+  raw owning pointer (bigint_base* segment) -- did NOT migrate to std::vector to keep
+  bigint.h ABI unchanged; can be revisited later.
+- src/common/bnetsrp3.cpp: username/password/userpass/raw_secret use new char[]/delete[].
+- src/bnetd/account_wrap.cpp:166: account_get_rawattr_real result -> new char[]{}.
+- src/bnetd/handle_bnet.cpp: 6 xfree call sites for account_salt/account_verifier/
+  conn_client_proof/conn_server_proof converted to delete[] (with const_cast for
+  const char* members).
+
+Validation:
+- Legacy docker build: green (all targets built, cached on rebuild).
+- v3 docker build: green - 1225 assertions in 213 test cases; bnftp/bnchat/bnstat/bnbot
+  e2e smokes OK.
+
+## Round 7 - bnetd/connection.cpp (DONE)
+
+- Added static helper conn_strdup(char const*) returning new char[] copy (paired delete[]).
+- Bulk sweep converted all 47 xfree call sites:
+  - xfree((void*)PTR); /* avoid warning */ -> delete[] const_cast<char*>(PTR);
+  - xfree(c->protocol.w3.anongame) -> delete (single t_anongame struct)
+  - xfree(qline) -> delete (single t_qline struct)
+  - xfree(c->protocol.chat.ignore_list) -> delete[]
+  - xfree((void*)connarray) -> delete[] (t_conn_entry array)
+- Bulk sweep converted 25 allocators:
+  - 18 xstrdup() -> conn_strdup()
+  - xmalloc(sizeof(t_anongame)/t_qline) -> new T{}
+  - 2 xrealloc on ignore_list -> inline grow/shrink with new[]/memcpy/delete[]
+  - chatcharname = xmalloc(N) -> new char[N]
+  - 2 proof = xmalloc(20) -> new char[20]{}
+  - connarray = xmalloc(n*sizeof(t_conn_entry)) -> new t_conn_entry[n]{}
+
+Validation:
+- Legacy docker build: green (all targets built).
+- v3 docker build: green - 1225 assertions in 213 test cases; e2e smokes OK.
+
+## Round 8 - message.cpp + game.cpp + cross-TU game-result fixups (DONE)
+
+- src/bnetd/message.cpp (75 sites):
+  - 39 (char*)xmalloc(N) -> new char[N] (transient format buffers)
+  - 4 xstrdup("") -> immediate-invoked lambda returning new char[1] with null term
+  - 1 xrealloc growable buffer -> manual new[]/memcpy/delete[] grow
+  - 4 growable arrays (packets/classes/dstflags/mclasses) - new T[]{} on first alloc;
+    grow via IIFE: new T[n+1]{}; memcpy(p, field, n*sizeof(T)); delete[] field
+  - 17 xfree calls -> delete[] (transient bufs), delete (single struct), delete[] arrays
+- src/bnetd/game.cpp (64 sites):
+  - Added static helper game_strdup() returning new char[] copy
+  - new t_game{} ; xstrdup -> game_strdup (10 sites)
+  - 6 growable arrays: connections/players/results/reported_results/report_heads/report_bodies
+    using new T[n+1]{} + IIFE grow
+  - new t_ladder_info[realcount]{} ; new char[...] for tempname/realname
+  - 35 xfree -> delete[] for string buffers (with const_cast<char*>/<char**> as needed),
+    delete[] for arrays, delete for single t_game
+  - 1 plain free((void*)gametypes) (was odd legacy) -> delete[] const_cast<char*>(gametypes)
+- Cross-TU coupling fixed:
+  - src/bnetd/handle_bnet.cpp ~line 4730: t_game_result* results allocator switched to
+    new t_game_result[N]{}; failure-path xfree -> delete[]
+  - src/bnetd/handle_wol_gameres.cpp: t_wol_gameres_result struct + ->results array +
+    failure cleanup all switched to new/delete[]
+
+Validation:
+- Legacy docker build: green (all targets built).
+- v3 docker build: green - 1225 assertions in 213 test cases; e2e smokes OK.
+
+## Round 9 - storage_file.cpp + ipban.cpp (DONE)
+
+- src/bnetd/storage_file.cpp (56 sites):
+  - Added static helper sf_strdup() returning new char[] copy
+  - 9 xstrdup -> sf_strdup
+  - new t_clan{} / new t_clanmember{} / new t_team{} (replacing xmalloc(sizeof(T)))
+  - 8 (char*)xmalloc(N) -> new char[N] (pathname, tempname, clanfile, teamfile, etc.)
+  - 30+ xfree(...) -> delete[] const_cast<char*>(...) for char* / delete for struct ptrs
+  - file_free_info specifically: delete[] static_cast<char*>(const_cast<void*>(info))
+    because t_storage_info is typedef'd as const void in storage.h
+- src/bnetd/ipban.cpp (51 sites):
+  - Added static helper ib_strdup() returning new char[] copy
+  - 13 xstrdup -> ib_strdup (whole, cp, tipaddr, str, ipstr, e->info1, e->info2)
+  - new t_ipban_entry{} (replacing xmalloc)
+  - 35 xfree -> delete[] for char* working buffers, delete for struct pointers
+  - e->info1 / e->info2 -> delete[] (they are char*)
+
+Validation:
+- Legacy docker build: green (all targets built).
+- v3 docker build: green - 1225 assertions in 213 test cases; e2e smokes OK.
+
+## Round 10 -- bnetd mid-tier sweep (handle_apireg + anongame_infos + icons)
+
+- src/bnetd/handle_apireg.cpp (47 sites): added ar_strdup helper. xstrdup -> ar_strdup; (t_apiregmember*)xmalloc -> new t_apiregmember{}; xfree((void*)apiregmember->FIELD) -> delete[] const_cast<char*>(...); xfree(apiregmember) -> delete apiregmember; xfree(line) -> delete[] line.
+- src/bnetd/anongame_infos.cpp (40 sites): added ai_strdup helper. Struct allocs new t_anongame_infos_DESC{} / new t_anongame_infos_data_lang{} / new t_anongame_infos_data{} / new t_anongame_infos{}. Arrays: new char*[count]{} for anongame_infos_URL and descs. (char*)xmalloc(N) -> new char[N] for ladr_data, tmpdata, (*dest). Struct ptrs: delete X (no const_cast). char** contents: delete[] X[i] (no const_cast).
+- src/bnetd/icons.cpp (34 sites): added ic_strdup helper. xstrdup -> ic_strdup; (t_iconset_info*)xmalloc -> new t_iconset_info{}; same for t_icon_info / t_icon_var_info. char* member free: delete[] field; const char* stats: delete[] const_cast<char*>(stats); struct ptr free: delete option / delete iconset / delete icon_var.
+- Gotcha: bulk regex made anongame_infos_URL (char**) and descs (char**) get delete[] const_cast<char*>(...) -- fixed to plain delete[] (and contents char* -> plain delete[]).
+- Validation: legacy docker build OK; v3 docker build OK; 1225 assertions / 213 test cases; e2e smokes (bnftp, bnchat, bnstat, bnbot) all OK.
+
+## Round 11 -- bnetd sweep (sql_dbcreator + channel + tournament)
+
+- src/bnetd/sql_dbcreator.cpp (34 sites): added sd_strdup. structs t_column/t_sqlcommand/t_table/t_db_layout -> new T{}; xstrdup -> sd_strdup; (char*)xmalloc -> new char[N]; xfree members (char*) -> delete[]; struct ptrs -> delete.
+- src/bnetd/channel.cpp (32 sites): added ch_strdup. t_channel/t_channelmember -> new T{}; xstrdup -> ch_strdup; const-char* members (name/shortname/country/realmname) -> delete[] const_cast<char*>(...); char* members (logname/gameExtension) -> delete[]; member/channel/curr/temp struct ptrs -> delete; newname/channelname char* -> delete[]; nested-paren xmalloc for logname patched manually.
+- src/bnetd/tournament.cpp (28 sites): added tn_strdup. t_tournament_user/t_tournament_info/std::tm -> new T{}; (char*)xmalloc -> new char[N]; xfree on all char* fields and locals -> delete[]; struct ptrs -> delete.
+- Validation: legacy docker build OK; v3 docker build OK; 1225 assertions / 213 test cases; e2e smokes (bnftp, bnchat, bnstat, bnbot) all OK.
+
+
+## Round 12 -- Big sweep: remaining 20 small files (xalloc -> modern C++)
+
+Final wave of bnetd xalloc elimination. All remaining .cpp files with
+xmalloc/xfree/xstrdup/xrealloc/xcalloc usage have been converted.
+
+Converted in this round (18 files; friends.cpp & game.cpp had only
+comments referring to historical xalloc -- skipped):
+
+- account.cpp        -- ac_strdup helper. t_account -> new T{}. account->name char* -> delete[]. account -> delete.
+- command.cpp        -- cmd_strdup helper. str.p/data.p char* fields -> delete[]. (char*)text -> const_cast<char*>.
+- command_groups.cpp -- cg_strdup helper. t_command_groups -> new T{}. entry->command -> delete[]. entry -> delete.
+- handle_bot.cpp     -- handlebot strdup helper. testpass char* -> delete[].
+- handle_telnet.cpp  -- handletelnet strdup helper. testpass char* -> delete[].
+- handle_d2cs.cpp    -- (char*)xmalloc(nested-paren) -> new char[...]. xfree temp -> delete[].
+- handle_irc_common.cpp -- irc_common_strdup helper. line char* + bnet_command char* -> delete[].
+- handle_wol.cpp     -- wol_strdup helper. pass char* -> delete[].
+- handle_wserv.cpp   -- filestring (char const*) -> delete[] const_cast<char*>.
+- helpfile.cpp       -- (char*)xmalloc(length+1) -> new char[length+1]. xrealloc -> IIFE memcpy. buffer -> delete[].
+- i18n.cpp           -- i18n_strdup helper for languages.push_back lang_name.
+- ladder.cpp         -- t_xpcalc_entry/t_xplevel_entry arrays -> new T[N]{}. xrealloc -> IIFE memcpy + delete[].
+- ladder_calc.cpp    -- unsigned int arrays (rating/sorted) -> new unsigned int[count]{}. xfree -> delete[].
+- luainterface.cpp   -- lua_strdup helper. t_game -> new T{}.
+- support.cpp        -- (char*)xmalloc(nested-paren) -> new char[...]. namebuff -> delete[].
+- team.cpp           -- t_team -> new T{}. team -> delete.
+- timer.cpp          -- t_timer -> new T{}. timer -> delete.
+- userlog.cpp        -- ul_strdup helper. temp -> delete[]. lines[] entries paired.
+
+Skipped (only comments, no code change needed):
+- friends.cpp        -- line 193 comment only.
+- game.cpp           -- lines 1676, 1682 comments only.
+
+Validation:
+- Legacy docker build: PASSED (bnetd_legacy / bnetd / d2cs / d2dbs all built).
+- v3 docker build:     PASSED (1225 assertions / 213 test cases + 4 e2e smokes: bnftp / bnchat / bnstat / bnbot).
+
+Round 12 status: COMPLETE. bnetd xalloc elimination 100% done across
+all .cpp files in src/bnetd.
+
+## Round 13 -- Mop-up: handle_d2cs.cpp residual + attr.h header
+
+Started refactoring-plan-legacy-common phase. Pre-flight audit shows
+src/common/, src/d2cs/, src/d2dbs/, src/client/, src/tools/ already have
+zero xalloc usage. Only two residuals remained anywhere in src/:
+
+- src/bnetd/handle_d2cs.cpp -- multi-line nested-paren (char*)xmalloc(...)
+  at line 296 (missed by single-line regex). Manual edit to new char[...].
+- src/bnetd/attr.h -- inline header functions attr_create / attr_destroy /
+  attr_set_val. Added attr_strdup helper, t_attr -> new T{}, char const*
+  key/val -> delete[] const_cast<char*>, attr -> delete. Replaced
+  #include "common/xalloc.h" with #include <cstring>.
+
+Validation:
+- Legacy docker build: PASSED (bnetd_legacy / bnetd / d2cs / d2dbs).
+- v3 docker build:     PASSED (1225 assertions / 213 test cases + 4 e2e).
+
+bnetd + all peer subsystems: 100% xalloc-free at source level.
+Remaining xalloc references in tree are: legacy_compat.hpp shim,
+unit tests using the shim, and doc/comment text only.
+
+Next refactoring-plan-legacy-common steps to consider:
+- Step 1: create src/v3/infra/compat/
+- Step 2: create src/v3/infra/crypto/ (legacy_crypto already exists)
+- Step 3: migrate protocol definitions
+- Step 5: migrate type utilities to core/
+- Step 7: eliminate t_list / t_hashtable in legacy consumers

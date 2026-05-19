@@ -107,7 +107,7 @@ namespace pvpgn
 				}
 
 				if (!in_list)
-					maplist_war3[number_maps_war3++] = xstrdup(mapname);
+					{ maplist_war3[number_maps_war3++] = new char[std::strlen(mapname)+1]; std::strcpy(maplist_war3[number_maps_war3-1], mapname); }
 
 				if (maplists_war3[queue][0] < MAXMAPS_PER_QUEUE) {
 					maplists_war3[queue][0]++;
@@ -129,7 +129,7 @@ namespace pvpgn
 				}
 
 				if (!in_list)
-					maplist_w3xp[number_maps_w3xp++] = xstrdup(mapname);
+					{ maplist_w3xp[number_maps_w3xp++] = new char[std::strlen(mapname)+1]; std::strcpy(maplist_w3xp[number_maps_w3xp-1], mapname); }
 
 				if (maplists_w3xp[queue][0] < MAXMAPS_PER_QUEUE) {
 					maplists_w3xp[queue][0]++;
@@ -151,7 +151,7 @@ namespace pvpgn
 				}
 
 				if (!in_list)
-					maplist_ral2[number_maps_ral2++] = xstrdup(mapname);
+					{ maplist_ral2[number_maps_ral2++] = new char[std::strlen(mapname)+1]; std::strcpy(maplist_ral2[number_maps_ral2-1], mapname); }
 
 				if (maplists_ral2[queue][0] < MAXMAPS_PER_QUEUE) {
 					maplists_ral2[queue][0]++;
@@ -173,7 +173,7 @@ namespace pvpgn
 				}
 
 				if (!in_list)
-					maplist_yuri[number_maps_yuri++] = xstrdup(mapname);
+					{ maplist_yuri[number_maps_yuri++] = new char[std::strlen(mapname)+1]; std::strcpy(maplist_yuri[number_maps_yuri-1], mapname); }
 
 				if (maplists_yuri[queue][0] < MAXMAPS_PER_QUEUE) {
 					maplists_yuri[queue][0]++;
@@ -361,13 +361,13 @@ namespace pvpgn
 
 			for (i = 0; i < MAXMAPS; i++) {
 				if (maplist_war3[i])
-					xfree((void *)maplist_war3[i]);
+					delete[] maplist_war3[i];
 				if (maplist_w3xp[i])
-					xfree((void *)maplist_w3xp[i]);
+					delete[] maplist_w3xp[i];
 				if (maplist_ral2[i])
-					xfree((void *)maplist_ral2[i]);
+					delete[] maplist_ral2[i];
 				if (maplist_yuri[i])
-					xfree((void *)maplist_yuri[i]);
+					delete[] maplist_yuri[i];
 			}
 		}
 

@@ -43,7 +43,7 @@ namespace pvpgn
 	{
 		gs_peerchat_ctx * temp;
 
-		temp = (gs_peerchat_ctx*)xmalloc(sizeof(gs_peerchat_ctx));
+		temp = new gs_peerchat_ctx{};
 
 		return temp;
 	}
@@ -55,7 +55,7 @@ namespace pvpgn
 			return;
 		}
 
-		xfree((void *)ctx); /* avoid warning */
+		delete const_cast<gs_peerchat_ctx*>(ctx); /* avoid warning */
 	}
 
 	void gs_peerchat_init(gs_peerchat_ctx *ctx, unsigned char *chall, unsigned char *gamekey) {

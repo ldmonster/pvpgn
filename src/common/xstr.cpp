@@ -24,7 +24,6 @@
 #include <cstring>
 #include <cassert>
 
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 /* how many bytes allocate at once on enlarging a xstr */
@@ -39,14 +38,19 @@ namespace pvpgn
 		if (dst->alen < dst->ulen + size + 1) {
 			int nalen = ((dst->ulen + size + 10) / XSTR_INCREMENT + 1) * XSTR_INCREMENT;
 
-			dst->str = (char*)xrealloc(dst->str, nalen);
+			char* newstr = new char[nalen]{};
+			if (dst->str) {
+				std::memcpy(newstr, dst->str, dst->alen);
+				delete[] dst->str;
+			}
+			dst->str = newstr;
 			dst->alen = nalen;
 		}
 	}
 
 	extern t_xstr* xstr_alloc(void)
 	{
-		t_xstr* xstr = (t_xstr*)xmalloc(sizeof(t_xstr));
+		t_xstr* xstr = new t_xstr{};
 
 		xstr_init(xstr);
 
@@ -57,8 +61,8 @@ namespace pvpgn
 	{
 		assert(xstr);
 
-		if (xstr->str) xfree(xstr->str);
-		xfree(xstr);
+		if (xstr->str) delete[] xstr->str;
+		delete xstr;
 	}
 
 

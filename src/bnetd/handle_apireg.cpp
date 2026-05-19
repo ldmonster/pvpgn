@@ -30,7 +30,7 @@
 #include "common/list.h"
 #include "common/packet.h"
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #include "prefs.h"
 #include "irc.h"
@@ -46,6 +46,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ar_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		typedef int(*t_apireg_tag)(t_apiregmember * apiregmember, char * param);
 
 		static t_list * apireglist_head = NULL;
@@ -111,7 +121,7 @@ namespace pvpgn
 				return NULL;
 			}
 
-			temp = (t_apiregmember*)xmalloc(sizeof(t_apiregmember));
+			temp = new t_apiregmember{};
 
 			eventlog(eventlog_level_info, __FUNCTION__, "creating apiregmember");
 
@@ -156,63 +166,63 @@ namespace pvpgn
 			}
 
 			if (apiregmember->email)
-				xfree((void *)apiregmember->email); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->email);
 
 			if (apiregmember->bday)
-				xfree((void *)apiregmember->bday); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->bday);
 
 			if (apiregmember->bmonth)
-				xfree((void *)apiregmember->bmonth); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->bmonth);
 
 			if (apiregmember->byear)
-				xfree((void *)apiregmember->byear); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->byear);
 
 			if (apiregmember->langcode)
-				xfree((void *)apiregmember->langcode); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->langcode);
 
 			if (apiregmember->sku)
-				xfree((void *)apiregmember->sku); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->sku);
 
 			if (apiregmember->ver)
-				xfree((void *)apiregmember->ver); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->ver);
 
 			if (apiregmember->serial)
-				xfree((void *)apiregmember->serial); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->serial);
 
 			if (apiregmember->sysid)
-				xfree((void *)apiregmember->sysid); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->sysid);
 
 			if (apiregmember->syscheck)
-				xfree((void *)apiregmember->syscheck); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->syscheck);
 
 			if (apiregmember->oldnick)
-				xfree((void *)apiregmember->oldnick); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->oldnick);
 
 			if (apiregmember->oldpass)
-				xfree((void *)apiregmember->oldpass); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->oldpass);
 
 			if (apiregmember->newnick)
-				xfree((void *)apiregmember->newnick); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->newnick);
 
 			if (apiregmember->newpass)
-				xfree((void *)apiregmember->newpass); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->newpass);
 
 			if (apiregmember->newpass2)
-				xfree((void *)apiregmember->newpass2); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->newpass2);
 
 			if (apiregmember->parentemail)
-				xfree((void *)apiregmember->parentemail); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->parentemail);
 
 			//    if (apiregmember->newsletter)
-			//        xfree((void *)apiregmember->newsletter); /* avoid warning */
+			//        delete[] const_cast<char*>(apiregmember->newsletter);
 
 			//    if (apiregmember->shareinfo)
-			//        xfree((void *)apiregmember->shareinfo); /* avoid warning */
+			//        delete[] const_cast<char*>(apiregmember->shareinfo);
 
 			if (apiregmember->request)
-				xfree((void *)apiregmember->request); /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->request);
 
-			xfree(apiregmember);
+			delete apiregmember;
 
 			return 0;
 		}
@@ -382,7 +392,7 @@ namespace pvpgn
 			if (!apiregmember) {
 				apiregmember = apiregmember_create(conn);
 			}
-			line = xstrdup(apiregline);
+			line = ar_strdup(apiregline);
 
 			/* split the line */
 			tag = line;
@@ -394,7 +404,7 @@ namespace pvpgn
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got \"{}\" [{}]", conn_get_socket(conn), tag, ((param) ? (param) : ("")));
 
 			if (handle_apireg_tag(apiregmember, tag, param) != -1) {}
-			xfree(line);
+			delete[] line;
 
 			return 0;
 		}
@@ -503,10 +513,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->email)
-				xfree((void *)apiregmember->email);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->email);
 
 			if (param)
-				apiregmember->email = xstrdup(param);
+				apiregmember->email = ar_strdup(param);
 
 			return 0;
 		}
@@ -519,10 +529,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->bmonth)
-				xfree((void *)apiregmember->bmonth);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->bmonth);
 
 			if (param)
-				apiregmember->bmonth = xstrdup(param);
+				apiregmember->bmonth = ar_strdup(param);
 
 			return 0;
 		}
@@ -535,10 +545,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->bday)
-				xfree((void *)apiregmember->bday);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->bday);
 
 			if (param)
-				apiregmember->bday = xstrdup(param);
+				apiregmember->bday = ar_strdup(param);
 
 			return 0;
 		}
@@ -551,10 +561,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->byear)
-				xfree((void *)apiregmember->byear);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->byear);
 
 			if (param)
-				apiregmember->byear = xstrdup(param);
+				apiregmember->byear = ar_strdup(param);
 
 			return 0;
 		}
@@ -567,10 +577,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->langcode)
-				xfree((void *)apiregmember->langcode);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->langcode);
 
 			if (param)
-				apiregmember->langcode = xstrdup(param);
+				apiregmember->langcode = ar_strdup(param);
 
 			return 0;
 		}
@@ -619,10 +629,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->sysid)
-				xfree((void *)apiregmember->sysid);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->sysid);
 
 			if (param)
-				apiregmember->sysid = xstrdup(param);
+				apiregmember->sysid = ar_strdup(param);
 
 			return 0;
 		}
@@ -635,10 +645,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->syscheck)
-				xfree((void *)apiregmember->syscheck);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->syscheck);
 
 			if (param)
-				apiregmember->syscheck = xstrdup(param);
+				apiregmember->syscheck = ar_strdup(param);
 
 			return 0;
 		}
@@ -675,10 +685,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->newnick)
-				xfree((void *)apiregmember->newnick);
+				delete[] const_cast<char*>(apiregmember->newnick);
 
 			if (param)
-				apiregmember->newnick = xstrdup(param);
+				apiregmember->newnick = ar_strdup(param);
 
 			return 0;
 		}
@@ -691,10 +701,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->newpass)
-				xfree((void *)apiregmember->newpass);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->newpass);
 
 			if (param)
-				apiregmember->newpass = xstrdup(param);
+				apiregmember->newpass = ar_strdup(param);
 
 			return 0;
 		}
@@ -707,10 +717,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->newpass2)
-				xfree((void *)apiregmember->newpass2);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->newpass2);
 
 			if (param)
-				apiregmember->newpass2 = xstrdup(param);
+				apiregmember->newpass2 = ar_strdup(param);
 
 			return 0;
 		}
@@ -723,10 +733,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->parentemail)
-				xfree((void *)apiregmember->parentemail);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->parentemail);
 
 			if (param)
-				apiregmember->parentemail = xstrdup(param);
+				apiregmember->parentemail = ar_strdup(param);
 
 			return 0;
 		}
@@ -773,10 +783,10 @@ namespace pvpgn
 			}
 
 			if (apiregmember->request)
-				xfree((void *)apiregmember->request);   /* avoid warning */
+				delete[] const_cast<char*>(apiregmember->request);
 
 			if (param)
-				apiregmember->request = xstrdup(param);
+				apiregmember->request = ar_strdup(param);
 
 			return 0;
 		}

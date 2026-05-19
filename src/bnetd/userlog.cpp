@@ -27,7 +27,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "compat/pdir.h"
 #include "compat/mkdir.h"
 #include "common/util.h"
@@ -54,6 +54,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 		// max output lines to send user from /log command result
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ul_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static const int userlog_max_output_lines = 50;
 
 		static std::vector<std::string> userlog_commands;
@@ -68,13 +78,13 @@ namespace pvpgn
 			// fill command list that must be logged
 			if (const char * cmdlist = prefs_get_log_command_list())
 			{
-				temp = xstrdup(cmdlist);
+				temp = ul_strdup(cmdlist);
 				tok = std::strtok(temp, ","); /* std::strtok modifies the string it is passed */
 				while (tok) {
 					userlog_commands.push_back(tok);
 					tok = std::strtok(NULL, ",");
 				}
-				xfree(temp);
+				delete[] temp;
 			}
 		}
 
@@ -210,11 +220,11 @@ namespace pvpgn
 							if (search_substr && std::strlen(search_substr) > 0)
 							{
 								if (find_substr(line, search_substr))
-									lines[linecount] = xstrdup(line);
+									lines[linecount] = ul_strdup(line);
 							}
 							else
 							{
-								lines[linecount] = xstrdup(line);
+								lines[linecount] = ul_strdup(line);
 							}
 						}
 

@@ -661,7 +661,7 @@ namespace pvpgn
 		{
 			t_wol_gameres_result * gameres_result;
 
-			gameres_result = (t_wol_gameres_result*)xmalloc(sizeof(t_wol_gameres_result));
+			gameres_result = new t_wol_gameres_result{};
 
 			gameres_result->game = NULL;
 			gameres_result->results = NULL;
@@ -680,7 +680,7 @@ namespace pvpgn
 
 			eventlog(eventlog_level_info, __FUNCTION__, "destroying gameres_result");
 
-			xfree(gameres_result);
+			delete gameres_result;
 
 			return 0;
 		}
@@ -781,7 +781,7 @@ namespace pvpgn
 			game_set_report(gameres_result->game, gameres_result->myaccount, "head", "body");
 
 			if (game_set_reported_results(gameres_result->game, gameres_result->myaccount, gameres_result->results) < 0)
-				xfree((void *)gameres_result->results);
+				delete[] gameres_result->results;
 
 			conn_set_game(account_get_conn(gameres_result->myaccount), NULL, NULL, NULL, game_type_none, 0);
 
@@ -839,7 +839,7 @@ namespace pvpgn
 			if ((gameidnumber) && (game = gamelist_find_game_byid(gameidnumber))) { //&& (game_get_status(game) & game_status_started)) {
 				DEBUG2("found started game \"{}\" for gameid {}", game_get_name(game), gameidnumber);
 				game_result->game = game;
-				game_result->results = (t_game_result*)xmalloc(sizeof(t_game_result)* game_get_count(game));
+				game_result->results = new t_game_result[game_get_count(game)]{};
 			}
 
 			return 0;

@@ -28,7 +28,7 @@
 #include <vector>
 #include <string.h>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #include "common/token.h"
 
@@ -57,6 +57,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ic_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_list * icon_head = NULL;
 		/* use prefs_get_custom_icons() for this option */
 		static int enable_custom_icons = 0;
@@ -115,7 +125,7 @@ namespace pvpgn
 
 				// get current user icon
 				if (usericon = account_get_user_icon(account, clienttag))
-					usericon = strreverse(xstrdup(usericon));
+					usericon = strreverse(ic_strdup(usericon));
 
 				bool is_found = false;
 				// get user stash
@@ -286,7 +296,7 @@ namespace pvpgn
 				case 'l':
 					// get current user icon
 					if (usericon = account_get_user_icon(account, clienttag))
-						usericon = strreverse(xstrdup(usericon));
+						usericon = strreverse(ic_strdup(usericon));
 
 					// get user stash
 					if (char const * iconstash = account_get_user_iconstash(account, clienttag))
@@ -397,7 +407,7 @@ namespace pvpgn
 					{
 						// get current user icon
 						if (usericon = account_get_user_icon(account, clienttag))
-							usericon = strreverse(xstrdup(usericon));
+							usericon = strreverse(ic_strdup(usericon));
 
 						std::string s(iconstash);
 						std::istringstream iss(s);
@@ -487,8 +497,8 @@ namespace pvpgn
 						if (strcasecmp(var->key, code) == 0 || strcasecmp(var->value, code) == 0)
 						{
 							char const * val = (return_alias)
-								? xstrdup(var->key)
-								: xstrdup(var->value);
+								? ic_strdup(var->key)
+								: ic_strdup(var->value);
 							return val;
 						}
 					}
@@ -613,7 +623,7 @@ namespace pvpgn
 					if (!iconset->stats)
 						return NULL;
 
-					text = xstrdup(iconset->stats);
+					text = ic_strdup(iconset->stats);
 
 					LIST_TRAVERSE(iconset->vars, curr_var)
 					{
@@ -685,18 +695,18 @@ namespace pvpgn
 					if (list_remove_elem(icon_head, &curr) < 0)
 						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
 
-					xfree(iconset->clienttag);
+					delete[] iconset->clienttag;
 					if (iconset->attr_key)
-						xfree(iconset->attr_key);
+						delete[] iconset->attr_key;
 					if (iconset->stats)
-						xfree((void*)iconset->stats);
+						delete[] const_cast<char*>(iconset->stats);
 					if (iconset->icon_info)
-						xfree(iconset->icon_info);//need to free ->rank and ->icon_code too somehow
+						delete iconset->icon_info;//need to free ->rank and ->icon_code too somehow
 					if (iconset->iconstash)
-						xfree(iconset->iconstash);//need to free ->key and ->value too somehow
+						delete iconset->iconstash;//need to free ->key and ->value too somehow
 					if (iconset->vars)
-						xfree(iconset->vars);//need to free ->key and ->value too somehow
-					xfree(iconset);
+						delete iconset->vars;//need to free ->key and ->value too somehow
+					delete iconset;
 				}
 
 				if (list_destroy(icon_head) < 0)
@@ -766,9 +776,9 @@ namespace pvpgn
 					if (master_commandgroups == 0)
 						master_commandgroups = MASTER_COMMANDGROUPS_DEFAULT;
 
-					xfree(option->key);
-					xfree(option->value);
-					xfree(option);
+					delete[] option->key;
+					delete[] option->value;
+					delete option;
 				}
 
 
@@ -784,8 +794,8 @@ namespace pvpgn
 					value = std::strtok(buff, " []"); // extract clienttag
 
 					// new iconset for a clienttag
-					t_iconset_info * icon_set = (t_iconset_info*)xmalloc(sizeof(t_iconset_info));
-					icon_set->clienttag = xstrdup(value);
+					t_iconset_info * icon_set = new t_iconset_info{};
+					icon_set->clienttag = ic_strdup(value);
 					icon_set->attr_key = NULL;
 					icon_set->icon_info = list_create();
 					icon_set->iconstash = list_create();
@@ -813,7 +823,7 @@ namespace pvpgn
 						{
 							// set attr_key with a first variable
 							if (!icon_set->attr_key)
-								icon_set->attr_key = xstrdup(option->value);
+								icon_set->attr_key = ic_strdup(option->value);
 
 							// add to variables
 							list_append_data(icon_set->vars, option);
@@ -854,10 +864,10 @@ namespace pvpgn
 								}
 								counter++;
 
-								t_icon_info * icon_info = (t_icon_info*)xmalloc(sizeof(t_icon_info));
+								t_icon_info * icon_info = new t_icon_info{};
 								icon_info->rating = atoi(rating);
-								icon_info->rank = xstrdup(rank);
-								icon_info->icon_code = xstrdup(strreverse(icon)); // save reversed icon code
+								icon_info->rank = ic_strdup(rank);
+								icon_info->icon_code = ic_strdup(strreverse(icon)); // save reversed icon code
 								list_prepend_data(icon_set->icon_info, icon_info);
 							}
 						}
@@ -871,7 +881,7 @@ namespace pvpgn
 								// end of stats
 								if (std::strcmp(buff, "[/stats]") == 0) {
 									// put whole text of stats after read
-									icon_set->stats = xstrdup(tmp.c_str());
+									icon_set->stats = ic_strdup(tmp.c_str());
 									break;
 								}
 								tmp = tmp + buff + "\n";
@@ -902,9 +912,9 @@ namespace pvpgn
 									value = key;
 								counter++;
 
-								t_icon_var_info * icon_item = (t_icon_var_info*)xmalloc(sizeof(t_icon_var_info));
-								icon_item->key = xstrdup(key);
-								icon_item->value = xstrdup(value); 
+								t_icon_var_info * icon_item = new t_icon_var_info{};
+								icon_item->key = ic_strdup(key);
+								icon_item->value = ic_strdup(value); 
 								list_append_data(icon_set->iconstash, icon_item);
 							}
 						}
@@ -954,7 +964,7 @@ namespace pvpgn
 		static t_icon_var_info * _read_option(char *str, unsigned lineno)
 		{
 			char *cp, prev, *directive;
-			t_icon_var_info * icon_var = (t_icon_var_info*)xmalloc(sizeof(t_icon_var_info));
+			t_icon_var_info * icon_var = new t_icon_var_info{};
 
 			directive = str;
 			str = str_skip_word(str + 1);
@@ -962,14 +972,14 @@ namespace pvpgn
 
 			str = str_skip_space(str);
 			if (*str != '=') {
-				xfree((void*)icon_var);
+				delete icon_var;
 				return NULL;
 			}
 
 			str = str_skip_space(str + 1);
 			if (!*str) {
 				eventlog(eventlog_level_error, __FUNCTION__, "missing value at line {}", lineno);
-				xfree((void*)icon_var);
+				delete icon_var;
 				return NULL;
 			}
 
@@ -993,7 +1003,7 @@ namespace pvpgn
 
 				if (*cp != '"') {
 					eventlog(eventlog_level_error, __FUNCTION__, "missing end quota at line {}", lineno);
-					xfree((void*)icon_var);
+					delete icon_var;
 					return NULL;
 				}
 
@@ -1001,7 +1011,7 @@ namespace pvpgn
 				cp = str_skip_space(cp + 1);
 				if (*cp) {
 					eventlog(eventlog_level_error, __FUNCTION__, "extra characters in value after ending quote at line {}", lineno);
-					xfree((void*)icon_var);
+					delete icon_var;
 					return NULL;
 				}
 			}
@@ -1012,7 +1022,7 @@ namespace pvpgn
 					cp = str_skip_space(cp + 1);
 					if (*cp) {
 						eventlog(eventlog_level_error, __FUNCTION__, "extra characters after the value at line {}", lineno);
-						xfree((void*)icon_var);
+						delete icon_var;
 						return NULL;
 					}
 				}
@@ -1023,8 +1033,8 @@ namespace pvpgn
 			//else
 			//	return NULL;
 
-			icon_var->key = xstrdup(directive);
-			icon_var->value = xstrdup(str_skip_space(str));
+			icon_var->key = ic_strdup(directive);
+			icon_var->value = ic_strdup(str_skip_space(str));
 
 			return icon_var;
 		}

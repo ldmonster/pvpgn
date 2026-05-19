@@ -56,8 +56,7 @@ namespace
 		bnifile->unknown2 = 0x00000001;
 		bnifile->numicons = 0;
 		bnifile->dataoffset = 16; /* size of header */
-		bnifile->icons = static_cast<struct bni_iconlist_struct*>(std::malloc(sizeof(struct bni_iconlist_struct))); /* some xrealloc()s are broken */
-		if (!bnifile->icons) { std::fputs("bnibuild: out of memory\n", stderr); std::abort(); }
+		bnifile->icons.clear();
 		while (std::fgets(line, sizeof(line), f)) {
 			char cmd[BUFSIZE];
 			std::sscanf(line, "%s", cmd);
@@ -77,13 +76,7 @@ namespace
 					std::sscanf(line, "icon !%c%c%c%c %u %u %08x", &tg[0], &tg[1], &tg[2], &tg[3], &x, &y, &unknown);
 					tag = tg[3] + (tg[2] << 8) + (tg[1] << 16) + (tg[0] << 24);
 				std::fprintf(stderr, "Icon[%d]: id=0x%x x=%u y=%u unknown=0x%x tag=\"%c%c%c%c\"\n", bnifile->numicons, 0, x, y, unknown, static_cast<unsigned char>((tag >> 24) & 0xff), static_cast<unsigned char>((tag >> 16) & 0xff), static_cast<unsigned char>((tag >> 8) & 0xff), static_cast<unsigned char>(tag & 0xff));
-				bnifile->icons = static_cast<struct bni_iconlist_struct*>(std::realloc(bnifile->icons, ((bnifile->numicons + 1)*sizeof(t_bniicon))));
-				if (!bnifile->icons) { std::fputs("bnibuild: out of memory\n", stderr); std::abort(); }
-					bnifile->icons->icon[bnifile->numicons].id = 0;
-					bnifile->icons->icon[bnifile->numicons].x = x;
-					bnifile->icons->icon[bnifile->numicons].y = y;
-					bnifile->icons->icon[bnifile->numicons].tag = tag;
-					bnifile->icons->icon[bnifile->numicons].unknown = unknown;
+				bnifile->icons.push_back(t_bniicon{0, x, y, static_cast<unsigned int>(tag), unknown});
 					bnifile->numicons++;
 					bnifile->dataoffset += 20;
 				}
@@ -91,13 +84,7 @@ namespace
 					unsigned int id, x, y, unknown;
 					std::sscanf(line, "icon #%08x %u %u %08x", &id, &x, &y, &unknown);
 					std::fprintf(stderr, "Icon[%d]: id=0x%x x=%u y=%u unknown=0x%x tag=0x00000000\n", bnifile->numicons, id, x, y, unknown);
-					bnifile->icons = static_cast<struct bni_iconlist_struct*>(std::realloc(bnifile->icons, ((bnifile->numicons + 1)*sizeof(t_bniicon))));
-					if (!bnifile->icons) { std::fputs("bnibuild: out of memory\n", stderr); std::abort(); }
-					bnifile->icons->icon[bnifile->numicons].id = id;
-					bnifile->icons->icon[bnifile->numicons].x = x;
-					bnifile->icons->icon[bnifile->numicons].y = y;
-					bnifile->icons->icon[bnifile->numicons].tag = 0;
-					bnifile->icons->icon[bnifile->numicons].unknown = unknown;
+					bnifile->icons.push_back(t_bniicon{id, x, y, 0, unknown});
 					bnifile->numicons++;
 					bnifile->dataoffset += 16;
 				}
@@ -115,8 +102,8 @@ namespace
 
 	std::string geticonfilename(t_bnifile *bnifile, char const * indir, int i) {
 		char buf[1024];
-		if (bnifile->icons->icon[i].id == 0) {
-			unsigned int tag = bnifile->icons->icon[i].tag;
+		if (bnifile->icons[i].id == 0) {
+			unsigned int tag = bnifile->icons[i].tag;
 			std::snprintf(buf, sizeof(buf), "%s/%c%c%c%c.tga", indir,
 				static_cast<unsigned char>((tag >> 24) & 0xff),
 				static_cast<unsigned char>((tag >> 16) & 0xff),
@@ -124,7 +111,7 @@ namespace
 				static_cast<unsigned char>(tag & 0xff));
 		}
 		else {
-			std::snprintf(buf, sizeof(buf), "%s/%08x.tga", indir, bnifile->icons->icon[i].id);
+			std::snprintf(buf, sizeof(buf), "%s/%08x.tga", indir, bnifile->icons[i].id);
 		}
 		return std::string(buf);
 	}
@@ -143,8 +130,8 @@ namespace
 		}
 		if (src->width + x > dst->width) return -1;
 		if (src->height + y > dst->height) return -1;
-		sdp = src->data;
-		ddp = dst->data + (y * dst->width * pixelsize);
+		sdp = src->data.data();
+		ddp = dst->data.data() + (y * dst->width * pixelsize);
 		for (i = 0; i < src->height; i++) {
 			ddp += x*pixelsize;
 			std::memcpy(ddp, sdp, src->width*pixelsize);
@@ -269,12 +256,11 @@ extern int main(int argc, char * argv[])
 		}
 		img = new_tgaimg(0, 0, 24, tgaimgtype_rlecompressed_truecolor);
 		for (i = 0; i < bni.numicons; i++) {
-			if (bni.icons->icon[i].x > img->width) img->width = bni.icons->icon[i].x;
-			img->height += bni.icons->icon[i].y;
+			if (bni.icons[i].x > img->width) img->width = bni.icons[i].x;
+			img->height += bni.icons[i].y;
 		}
 		std::fprintf(stderr, "Info: Creating TGA with %ux%ux%ubpp.\n", img->width, img->height, img->bpp);
-		img->data = static_cast<std::uint8_t*>(std::malloc(static_cast<std::size_t>(img->width)*img->height*getpixelsize(img)));
-		if (!img->data) { std::fputs("bnibuild: out of memory\n", stderr); std::abort(); }
+		img->data.resize(static_cast<std::size_t>(img->width)*img->height*getpixelsize(img));
 		yline = 0;
 		for (i = 0; i < bni.numicons; i++) {
 			t_tgaimg *icon;

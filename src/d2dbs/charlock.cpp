@@ -23,7 +23,7 @@
 #include <cstring>
 #include <cctype>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/xalloc.h"
 #include "common/introtate.h"
 #include "common/xstring.h"
@@ -55,10 +55,10 @@ namespace pvpgn
 			if (!tbllen || !maxgs) return -1;
 			cl_destroy();
 
-			clitbl = (t_charlockinfo**)xmalloc(tbllen*sizeof(t_charlockinfo**));
-			gsqtbl = (t_charlockinfo**)xmalloc(maxgs*sizeof(t_charlockinfo**));
-			std::memset(clitbl, 0, tbllen*sizeof(t_charlockinfo**));
-			std::memset(gsqtbl, 0, maxgs*sizeof(t_charlockinfo**));
+			clitbl = new t_charlockinfo*[tbllen]{};
+			gsqtbl = new t_charlockinfo*[maxgs]{};
+			
+			
 			clitbl_len = tbllen;
 			gsqtbl_len = maxgs;
 			return 0;
@@ -76,12 +76,12 @@ namespace pvpgn
 					while (ptl) {
 						ptmp = ptl;
 						ptl = ptl->next;
-						xfree(ptmp);
+						delete ptmp;
 					}
 				}
-				xfree(clitbl);
+				delete[] clitbl;
 			}
-			if (gsqtbl) xfree(gsqtbl);
+			if (gsqtbl) delete[] gsqtbl;
 			clitbl = gsqtbl = NULL;
 			clitbl_len = gsqtbl_len = 0;
 			return 0;
@@ -134,8 +134,8 @@ namespace pvpgn
 			}
 
 			/* not found, locked it */
-			pcl = (t_charlockinfo*)xmalloc(sizeof(t_charlockinfo));
-			std::memset(pcl, 0, sizeof(t_charlockinfo));
+			pcl = new t_charlockinfo{};
+			
 			std::strncpy((char*)pcl->charname, (char*)charname, MAX_CHARNAME_LEN - 1);
 			std::strncpy((char*)pcl->realmname, (char*)realmname, MAX_REALMNAME_LEN - 1);
 			pcl->gsid = gsid;
@@ -168,7 +168,7 @@ namespace pvpgn
 					cl_delete_from_gsq_list(pcl);
 					if (ptmp) ptmp->next = pcl->next;
 					else clitbl[hashval] = pcl->next;
-					xfree(pcl);
+					delete pcl;
 					return 0;
 				}
 				ptmp = pcl;

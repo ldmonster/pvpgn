@@ -37,24 +37,37 @@ namespace pvpgn
 
 	static const char small_digits[] = "0123456789abcdef";
 
+	/* Resize the segment buffer. copy_count = number of base units of old data
+	 * to preserve (0 to discard). Returns the newly-allocated buffer. */
+	static std::uint32_t* bigint_resize(std::uint32_t* old, int copy_count, int new_count)
+	{
+		std::uint32_t* n = new std::uint32_t[new_count]{};
+		if (old) {
+			if (copy_count > 0)
+				std::memcpy(n, old, copy_count * sizeof(std::uint32_t));
+			delete[] old;
+		}
+		return n;
+	}
+
 	BigInt::BigInt()
 	{
 		segment_count = 1;
-		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
+		segment = new bigint_base[segment_count]{};
 		segment[0] = 0;
 	}
 
 	BigInt::BigInt(std::uint8_t input)
 	{
 		segment_count = 1;
-		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
+		segment = new bigint_base[segment_count]{};
 		segment[0] = input;
 	}
 
 	BigInt::BigInt(std::uint16_t input)
 	{
 		segment_count = 1;
-		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
+		segment = new bigint_base[segment_count]{};
 		segment[0] = input;
 	}
 
@@ -65,7 +78,7 @@ namespace pvpgn
 		int shift_amount = bigint_base_bitcount;
 #endif
 		segment_count = sizeof(std::uint32_t) / sizeof(bigint_base);
-		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
+		segment = new bigint_base[segment_count]{};
 #ifdef HAVE_UINT64_T
 		segment[0] = input;
 #else
@@ -82,7 +95,7 @@ namespace pvpgn
 		int i;
 		int shift_amount = bigint_base_bitcount;
 		segment_count = sizeof(std::uint64_t) / sizeof(bigint_base);
-		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
+		segment = new bigint_base[segment_count]{};
 		for (i = 0; i < segment_count; i++){
 			segment[i] = input & bigint_base_mask;
 			if (i + 1 < segment_count)
@@ -93,7 +106,7 @@ namespace pvpgn
 	BigInt::BigInt(const BigInt& input)
 		:segment_count(input.segment_count)
 	{
-		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
+		segment = new bigint_base[segment_count]{};
 		std::memcpy(segment, input.segment, segment_count * sizeof(bigint_base));
 	}
 
@@ -102,7 +115,7 @@ namespace pvpgn
 	{
 			if (&input != this) {
 				segment_count = input.segment_count;
-				segment = (bigint_base*)xrealloc(segment, segment_count * sizeof(bigint_base));
+				segment = bigint_resize(segment, 0, segment_count);
 				std::memcpy(segment, input.segment, segment_count * sizeof(bigint_base));
 			}
 			return *this;
@@ -119,7 +132,7 @@ namespace pvpgn
 			inPointer = (unsigned char*)in;
 		}
 		else {
-			in = (unsigned char*)xmalloc(input_size);
+			in = new unsigned char[input_size]{};
 			inPointer = (unsigned char*)in + input_size - 1;
 			if (blockSize == 1)
 				std::memcpy(in, input, input_size);
@@ -139,7 +152,7 @@ namespace pvpgn
 		segment_count = input_size / sizeof(bigint_base);
 		if (input_size % sizeof(bigint_base))
 			segment_count++;
-		segment = (bigint_base*)xmalloc(segment_count * sizeof(bigint_base));
+		segment = new bigint_base[segment_count]{};
 		std::memset(segment, 0, segment_count * sizeof(bigint_base));
 
 
@@ -154,13 +167,13 @@ namespace pvpgn
 		}
 
 		if (!bigEndian)
-			xfree(in);
+			delete[] in;
 	}
 
 	BigInt::~BigInt() throw()
 	{
 		if (segment)
-			xfree(segment);
+			delete[] segment;
 	}
 
 	bool
@@ -230,7 +243,7 @@ namespace pvpgn
 
 			max_segment_count = std::max(segment_count, right.segment_count);
 			result.segment_count = max_segment_count + 1;
-			result.segment = (bigint_base*)xrealloc(result.segment, result.segment_count * sizeof(bigint_base));
+			result.segment = bigint_resize(result.segment, 0, result.segment_count);
 
 			for (i = 0; i < max_segment_count; i++)
 			{
@@ -251,7 +264,7 @@ namespace pvpgn
 			if (result.segment_count != max_segment_count + 1)
 			{
 				result.segment_count = max_segment_count + 1;
-				result.segment = (bigint_base*)xrealloc(result.segment, result.segment_count * sizeof(bigint_base));
+				result.segment = bigint_resize(result.segment, result.segment_count, result.segment_count);
 			}
 
 			return result;
@@ -274,7 +287,7 @@ namespace pvpgn
 			}
 
 			result.segment_count = segment_count;
-			result.segment = (bigint_base*)xrealloc(result.segment, result.segment_count * sizeof(bigint_base));
+			result.segment = bigint_resize(result.segment, 0, result.segment_count);
 			for (i = 0; i < result.segment_count; i++)
 			{
 				lhs = (i < segment_count) ? segment[i] : 0;
@@ -301,7 +314,7 @@ namespace pvpgn
 			if (result.segment_count != max_segment_count + 1)
 			{
 				result.segment_count = max_segment_count + 1;
-				result.segment = (bigint_base*)xrealloc(result.segment, result.segment_count * sizeof(bigint_base));
+				result.segment = bigint_resize(result.segment, result.segment_count, result.segment_count);
 			}
 
 			return result;
@@ -320,7 +333,7 @@ namespace pvpgn
 				return result;
 
 			result.segment_count = segment_count + right.segment_count;
-			result.segment = (bigint_base*)xrealloc(result.segment, result.segment_count * sizeof(bigint_base));
+			result.segment = bigint_resize(result.segment, 0, result.segment_count);
 			std::memset(result.segment, 0, result.segment_count * sizeof(bigint_base));
 			for (i = 0; i < segment_count; i++)
 			{
@@ -353,7 +366,7 @@ namespace pvpgn
 			if (result.segment_count != max_segment_count + 1)
 			{
 				result.segment_count = max_segment_count + 1;
-				result.segment = (bigint_base*)xrealloc(result.segment, result.segment_count * sizeof(bigint_base));
+				result.segment = bigint_resize(result.segment, result.segment_count, result.segment_count);
 			}
 
 			return result;
@@ -376,11 +389,11 @@ namespace pvpgn
 			}
 
 			quotient.segment_count = (segment_count - right.segment_count) + 1;
-			quotient.segment = (bigint_base*)xrealloc(quotient.segment, quotient.segment_count*sizeof(bigint_base));
+			quotient.segment = bigint_resize(quotient.segment, 0, quotient.segment_count);
 			std::memset(quotient.segment, 0, quotient.segment_count * sizeof(bigint_base));
 
 			remainder.segment_count = right.segment_count + 1;
-			remainder.segment = (bigint_base*)xrealloc(remainder.segment, remainder.segment_count*sizeof(bigint_base));
+			remainder.segment = bigint_resize(remainder.segment, 0, remainder.segment_count);
 			std::memset(remainder.segment, 0, remainder.segment_count * sizeof(bigint_base));
 
 			for (j = 0; j < right.segment_count; j++){
@@ -437,7 +450,7 @@ namespace pvpgn
 			if (quotient.segment_count != max_segment_count + 1)
 			{
 				quotient.segment_count = max_segment_count + 1;
-				quotient.segment = (bigint_base*)xrealloc(quotient.segment, quotient.segment_count * sizeof(bigint_base));
+				quotient.segment = bigint_resize(quotient.segment, quotient.segment_count, quotient.segment_count);
 			}
 
 			return quotient;
@@ -459,7 +472,7 @@ namespace pvpgn
 			}
 
 			remainder.segment_count = right.segment_count + 1;
-			remainder.segment = (bigint_base*)xrealloc(remainder.segment, remainder.segment_count*sizeof(bigint_base));
+			remainder.segment = bigint_resize(remainder.segment, 0, remainder.segment_count);
 			std::memset(remainder.segment, 0, remainder.segment_count * sizeof(bigint_base));
 
 			for (j = 0; j < right.segment_count; j++){
@@ -524,7 +537,7 @@ namespace pvpgn
 
 			int segmentsToShift = bytesToShift / sizeof(bigint_base);
 			result.segment_count = segment_count + segmentsToShift;
-			result.segment = (bigint_base*)xrealloc(result.segment, result.segment_count * sizeof(bigint_base));
+			result.segment = bigint_resize(result.segment, 0, result.segment_count);
 
 			for (i = segment_count - 1; i >= 0; i--) {
 				result.segment[i + segmentsToShift] = segment[i];
@@ -548,7 +561,7 @@ namespace pvpgn
 			assert(size%sizeof(bigint_base) == 0);
 
 			result.segment_count = size / sizeof(bigint_base);
-			result.segment = (bigint_base*)xrealloc(result.segment, result.segment_count * sizeof(bigint_base));
+			result.segment = bigint_resize(result.segment, 0, result.segment_count);
 
 			for (i = 0; i < result.segment_count; i++){
 				result.segment[i] = 0;
@@ -603,7 +616,7 @@ namespace pvpgn
 	{
 			unsigned char* result;
 
-			result = (unsigned char*)xmalloc(byteCount);
+			result = new unsigned char[byteCount];
 			getData(result, byteCount, blockSize, bigEndian);
 
 			return result;

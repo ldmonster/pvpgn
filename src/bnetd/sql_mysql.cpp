@@ -323,7 +323,7 @@ namespace pvpgn
 			fieldno = p_mysql_num_fields((MYSQL_RES *)result);
 			fields = p_mysql_fetch_fields((MYSQL_RES *)result);
 
-			rfields = (t_sql_field *)xmalloc(sizeof(t_sql_field)* (fieldno + 1));
+			rfields = new t_sql_field[fieldno + 1]{};
 			for (i = 0; i < fieldno; i++)
 				rfields[i] = fields[i].name;
 			rfields[i] = NULL;
@@ -338,7 +338,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			xfree((void*)fields);
+			delete[] fields;
 			return 0; /* mysql_free_result() should free the rest properly */
 		}
 

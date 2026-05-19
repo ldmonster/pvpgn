@@ -25,7 +25,7 @@
 
 #include "common/eventlog.h"
 #include "common/setup_after.h"
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #ifndef WIN32
 #include <dirent.h>

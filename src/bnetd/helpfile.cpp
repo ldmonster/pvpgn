@@ -23,7 +23,7 @@
 #include <cstring>
 #include <map>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/util.h"
 #include "common/xalloc.h"
@@ -155,7 +155,7 @@ namespace pvpgn
 
 					/* ok. now we must see if there are any aliases */
 					length = MAX_COMMAND_LEN + 1; position = 0;
-					buffer = (char*)xmalloc(length + 1); /* initial memory allocation = pretty fair */
+					buffer = new char[length + 1]; /* initial memory allocation = pretty fair */
 					p = line + i;
 					do
 					{
@@ -170,7 +170,7 @@ namespace pvpgn
 						if (length < std::strlen(p) + position + 1)
 							/* if we don't have enough space in the buffer then get some */
 							length = std::strlen(p) + position + 1; /* the new length */
-						buffer = (char*)xrealloc(buffer, length + 1);
+						buffer = ([&](){ char* _p = new char[length + 1]; if (buffer) { std::memcpy(_p, buffer, length); } delete[] buffer; return _p; })();
 						buffer[position++] = ' '; /* put a space before each alias */
 						/* add the alias to the output string */
 						std::strcpy(buffer + position, p); position += std::strlen(p);
@@ -185,7 +185,7 @@ namespace pvpgn
 						}
 					} while (al);
 					if (!skip) message_send_text(c, message_type_info, c, buffer); /* print out the buffer */
-					xfree(buffer);
+					delete[] buffer;
 				}
 			}
 			file_get_line(NULL); // clear file_get_line buffer

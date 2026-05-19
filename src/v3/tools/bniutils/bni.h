@@ -20,10 +20,7 @@
 #define INCLUDED_BNI_H
 
 #include <cstdio>
-
-#ifndef BNI_MAXICONS
-#define BNI_MAXICONS 4096
-#endif
+#include <vector>
 
 namespace pvpgn
 {
@@ -31,28 +28,25 @@ namespace pvpgn
 	namespace bni
 	{
 
-		typedef struct {
-			unsigned int id;		/* Icon ID */
-			unsigned int x, y;	/* width and height */
-			unsigned int tag;	/* if ID == 0 */
-			unsigned int unknown;	/* 0x00000000 */
-		} t_bniicon;
+		struct t_bniicon {
+			unsigned int id;        /* Icon ID */
+			unsigned int x, y;      /* width and height */
+			unsigned int tag;       /* if ID == 0 */
+			unsigned int unknown;   /* 0x00000000 */
+		};
 
-		struct bni_iconlist_struct {
-			t_bniicon icon[BNI_MAXICONS];
-		}; /* The icons */
-
-		typedef struct {
-			unsigned int unknown1;	/* 0x00000010 */
-			unsigned int unknown2;	/* 0x00000001 */
-			unsigned int numicons;	/* Number of icons */
-			unsigned int dataoffset;	/* Start of TGA-File */
-			struct bni_iconlist_struct *icons; /* The icons */
-		} t_bnifile;
+		struct t_bnifile {
+			unsigned int unknown1;     /* 0x00000010 */
+			unsigned int unknown2;     /* 0x00000001 */
+			unsigned int numicons;     /* Number of icons (mirrors icons.size()) */
+			unsigned int dataoffset;   /* Start of TGA-File */
+			std::vector<t_bniicon> icons;
+		};
 
 
 		extern t_bnifile * load_bni(std::FILE *f);
 		extern int write_bni(std::FILE *f, t_bnifile *b);
+		extern void destroy_bni(t_bnifile *b);
 
 	}
 

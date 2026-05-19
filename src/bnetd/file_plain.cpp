@@ -90,8 +90,8 @@ namespace pvpgn
 				}
 				else eventlog(eventlog_level_debug, __FUNCTION__, "could not save attribute key=\"{}\"", key ? key : "NULL");
 
-				if (key) xfree((void *)key); /* avoid warning */
-				if (val) xfree((void *)val); /* avoid warning */
+				if (key) delete[] const_cast<char*>(key); /* avoid warning */
+				if (val) delete[] const_cast<char*>(val); /* avoid warning */
 
 				attr_clear_dirty(attr);
 			}
@@ -131,14 +131,14 @@ namespace pvpgn
 				}
 
 				len = std::strlen(buff) - 5 + 1; /* - ""="" + NUL */
-				esckey = (char*)xmalloc(len);
-				escval = (char*)xmalloc(len);
+				esckey = new char[len]{};
+				escval = new char[len]{};
 
 				if (std::sscanf(buff, "\"%[^\"]\" = \"%[^\"]\"", esckey, escval) != 2) {
 					if (std::sscanf(buff, "\"%[^\"]\" = \"\"", esckey) != 1) /* hack for an empty value field */ {
 						eventlog(eventlog_level_error, __FUNCTION__, "malformed entry on line {} of account file \"{}\"", line, filename);
-						xfree(escval);
-						xfree(esckey);
+						delete[] escval;
+						delete[] esckey;
 						continue;
 					}
 					escval[0] = '\0';
@@ -148,14 +148,14 @@ namespace pvpgn
 				val = unescape_chars(escval);
 
 				/* eventlog(eventlog_level_debug,__FUNCTION__,"std::strlen(esckey)=%u (%c), len=%u",std::strlen(esckey),esckey[0],len);*/
-				xfree(esckey);
-				xfree(escval);
+				delete[] esckey;
+				delete[] escval;
 
 				if (cb(key, val, data))
 					eventlog(eventlog_level_error, __FUNCTION__, "got error from callback (key: '{}' val:'{}')", key, val);
 
-				if (key) xfree((void *)key); /* avoid warning */
-				if (val) xfree((void *)val); /* avoid warning */
+				if (key) delete[] key; /* avoid warning */
+				if (val) delete[] val; /* avoid warning */
 			}
 
 			file_get_line(NULL); // clear file_get_line buffer

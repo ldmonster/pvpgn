@@ -26,12 +26,15 @@
 
 #include "compat/psock.h"
 #include "compat/strerror.h"
-#include "compat/uname.h"
 #include "common/eventlog.h"
 #include "common/list.h"
 #include "common/addr.h"
 #include "common/tracker.h"
 #include "common/bn_type.h"
+
+#ifdef HAVE_SYS_UTSNAME_H
+# include <sys/utsname.h>
+#endif
 
 #include "prefs.h"
 #include "connection.h"
@@ -113,6 +116,7 @@ namespace pvpgn
 				bn_int_nset(&packet.total_logins, connlist_total_logins());
 				bn_int_nset(&packet.total_games, gamelist_total_games());
 
+#ifdef HAVE_UNAME
 				static struct utsname utsbuf = {};
 				if (utsbuf.sysname[0] == '\0')
 				{
@@ -123,6 +127,9 @@ namespace pvpgn
 					}
 				}
 				std::snprintf(reinterpret_cast<char*>(packet.platform), sizeof packet.platform, "%.31s", utsbuf.sysname);
+#else
+				std::memset(reinterpret_cast<char*>(packet.platform), 0, sizeof packet.platform);
+#endif
 
 				LIST_TRAVERSE_CONST(laddrs, currl)
 				{

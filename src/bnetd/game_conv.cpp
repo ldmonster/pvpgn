@@ -28,8 +28,6 @@
 #include "common/bn_type.h"
 #include "common/util.h"
 
-#include "compat/strsep.h"
-
 #include "game.h"
 #include "common/setup_after.h"
 
@@ -39,6 +37,30 @@ namespace pvpgn
 
 	namespace bnetd
 	{
+
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* gc_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
+		namespace
+		{
+			/* Local replacement for the retired compat/strsep shim. */
+			char *bn_strsep(char **str, char const *delims)
+			{
+				if (!str || !*str) return nullptr;
+				char *start = *str;
+				char *p = start + std::strcspn(start, delims);
+				if (*p) { *p = '\0'; *str = p + 1; }
+				else { *str = nullptr; }
+				return start;
+			}
+		}
 
 		extern t_game_type bngreqtype_to_gtype(t_clienttag clienttag, unsigned short bngtype)
 		{
@@ -807,7 +829,7 @@ namespace pvpgn
 			unsigned    pos;
 			unsigned char bitmask;
 
-			if (!(mapinfo = xstrdup(enc))) {
+			if (!(mapinfo = gc_strdup(enc))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "not enough memory to setup temporary buffer");
 				return NULL;
 			}
@@ -1042,13 +1064,13 @@ namespace pvpgn
 				game_set_mapsize_x(game, bn_short_get(*((bn_short*)(pstr + 5))));
 				game_set_mapsize_y(game, bn_short_get(*((bn_short*)(pstr + 7))));
 				game_set_mapname(game, pstr + 13);
-				xfree((void*)pstr);
+				delete[] const_cast<char*>(pstr);
 
 				return 0;
 			}
 
 			/* otherwise it's Starcraft, Brood War, or Warcraft II */
-			if (!(save = xstrdup(gameinfo)))
+			if (!(save = gc_strdup(gameinfo)))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for save");
 				return -1;
@@ -1057,13 +1079,13 @@ namespace pvpgn
 			if (!(line1 = std::strtok(save, "\r"))) /* actual game info fields */
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing line1) \"{}\"", gameinfo);
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
 			if (!(line2 = std::strtok(NULL, "\r")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing player) \"{}\"", gameinfo);
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
 			/* is there room for another field after that? */
@@ -1076,64 +1098,64 @@ namespace pvpgn
 			 * need this.  Unlike std::strtok() all state is recorded in the first argument.
 			 */
 			currtok = line1;
-			if (!(unknown = strsep(&currtok, ","))) /* skip past first field (always empty?) */
+			if (!(unknown = bn_strsep(&currtok, ","))) /* skip past first field (always empty?) */
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing unknown)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(mapsize = strsep(&currtok, ",")))
+			if (!(mapsize = bn_strsep(&currtok, ",")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing mapsize)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(maxplayers = strsep(&currtok, ","))) /* for later use (FIXME: what is upper field, max observers?) */
+			if (!(maxplayers = bn_strsep(&currtok, ","))) /* for later use (FIXME: what is upper field, max observers?) */
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing maxplayers)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(speed = strsep(&currtok, ",")))
+			if (!(speed = bn_strsep(&currtok, ",")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing speed)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(maptype = strsep(&currtok, ",")))
+			if (!(maptype = bn_strsep(&currtok, ",")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing maptype)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(gametype = strsep(&currtok, ","))) /* this is set from another field */
+			if (!(gametype = bn_strsep(&currtok, ","))) /* this is set from another field */
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing gametype)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(option = strsep(&currtok, ","))) /* this is set from another field */
+			if (!(option = bn_strsep(&currtok, ","))) /* this is set from another field */
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing option)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(checksum = strsep(&currtok, ","))) /* FIXME */
+			if (!(checksum = bn_strsep(&currtok, ","))) /* FIXME */
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing checksum)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(tileset = strsep(&currtok, ",")))
+			if (!(tileset = bn_strsep(&currtok, ",")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing tileset)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
-			if (!(player = strsep(&currtok, ",")))
+			if (!(player = bn_strsep(&currtok, ",")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "bad gameinfo format (missing player)");
-				xfree(save);
+				delete[] save;
 				return -1;
 			}
 
@@ -1173,7 +1195,7 @@ namespace pvpgn
 
 			game_set_mapname(game, mapname);
 
-			xfree(save);
+			delete[] save;
 
 			return 0;
 		}

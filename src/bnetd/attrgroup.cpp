@@ -28,8 +28,7 @@
 #include "common/eventlog.h"
 #include "common/flags.h"
 #include "common/xalloc.h"
-#include "compat/strcasecmp.h"
-#include "compat/strncasecmp.h"
+#include <strings.h>
 #include "attr.h"
 #include "attrlayer.h"
 #include "storage.h"
@@ -105,7 +104,7 @@ namespace pvpgn
 
 #ifdef WITH_SQL
 			for (std::vector<const char *>::iterator it = attrgroup->loadedtabs->begin(); it != attrgroup->loadedtabs->end(); ++it)
-				xfree((void*)(*it));
+				delete[] const_cast<char*>(*it);
 
 			// clear loaded tabs
 			attrgroup->loadedtabs->clear();
@@ -116,7 +115,7 @@ namespace pvpgn
 		{
 			t_attrgroup *attrgroup;
 
-			attrgroup = (t_attrgroup*)xmalloc(sizeof(t_attrgroup));
+			attrgroup = new t_attrgroup{};
 
 			hlist_init(&attrgroup->list);
 			attrgroup->storage = NULL;
@@ -182,7 +181,7 @@ namespace pvpgn
 
 			attrgroup_unload(attrgroup);
 			if (attrgroup->storage) storage->free_info(attrgroup->storage);
-			xfree(attrgroup);
+			delete attrgroup;
 
 			return 0;
 		}
@@ -287,7 +286,7 @@ namespace pvpgn
 				if (!is_found)
 					attrgroup->loadedtabs->push_back(tab);
 				else
-					xfree((void*)tab);
+					delete[] const_cast<char*>(tab);
 			}
 #endif
 			// set loaded attribute without a dirty flag
@@ -373,7 +372,8 @@ namespace pvpgn
 				 * Recent Starcraft clients seems to query DynKey\*\1\rank instead of
 				 * Record\*\1\rank. So replace Dynkey with Record for key lookup.
 				 */
-				tmp = xstrdup(key);
+				tmp = new char[std::strlen(key)+1];
+				std::strcpy(tmp, key);
 				std::strncpy(tmp, "Record", 6);
 				newkey = tmp;
 			}
@@ -381,7 +381,8 @@ namespace pvpgn
 				/* OLD COMMENT
 				 * Starcraft clients query Star instead of STAR on logon screen.
 				 */
-				tmp = xstrdup(key);
+				tmp = new char[std::strlen(key)+1];
+				std::strcpy(tmp, key);
 				std::strncpy(tmp, "STAR", 4);
 				newkey = tmp;
 			}
@@ -389,7 +390,7 @@ namespace pvpgn
 			if (newkey != key) {
 				newkey2 = storage->escape_key(newkey);
 				if (newkey2 != newkey) {
-					xfree((void*)newkey);
+					delete[] const_cast<char*>(newkey);
 					newkey = newkey2;
 				}
 			}
@@ -415,7 +416,7 @@ namespace pvpgn
 			/* trigger loading of attributes if not loaded already */
 			if (attrgroup_load(attrgroup, tab))
 				return NULL;	/* eventlog happens earlier */
-			xfree((void*)tab);
+			delete[] const_cast<char*>(tab);
 
 			/* we are doing attribute lookup so we are accessing it */
 			attrgroup_set_accessed(attrgroup);
@@ -465,7 +466,7 @@ namespace pvpgn
 			if (!val && attrgroup != attrlayer_get_defattrgroup())
 				val = attrgroup_get_attrlow(attrlayer_get_defattrgroup(), newkey, 0);
 
-			if (newkey != key) xfree((void*)newkey);
+			if (newkey != key) delete[] const_cast<char*>(newkey);
 
 			return val;
 		}
@@ -523,7 +524,7 @@ namespace pvpgn
 			}
 
 		out:
-			if (newkey != key) xfree((void*)newkey);
+			if (newkey != key) delete[] const_cast<char*>(newkey);
 
 			return 0;
 		}
@@ -534,7 +535,9 @@ namespace pvpgn
 			std::string str = std::string(key);
 			std::size_t pos = str.find("_");
 			std::string find = str.substr(0, pos);
-			return xstrdup(find.c_str());
+			char* r = new char[find.size()+1];
+			std::strcpy(r, find.c_str());
+			return r;
 		}
 
 

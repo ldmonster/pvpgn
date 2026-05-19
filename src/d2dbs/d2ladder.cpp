@@ -23,7 +23,7 @@
 #include <cstdio>
 #include <cerrno>
 
-#include "compat/strncasecmp.h"
+#include <strings.h>
 #include "compat/rename.h"
 #include "common/eventlog.h"
 #include "common/xalloc.h"
@@ -304,10 +304,10 @@ namespace pvpgn
 		{
 			d2ladder_change_count = 0;
 			d2ladder_maxtype = 0;
-			d2ladder_ladder_file = (char*)xmalloc(std::strlen(d2dbs_prefs_get_ladder_dir()) + 1 +
-				std::strlen(LADDER_FILE_PREFIX) + 1 + std::strlen(CLIENTTAG_DIABLO2DV) + 1 + 10);
-			d2ladder_backup_file = (char*)xmalloc(std::strlen(d2dbs_prefs_get_ladder_dir()) + 1 +
-				std::strlen(LADDER_BACKUP_PREFIX) + 1 + std::strlen(CLIENTTAG_DIABLO2DV) + 1 + 10);
+			d2ladder_ladder_file = new char[std::strlen(d2dbs_prefs_get_ladder_dir()) + 1 +
+				std::strlen(LADDER_FILE_PREFIX) + 1 + std::strlen(CLIENTTAG_DIABLO2DV) + 1 + 10];
+			d2ladder_backup_file = new char[std::strlen(d2dbs_prefs_get_ladder_dir()) + 1 +
+				std::strlen(LADDER_BACKUP_PREFIX) + 1 + std::strlen(CLIENTTAG_DIABLO2DV) + 1 + 10];
 			std::sprintf(d2ladder_ladder_file, "%s/%s.%s", d2dbs_prefs_get_ladder_dir(), \
 				LADDER_FILE_PREFIX, CLIENTTAG_DIABLO2DV);
 
@@ -339,7 +339,7 @@ namespace pvpgn
 			d2ladder_list = list_create();
 			d2ladder_maxtype = D2LADDER_MAXTYPE;
 			for (i = 0; i < d2ladder_maxtype; i++) {
-				d2ladder = (t_d2ladder*)xmalloc(sizeof(t_d2ladder));
+				d2ladder = new t_d2ladder{};
 				d2ladder->type = i;
 				d2ladder->info = NULL;
 				d2ladder->len = 0;
@@ -404,11 +404,11 @@ namespace pvpgn
 				return -1;
 			}
 
-			lhead = (t_d2ladderfile_ladderindex*)xmalloc(blocksize);
+			lhead = reinterpret_cast<t_d2ladderfile_ladderindex*>(new char[blocksize]{});
 			readlen = std::fread(lhead, 1, d2ladder_maxtype*sizeof(*lhead), fdladder);
 			if (readlen <= 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "file {} read error(read:{})", d2ladder_ladder_file, std::strerror(errno));
-				xfree(lhead);
+				delete[] reinterpret_cast<char*>(lhead);
 				std::fclose(fdladder);
 				return -1;
 			}
@@ -420,7 +420,7 @@ namespace pvpgn
 			}
 			if (leftsize < blocksize) {
 				eventlog(eventlog_level_error, __FUNCTION__, "file size error");
-				xfree(lhead);
+				delete[] reinterpret_cast<char*>(lhead);
 				std::fclose(fdladder);
 				return -1;
 			}
@@ -433,15 +433,15 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "could not find ladder type {}", laddertype);
 					continue;
 				}
-				ldata = (t_d2ladderfile_ladderinfo*)xmalloc(number*sizeof(*ldata));
-				info = (t_d2ladder_info*)xmalloc(number * sizeof(*info));
-				std::memset(info, 0, number * sizeof(*info));
+				ldata = new t_d2ladderfile_ladderinfo[number]{};
+				info = new t_d2ladder_info[number]{};
+				
 				std::fseek(fdladder, bn_int_get(lhead[laddertype].offset), SEEK_SET);
 				readlen = std::fread(ldata, 1, number*sizeof(*ldata), fdladder);
 				if (readlen <= 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "file {} read error(read:{})", d2ladder_ladder_file, std::strerror(errno));
-					xfree(ldata);
-					xfree(info);
+					delete[] ldata;
+					delete[] info;
 					continue;
 				}
 				d2ladder->info = info;
@@ -459,11 +459,11 @@ namespace pvpgn
 						d2ladder_change_count++;
 					}
 				}
-				xfree(ldata);
+				delete[] ldata;
 			}
 			leftsize -= blocksize;
 
-			xfree(lhead);
+			delete[] reinterpret_cast<char*>(lhead);
 			std::fclose(fdladder);
 			return 0;
 		}
@@ -479,18 +479,18 @@ namespace pvpgn
 				if (d2ladder)
 				{
 					if (d2ladder->info)
-						xfree(d2ladder->info);
+						delete[] d2ladder->info;
 					d2ladder->info = NULL;
 					d2ladder->len = 0;
 				}
 			}
 			d2ladderlist_destroy();
 			if (d2ladder_ladder_file) {
-				xfree(d2ladder_ladder_file);
+				delete[] d2ladder_ladder_file;
 				d2ladder_ladder_file = NULL;
 			}
 			if (d2ladder_backup_file) {
-				xfree(d2ladder_backup_file);
+				delete[] d2ladder_backup_file;
 				d2ladder_backup_file = NULL;
 			}
 			return 0;
@@ -505,7 +505,7 @@ namespace pvpgn
 			LIST_TRAVERSE(d2ladder_list, elem)
 			{
 				if (!(d2ladder = (t_d2ladder*)elem_get_data(elem))) continue;
-				xfree(d2ladder);
+				delete d2ladder;
 				list_remove_elem(d2ladder_list, &elem);
 			}
 			list_destroy(d2ladder_list);
@@ -690,7 +690,7 @@ namespace pvpgn
 				number = bn_int_get(lhead[i].number);
 				if (number <= 0) continue;
 				d2ladder = d2ladderlist_find_type(i);
-				ldata = (t_d2ladderfile_ladderinfo*)xmalloc(number * sizeof(*ldata));
+				ldata = new t_d2ladderfile_ladderinfo[number]{};
 				std::memset(ldata, 0, number * sizeof(*ldata));
 				for (j = 0; j < number; j++) {
 					bn_int_set(&ldata[j].experience, d2ladder->info[j].experience);
@@ -700,7 +700,7 @@ namespace pvpgn
 					std::strncpy(ldata[j].charname, d2ladder->info[j].charname, sizeof(ldata[j].charname));
 				}
 				std::fwrite(ldata, 1, number*sizeof(*ldata), fdladder);
-				xfree(ldata);
+				delete[] ldata;
 			}
 			std::fclose(fdladder);
 			d2ladder_checksum_set();
@@ -815,7 +815,7 @@ namespace pvpgn
 				std::fclose(fdladder);
 				return -1;
 			}
-			buffer = (unsigned char*)xmalloc(filesize);
+			buffer = new unsigned char[filesize]{};
 
 			curlen = 0;
 			while (curlen<filesize) {
@@ -825,7 +825,7 @@ namespace pvpgn
 					len = filesize - curlen;
 				readlen = std::fread(buffer + curlen, 1, len, fdladder);
 				if (readlen <= 0) {
-					xfree(buffer);
+					delete[] buffer;
 					std::fclose(fdladder);
 					eventlog(eventlog_level_error, __FUNCTION__, "got bad save file or read error(read:{})", std::strerror(errno));
 					return -1;
@@ -836,7 +836,7 @@ namespace pvpgn
 			bn_int_set(&checksum, d2ladder_checksum(buffer, filesize, LADDERFILE_CHECKSUM_OFFSET));
 			std::fseek(fdladder, LADDERFILE_CHECKSUM_OFFSET, SEEK_SET);
 			std::fwrite(&checksum, 1, sizeof(checksum), fdladder);
-			xfree(buffer);
+			delete[] buffer;
 			std::fclose(fdladder);
 			return 0;
 		}
@@ -869,7 +869,7 @@ namespace pvpgn
 				std::fclose(fdladder);
 				return -1;
 			}
-			buffer = (unsigned char*)xmalloc(filesize);
+			buffer = new unsigned char[filesize]{};
 			header = (t_d2ladderfile_header *)buffer;
 			curlen = 0;
 			while (curlen<filesize) {
@@ -879,7 +879,7 @@ namespace pvpgn
 					len = filesize - curlen;
 				readlen = std::fread(buffer + curlen, 1, len, fdladder);
 				if (readlen <= 0) {
-					xfree(buffer);
+					delete[] buffer;
 					std::fclose(fdladder);
 					eventlog(eventlog_level_error, __FUNCTION__, "got bad save file or read error(read:{})", std::strerror(errno));
 					return -1;
@@ -890,7 +890,7 @@ namespace pvpgn
 
 			oldchecksum = bn_int_get(header->checksum);
 			checksum = d2ladder_checksum(buffer, filesize, LADDERFILE_CHECKSUM_OFFSET);
-			xfree(buffer);
+			delete[] buffer;
 
 			if (oldchecksum == checksum) {
 				eventlog(eventlog_level_info, __FUNCTION__, "ladder file check pass (checksum=0x{:X})", checksum);

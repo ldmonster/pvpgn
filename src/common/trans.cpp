@@ -20,6 +20,7 @@
 
 #include <cerrno>
 #include <cstring>
+#include <string>
 
 #include "common/setup_before.h"
 #include "common/eventlog.h"
@@ -50,6 +51,7 @@ namespace pvpgn
 		unsigned int	npos;
 		char		*network;
 		char		*tmp;
+		std::string	tmp_storage;
 		char 		tmp1[32];
 		char		tmp2[32];
 		char		tmp3[32];
@@ -115,7 +117,7 @@ namespace pvpgn
 				continue;
 			}
 			/* add exlude networks */
-			tmp = xstrdup(exclude);
+			tmp_storage = exclude; tmp = tmp_storage.empty() ? nullptr : &tmp_storage[0];
 			npos = 0;
 			while (tmp[npos]) {
 				network = &tmp[npos];
@@ -128,17 +130,17 @@ namespace pvpgn
 					npos++;
 					continue;
 				}
-				entry = (t_trans*)xmalloc(sizeof(t_trans));
+				entry = new t_trans{};
 				if (!(entry->input = addr_create_str(input, 0, 0))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for input address");
-					xfree(entry);
+					delete entry;
 					npos++;
 					continue;
 				}
 				if (!(entry->output = addr_create_str(input, 0, 0))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for output address");
 					addr_destroy(entry->input);
-					xfree(entry);
+					delete entry;
 					npos++;
 					continue;
 				}
@@ -147,7 +149,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for network address");
 						addr_destroy(entry->output);
 						addr_destroy(entry->input);
-						xfree(entry);
+						delete entry;
 						npos++;
 						continue;
 					}
@@ -157,7 +159,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for network address");
 						addr_destroy(entry->output);
 						addr_destroy(entry->input);
-						xfree(entry);
+						delete entry;
 						npos++;
 						continue;
 					}
@@ -172,9 +174,8 @@ namespace pvpgn
 				list_append_data(trans_head, entry);
 				npos++;
 			}
-			xfree(tmp);
-			/* add include networks */
-			tmp = xstrdup(include);
+						/* add include networks */
+			tmp_storage = include; tmp = tmp_storage.empty() ? nullptr : &tmp_storage[0];
 			npos = 0;
 			while (tmp[npos]) {
 				network = &tmp[npos];
@@ -187,17 +188,17 @@ namespace pvpgn
 					npos++;
 					continue;
 				}
-				entry = (t_trans*)xmalloc(sizeof(t_trans));
+				entry = new t_trans{};
 				if (!(entry->input = addr_create_str(input, 0, 0))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for input address");
-					xfree(entry);
+					delete entry;
 					npos++;
 					continue;
 				}
 				if (!(entry->output = addr_create_str(output, 0, 0))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for output address");
 					addr_destroy(entry->input);
-					xfree(entry);
+					delete entry;
 					npos++;
 					continue;
 				}
@@ -206,7 +207,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for network address");
 						addr_destroy(entry->output);
 						addr_destroy(entry->input);
-						xfree(entry);
+						delete entry;
 						npos++;
 						continue;
 					}
@@ -216,7 +217,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for network address");
 						addr_destroy(entry->output);
 						addr_destroy(entry->input);
-						xfree(entry);
+						delete entry;
 						npos++;
 						continue;
 					}
@@ -231,8 +232,7 @@ namespace pvpgn
 				list_append_data(trans_head, entry);
 				npos++;
 			}
-			xfree(tmp);
-		}
+					}
 		file_get_line(NULL); // clear file_get_line buffer
 		std::fclose(fp);
 		eventlog(eventlog_level_info, __FUNCTION__, "trans file loaded");
@@ -254,7 +254,7 @@ namespace pvpgn
 					netaddr_destroy(entry->network);
 					addr_destroy(entry->output);
 					addr_destroy(entry->input);
-					xfree(entry);
+					delete entry;
 				}
 				list_remove_elem(trans_head, &curr);
 			}

@@ -98,17 +98,25 @@ namespace pvpgn
 				if ((lstr_get_len(&cni->body) + len + 2) > 1023)
 					eventlog(eventlog_level_error, __FUNCTION__, "failed in joining news, cause news too long - skipping");
 				else {
-					lstr_set_str(&cni->body, (char*)xrealloc(lstr_get_str(&cni->body), lstr_get_len(&cni->body) + len + 1 + 1));
+					lstr_set_str(&cni->body, ([&]{
+						std::size_t oldlen = lstr_get_len(&cni->body);
+						std::size_t newcap = oldlen + len + 1 + 1;
+						char* _p = new char[newcap]{};
+						if (lstr_get_str(&cni->body))
+							std::memcpy(_p, lstr_get_str(&cni->body), oldlen);
+						delete[] lstr_get_str(&cni->body);
+						return _p;
+					})());
 					std::strcpy(lstr_get_str(&cni->body) + lstr_get_len(&cni->body), buff);
 					*(lstr_get_str(&cni->body) + lstr_get_len(&cni->body) + len) = '\n';
 					*(lstr_get_str(&cni->body) + lstr_get_len(&cni->body) + len + 1) = '\0';
 					lstr_set_len(&cni->body, lstr_get_len(&cni->body) + len + 1);
 				}
-				xfree((void *)ni);
+				delete ni;
 			}
 			else {
 				/* adding new index entry */
-				lstr_set_str(&ni->body, (char*)xmalloc(len + 2));
+				lstr_set_str(&ni->body, new char[len + 2]);
 				std::strcpy(lstr_get_str(&ni->body), buff);
 				std::strcat(lstr_get_str(&ni->body), "\n");
 				lstr_set_len(&ni->body, len + 1);
@@ -121,7 +129,7 @@ namespace pvpgn
 			const char * deftext = "No news today";
 			t_news_index	*ni;
 
-			ni = (t_news_index*)xmalloc(sizeof(t_news_index));
+			ni = new t_news_index{};
 			ni->date = std::time(NULL);
 			_news_insert_index(ni, deftext, std::strlen(deftext), 1);
 		}
@@ -172,7 +180,7 @@ namespace pvpgn
 				}
 				else
 				{
-					ni = (t_news_index*)xmalloc(sizeof(t_news_index));
+					ni = new t_news_index{};
 					if (date_set)
 					{
 						ni->date = std::mktime(&date);
@@ -207,8 +215,8 @@ namespace pvpgn
 			{
 				ni = elist_entry(curr, t_news_index, list);
 				elist_del(&ni->list);
-				xfree((void *)lstr_get_str(&ni->body));
-				xfree((void *)ni);
+				delete[] lstr_get_str(&ni->body);
+				delete ni;
 			}
 
 			elist_init(&news_head);

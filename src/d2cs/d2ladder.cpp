@@ -24,8 +24,9 @@
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
+#include <vector>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "common/tag.h"
@@ -60,21 +61,18 @@ namespace pvpgn
 		static int d2ladder_readladder(void)
 		{
 			std::FILE				* fp;
-			t_d2ladderfile_ladderindex	* ladderheader;
-			t_d2ladderfile_ladderinfo	* ladderinfo;
-			char				* ladderfile;
 			t_d2ladderfile_header		header;
 			unsigned int			i, n, temp, count, type, number;
 
-			ladderfile = (char*)xmalloc(std::strlen(prefs_get_ladder_dir()) + 1 + std::strlen(LADDER_FILE_PREFIX) + 1 +
-				std::strlen(CLIENTTAG_DIABLO2DV) + 1);
-			std::sprintf(ladderfile, "%s/%s.%s", prefs_get_ladder_dir(), LADDER_FILE_PREFIX, CLIENTTAG_DIABLO2DV);
-			if (!(fp = std::fopen(ladderfile, "rb"))) {
-				eventlog(eventlog_level_error, __FUNCTION__, "error opening ladder file \"{}\" for reading (std::fopen: {})", ladderfile, std::strerror(errno));
-				xfree(ladderfile);
-				return -1;
+			{
+				std::vector<char> ladderfile(std::strlen(prefs_get_ladder_dir()) + 1 + std::strlen(LADDER_FILE_PREFIX) + 1 +
+					std::strlen(CLIENTTAG_DIABLO2DV) + 1);
+				std::sprintf(ladderfile.data(), "%s/%s.%s", prefs_get_ladder_dir(), LADDER_FILE_PREFIX, CLIENTTAG_DIABLO2DV);
+				if (!(fp = std::fopen(ladderfile.data(), "rb"))) {
+					eventlog(eventlog_level_error, __FUNCTION__, "error opening ladder file \"{}\" for reading (std::fopen: {})", ladderfile.data(), std::strerror(errno));
+					return -1;
+				}
 			}
-			xfree(ladderfile);
 			if (std::fread(&header, 1, sizeof(header), fp) != sizeof(header)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error reading ladder file");
 				std::fclose(fp);
@@ -86,11 +84,10 @@ namespace pvpgn
 				std::fclose(fp);
 				return -1;
 			}
-			temp = max_ladder_type * sizeof(*ladderheader);
-			ladderheader = (t_d2ladderfile_ladderindex*)xmalloc(temp);
-			if (std::fread(ladderheader, 1, temp, fp) != temp) {
+			std::vector<t_d2ladderfile_ladderindex> ladderheader(max_ladder_type);
+			temp = max_ladder_type * sizeof(t_d2ladderfile_ladderindex);
+			if (std::fread(ladderheader.data(), 1, temp, fp) != temp) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error read ladder file");
-				xfree(ladderheader);
 				std::fclose(fp);
 				return -1;
 			}
@@ -102,20 +99,17 @@ namespace pvpgn
 					continue;
 				}
 				std::fseek(fp, bn_int_get(ladderheader[i].offset), SEEK_SET);
-				temp = number * sizeof(*ladderinfo);
-				ladderinfo = (t_d2ladderfile_ladderinfo*)xmalloc(temp);
-				if (std::fread(ladderinfo, 1, temp, fp) != temp) {
+				std::vector<t_d2ladderfile_ladderinfo> ladderinfo(number);
+				temp = number * sizeof(t_d2ladderfile_ladderinfo);
+				if (std::fread(ladderinfo.data(), 1, temp, fp) != temp) {
 					eventlog(eventlog_level_error, __FUNCTION__, "error read ladder file");
-					xfree(ladderinfo);
 					continue;
 				}
 				for (n = 0; n < number; n++) {
-					d2ladder_append_ladder(type, ladderinfo + n);
+					d2ladder_append_ladder(type, ladderinfo.data() + n);
 				}
-				xfree(ladderinfo);
 				if (number) count++;
 			}
-			xfree(ladderheader);
 			std::fclose(fp);
 			eventlog(eventlog_level_info, __FUNCTION__, "ladder file loaded successfully ({} types {} maxtype)", count, max_ladder_type);
 			return 0;
@@ -123,8 +117,7 @@ namespace pvpgn
 
 		static int d2ladderlist_create(unsigned int maxtype)
 		{
-			ladder_data = (t_d2ladder*)xmalloc(maxtype * sizeof(*ladder_data));
-			std::memset(ladder_data, 0, maxtype * sizeof(*ladder_data));
+			ladder_data = new t_d2ladder[maxtype]{};
 			return 0;
 		}
 
@@ -140,7 +133,7 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "ladder type {} exceed max ladder type {}", type, max_ladder_type);
 				return -1;
 			}
-			ladder_data[type].info = (t_d2cs_client_ladderinfo*)xmalloc(sizeof(t_d2cs_client_ladderinfo)* len);
+			ladder_data[type].info = new t_d2cs_client_ladderinfo[len]{};
 			ladder_data[type].len = len;
 			ladder_data[type].type = type;
 			ladder_data[type].curr_len = 0;
@@ -204,11 +197,11 @@ namespace pvpgn
 			if (ladder_data) {
 				for (i = 0; i < max_ladder_type; i++) {
 					if (ladder_data[i].info) {
-						xfree(ladder_data[i].info);
+						delete[] ladder_data[i].info;
 						ladder_data[i].info = NULL;
 					}
 				}
-				xfree(ladder_data);
+				delete[] ladder_data;
 				ladder_data = NULL;
 			}
 			max_ladder_type = 0;

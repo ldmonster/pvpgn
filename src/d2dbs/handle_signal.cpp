@@ -21,6 +21,7 @@
 
 #include <cstring>
 #include <ctime>
+#include <string>
 
 #include <csignal>
 
@@ -52,7 +53,6 @@ namespace pvpgn
 		{
 			std::time_t		now;
 			char const * levels;
-			char *       temp;
 			char const * tok;
 
 
@@ -95,8 +95,8 @@ namespace pvpgn
 				eventlog_clear_level();
 				if ((levels = d2dbs_prefs_get_loglevels()))
 				{
-					temp = xstrdup(levels);
-					tok = std::strtok(temp, ","); /* std::strtok modifies the string it is passed */
+					std::string temp(levels);
+					tok = std::strtok(temp.empty() ? nullptr : &temp[0], ","); /* std::strtok modifies the string it is passed */
 
 					while (tok)
 					{
@@ -104,7 +104,6 @@ namespace pvpgn
 							eventlog(eventlog_level_error, __FUNCTION__, "could not add std::log level \"{}\"", tok);
 						tok = std::strtok(NULL, ",");
 					}
-					xfree(temp);
 				}
 #ifdef DO_DAEMONIZE
 				if (!cmdline_get_foreground())

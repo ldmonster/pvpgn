@@ -24,7 +24,7 @@
 #include <cctype>
 
 #include "alias_command.h"
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/field_sizes.h"
 #include "common/util.h"
 #include "common/eventlog.h"
@@ -103,7 +103,8 @@ namespace pvpgn
 
 			off1 = off2 = 0;
 
-			out = xstrdup(in);
+			out = new char[std::strlen(in)+1];
+			std::strcpy(out, in);
 			size = std::strlen(out);
 			size_t textlen = std::strlen(text);
 
@@ -204,10 +205,10 @@ namespace pvpgn
 				{
 					char * newout;
 
-					newout = (char*)xmalloc(size + (off2 - off1) + 1); /* curr + new + nul */
+					newout = new char[size + (off2 - off1) + 1]; /* curr + new + nul */
 					size = size + (off2 - off1) + 1;
 					std::memmove(newout, out, outpos);
-					xfree(out);
+					delete[] out;
 					out = newout;
 
 					while (off1 < off2)
@@ -265,7 +266,7 @@ namespace pvpgn
 			int match = -1;
 
 			numargs = count_args(text) - 1;
-			offsets = (unsigned int*)xmalloc(sizeof(unsigned int)*(numargs + 1));
+			offsets = new unsigned int[numargs + 1]{};
 			get_offsets(text, offsets);
 
 			LIST_TRAVERSE_CONST(aliaslist_head, elem1)
@@ -302,9 +303,9 @@ namespace pvpgn
 							{
 								if ((msgtmp[0] == '/') && (msgtmp[1] != '/')) // to make sure we don't get endless aliasing loop
 								{
-									tmp2 = (char*)xmalloc(std::strlen(msgtmp) + 3);
+									tmp2 = new char[std::strlen(msgtmp) + 3];
 									std::sprintf(tmp2, "%s%s", cmd, msgtmp);
-									xfree((void *)msgtmp);
+									delete[] msgtmp;
 									msgtmp = tmp2;
 
 								}
@@ -315,14 +316,14 @@ namespace pvpgn
 								}
 								message_send_formatted(c, msgtmp);
 							}
-							xfree((void *)msgtmp); /* avoid warning */
+							delete[] msgtmp; /* avoid warning */
 						}
 						else
 							eventlog(eventlog_level_error, __FUNCTION__, "could not perform argument replacement");
 					}
 				}
 			}
-			xfree(offsets);
+			delete[] offsets;
 			return match;
 		}
 
@@ -388,9 +389,9 @@ namespace pvpgn
 						  if (buff[pos] == '\0') break;
 
 						  inalias = 2;
-						  alias = (t_alias*)xmalloc(sizeof(t_alias));
+						  alias = new t_alias{};
 						  alias->output = 0;
-						  alias->alias = xstrdup(&buff[pos]);
+						  { const char* s = &buff[pos]; char* tmp = new char[std::strlen(s)+1]; std::strcpy(tmp, s); alias->alias = tmp; }
 				}
 					break;
 
@@ -410,7 +411,7 @@ namespace pvpgn
 
 						  if ((dummy = std::strchr(&buff[pos], ']')))
 						  {
-							  if (dummy[1] != '\0') out = xstrdup(&dummy[1]);
+							  if (dummy[1] != '\0') { const char* s = &dummy[1]; out = new char[std::strlen(s)+1]; std::strcpy(out, s); }
 						  }
 
 						  if (buff[pos + 1] == '*')
@@ -435,7 +436,7 @@ namespace pvpgn
 
 						  if (out != NULL)
 						  {
-							  output = (t_output*)xmalloc(sizeof(t_output));
+							  output = new t_output{};
 							  output->min = min;
 							  output->max = max;
 							  output->line = out;
@@ -464,7 +465,7 @@ namespace pvpgn
 							  min = max = 0;
 							  if ((dummy = std::strchr(&buff[pos], ']')))
 							  {
-								  if (dummy[1] != '\0') out = xstrdup(&dummy[1]);
+								  if (dummy[1] != '\0') { const char* s = &dummy[1]; out = new char[std::strlen(s)+1]; std::strcpy(out, s); }
 							  }
 
 
@@ -490,7 +491,7 @@ namespace pvpgn
 
 							  if (out != NULL)
 							  {
-								  output = (t_output*)xmalloc(sizeof(t_output));
+								  output = new t_output{};
 								  output->min = min;
 								  output->max = max;
 								  output->line = out;
@@ -550,13 +551,13 @@ namespace pvpgn
 								eventlog(eventlog_level_error, __FUNCTION__, "could not remove output");
 								continue;
 							}
-							xfree((void *)output->line); /* avoid warning */
-							xfree((void *)output);
+							delete[] const_cast<char*>(output->line); /* avoid warning */
+							delete output;
 						}
 						list_destroy(alias->output);
 					}
-					if (alias->alias) xfree((void *)alias->alias);
-					xfree((void *)alias);
+					if (alias->alias) delete[] const_cast<char*>(alias->alias);
+					delete alias;
 				}
 
 				if (list_destroy(aliaslist_head) < 0)

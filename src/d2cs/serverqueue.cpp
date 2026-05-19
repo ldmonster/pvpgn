@@ -101,7 +101,7 @@ extern t_sq * sq_create(unsigned int clientid, t_packet * packet,unsigned int ga
 {
 	t_sq	* sq;
 
-	sq=(t_sq*)xmalloc(sizeof(t_sq));
+	sq = new t_sq{};
 	sq->seqno=++sqlist_seqno;
 	sq->ctime=std::time(NULL);
 	sq->clientid=clientid;
@@ -121,7 +121,7 @@ extern int sq_destroy(t_sq * sq,t_elem ** curr)
 		return -1;
 	}
 	if (sq->packet) packet_del_ref(sq->packet);
-	xfree(sq);
+	delete sq;
 	return 0;
 }
 

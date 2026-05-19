@@ -24,6 +24,8 @@
 #include <cstring>
 #include <ctime>
 #include <filesystem>
+#include <string>
+#include <string_view>
 
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -35,7 +37,6 @@
 # include <unistd.h>
 #endif
 
-#include "compat/strsep.h"
 #include "compat/mkdir.h"
 #include "compat/rename.h"
 #include "compat/psock.h"
@@ -704,26 +705,29 @@ namespace pvpgn
 		/* FIXME: we should save client ipaddr into c->ipaddr after accept */
 		static int dbs_verify_ipaddr(char const * addrlist, t_d2dbs_connection * c)
 		{
-			char			* adlist;
-			char			* s, *temp;
 			t_elem			* elem;
 			t_d2dbs_connection	* tempc;
 			unsigned int		valid;
 			unsigned int		resolveipaddr;
 
-			adlist = xstrdup(addrlist);
-			temp = adlist;
 			valid = 0;
-			while ((s = strsep(&temp, ","))) {
-				host_lookup(s, &resolveipaddr);
-				if (resolveipaddr == 0) continue;
+			{
+				std::string_view rest{addrlist ? addrlist : ""};
+				while (!rest.empty()) {
+					auto pos = rest.find(',');
+					std::string token{rest.substr(0, pos)};
+					if (pos == std::string_view::npos) rest = {};
+					else rest.remove_prefix(pos + 1);
 
-				if (c->ipaddr == resolveipaddr) {
-					valid = 1;
-					break;
+					host_lookup(token.c_str(), &resolveipaddr);
+					if (resolveipaddr == 0) continue;
+
+					if (c->ipaddr == resolveipaddr) {
+						valid = 1;
+						break;
+					}
 				}
 			}
-			xfree(adlist);
 			if (valid) {
 				eventlog(eventlog_level_info, __FUNCTION__, "ip address {} is valid", addr_num_to_ip_str(c->ipaddr));
 				LIST_TRAVERSE(dbs_server_connection_list, elem)

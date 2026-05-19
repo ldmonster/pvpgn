@@ -21,6 +21,7 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <string>
 
 #include "compat/psock.h"
 #include "compat/strerror.h"
@@ -57,29 +58,28 @@ extern t_connection * s2s_create(char const * server, unsigned short def_port, t
 	unsigned short		port;
 	int			sock, connected;
 	t_connection		* c;
-	char			* p, * tserver;
 
 	ASSERT(server,NULL);
-	tserver=xstrdup(server);
-	p=std::strchr(tserver,':');
-	if (p) {
-		port=(unsigned short)std::strtoul(p+1,NULL,10);
-		*p='\0';
-	} else {
-		port=def_port;
+	std::string tserver(server);
+	{
+		auto const colon = tserver.find(':');
+		if (colon != std::string::npos) {
+			port=(unsigned short)std::strtoul(tserver.c_str()+colon+1,NULL,10);
+			tserver.resize(colon);
+		} else {
+			port=def_port;
+		}
 	}
 
 	if ((sock=net_socket(PSOCK_SOCK_STREAM))<0) {
 		eventlog(eventlog_level_error,__FUNCTION__,"error creating s2s socket");
-		xfree(tserver);
 		return NULL;
 	}
 
 	std::memset(&addr,0,sizeof(addr));
 	addr.sin_family = PSOCK_AF_INET;
 	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr= net_inet_addr(tserver);
-	xfree(tserver);
+	addr.sin_addr.s_addr= net_inet_addr(tserver.c_str());
 
 	eventlog(eventlog_level_info,__FUNCTION__,"try make s2s connection to {}",server);
 	if (psock_connect(sock,(struct sockaddr *)&addr,sizeof(addr))<0) {

@@ -21,8 +21,8 @@
 #include <cerrno>
 #include <cstddef>
 #include <cstring>
+#include <chrono>
 
-#include "compat/gettimeofday.h"
 #include "common/eventlog.h"
 
 #include "common/setup_after.h"
@@ -40,22 +40,10 @@ namespace pvpgn
 		 */
 		extern unsigned int get_ticks(void)
 		{
-			static int first = 1;
-			static long beginsec;
-			struct timeval tv;
-
-			if (gettimeofday(&tv, NULL) < 0)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not get std::time (gettimeofday: {})", std::strerror(errno));
-				return 0;
-			}
-			if (first)
-			{
-				beginsec = tv.tv_sec - 1;
-				first = 0;
-			}
-
-			return (unsigned int)((tv.tv_sec - beginsec) * 1000 + tv.tv_usec / 1000);
+			using namespace std::chrono;
+			static auto const begin = system_clock::now() - seconds(1);
+			auto const elapsed = system_clock::now() - begin;
+			return static_cast<unsigned int>(duration_cast<milliseconds>(elapsed).count());
 		}
 
 	}

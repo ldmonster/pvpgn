@@ -21,7 +21,7 @@
 
 #include <cstring>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/xalloc.h"
 #include "connection.h"
@@ -70,7 +70,7 @@ namespace pvpgn
 		{
 			t_gq	* gq;
 
-			gq = (t_gq*)xmalloc(sizeof(t_gq));
+			gq = new t_gq{};
 			gq->seqno = ++gqlist_seqno;
 			gq->clientid = clientid;
 			gq->packet = packet;
@@ -88,7 +88,7 @@ namespace pvpgn
 				return -1;
 			}
 			if (gq->packet) packet_del_ref(gq->packet);
-			xfree(gq);
+			delete gq;
 			return 0;
 		}
 

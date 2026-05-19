@@ -24,7 +24,7 @@
 #include <cctype>
 #include <string>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #include "common/eventlog.h"
 #include "common/xalloc.h"
@@ -348,7 +348,8 @@ namespace pvpgn
 		 * if it's allowed returns 0
 		 * if it's not allowed returns -1
 		 */
-		char *tmp, *p, *q;
+		char *p, *q;
+		std::string tmp;
 
 		/* by default allow all */
 		if (!list)
@@ -359,27 +360,23 @@ namespace pvpgn
 		if (!strcasecmp(list, "all"))
 			return 0;
 
-		tmp = p = xstrdup(list);
+		tmp = list;
+		p = tmp.empty() ? nullptr : &tmp[0];
 		do {
 			q = std::strchr(p, ',');
 			if (q)
 				*q = '\0';
 			if (!strcasecmp(p, "all"))
-				goto ok;
+				return 0;
 			if (std::strlen(p) != 4)
 				continue;
 			if (clienttag == tag_case_str_to_uint(p))
-				goto ok;		/* client is in list */
+				return 0;		/* client is in list */
 			if (q)
 				p = q + 1;
 		} while (q);
-		xfree((void *)tmp);
 
 		return -1;			/* client is NOT in list */
-
-	ok:
-		xfree((void *)tmp);
-		return 0;
 	}
 
 	extern t_clienttag tag_sku_to_uint(int sku)

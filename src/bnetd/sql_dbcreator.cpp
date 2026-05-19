@@ -36,6 +36,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* sd_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		t_elem  * curr_table = NULL;
 		t_elem  * curr_column = NULL;
 		t_elem  * curr_cmd = NULL;
@@ -60,14 +70,14 @@ namespace pvpgn
 				return NULL;
 			}
 
-			column = (t_column *)xmalloc(sizeof(t_column));
-			column->name = xstrdup(name);
-			column->value = xstrdup(value);
+			column = new t_column{};
+			column->name = sd_strdup(name);
+			column->value = sd_strdup(value);
 
 			if (mode && extra_cmd)
 			{
-				column->mode = xstrdup(mode);
-				column->extra_cmd = xstrdup(extra_cmd);
+				column->mode = sd_strdup(mode);
+				column->extra_cmd = sd_strdup(extra_cmd);
 			}
 			else
 			{
@@ -82,11 +92,11 @@ namespace pvpgn
 		{
 			if (column)
 			{
-				if (column->name)      xfree((void *)column->name);
-				if (column->value)     xfree((void *)column->value);
-				if (column->mode)      xfree((void *)column->mode);
-				if (column->extra_cmd) xfree((void *)column->extra_cmd);
-				xfree((void *)column);
+				if (column->name)      delete[] column->name;
+				if (column->value)     delete[] column->value;
+				if (column->mode)      delete[] column->mode;
+				if (column->extra_cmd) delete[] column->extra_cmd;
+				delete column;
 			}
 		}
 
@@ -100,12 +110,12 @@ namespace pvpgn
 				return NULL;
 			}
 
-			sqlcommand = (t_sqlcommand *)xmalloc(sizeof(t_sqlcommand));
-			sqlcommand->sql_command = xstrdup(sql_command);
+			sqlcommand = new t_sqlcommand{};
+			sqlcommand->sql_command = sd_strdup(sql_command);
 			if (mode && extra_cmd)
 			{
-				sqlcommand->mode = xstrdup(mode);
-				sqlcommand->extra_cmd = xstrdup(extra_cmd);
+				sqlcommand->mode = sd_strdup(mode);
+				sqlcommand->extra_cmd = sd_strdup(extra_cmd);
 			}
 			else
 			{
@@ -120,10 +130,10 @@ namespace pvpgn
 		{
 			if (sqlcommand)
 			{
-				if (sqlcommand->sql_command) xfree((void *)sqlcommand->sql_command);
-				if (sqlcommand->mode) xfree((void *)sqlcommand->mode);
-				if (sqlcommand->extra_cmd) xfree((void *)sqlcommand->extra_cmd);
-				xfree(sqlcommand);
+				if (sqlcommand->sql_command) delete[] sqlcommand->sql_command;
+				if (sqlcommand->mode) delete[] sqlcommand->mode;
+				if (sqlcommand->extra_cmd) delete[] sqlcommand->extra_cmd;
+				delete sqlcommand;
 			}
 		}
 
@@ -137,8 +147,8 @@ namespace pvpgn
 				return NULL;
 			}
 
-			table = (t_table *)xmalloc(sizeof(t_table));
-			table->name = xstrdup(name);
+			table = new t_table{};
+			table->name = sd_strdup(name);
 
 			table->columns = list_create();
 			table->sql_commands = list_create();
@@ -154,7 +164,7 @@ namespace pvpgn
 
 			if (table)
 			{
-				if (table->name) xfree((void *)table->name);
+				if (table->name) delete[] table->name;
 				// free list
 				if (table->columns)
 				{
@@ -189,7 +199,7 @@ namespace pvpgn
 				}
 
 
-				xfree((void *)table);
+				delete table;
 			}
 		}
 
@@ -213,7 +223,7 @@ namespace pvpgn
 		{
 			t_db_layout * db_layout;
 
-			db_layout = (t_db_layout *)xmalloc(sizeof(t_db_layout));
+			db_layout = new t_db_layout{};
 
 			db_layout->tables = list_create();
 
@@ -242,7 +252,7 @@ namespace pvpgn
 					}
 					list_destroy(db_layout->tables);
 				}
-				xfree((void *)db_layout);
+				delete db_layout;
 			}
 
 		}
@@ -550,11 +560,11 @@ namespace pvpgn
 					}
 					if (extra_cmd)
 					{
-						extra_cmd_escaped = (char *)xmalloc(std::strlen(extra_cmd) * 2);
+						extra_cmd_escaped = new char[std::strlen(extra_cmd) * 2];
 						sql_escape_command(extra_cmd_escaped, extra_cmd, std::strlen(extra_cmd));
 					}
 					_column = create_column(column, value, mode, extra_cmd_escaped);
-					if (extra_cmd_escaped) xfree(extra_cmd_escaped);
+					if (extra_cmd_escaped) delete[] extra_cmd_escaped;
 					table_add_column(_table, _column);
 					_column = NULL;
 					break;
@@ -605,16 +615,16 @@ namespace pvpgn
 							continue;
 						}
 					}
-					sqlcmd_escaped = (char *)xmalloc(std::strlen(sqlcmd) * 2);
+					sqlcmd_escaped = new char[std::strlen(sqlcmd) * 2];
 					sql_escape_command(sqlcmd_escaped, sqlcmd, std::strlen(sqlcmd));
 					if (extra_cmd)
 					{
-						extra_cmd_escaped = (char *)xmalloc(std::strlen(extra_cmd) * 2);
+						extra_cmd_escaped = new char[std::strlen(extra_cmd) * 2];
 						sql_escape_command(extra_cmd_escaped, extra_cmd, std::strlen(extra_cmd));
 					}
 					_sqlcommand = create_sqlcommand(sqlcmd_escaped, mode, extra_cmd_escaped);
-					xfree(sqlcmd_escaped);
-					if (extra_cmd_escaped) xfree(extra_cmd_escaped);
+					delete[] sqlcmd_escaped;
+					if (extra_cmd_escaped) delete[] extra_cmd_escaped;
 					table_add_sql_command(_table, _sqlcommand);
 					_sqlcommand = NULL;
 
@@ -740,10 +750,10 @@ namespace pvpgn
 		{
 			if (from != NULL && len != 0) /* make sure we have a command */
 			{
-				char * tmp1 = xstrdup(from);			/* copy of 'from' */
+				char * tmp1 = sd_strdup(from);			/* copy of 'from' */
 				char * tmp2 = escape;
 				char * tmp3 = NULL;				/* begining of string to be escaped */
-				char * tmp4 = (char *)xmalloc(std::strlen(tmp1) * 2);	/* escaped string */
+				char * tmp4 = new char[std::strlen(tmp1) * 2];	/* escaped string */
 				unsigned int i, j;
 
 				/*		eventlog(eventlog_level_trace,__FUNCTION__,"COMMAND: {}",tmp1); */
@@ -772,8 +782,8 @@ namespace pvpgn
 				*tmp2 = '\0';
 				/*		eventlog(eventlog_level_trace,__FUNCTION__,"ESCAPED COMMAND: {}",escape); */
 
-				xfree(tmp1);
-				xfree(tmp4);
+				delete[] tmp1;
+				delete[] tmp4;
 			}
 		}
 

@@ -45,7 +45,7 @@
 #include "common/field_sizes.h"
 #include "common/hash_tuple.hpp"
 #include "common/proginfo.h"
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/tag.h"
 #include "common/token.h"
 #include "common/util.h"

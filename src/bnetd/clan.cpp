@@ -19,8 +19,8 @@
 
 #include <cstdint>
 
-#include "compat/strcasecmp.h"
-#include "compat/strncasecmp.h"
+#include <cstring>
+#include <strings.h>
 #include "compat/pdir.h"
 
 #ifdef HAVE_SYS_TYPES_H
@@ -57,6 +57,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* cl_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_list *clanlist_head = NULL;
 		unsigned max_clanid = 0;
 
@@ -647,7 +657,7 @@ namespace pvpgn
 						continue;
 					}
 					list_remove_elem(clan->members, &curr);
-					xfree((void *)member);
+					delete member;
 				}
 
 				if (list_destroy(clan->members) < 0)
@@ -676,7 +686,7 @@ namespace pvpgn
 					if (member->memberacc != NULL)
 						account_set_clanmember((t_account*)member->memberacc, NULL);
 					list_remove_elem(clan->members, &curr);
-					xfree((void *)member);
+					delete member;
 				}
 
 				if (list_destroy(clan->members) < 0)
@@ -800,11 +810,11 @@ namespace pvpgn
 						continue;
 					}
 					if (clan->clanname)
-						xfree((void *)clan->clanname);
+						delete[] const_cast<char*>(clan->clanname);
 					if (clan->clan_motd)
-						xfree((void *)clan->clan_motd);
+						delete[] const_cast<char*>(clan->clan_motd);
 					clan_unload_members(clan);
-					xfree((void *)clan);
+					delete clan;
 					list_remove_elem(clanlist_head, &curr);
 				}
 
@@ -850,7 +860,7 @@ namespace pvpgn
 			if (clantag == 0)
 				return NULL;
 
-			needle = xstrdup(clantag_to_str(clantag));
+			needle = cl_strdup(clantag_to_str(clantag));
 			if (clanlist_head)
 			{
 				LIST_TRAVERSE(clanlist_head, curr)
@@ -861,14 +871,14 @@ namespace pvpgn
 						continue;
 					}
 					if (clan->created && !strcasecmp(needle, clantag_to_str(clan->tag))) {
-						xfree(needle);
+						delete[] needle;
 						return clan;
 					}
 				}
 
 			}
 
-			xfree(needle);
+			delete[] needle;
 			return NULL;
 		}
 
@@ -1299,8 +1309,8 @@ namespace pvpgn
 			else
 			{
 				if (clan->clan_motd)
-					xfree((void *)clan->clan_motd);
-				clan->clan_motd = xstrdup(motd);
+					delete[] const_cast<char*>(clan->clan_motd);
+				clan->clan_motd = cl_strdup(motd);
 			}
 			return 0;
 		}
@@ -1356,7 +1366,7 @@ namespace pvpgn
 				return NULL;
 			}
 
-			member = (t_clanmember*)xmalloc(sizeof(t_clanmember));
+			member = new t_clanmember{};
 			member->memberacc = memberacc;
 			member->status = status;
 			member->join_time = now;
@@ -1392,7 +1402,7 @@ namespace pvpgn
 				if (member->fullmember == 1)
 					storage->remove_clanmember(account_get_uid((t_account*)member->memberacc));
 			}
-			xfree((void *)member);
+			delete member;
 			clan->modified = 1;
 			return 0;
 		}
@@ -1402,23 +1412,23 @@ namespace pvpgn
 			t_clan *clan;
 			t_clanmember *member;
 
-			clan = (t_clan*)xmalloc(sizeof(t_clan));
-			member = (t_clanmember*)xmalloc(sizeof(t_clanmember));
+			clan = new t_clan{};
+			member = new t_clanmember{};
 
 			if (!(clanname))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL clanname");
-				xfree((void *)clan);
-				xfree((void *)member);
+				delete clan;
+				delete member;
 				return NULL;
 			}
 
-			clan->clanname = xstrdup(clanname);
+			clan->clanname = cl_strdup(clanname);
 
 			if (!(motd))
-				clan->clan_motd = xstrdup("This is a newly created clan");
+				clan->clan_motd = cl_strdup("This is a newly created clan");
 			else
-				clan->clan_motd = xstrdup(motd);
+				clan->clan_motd = cl_strdup(motd);
 
 			clan->creation_time = now;
 			clan->tag = clantag;
@@ -1450,11 +1460,11 @@ namespace pvpgn
 			if (!clan)
 				return 0;
 			if (clan->clanname)
-				xfree((void *)clan->clanname);
+				delete[] const_cast<char*>(clan->clanname);
 			if (clan->clan_motd)
-				xfree((void *)clan->clan_motd);
+				delete[] const_cast<char*>(clan->clan_motd);
 			clan_remove_all_members(clan);
-			xfree((void *)clan);
+			delete clan;
 			return 0;
 		}
 

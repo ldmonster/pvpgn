@@ -1,10 +1,13 @@
 # PvPGN v3 bniutils tools -- BNI image / TGA conversion CLI suite.
 #
 # Modernized port of legacy `src/bniutils/`:
-#   * No link against legacy `common` / `compat`.
-#   * Allocation routed through a local `xalloc_shim.hpp` that wraps
-#     `std::malloc` / `std::realloc` / `std::free` with abort-on-OOM
-#     (matches the long-standing behavior of `common/xalloc`).
+#   * No link against legacy `common` / `compat`. The only shared
+#     dependency is the v3 `core` library, used for
+#     `core::read_le` / `core::write_le` etc. in `fileio.cpp`.
+#   * RAII storage: `t_tgaimg::data` and `t_bnifile::icons` are
+#     `std::vector` instances; allocation failures throw
+#     `std::bad_alloc` instead of routing through a custom
+#     abort-on-OOM shim.
 #   * Directory checks use `std::filesystem` instead of POSIX
 #     `stat()` / `mkdir()` / `compat/statmacros.h` / `compat/mkdir.h`.
 #   * `PVPGN_VERSION` is supplied as a compile definition (falling
@@ -19,6 +22,7 @@ function(_pvpgn_v3_add_bniutils_tool name)
     add_executable(${name} ${ARGN})
     pvpgn_v3_apply_flags(${name})
     target_include_directories(${name} PRIVATE ${_bniutils_dir})
+    target_link_libraries(${name} PRIVATE core)
     if(DEFINED PVPGN_VERSION AND NOT PVPGN_VERSION STREQUAL "")
         target_compile_definitions(${name} PRIVATE
             PVPGN_VERSION="${PVPGN_VERSION}")

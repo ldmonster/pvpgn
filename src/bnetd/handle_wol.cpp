@@ -27,7 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/irc_protocol.h"
 #include "common/eventlog.h"
 #include "common/bnethash.h"
@@ -63,6 +63,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* wol_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		typedef int(*t_wol_command)(t_connection * conn, int numparams, char ** params, char * text);
 
 		typedef struct {
@@ -337,11 +347,11 @@ namespace pvpgn
 					/* Auto-create account */
 					t_account * tempacct;
 					t_hash pass_hash;
-					char * pass = xstrdup(conn_wol_get_apgar(conn)); /* FIXME: Do not use bnet passhash when we have wol passhash */
+					char * pass = wol_strdup(conn_wol_get_apgar(conn)); /* FIXME: Do not use bnet passhash when we have wol passhash */
 					strtolower(pass);
 
 					bnet_hash(&pass_hash, std::strlen(pass), pass);
-					xfree((void *)pass);
+					delete[] pass;
 
 					tempacct = accountlist_create_account(user, hash_get_str(pass_hash));
 					if (!tempacct) {

@@ -22,8 +22,9 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <vector>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #include "common/bnet_protocol.h"
 #include "common/bnettime.h"
@@ -162,7 +163,7 @@ namespace pvpgn
 				return nullptr;
 
 			size_t length = std::strlen(temp) / 3;
-			char * result = (char *)xmalloc(length);
+			char * result = new char[length]{};
 			if (result == nullptr)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "failed to create result");
@@ -187,12 +188,10 @@ namespace pvpgn
 				return -1;
 			}
 
-			char * temp_buffer = (char *)xmalloc(length * 3 + 1);
+			std::vector<char> temp_buffer(length * 3 + 1);
 
-			str_to_hex(temp_buffer, val, length);
-			int result = account_set_strattr(account, key, temp_buffer);
-
-			xfree((void *)temp_buffer);
+			str_to_hex(temp_buffer.data(), val, length);
+			int result = account_set_strattr(account, key, temp_buffer.data());
 
 			return result;
 		}

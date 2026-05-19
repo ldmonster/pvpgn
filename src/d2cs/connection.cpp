@@ -26,7 +26,7 @@
 #include <cassert>
 
 #include "compat/psock.h"
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/eventlog.h"
 #include "common/introtate.h"
 #include "common/addr.h"
@@ -387,7 +387,7 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got bad socket");
 				return NULL;
 			}
-			c = (t_connection*)xmalloc(sizeof(t_connection));
+			c = new t_connection{};
 			c->charname = NULL;
 			c->account = NULL;
 			c->sock = sock;
@@ -413,7 +413,7 @@ namespace pvpgn
 			c->bnetd_sessionnum = 0;
 			c->charname_hash = 0;
 			if (hashtable_insert_data(connlist_head, c, c->sessionnum_hash) < 0) {
-				xfree(c);
+				delete c;
 				eventlog(eventlog_level_error, __FUNCTION__, "error add connection to list");
 				return NULL;
 			}
@@ -442,8 +442,8 @@ namespace pvpgn
 			if (c->gamequeue) {
 				gq_destroy(c->gamequeue, &elem);
 			}
-			if (c->account) xfree((void *)c->account);
-			if (c->charinfo) xfree((void *)c->charinfo);
+			if (c->account) delete[] const_cast<char*>(c->account);
+			if (c->charinfo) delete c->charinfo;
 			if (c->charname) d2cs_conn_set_charname(c, NULL);
 			if (c->inqueue) packet_del_ref(c->inqueue);
 			queue_clear(&c->outqueue);
@@ -455,7 +455,7 @@ namespace pvpgn
 
 			total_connection--;
 			eventlog(eventlog_level_info, __FUNCTION__, "[{}] closed connection {} ({} left)", c->sock, c->sessionnum, total_connection);
-			xfree(c);
+			delete c;
 			return 0;
 		}
 
@@ -625,11 +625,11 @@ namespace pvpgn
 		{
 			ASSERT(c, -1);
 			if (!account) {
-				if (c->account) xfree((void *)c->account);
+				if (c->account) delete[] const_cast<char*>(c->account);
 				c->account = NULL;
 			}
-			if (c->account) xfree((void *)c->account);
-			c->account = xstrdup(account);
+			if (c->account) delete[] const_cast<char*>(c->account);
+			{ char* tmp = new char[std::strlen(account)+1]; std::strcpy(tmp, account); c->account = tmp; }
 
 			return 0;
 		}
@@ -646,22 +646,22 @@ namespace pvpgn
 
 			ASSERT(c, -1);
 			temp = NULL;
-			if (charname) temp = xstrdup(charname);
+			if (charname) { char* tmp = new char[std::strlen(charname)+1]; std::strcpy(tmp, charname); temp = tmp; }
 			if (c->charname) {
 				if (hashtable_remove_data(conn_charname_list_head, c, c->charname_hash) < 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "error remove charname {} from list", charname);
-					if (temp) xfree((void *)temp);
+					if (temp) delete[] const_cast<char*>(temp);
 					return -1;
 				}
 				hashtable_purge(conn_charname_list_head);
-				xfree((void *)c->charname);
+				delete[] const_cast<char*>(c->charname);
 			}
 			if (charname) {
 				c->charname = temp;
 				c->charname_hash = conn_charname_hash(charname);
 				if (hashtable_insert_data(conn_charname_list_head, c, c->charname_hash) < 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "error insert charname {} to list", charname);
-					xfree((void *)c->charname);
+					delete[] const_cast<char*>(c->charname);
 					c->charname = NULL;
 					return -1;
 				}
@@ -731,12 +731,12 @@ namespace pvpgn
 		{
 			ASSERT(c, -1);
 			if (!charinfo) {
-				if (c->charinfo) xfree((void *)c->charinfo);
+				if (c->charinfo) delete c->charinfo;
 				c->charinfo = NULL;
 				return 0;
 			}
-			if (c->charinfo) xfree((void *)c->charinfo);
-			c->charinfo = (t_d2charinfo_summary*)xmalloc(sizeof(t_d2charinfo_summary));
+			if (c->charinfo) delete c->charinfo;
+			c->charinfo = new t_d2charinfo_summary{};
 			std::memcpy((void*)c->charinfo, charinfo, sizeof(t_d2charinfo_summary));
 			return 0;
 		}

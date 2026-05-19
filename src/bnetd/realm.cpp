@@ -30,7 +30,7 @@
 #include "common/addr.h"
 #include "common/util.h"
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #include "connection.h"
 #include "common/setup_after.h"
@@ -42,6 +42,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* rl_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_list * realmlist_head = NULL;
 
 		static t_realm * realm_create(char const * name, char const * description, unsigned int ip, unsigned int port);
@@ -62,18 +72,18 @@ namespace pvpgn
 				return NULL;
 			}
 
-			realm = (t_realm*)xmalloc(sizeof(t_realm));
+			realm = new t_realm{};
 			realm->name = NULL;
 			realm->description = NULL;
 
 			if (realm_set_name(realm, name) < 0)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "failed to set name for realm");
-				xfree(realm);
+				delete realm;
 				return NULL;
 			}
-			if (realm->description != NULL) xfree((void *)realm->description);
-			realm->description = xstrdup(description);
+			if (realm->description != NULL) delete[] const_cast<char*>(realm->description);
+			realm->description = rl_strdup(description);
 			realm->ip = ip;
 			realm->port = port;
 			realm->conn = NULL;
@@ -100,9 +110,9 @@ namespace pvpgn
 			if (realm->active)
 				realm_deactive(realm);
 
-			xfree((void *)realm->name); /* avoid warning */
-			xfree((void *)realm->description); /* avoid warning */
-			xfree((void *)realm); /* avoid warning */
+			delete[] const_cast<char*>(realm->name); /* avoid warning */
+			delete[] const_cast<char*>(realm->description); /* avoid warning */
+			delete realm; /* avoid warning */
 
 			return 0;
 		}
@@ -141,12 +151,12 @@ namespace pvpgn
 			}
 
 			if (name)
-				temp = xstrdup(name);
+				temp = rl_strdup(name);
 			else
 				temp = NULL;
 
 			if (realm->name)
-				xfree((void *)realm->name); /* avoid warning */
+				delete[] const_cast<char*>(realm->name); /* avoid warning */
 			realm->name = temp;
 
 			return 0;
@@ -367,7 +377,7 @@ namespace pvpgn
 
 				/* save the realmname */
 				*temp = '\0';
-				name = xstrdup(temp2);
+				name = rl_strdup(temp2);
 
 				/* eventlog(eventlog_level_trace, __FUNCTION__,"found realmname: {}",name); */
 
@@ -380,20 +390,20 @@ namespace pvpgn
 					for (temp = temp2; *temp && *temp != '"'; temp++);
 					if (*temp != '"' || temp == temp2) {
 						eventlog(eventlog_level_error, __FUNCTION__, "malformed line {} in file \"{}\" (no valid description)", line, filename);
-						xfree(name);
+						delete[] name;
 						continue;
 					}
 
 					/* save the description */
 					*temp = '\0';
-					desc = xstrdup(temp2);
+					desc = rl_strdup(temp2);
 
 					/* eventlog(eventlog_level_trace, __FUNCTION__,"found realm desc: {}",desc); */
 
 					/* skip any separators */
 					for (temp = temp + 1; *temp && (*temp == ' ' || *temp == '\t'); temp++);
 				}
-				else desc = xstrdup("\0");
+				else desc = rl_strdup("\0");
 
 				temp2 = temp;
 				/* find out where address ends */
@@ -405,8 +415,8 @@ namespace pvpgn
 
 				if (!(raddr = addr_create_str(temp2, 0, BNETD_REALM_PORT))) /* 0 means "this computer" */ {
 					eventlog(eventlog_level_error, __FUNCTION__, "invalid address value for field 3 on line {} in file \"{}\"", line, filename);
-					xfree(name);
-					xfree(desc);
+					delete[] name;
+					delete[] desc;
 					continue;
 				}
 
@@ -414,14 +424,14 @@ namespace pvpgn
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "could not create realm");
 					addr_destroy(raddr);
-					xfree(name);
-					xfree(desc);
+					delete[] name;
+					delete[] desc;
 					continue;
 				}
 
 				addr_destroy(raddr);
-				xfree(name);
-				xfree(desc);
+				delete[] name;
+				delete[] desc;
 
 				list_prepend_data(list_head, realm);
 			}

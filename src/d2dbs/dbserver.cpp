@@ -248,7 +248,7 @@ namespace pvpgn
 			t_d2dbs_connection	*it;
 			struct in_addr		in;
 
-			it = (t_d2dbs_connection*)xmalloc(sizeof(t_d2dbs_connection));
+			it = new t_d2dbs_connection{};
 			std::memset(it, 0, sizeof(t_d2dbs_connection));
 			it->sd = sd;
 			it->ipaddr = ipaddr;
@@ -439,7 +439,7 @@ namespace pvpgn
 				for (curr = preset_d2gsid_head; curr; curr = next)
 				{
 					next = curr->next;
-					xfree(curr);
+					delete curr;
 				}
 			}
 			eventlog(eventlog_level_info, __FUNCTION__, "dbserver stopped");
@@ -455,7 +455,7 @@ namespace pvpgn
 				eventlog_step(prefs_get_logfile_gs(), eventlog_level_info, __FUNCTION__, "close connection to gs on socket %d", conn->sd);
 				cl_unlock_all_char_by_gsid(conn->serverid);
 			}
-			xfree(conn);
+			delete conn;
 			return 1;
 		}
 
@@ -488,7 +488,7 @@ namespace pvpgn
 				pgsid = pgsid->next;
 			}
 			/* not found, build a new item */
-			pgsid = (t_preset_d2gsid*)xmalloc(sizeof(t_preset_d2gsid));
+			pgsid = new t_preset_d2gsid{};
 			pgsid->ipaddr = ipaddr;
 			pgsid->d2gsid = ++dbs_packet_gs_id;
 			/* add to list */

@@ -27,7 +27,7 @@
 #include <sstream>
 #include <iomanip>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/xalloc.h"
 #include "common/setup_after.h"
 
@@ -100,8 +100,10 @@ namespace pvpgn
 		int	len;
 
 		if (!src) return NULL;
-		dest = xstrdup((const char*)src);
-		len = hexstrtoraw(src, dest, std::strlen(dest) + 1);
+		std::size_t slen = std::strlen((const char*)src);
+		dest = new char[slen + 1];
+		std::strcpy(dest, (const char*)src);
+		len = hexstrtoraw(src, dest, slen + 1);
 		dest[len] = '\0';
 		return dest;
 	}
@@ -184,9 +186,9 @@ namespace pvpgn
 		char		* result;
 
 		if (!str || !count) return NULL;
-		temp = (char*)xmalloc(std::strlen(str) + 1);
+		temp = new char[std::strlen(str) + 1]{};
 		n = SPLIT_STRING_INIT_COUNT;
-		pindex = (int*)xmalloc(n * sizeof (int));
+		pindex = new int[n]{};
 
 		i = j = 0;
 		*count = 0;
@@ -194,8 +196,12 @@ namespace pvpgn
 			while (str[i] == ' ' || str[i] == '\t') i++;
 			if (!str[i]) break;
 			if (*count >= n) {
-				n += SPLIT_STRING_INCREASEMENT;
-				pindex = (int *)xrealloc(pindex, n * sizeof(int));
+				unsigned int new_n = n + SPLIT_STRING_INCREASEMENT;
+				int* new_pindex = new int[new_n]{};
+				std::memcpy(new_pindex, pindex, n * sizeof(int));
+				delete[] pindex;
+				pindex = new_pindex;
+				n = new_n;
 			}
 			pindex[*count] = j;
 			(*count)++;
@@ -222,21 +228,21 @@ namespace pvpgn
 		}
 		index_size = *count * sizeof(char *);
 		if (!index_size) {
-			xfree(temp);
-			xfree(pindex);
+			delete[] temp;
+			delete[] pindex;
 			return NULL;
 		}
-		result = (char*)xmalloc(j + index_size);
+		result = new char[j + index_size]{};
 		std::memcpy(result + index_size, temp, j);
 
-		ptrindex = (void**)xmalloc(*count * sizeof (char*));
+		ptrindex = new void*[*count]{};
 		for (i = 0; i < *count; i++) {
 			ptrindex[i] = result + index_size + pindex[i];
 		}
 		std::memcpy(result, ptrindex, index_size);
-		xfree(temp);
-		xfree(pindex);
-		xfree(ptrindex);
+		delete[] temp;
+		delete[] pindex;
+		delete[] ptrindex;
 		return (char * *)result;
 	}
 
@@ -252,15 +258,19 @@ namespace pvpgn
 		if (!delim || !array) return NULL;
 
 		n = COMBINE_STRING_INIT_LEN;
-		result = (char*)xmalloc(n);
+		result = new char[n]{};
 		result[0] = '\0';
 
 		need_delim = 0;
 		for (i = 0; i < count; i++) {
 			if (!array[i]) continue;
 			if (std::strlen(result) + std::strlen(array[i]) + std::strlen(delim) >= n) {
-				n += COMBINE_STRING_INCREASEMENT;
-				result = (char*)xrealloc(result, n);
+				unsigned int new_n = n + COMBINE_STRING_INCREASEMENT;
+				char* new_result = new char[new_n]{};
+				std::memcpy(new_result, result, n);
+				delete[] result;
+				result = new_result;
+				n = new_n;
 			}
 			if (need_delim) {
 				std::strcat(result, delim);
@@ -268,7 +278,14 @@ namespace pvpgn
 			std::strcat(result, array[i]);
 			need_delim = 1;
 		}
-		result = (char*)xrealloc(result, std::strlen(result) + 1);
+		/* shrink-fit final result */
+		{
+			std::size_t final_len = std::strlen(result) + 1;
+			char* shrunk = new char[final_len];
+			std::memcpy(shrunk, result, final_len);
+			delete[] result;
+			result = shrunk;
+		}
 		return result;
 	}
 
@@ -304,7 +321,7 @@ namespace pvpgn
 		//    tmp points to the end of the result string
 		//    ins points to the next occurrence of rep in orig
 		//    orig points to the remainder of orig after "end of rep"
-		tmp = result = (char*)xmalloc(std::strlen(orig) + (len_with - len_rep) * count + 1);
+		tmp = result = new char[std::strlen(orig) + (len_with - len_rep) * count + 1];
 
 		if (!result)
 			return nullptr;

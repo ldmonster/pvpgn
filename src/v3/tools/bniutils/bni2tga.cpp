@@ -122,12 +122,10 @@ extern int main(int argc, char * argv[])
 		unsigned char buf[BUFSIZE];
 		std::size_t        rc;
 		t_bnifile     bnih;
-
-		file_rpush(fbni);
-		bnih.unknown1 = file_readd_le();
-		bnih.unknown2 = file_readd_le();
-		bnih.numicons = file_readd_le();
-		bnih.dataoffset = file_readd_le();
+		bnih.unknown1 = file_readd_le(fbni);
+		bnih.unknown2 = file_readd_le(fbni);
+		bnih.numicons = file_readd_le(fbni);
+		bnih.dataoffset = file_readd_le(fbni);
 		std::fprintf(stderr, "Info: numicons=%d dataoffset=0x%08x(%d)\n", bnih.numicons, bnih.dataoffset, bnih.dataoffset);
 		if (std::fseek(fbni, bnih.dataoffset, SEEK_SET)<0)
 		{
@@ -140,7 +138,6 @@ extern int main(int argc, char * argv[])
 				return EXIT_FAILURE;
 			}
 		}
-		file_rpop();
 	}
 
 	if (tgafile != dash && std::fclose(ftga) < 0)

@@ -52,7 +52,7 @@ namespace pvpgn
 			return NULL;
 		}
 
-		temp = (t_packet*)xmalloc(sizeof(t_packet));
+		temp = new t_packet{};
 		temp->ref = 1;
 		temp->pclass = pclass;
 		temp->flags = 0;
@@ -70,7 +70,7 @@ namespace pvpgn
 			return;
 		}
 
-		xfree((void *)packet); /* avoid warning */
+		delete const_cast<t_packet*>(packet); /* avoid warning */
 	}
 
 

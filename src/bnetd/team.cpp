@@ -119,7 +119,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
 						continue;
 					}
-					xfree((void *)team);
+					delete team;
 					list_remove_elem(teamlist_head, &curr);
 				}
 
@@ -163,7 +163,7 @@ namespace pvpgn
 			int i;
 			unsigned char size;
 
-			team = (t_team*)xmalloc(sizeof(t_team));
+			team = new t_team{};
 			std::memset(team, 0, sizeof(t_team));
 			size = 0;
 
@@ -189,7 +189,7 @@ namespace pvpgn
 		void dispose_team(t_team * team)
 		{
 			if ((team))
-				xfree((void *)team);
+				delete team;
 			team = NULL;
 		}
 

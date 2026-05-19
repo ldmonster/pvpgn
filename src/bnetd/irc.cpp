@@ -28,7 +28,7 @@
 #include <cstring>
 #include <ctime>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #include "common/irc_protocol.h"
 #include "common/packet.h"
@@ -65,6 +65,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* irc_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		typedef struct {
 			char const * nick;
 			char const * user;
@@ -427,7 +437,7 @@ namespace pvpgn
 			}
 			count++; /* count separators -> we have one more element ... */
 			/* we also need a terminating element */
-			out = (char**)xmalloc((count + 1)*sizeof(char *));
+			out = new char*[count + 1]{};
 
 			out[0] = list;
 			if (count > 1) {
@@ -435,7 +445,7 @@ namespace pvpgn
 					out[i] = std::strchr(out[i - 1], separator);
 					if (!out[i]) {
 						eventlog(eventlog_level_error, __FUNCTION__, "BUG: wrong number of separators");
-						xfree(out);
+						delete[] out;
 						return NULL;
 					}
 					if (ignoreblank)
@@ -459,7 +469,7 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL elems");
 				return -1;
 			}
-			xfree(elems);
+			delete[] elems;
 			return 0;
 		}
 
@@ -510,11 +520,11 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "got malformed from");
 					return NULL;
 				}
-				myfrom = (char*)xmalloc(std::strlen(from->nick) + 1 + std::strlen(from->user) + 1 + std::strlen(from->host) + 1); /* nick + "!" + user + "@" + host + "\0" */
+				myfrom = new char[std::strlen(from->nick) + 1 + std::strlen(from->user) + 1 + std::strlen(from->host) + 1]; /* nick + "!" + user + "@" + host + "\0" */
 				std::sprintf(myfrom, "%s!%s@%s", from->nick, from->user, from->host);
 			}
 			else
-				myfrom = xstrdup(server_get_hostname());
+				myfrom = irc_strdup(server_get_hostname());
 			if (dest)
 				mydest = dest;
 
@@ -527,10 +537,10 @@ namespace pvpgn
 				1 + std::strlen(mytext) + 1;
 
 
-			msg = (char*)xmalloc(len);
+			msg = new char[len];
 
 			std::sprintf(msg, ":%s\n%s\n%s\n%s", myfrom, command, mydest, mytext);
-			xfree(myfrom);
+			delete[] myfrom;
 			return msg;
 		}
 
@@ -953,7 +963,7 @@ namespace pvpgn
 
 			if (msg) {
 				packet_append_string(packet, msg);
-				xfree(msg);
+				delete[] msg;
 				return 0;
 			}
 			return -1;
@@ -1219,7 +1229,7 @@ namespace pvpgn
 							}
 							else
 								irc_send(conn, RPL_MOTD, send_line);
-							xfree(formatted_line);
+							delete[] formatted_line;
 						}
 					}
 

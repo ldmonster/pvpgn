@@ -41,9 +41,9 @@ namespace pvpgn
 				return -1;
 			}
 
-			if ((gameresult->players)) xfree((void *)gameresult->players);
-			if ((gameresult->heroes)) xfree((void *)gameresult->heroes);
-			xfree((void *)gameresult);
+			if ((gameresult->players)) delete[] gameresult->players;
+			if ((gameresult->heroes)) delete[] gameresult->heroes;
+			delete gameresult;
 
 			return 0;
 		}
@@ -72,9 +72,9 @@ namespace pvpgn
 				return NULL;
 			}
 
-			gameresult = (t_anongame_gameresult*)xmalloc(sizeof(t_anongame_gameresult));
+			gameresult = new t_anongame_gameresult{};
 
-			gameresult->players = (t_anongame_player*)xmalloc(sizeof(t_anongame_player)*result_count);
+			gameresult->players = new t_anongame_player[result_count]{};
 
 			gameresult->number_of_results = result_count;
 
@@ -108,7 +108,7 @@ namespace pvpgn
 
 			if ((heroes_count))
 			{
-				gameresult->heroes = (t_anongame_hero*)xmalloc(sizeof(t_anongame_hero)*heroes_count);
+				gameresult->heroes = new t_anongame_hero[heroes_count]{};
 
 				if (packet_get_size(packet) < expectedsize + sizeof(t_client_w3route_gameresult_hero)*heroes_count)
 				{

@@ -174,7 +174,7 @@ namespace pvpgn
 			unsigned int inlen;
 			char         clienttag_str[5];
 
-			out = (char*)xmalloc(outlen + 1);
+			out = new char[outlen + 1];
 
 			inlen = std::strlen(in);
 			out[0] = 'I';
@@ -325,7 +325,9 @@ namespace pvpgn
 					char * newout;
 
 					outlen += MAX_INC;
-					newout = (char*)xrealloc(out, outlen);
+					newout = new char[outlen];
+					std::memcpy(newout, out, outpos);
+					delete[] out;
 					out = newout;
 				}
 			}
@@ -353,7 +355,7 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "got NULL text for {}", message_type_get_str(type));
 					return -1;
 				}
-				msgtemp = (char*)xmalloc(std::strlen(text) + 32);
+				msgtemp = new char[std::strlen(text) + 32];
 				std::sprintf(msgtemp, "Your unique name: %s\r\n", text);
 				break;
 			case message_type_adduser:
@@ -366,7 +368,7 @@ namespace pvpgn
 					char const * tname;
 
 					tname = conn_get_chatcharname(me, dst);
-					msgtemp = (char*)xmalloc(std::strlen(tname) + 32);
+					msgtemp = new char[std::strlen(tname) + 32];
 					std::sprintf(msgtemp, "[%s is here]\r\n", tname);
 					conn_unget_chatcharname(me, tname);
 				}
@@ -384,7 +386,7 @@ namespace pvpgn
 					char const * tname;
 
 					tname = conn_get_chatcharname(me, dst);
-					msgtemp = (char*)xmalloc(std::strlen(tname) + 32);
+					msgtemp = new char[std::strlen(tname) + 32];
 					std::sprintf(msgtemp, "[%s enters]\r\n", tname);
 					conn_unget_chatcharname(me, tname);
 				}
@@ -399,7 +401,7 @@ namespace pvpgn
 					char const * tname;
 
 					tname = conn_get_chatcharname(me, dst);
-					msgtemp = (char*)xmalloc(std::strlen(tname) + 32);
+					msgtemp = new char[std::strlen(tname) + 32];
 					std::sprintf(msgtemp, "[%s leaves]\r\n", tname);
 					conn_unget_chatcharname(me, tname);
 				}
@@ -414,7 +416,7 @@ namespace pvpgn
 					char const * tname;
 
 					tname = conn_get_chatcharname(me, dst);
-					msgtemp = (char*)xmalloc(std::strlen(tname) + 32);
+					msgtemp = new char[std::strlen(tname) + 32];
 					std::sprintf(msgtemp, "[%s has been kicked]\r\n", tname);
 					conn_unget_chatcharname(me, tname);
 				}
@@ -429,7 +431,7 @@ namespace pvpgn
 					char const * tname;
 
 					tname = conn_get_chatcharname(me, dst);
-					msgtemp = (char*)xmalloc(std::strlen(tname) + 32);
+					msgtemp = new char[std::strlen(tname) + 32];
 					std::sprintf(msgtemp, "[%s quit]\r\n", tname);
 					conn_unget_chatcharname(me, tname);
 				}
@@ -455,13 +457,13 @@ namespace pvpgn
 
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
-						msgtemp = (char*)xmalloc(std::strlen(tname) + 8 + std::strlen(newtext) + 4);
+						msgtemp = new char[std::strlen(tname) + 8 + std::strlen(newtext) + 4];
 						std::sprintf(msgtemp, "<from %s> %s\r\n", tname, newtext);
-						xfree((void *)newtext); /* avoid warning */
+						delete[] const_cast<char*>(newtext);
 					}
 					else
 					{
-						msgtemp = (char*)xmalloc(16 + std::strlen(tname));
+						msgtemp = new char[16 + std::strlen(tname)];
 						std::sprintf(msgtemp, "<from %s> \r\n", tname);
 					}
 					if (me)
@@ -487,13 +489,13 @@ namespace pvpgn
 
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
-						msgtemp = (char*)xmalloc(std::strlen(tname) + 4 + std::strlen(newtext) + 4);
+						msgtemp = new char[std::strlen(tname) + 4 + std::strlen(newtext) + 4];
 						std::sprintf(msgtemp, "<%s> %s\r\n", tname, newtext);
-						xfree((void *)newtext); /* avoid warning */
+						delete[] const_cast<char*>(newtext);
 					}
 					else
 					{
-						msgtemp = (char*)xmalloc(std::strlen(tname) + 8);
+						msgtemp = new char[std::strlen(tname) + 8];
 						std::sprintf(msgtemp, "<%s> \r\n", tname);
 					}
 					if (me)
@@ -513,13 +515,13 @@ namespace pvpgn
 
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
-						msgtemp = (char*)xmalloc(16 + std::strlen(newtext) + 4);
+						msgtemp = new char[16 + std::strlen(newtext) + 4];
 						std::sprintf(msgtemp, "Broadcast: %s\r\n", newtext); /* FIXME: show source? */
-						xfree((void *)newtext); /* avoid warning */
+						delete[] const_cast<char*>(newtext);
 					}
 					else
 					{
-						msgtemp = (char*)xmalloc(16);
+						msgtemp = new char[16];
 						std::sprintf(msgtemp, "Broadcast: \r\n"); /* FIXME: show source? */
 					}
 				}
@@ -530,7 +532,7 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "got NULL text for {}", message_type_get_str(type));
 					return -1;
 				}
-				msgtemp = (char*)xmalloc(std::strlen(text) + 32);
+				msgtemp = new char[std::strlen(text) + 32];
 				std::sprintf(msgtemp, "Joining channel: \"%s\"\r\n", text);
 				break;
 			case message_type_userflags:
@@ -539,7 +541,7 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection for {}", message_type_get_str(type));
 					return -1;
 				}
-				msgtemp = xstrdup("");
+				msgtemp = ([](){ char* p = new char[1]; p[0] = '\0'; return p; })();
 				break;
 			case message_type_whisperack:
 				if (!me)
@@ -559,13 +561,13 @@ namespace pvpgn
 					tname = conn_get_chatcharname(me, dst);
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
-						msgtemp = (char*)xmalloc(std::strlen(tname) + 8 + std::strlen(newtext) + 4);
+						msgtemp = new char[std::strlen(tname) + 8 + std::strlen(newtext) + 4];
 						std::sprintf(msgtemp, "<to %s> %s\r\n", tname, newtext);
-						xfree((void *)newtext); /* avoid warning */
+						delete[] const_cast<char*>(newtext);
 					}
 					else
 					{
-						msgtemp = (char*)xmalloc(std::strlen(tname) + 8 + std::strlen(text) + 4);
+						msgtemp = new char[std::strlen(tname) + 8 + std::strlen(text) + 4];
 						std::sprintf(msgtemp, "<to %s> %s\r\n", tname, text);
 					}
 					conn_unget_chatcharname(me, tname);
@@ -587,13 +589,13 @@ namespace pvpgn
 
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
-						msgtemp = (char*)xmalloc(14 + 8 + std::strlen(newtext) + 4);
+						msgtemp = new char[14 + 8 + std::strlen(newtext) + 4];
 						std::sprintf(msgtemp, "<to your friends> %s\r\n", newtext);
-						xfree((void *)newtext); /* avoid warning */
+						delete[] const_cast<char*>(newtext);
 					}
 					else
 					{
-						msgtemp = (char*)xmalloc(14 + 8 + std::strlen(text) + 4);
+						msgtemp = new char[14 + 8 + std::strlen(text) + 4];
 						std::sprintf(msgtemp, "<to your friends> %s\r\n", text);
 					}
 				}
@@ -601,15 +603,15 @@ namespace pvpgn
 
 			case message_type_channelfull:
 				/* FIXME */
-				msgtemp = xstrdup("");
+				msgtemp = ([](){ char* p = new char[1]; p[0] = '\0'; return p; })();
 				break;
 			case message_type_channeldoesnotexist:
 				/* FIXME */
-				msgtemp = xstrdup("");
+				msgtemp = ([](){ char* p = new char[1]; p[0] = '\0'; return p; })();
 				break;
 			case message_type_channelrestricted:
 				/* FIXME */
-				msgtemp = xstrdup("");
+				msgtemp = ([](){ char* p = new char[1]; p[0] = '\0'; return p; })();
 				break;
 			case message_type_info:
 				if (!text)
@@ -622,13 +624,13 @@ namespace pvpgn
 
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
-						msgtemp = (char*)xmalloc(std::strlen(newtext) + 4);
+						msgtemp = new char[std::strlen(newtext) + 4];
 						std::sprintf(msgtemp, "%s\r\n", newtext);
-						xfree((void *)newtext); /* avoid warning */
+						delete[] const_cast<char*>(newtext);
 					}
 					else
 					{
-						msgtemp = (char*)xmalloc(std::strlen(text) + 4);
+						msgtemp = new char[std::strlen(text) + 4];
 						std::sprintf(msgtemp, "%s\r\n", text);
 					}
 				}
@@ -644,13 +646,13 @@ namespace pvpgn
 
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
-						msgtemp = (char*)xmalloc(8 + std::strlen(newtext) + 4);
+						msgtemp = new char[8 + std::strlen(newtext) + 4];
 						std::sprintf(msgtemp, "ERROR: %s\r\n", newtext);
-						xfree((void *)newtext); /* avoid warning */
+						delete[] const_cast<char*>(newtext);
 					}
 					else
 					{
-						msgtemp = (char*)xmalloc(8 + std::strlen(text) + 4);
+						msgtemp = new char[8 + std::strlen(text) + 4];
 						std::sprintf(msgtemp, "ERROR: %s\r\n", text);
 					}
 				}
@@ -675,13 +677,13 @@ namespace pvpgn
 					tname = conn_get_chatcharname(me, dst);
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
-						msgtemp = (char*)xmalloc(std::strlen(tname) + 4 + std::strlen(newtext) + 4);
+						msgtemp = new char[std::strlen(tname) + 4 + std::strlen(newtext) + 4];
 						std::sprintf(msgtemp, "<%s %s>\r\n", tname, newtext);
-						xfree((void *)newtext); /* avoid warning */
+						delete[] const_cast<char*>(newtext);
 					}
 					else
 					{
-						msgtemp = (char*)xmalloc(std::strlen(tname) + 4 + std::strlen(text) + 4);
+						msgtemp = new char[std::strlen(tname) + 4 + std::strlen(text) + 4];
 						std::sprintf(msgtemp, "<%s %s>\r\n", tname, text);
 					}
 					conn_unget_chatcharname(me, tname);
@@ -697,7 +699,7 @@ namespace pvpgn
 					char const * tname;
 
 					tname = conn_get_chatcharname(me, dst);
-					msgtemp = (char*)xmalloc(std::strlen(tname) + 32);
+					msgtemp = new char[std::strlen(tname) + 32];
 					std::sprintf(msgtemp, "%s change mode: %s\r\n", tname, text);
 					conn_unget_chatcharname(me, tname);
 				}
@@ -711,7 +713,7 @@ namespace pvpgn
 				int retval;
 
 				retval = packet_append_ntstring(packet, msgtemp);
-				xfree(msgtemp);
+				delete[] msgtemp;
 				return retval;
 			}
 		}
@@ -746,14 +748,14 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "got NULL text for non-loggedin state");
 					return -1;
 				}
-				msgtemp = (char*)xmalloc(std::strlen(text) + 4);
+				msgtemp = new char[std::strlen(text) + 4];
 				std::sprintf(msgtemp, "%s\r\n", text);
 			}
 			else
 				switch (type)
 			{
 				case message_type_null:
-					msgtemp = (char*)xmalloc(32);
+					msgtemp = new char[32];
 					std::sprintf(msgtemp, "%u %s\r\n", EID_NULL, "NULL");
 					break;
 				case message_type_uniqueid: /* FIXME: need to send this for some bots, also needed to support guest accounts */
@@ -762,7 +764,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "got NULL text for {}", message_type_get_str(type));
 						return -1;
 					}
-					msgtemp = (char*)xmalloc(std::strlen(text) + 32);
+					msgtemp = new char[std::strlen(text) + 32];
 					std::sprintf(msgtemp, "%u %s %s\r\n", EID_UNIQUENAME, "NAME", text);
 					break;
 				case message_type_adduser:
@@ -775,7 +777,7 @@ namespace pvpgn
 						char const * tname;
 
 						tname = conn_get_chatcharname(me, dst);
-						msgtemp = (char*)xmalloc(32 + std::strlen(tname) + 32);
+						msgtemp = new char[32 + std::strlen(tname) + 32];
 						std::sprintf(msgtemp, "%u %s %s %04x [%s]\r\n", EID_SHOWUSER, "USER", tname, conn_get_flags(me) | dstflags, tag_uint_to_str(clienttag_str, conn_get_fake_clienttag(me)));
 						conn_unget_chatcharname(me, tname);
 					}
@@ -793,7 +795,7 @@ namespace pvpgn
 						char const * tname;
 
 						tname = conn_get_chatcharname(me, dst);
-						msgtemp = (char*)xmalloc(32 + std::strlen(tname) + 32);
+						msgtemp = new char[32 + std::strlen(tname) + 32];
 						std::sprintf(msgtemp, "%u %s %s %04x [%s]\r\n", EID_JOIN, "JOIN", tname, conn_get_flags(me) | dstflags, tag_uint_to_str(clienttag_str, conn_get_fake_clienttag(me)));
 						conn_unget_chatcharname(me, tname);
 					}
@@ -810,7 +812,7 @@ namespace pvpgn
 						char const * tname;
 
 						tname = conn_get_chatcharname(me, dst);
-						msgtemp = (char*)xmalloc(32 + std::strlen(tname) + 32);
+						msgtemp = new char[32 + std::strlen(tname) + 32];
 						std::sprintf(msgtemp, "%u %s %s %04x\r\n", EID_LEAVE, "LEAVE", tname, conn_get_flags(me) | dstflags);
 						conn_unget_chatcharname(me, tname);
 					}
@@ -833,7 +835,7 @@ namespace pvpgn
 						else
 							tname = prefs_get_servername();
 
-						msgtemp = (char*)xmalloc(32 + std::strlen(tname) + 32 + std::strlen(text));
+						msgtemp = new char[32 + std::strlen(tname) + 32 + std::strlen(text)];
 						std::sprintf(msgtemp, "%u %s %s %04x \"%s\"\r\n", EID_WHISPER, "WHISPER", tname, me ? conn_get_flags(me) | dstflags : dstflags, text);
 						if (me)
 							conn_unget_chatcharname(me, tname);
@@ -856,7 +858,7 @@ namespace pvpgn
 						char const * tname;
 
 						tname = conn_get_chatcharname(me, dst);
-						msgtemp = (char*)xmalloc(32 + std::strlen(tname) + 32 + std::strlen(text));
+						msgtemp = new char[32 + std::strlen(tname) + 32 + std::strlen(text)];
 						std::sprintf(msgtemp, "%u %s %s %04x \"%s\"\r\n", EID_TALK, "TALK", tname, conn_get_flags(me) | dstflags, text);
 						conn_unget_chatcharname(me, tname);
 					}
@@ -869,7 +871,7 @@ namespace pvpgn
 					}
 					if (dstflags&MF_X)
 						return -1; /* player is ignored */
-					msgtemp = (char*)xmalloc(32 + 32 + std::strlen(text));
+					msgtemp = new char[32 + 32 + std::strlen(text)];
 					std::sprintf(msgtemp, "%u %s \"%s\"\r\n", EID_BROADCAST, "_", text); /* FIXME: what does this look like on Battle.net? */
 					break;
 				case message_type_channel:
@@ -878,7 +880,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "got NULL text for {}", message_type_get_str(type));
 						return -1;
 					}
-					msgtemp = (char*)xmalloc(32 + std::strlen(text));
+					msgtemp = new char[32 + std::strlen(text)];
 					std::sprintf(msgtemp, "%u %s \"%s\"\r\n", EID_CHANNEL, "CHANNEL", text);
 					break;
 				case message_type_userflags:
@@ -891,7 +893,7 @@ namespace pvpgn
 						char const * tname;
 
 						tname = conn_get_chatcharname(me, dst);
-						msgtemp = (char*)xmalloc(32 + std::strlen(tname) + 16);
+						msgtemp = new char[32 + std::strlen(tname) + 16];
 						std::sprintf(msgtemp, "%u %s %s %04x\r\n", EID_USERFLAGS, "USER", tname, conn_get_flags(me) | dstflags);
 						conn_unget_chatcharname(me, tname);
 					}
@@ -911,7 +913,7 @@ namespace pvpgn
 						char const * tname;
 
 						tname = conn_get_chatcharname(me, dst);
-						msgtemp = (char*)xmalloc(32 + std::strlen(tname) + 32 + std::strlen(text));
+						msgtemp = new char[32 + std::strlen(tname) + 32 + std::strlen(text)];
 						std::sprintf(msgtemp, "%u %s %s %04x \"%s\"\r\n", EID_WHISPERSENT, "WHISPER", tname, conn_get_flags(me) | dstflags, text);
 						conn_unget_chatcharname(me, tname);
 					}
@@ -928,21 +930,21 @@ namespace pvpgn
 						return -1;
 					}
 					{
-						msgtemp = (char*)xmalloc(32 + 16 + 32 + std::strlen(text));
+						msgtemp = new char[32 + 16 + 32 + std::strlen(text)];
 						std::sprintf(msgtemp, "%u %s \"your friends\" %04x \"%s\"\r\n", EID_WHISPERSENT, "WHISPER", conn_get_flags(me) | dstflags, text);
 					}
 					break;
 
 				case message_type_channelfull:
-					msgtemp = (char*)xmalloc(32);
+					msgtemp = new char[32];
 					std::sprintf(msgtemp, "%u \r\n", EID_CHANNELFULL); /* FIXME */
 					break;
 				case message_type_channeldoesnotexist:
-					msgtemp = (char*)xmalloc(32);
+					msgtemp = new char[32];
 					std::sprintf(msgtemp, "%u \r\n", EID_CHANNELDOESNOTEXIST); /* FIXME */
 					break;
 				case message_type_channelrestricted:
-					msgtemp = (char*)xmalloc(32);
+					msgtemp = new char[32];
 					std::sprintf(msgtemp, "%u \r\n", EID_CHANNELRESTRICTED); /* FIXME */
 					break;
 				case message_type_info:
@@ -951,7 +953,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "got NULL text for {}", message_type_get_str(type));
 						return -1;
 					}
-					msgtemp = (char*)xmalloc(32 + 16 + std::strlen(text));
+					msgtemp = new char[32 + 16 + std::strlen(text)];
 					std::sprintf(msgtemp, "%u %s \"%s\"\r\n", EID_INFO, "INFO", text);
 					break;
 				case message_type_error:
@@ -960,7 +962,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "got NULL text for {}", message_type_get_str(type));
 						return -1;
 					}
-					msgtemp = (char*)xmalloc(32 + 16 + std::strlen(text));
+					msgtemp = new char[32 + 16 + std::strlen(text)];
 					std::sprintf(msgtemp, "%u %s \"%s\"\r\n", EID_ERROR, "ERROR", text);
 					break;
 				case message_type_emote:
@@ -980,7 +982,7 @@ namespace pvpgn
 						char const * tname;
 
 						tname = conn_get_chatcharname(me, dst);
-						msgtemp = (char*)xmalloc(32 + std::strlen(tname) + 32 + std::strlen(text));
+						msgtemp = new char[32 + std::strlen(tname) + 32 + std::strlen(text)];
 						std::sprintf(msgtemp, "%u %s %s %04x \"%s\"\r\n", EID_EMOTE, "EMOTE", tname, conn_get_flags(me) | dstflags, text);
 						conn_unget_chatcharname(me, tname);
 					}
@@ -997,7 +999,7 @@ namespace pvpgn
 				int retval;
 
 				retval = packet_append_ntstring(packet, msgtemp);
-				xfree(msgtemp);
+				delete[] msgtemp;
 				return retval;
 			}
 		}
@@ -1374,7 +1376,7 @@ namespace pvpgn
 		{
 			t_message * message;
 
-			message = (t_message*)xmalloc(sizeof(t_message));
+			message = new t_message{};
 			message->num_cached = 0;
 			message->packets = NULL;
 			message->classes = NULL;
@@ -1405,15 +1407,15 @@ namespace pvpgn
 					if (message->packets[i])
 						packet_del_ref(message->packets[i]);
 				}
-				xfree(message->packets);
+				delete[] message->packets;
 			}
 			if (message->classes)
-				xfree(message->classes);
+				delete[] message->classes;
 			if (message->dstflags)
-				xfree(message->dstflags);
+				delete[] message->dstflags;
 			if (message->mclasses)
-				xfree(message->mclasses);
-			xfree(message);
+				delete[] message->mclasses;
+			delete message;
 
 			return 0;
 		}
@@ -1451,24 +1453,24 @@ namespace pvpgn
 				t_message_class *temp_mclasses;
 
 				if (!message->packets)
-					temp_packets = (t_packet**)xmalloc(sizeof(t_packet *)*(message->num_cached + 1));
+					temp_packets = new t_packet*[message->num_cached + 1]{};
 				else
-					temp_packets = (t_packet**)xrealloc(message->packets, sizeof(t_packet *)*(message->num_cached + 1));
+					temp_packets = ([&]{ auto* p = new t_packet*[message->num_cached + 1]{}; std::memcpy(p, message->packets, sizeof(t_packet*)*message->num_cached); delete[] message->packets; return p; })();
 
 				if (!message->classes)
-					temp_classes = (t_conn_class*)xmalloc(sizeof(t_conn_class)*(message->num_cached + 1));
+					temp_classes = new t_conn_class[message->num_cached + 1]{};
 				else
-					temp_classes = (t_conn_class*)xrealloc(message->classes, sizeof(t_conn_class)*(message->num_cached + 1));
+					temp_classes = ([&]{ auto* p = new t_conn_class[message->num_cached + 1]{}; std::memcpy(p, message->classes, sizeof(t_conn_class)*message->num_cached); delete[] message->classes; return p; })();
 
 				if (!message->dstflags)
-					temp_dstflags = (unsigned int *)xmalloc(sizeof(unsigned int)*(message->num_cached + 1));
+					temp_dstflags = new unsigned int[message->num_cached + 1]{};
 				else
-					temp_dstflags = (unsigned int *)xrealloc(message->dstflags, sizeof(unsigned int)*(message->num_cached + 1));
+					temp_dstflags = ([&]{ auto* p = new unsigned int[message->num_cached + 1]{}; std::memcpy(p, message->dstflags, sizeof(unsigned int)*message->num_cached); delete[] message->dstflags; return p; })();
 
 				if (!message->mclasses)
-					temp_mclasses = (t_message_class*)xmalloc(sizeof(t_message_class)*(message->num_cached + 1));
+					temp_mclasses = new t_message_class[message->num_cached + 1]{};
 				else
-					temp_mclasses = (t_message_class*)xrealloc(message->mclasses, sizeof(t_message_class)*(message->num_cached + 1));
+					temp_mclasses = ([&]{ auto* p = new t_message_class[message->num_cached + 1]{}; std::memcpy(p, message->mclasses, sizeof(t_message_class)*message->num_cached); delete[] message->mclasses; return p; })();
 
 				message->packets = temp_packets;
 				message->classes = temp_classes;
@@ -1812,11 +1814,11 @@ namespace pvpgn
 				break;
 			default:
 				eventlog(eventlog_level_error, __FUNCTION__, "unknown message type '{}'", line[0]);
-				xfree(line);
+				delete[] line;
 				return -1;
 			}
 
-			xfree(line);
+			delete[] line;
 			return 0;
 		}
 

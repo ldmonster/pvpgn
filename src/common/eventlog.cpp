@@ -30,7 +30,7 @@
 
 #include <fmt/format.h>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/hexdump.h"
 #ifdef WIN32_GUI
 # include "common/gui_printf.h"

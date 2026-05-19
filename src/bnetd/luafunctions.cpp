@@ -25,7 +25,7 @@
 #include <cstdlib>
 #include <sstream>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/tag.h"
 #include "common/util.h"
 #include "common/eventlog.h"

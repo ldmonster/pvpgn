@@ -29,7 +29,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "compat/mkdir.h"
 #include "common/eventlog.h"
 #include "common/xalloc.h"

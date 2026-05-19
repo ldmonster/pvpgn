@@ -53,7 +53,7 @@ namespace pvpgn
 			return NULL;
 		}
 
-		temp = (t_entry*)xmalloc(sizeof(t_entry));
+		temp = new t_entry{};
 		temp->row = row;
 		temp->real = entry;
 		temp->hashtable = hashtable;
@@ -73,8 +73,8 @@ namespace pvpgn
 			return NULL;
 		}
 
-		newh = (t_hashtable*)xmalloc(sizeof(t_hashtable));
-		newh->rows = (t_internentry**)xmalloc(sizeof(t_internentry *)*num_rows);
+		newh = new t_hashtable{};
+		newh->rows = new t_internentry*[num_rows]{};
 		newh->num_rows = num_rows;
 		newh->len = 0;
 		for (i = 0; i < num_rows; i++)
@@ -99,8 +99,8 @@ namespace pvpgn
 		if (hashtable->rows[i])
 			eventlog(eventlog_level_error, __FUNCTION__, "got non-empty hashtable");
 
-		xfree(hashtable->rows);
-		xfree(hashtable);
+		delete[] hashtable->rows;
+		delete hashtable;
 
 		return 0;
 	}
@@ -131,7 +131,7 @@ namespace pvpgn
 				{
 					if (change)
 						*change = next;
-					xfree(curr);
+					delete curr;
 				}
 				else
 				{
@@ -169,7 +169,7 @@ namespace pvpgn
 			return -1;
 		}
 
-		entry = (t_internentry*)xmalloc(sizeof(t_internentry));
+		entry = new t_internentry{};
 		entry->data = data;
 
 		row = hash%hashtable->num_rows;
@@ -465,7 +465,7 @@ namespace pvpgn
 			return -1;
 		}
 
-		xfree(entry);
+		delete entry;
 		return 0;
 	}
 

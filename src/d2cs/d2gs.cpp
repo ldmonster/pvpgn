@@ -154,7 +154,7 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "game server {} already in list", ipaddr);
 				return NULL;
 			}
-			gs = (t_d2gs*)xmalloc(sizeof(t_d2gs));
+			gs = new t_d2gs{};
 			gs->ip = ntohl(ip);
 			gs->id = ++d2gs_id;
 			gs->active = 0;
@@ -166,7 +166,7 @@ namespace pvpgn
 
 			if (list_append_data(d2gslist_head, gs) < 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error add gs to list");
-				xfree(gs);
+				delete gs;
 				return NULL;
 			}
 			eventlog(eventlog_level_info, __FUNCTION__, "added game server {} (id: {}) to list", ipaddr, gs->id);
@@ -185,7 +185,7 @@ namespace pvpgn
 				d2gs_deactive(gs, gs->connection);
 			}
 			eventlog(eventlog_level_info, __FUNCTION__, "removed game server {} (id: {}) from list", addr_num_to_ip_str(gs->ip), gs->id);
-			xfree(gs);
+			delete gs;
 			return 0;
 		}
 

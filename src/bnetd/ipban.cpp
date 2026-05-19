@@ -29,8 +29,7 @@
 #include <cstring>
 #include <vector>
 
-#include "compat/strsep.h"
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #include "common/list.h"
 #include "common/util.h"
@@ -55,6 +54,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ib_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static int identify_ipban_function(const char * funcstr);
 		static int ipban_func_del(t_connection * c, char const * cp);
 		static int ipban_func_list(t_connection * c);
@@ -223,7 +232,7 @@ namespace pvpgn
 
 				if (!(std::fwrite(line, std::strlen(line), 1, fp)))
 					eventlog(eventlog_level_error, __FUNCTION__, "could not write to banlist file (write: {})", std::strerror(errno));
-				xfree(ipstr);
+				delete[] ipstr;
 			}
 
 			if (std::fclose(fp) < 0)
@@ -253,7 +262,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			whole = xstrdup(ipaddr);
+			whole = ib_strdup(ipaddr);
 
 			eventlog(eventlog_level_debug, __FUNCTION__, "lastcheck: {}, now: {}, now-lc: {}.", (unsigned)lastchecktime, (unsigned)now, (unsigned)(now - lastchecktime));
 
@@ -271,7 +280,7 @@ namespace pvpgn
 			if (!ip1 || !ip2 || !ip3 || !ip4)
 			{
 				eventlog(eventlog_level_warn, __FUNCTION__, "got bad IP address \"{}\"", ipaddr);
-				xfree(whole);
+				delete[] whole;
 				return -1;
 			}
 
@@ -284,7 +293,7 @@ namespace pvpgn
 				if (!entry)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "ipbanlist contains NULL item");
-					xfree(whole);
+					delete[] whole;
 					return -1;
 				}
 				counter++;
@@ -294,7 +303,7 @@ namespace pvpgn
 					if (std::strcmp(entry->info1, ipaddr) == 0)
 					{
 						eventlog(eventlog_level_debug, __FUNCTION__, "address {} matched exact {}", ipaddr, entry->info1);
-						xfree(whole);
+						delete[] whole;
 						return counter;
 					}
 					eventlog(eventlog_level_debug, __FUNCTION__, "address {} does not match exact {}", ipaddr, entry->info1);
@@ -323,7 +332,7 @@ namespace pvpgn
 					}
 
 					eventlog(eventlog_level_debug, __FUNCTION__, "address {} matched wildcard {}.{}.{}.{}", ipaddr, entry->info1, entry->info2, entry->info3, entry->info4);
-					xfree(whole);
+					delete[] whole;
 					return counter;
 
 				case ipban_type_range:
@@ -331,7 +340,7 @@ namespace pvpgn
 						(ipban_str_to_ulong(ipaddr) <= ipban_str_to_ulong(entry->info2)))
 					{
 						eventlog(eventlog_level_debug, __FUNCTION__, "address {} matched range {}-{}", ipaddr, entry->info1, entry->info2);
-						xfree(whole);
+						delete[] whole;
 						return counter;
 					}
 					eventlog(eventlog_level_debug, __FUNCTION__, "address {} does not match range {}-{}", ipaddr, entry->info1, entry->info2);
@@ -345,19 +354,19 @@ namespace pvpgn
 
 					if (!(lip1 = ipban_str_to_ulong(ipaddr)))
 					{
-						xfree(whole);
+						delete[] whole;
 						return -1;
 					}
 
 					if (!(lip2 = ipban_str_to_ulong(entry->info1)))
 					{
-						xfree(whole);
+						delete[] whole;
 						return -1;
 					}
 
 					if (!(netmask = ipban_str_to_ulong(entry->info2)))
 					{
-						xfree(whole);
+						delete[] whole;
 						return -1;
 					}
 
@@ -366,7 +375,7 @@ namespace pvpgn
 					if (lip1 == lip2)
 					{
 						eventlog(eventlog_level_debug, __FUNCTION__, "address {} matched netmask {}/{}", ipaddr, entry->info1, entry->info2);
-						xfree(whole);
+						delete[] whole;
 						return counter;
 					}
 					eventlog(eventlog_level_debug, __FUNCTION__, "address {} does not match netmask {}/{}", ipaddr, entry->info1, entry->info2);
@@ -381,13 +390,13 @@ namespace pvpgn
 
 					if (!(lip1 = ipban_str_to_ulong(ipaddr)))
 					{
-						xfree(whole);
+						delete[] whole;
 						return -1;
 					}
 
 					if (!(lip2 = ipban_str_to_ulong(entry->info1)))
 					{
-						xfree(whole);
+						delete[] whole;
 						return -1;
 					}
 
@@ -398,7 +407,7 @@ namespace pvpgn
 					if (lip1 == lip2)
 					{
 						eventlog(eventlog_level_debug, __FUNCTION__, "address {} matched prefix {}/{}", ipaddr, entry->info1, entry->info2);
-						xfree(whole);
+						delete[] whole;
 						return counter;
 					}
 					eventlog(eventlog_level_debug, __FUNCTION__, "address {} does not match prefix {}/{}", ipaddr, entry->info1, entry->info2);
@@ -409,7 +418,7 @@ namespace pvpgn
 				}
 			}
 
-			xfree(whole);
+			delete[] whole;
 
 			return 0;
 		}
@@ -703,7 +712,7 @@ namespace pvpgn
 				}
 				std::sprintf(tstr, "%u: %s %s", counter, ipstr, timestr);
 				message_send_text(c, message_type_info, c, tstr);
-				xfree(ipstr);
+				delete[] ipstr;
 			}
 
 			if (counter == 0)
@@ -783,21 +792,21 @@ namespace pvpgn
 			case ipban_type_exact:
 			case ipban_type_wildcard:
 				if (e->info1)
-					xfree(e->info1);
+					delete[] e->info1;
 				break;
 			case ipban_type_range:
 			case ipban_type_netmask:
 			case ipban_type_prefix:
 				if (e->info1)
-					xfree(e->info1);
+					delete[] e->info1;
 				if (e->info2)
-					xfree(e->info2);
+					delete[] e->info2;
 				break;
 			default:  /* unknown type */
 				eventlog(eventlog_level_warn, __FUNCTION__, "found bad ban type {}", (int)e->type);
 				return -1;
 			}
-			xfree(e);
+			delete e;
 			return 0;
 		}
 
@@ -809,25 +818,25 @@ namespace pvpgn
 			char *          cp;
 			t_ipban_entry * entry;
 
-			entry = (t_ipban_entry*)xmalloc(sizeof(t_ipban_entry));
+			entry = new t_ipban_entry{};
 			if (!ipstr)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL IP");
-				xfree(entry);
+				delete entry;
 				return NULL;
 			}
 			if (ipstr[0] == '\0')
 			{
 				eventlog(eventlog_level_warn, __FUNCTION__, "got empty IP string");
-				xfree(entry);
+				delete entry;
 				return NULL;
 			}
-			cp = xstrdup(ipstr);
+			cp = ib_strdup(ipstr);
 
 			if (ipban_could_be_ip_str(cp) == 0)
 			{
 				eventlog(eventlog_level_debug, __FUNCTION__, "string: \"{}\" can not be valid IP", cp);
-				xfree(entry);
+				delete entry;
 				return NULL;
 			}
 			if ((matched = std::strchr(cp, '-'))) /* range */
@@ -835,8 +844,8 @@ namespace pvpgn
 				entry->type = ipban_type_range;
 				eventlog(eventlog_level_debug, __FUNCTION__, "entry: {} matched as ipban_type_range", cp);
 				matched[0] = '\0';
-				entry->info1 = xstrdup(cp); /* start of range */
-				entry->info2 = xstrdup(&matched[1]); /* end of range */
+				entry->info1 = ib_strdup(cp); /* start of range */
+				entry->info2 = ib_strdup(&matched[1]); /* end of range */
 				entry->info3 = NULL; /* clear unused elements so debugging is nicer */
 				entry->info4 = NULL;
 			}
@@ -847,7 +856,7 @@ namespace pvpgn
 				eventlog(eventlog_level_debug, __FUNCTION__, "entry: {} matched as ipban_type_wildcard", cp);
 
 				/* only xfree() info1! */
-				whole = xstrdup(cp);
+				whole = ib_strdup(cp);
 				entry->info1 = std::strtok(whole, ".");
 				entry->info2 = std::strtok(NULL, ".");
 				entry->info3 = std::strtok(NULL, ".");
@@ -855,9 +864,9 @@ namespace pvpgn
 				if (!entry->info4) /* not enough dots */
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "wildcard entry \"{}\" does not contain all four octets", cp);
-					xfree(entry->info1);
-					xfree(entry);
-					xfree(cp);
+					delete[] entry->info1;
+					delete entry;
+					delete[] cp;
 					return NULL;
 				}
 			}
@@ -876,8 +885,8 @@ namespace pvpgn
 				}
 
 				matched[0] = '\0';
-				entry->info1 = xstrdup(cp);
-				entry->info2 = xstrdup(&matched[1]);
+				entry->info1 = ib_strdup(cp);
+				entry->info2 = ib_strdup(&matched[1]);
 				entry->info3 = NULL; /* clear unused elements so debugging is nicer */
 				entry->info4 = NULL;
 			}
@@ -886,12 +895,12 @@ namespace pvpgn
 				entry->type = ipban_type_exact;
 				eventlog(eventlog_level_debug, __FUNCTION__, "entry: {} matched as ipban_type_exact", cp);
 
-				entry->info1 = xstrdup(cp);
+				entry->info1 = ib_strdup(cp);
 				entry->info2 = NULL; /* clear unused elements so debugging is nicer */
 				entry->info3 = NULL;
 				entry->info4 = NULL;
 			}
-			xfree(cp);
+			delete[] cp;
 
 			return entry;
 		}
@@ -922,7 +931,7 @@ namespace pvpgn
 				eventlog(eventlog_level_warn, __FUNCTION__, "found bad ban type {}", (int)entry->type);
 				return NULL;
 			}
-			str = xstrdup(tstr);
+			str = ib_strdup(tstr);
 
 			return str;
 		}
@@ -936,14 +945,14 @@ namespace pvpgn
 			char *    		ip4;
 			char *		tipaddr;
 
-			tipaddr = xstrdup(ipaddr);
+			tipaddr = ib_strdup(ipaddr);
 			ip1 = std::strtok(tipaddr, ".");
 			ip2 = std::strtok(NULL, ".");
 			ip3 = std::strtok(NULL, ".");
 			ip4 = std::strtok(NULL, ".");
 			lip = (std::atoi(ip1) << 24) + (std::atoi(ip2) << 16) + (std::atoi(ip3) << 8) + (std::atoi(ip4));
 
-			xfree(tipaddr);
+			delete[] tipaddr;
 
 			return lip;
 		}
@@ -956,20 +965,27 @@ namespace pvpgn
 			char * 	ttok;
 			int 	i;
 
-			ipstr = xstrdup(str);
+			ipstr = ib_strdup(str);
 
 			s = ipstr;
 			for (i = 0; i < 4; i++)
 			{
-				ttok = (char *)strsep(&ipstr, ".");
+				/* inlined strsep replacement (compat shim retired) */
+				if (!ipstr) { ttok = nullptr; }
+				else {
+					char *start = ipstr;
+					char *p = start + std::strcspn(start, ".");
+					if (*p) { *p = '\0'; ipstr = p + 1; } else { ipstr = nullptr; }
+					ttok = start;
+				}
 				if (!ttok || std::strlen(ttok)<1 || std::strlen(ttok)>3)
 				{
-					xfree(s);
+					delete[] s;
 					return 0;
 				}
 			}
 
-			xfree(s);
+			delete[] s;
 			return 1;
 		}
 
@@ -993,14 +1009,14 @@ namespace pvpgn
 				return 0;
 			}
 
-			ipstr = xstrdup(str);
+			ipstr = ib_strdup(str);
 			if ((matched = std::strchr(ipstr, '-')))
 			{
 				matched[0] = '\0';
 				if ((ipban_could_be_exact_ip_str(ipstr) == 0) ||
 					(ipban_could_be_exact_ip_str(&matched[1]) == 0))
 				{
-					xfree(ipstr);
+					delete[] ipstr;
 					return 0;
 				}
 			}
@@ -1008,7 +1024,7 @@ namespace pvpgn
 			{
 				if (ipban_could_be_exact_ip_str(ipstr) == 0) /* FIXME: 123.123.1*.123 allowed */
 				{
-					xfree(ipstr);
+					delete[] ipstr;
 					return 0;
 				}
 			}
@@ -1020,7 +1036,7 @@ namespace pvpgn
 					if ((ipban_could_be_exact_ip_str(ipstr) == 0) ||
 						(ipban_could_be_exact_ip_str(&matched[1]) == 0))
 					{
-						xfree(ipstr);
+						delete[] ipstr;
 						return 0;
 					}
 				}
@@ -1028,18 +1044,18 @@ namespace pvpgn
 				{
 					if (ipban_could_be_exact_ip_str(ipstr) == 0)
 					{
-						xfree(ipstr);
+						delete[] ipstr;
 						return 0;
 					}
 					for (i = 1; i<std::strlen(&matched[1]); i++)
 					if (!std::isdigit((int)matched[i]))
 					{
-						xfree(ipstr);
+						delete[] ipstr;
 						return 0;
 					}
 					if (std::atoi(&matched[1])>32) /* can not be less than 0 because IP/-24 is matched as range */
 					{
-						xfree(ipstr);
+						delete[] ipstr;
 						return 0;
 					}
 				}
@@ -1048,11 +1064,11 @@ namespace pvpgn
 			{
 				if (ipban_could_be_exact_ip_str(ipstr) == 0)
 				{
-					xfree(ipstr);
+					delete[] ipstr;
 					return 0;
 				}
 			}
-			xfree(ipstr);
+			delete[] ipstr;
 
 			return 1;
 		}

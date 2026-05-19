@@ -26,6 +26,7 @@
 #include <cctype>
 #include <cerrno>
 #include <filesystem>
+#include <vector>
 
 #include "common/eventlog.h"
 #include "common/xalloc.h"
@@ -146,6 +147,7 @@ namespace pvpgn
 		extern int d2char_create(char const * account, char const * charname, unsigned char chclass, unsigned short status)
 		{
 			t_d2charinfo_file	chardata;
+			std::vector<char>	savefile_buf, infofile_buf;
 			char			* savefile, *infofile;
 			const char *			newbiefile;
 			unsigned char			buffer[MAX_SAVEFILE_SIZE];
@@ -229,16 +231,17 @@ namespace pvpgn
 				return -1;
 			}
 
-			savefile = (char*)xmalloc(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1);
+			savefile_buf.assign(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+			savefile = savefile_buf.data();
 			d2char_get_savefile_name(savefile, charname);
 			if ((fp = std::fopen(savefile, "rb"))) {
 				eventlog(eventlog_level_warn, __FUNCTION__, "character save file \"{}\" for \"{}\" already exist", savefile, charname);
 				std::fclose(fp);
-				xfree(savefile);
 				return -1;
 			}
 
-			infofile = (char*)xmalloc(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
+			infofile_buf.assign(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			infofile = infofile_buf.data();
 			d2char_get_infofile_name(infofile, account, charname);
 
 			std::time_t now = std::time(nullptr);
@@ -258,8 +261,6 @@ namespace pvpgn
 			if (file_write(infofile, &chardata, sizeof(chardata)) < 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error writing info file \"{}\"", infofile);
 				std::remove(infofile);
-				xfree(infofile);
-				xfree(savefile);
 				return -1;
 			}
 
@@ -267,12 +268,8 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "error writing save file \"{}\"", savefile);
 				std::remove(infofile);
 				std::remove(savefile);
-				xfree(savefile);
-				xfree(infofile);
 				return -1;
 			}
-			xfree(savefile);
-			xfree(infofile);
 			eventlog(eventlog_level_info, __FUNCTION__, "character {}(*{}) class {} status 0x{:X} created", charname, account, chclass, status);
 			return 0;
 		}
@@ -280,15 +277,14 @@ namespace pvpgn
 
 		extern int d2char_find(char const * account, char const * charname)
 		{
-			char		* file;
 			std::FILE		* fp;
 
 			ASSERT(account, -1);
 			ASSERT(charname, -1);
-			file = (char*)xmalloc(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
+			std::vector<char> file_buf(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
+			char * file = file_buf.data();
 			d2char_get_infofile_name(file, account, charname);
 			fp = std::fopen(file, "rb");
-			xfree(file);
 			if (fp) {
 				std::fclose(fp);
 				return 0;
@@ -300,6 +296,7 @@ namespace pvpgn
 		extern int d2char_convert(char const * account, char const * charname)
 		{
 			std::FILE			* fp;
+			std::vector<char>	file_buf;
 			char			* file;
 			unsigned char		buffer[MAX_SAVEFILE_SIZE];
 			unsigned int		status_offset;
@@ -336,14 +333,13 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got bad account name \"{}\"", account);
 				return -1;
 			}
-			file = (char*)xmalloc(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
+			file_buf.assign(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			file = file_buf.data();
 			d2char_get_infofile_name(file, account, charname);
 			if (!(fp = std::fopen(file, "rb+"))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "unable to open charinfo file \"{}\" for reading and writing (std::fopen: {})", file, std::strerror(errno));
-				xfree(file);
 				return -1;
 			}
-			xfree(file);
 			if (std::fread(&charinfo, 1, sizeof(charinfo), fp) != sizeof(charinfo)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error reading charinfo file for character \"{}\" (std::fread: {})", charname, std::strerror(errno));
 				std::fclose(fp);
@@ -368,14 +364,13 @@ namespace pvpgn
 				return -1;
 			}
 
-			file = (char*)xmalloc(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1);
+			file_buf.assign(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+			file = file_buf.data();
 			d2char_get_savefile_name(file, charname);
 			if (!(fp = std::fopen(file, "rb+"))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open charsave file \"{}\" for reading and writing (std::fopen: {})", file, std::strerror(errno));
-				xfree(file);
 				return -1;
 			}
-			xfree(file);
 			size = std::fread(buffer, 1, sizeof(buffer), fp);
 			if (!std::feof(fp)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error reading charsave file for character \"{}\" (std::fread: {})", charname, std::strerror(errno));
@@ -413,6 +408,7 @@ namespace pvpgn
 
 		extern int d2char_delete(char const * account, char const * charname)
 		{
+			std::vector<char>	file_buf;
 			char		* file;
 
 			ASSERT(account, -1);
@@ -427,42 +423,41 @@ namespace pvpgn
 			}
 
 			/* charsave file */
-			file = (char*)xmalloc(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
+			file_buf.assign(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			file = file_buf.data();
 			d2char_get_infofile_name(file, account, charname);
 			if (std::remove(file) < 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "failed to delete charinfo file \"{}\" (std::remove: {})", file, std::strerror(errno));
-				xfree(file);
 				return -1;
 			}
-			xfree(file);
 
 			/* charinfo file */
-			file = (char*)xmalloc(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1);
+			file_buf.assign(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+			file = file_buf.data();
 			d2char_get_savefile_name(file, charname);
 			if (std::remove(file) < 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "failed to delete charsave file \"{}\" (std::remove: {})", file, std::strerror(errno));
 			}
-			xfree(file);
 
 			/* bak charsave file */
-			file = (char*)xmalloc(std::strlen(prefs_get_bak_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
+			file_buf.assign(std::strlen(prefs_get_bak_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			file = file_buf.data();
 			d2char_get_bak_infofile_name(file, account, charname);
 			if (std::filesystem::exists(file)) {
 				if (std::remove(file) < 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "failed to delete bak charinfo file \"{}\" (std::remove: {})", file, std::strerror(errno));
 				}
 			}
-			xfree(file);
 
 			/* bak charinfo file */
-			file = (char*)xmalloc(std::strlen(prefs_get_bak_charsave_dir()) + 1 + std::strlen(charname) + 1);
+			file_buf.assign(std::strlen(prefs_get_bak_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+			file = file_buf.data();
 			d2char_get_bak_savefile_name(file, charname);
 			if (std::filesystem::exists(file)) {
 				if (std::remove(file) < 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "failed to delete bak charsave file \"{}\" (std::remove: {})", file, std::strerror(errno));
 				}
 			}
-			xfree(file);
 
 			eventlog(eventlog_level_info, __FUNCTION__, "character {}(*{}) deleted", charname, account);
 			return 0;
@@ -490,6 +485,7 @@ namespace pvpgn
 
 		extern int d2charinfo_load(char const * account, char const * charname, t_d2charinfo_file * data)
 		{
+			std::vector<char>	file_buf;
 			char			* file;
 			int			size;
 
@@ -501,27 +497,24 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got bad account name \"{}\"", account);
 				return -1;
 			}
-			file = (char*)xmalloc(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
+			file_buf.assign(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			file = file_buf.data();
 			d2char_get_infofile_name(file, account, charname);
 			size = sizeof(t_d2charinfo_file);
 			if (file_read(file, data, (unsigned int*)&size) < 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error loading character file {}", file);
-				xfree(file);
 				return -1;
 			}
 			if (size != sizeof(t_d2charinfo_file)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "got bad charinfo file {} (length {})", charname, size);
-				xfree(file);
 				return -1;
 			}
 			d2char_portrait_init(&data->portrait);
 			if (d2charinfo_check(data) < 0) {
-				xfree(file);
 				return -1;
 			}
 			if (!(charstatus_get_ladder(bn_int_get(data->summary.charstatus)))) {
 				bn_byte_set(&data->portrait.ladder, D2CHARINFO_PORTRAIT_PADBYTE);
-				xfree(file);
 				return 0;
 			}
 			unsigned int ladder_time = prefs_get_ladder_start_time();
@@ -538,10 +531,8 @@ namespace pvpgn
 				eventlog(eventlog_level_info, __FUNCTION__, "{}(*{}) was created in old ladder season, set to non-ladder", charname, account);
 				if (!(fp = std::fopen(file, "wb"))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "charinfo file \"{}\" does not exist for account \"{}\"", file, account);
-					xfree(file);
 					return 0;
 				}
-				xfree(file);
 				charstatus = bn_int_get(data->summary.charstatus);
 				charstatus_set_ladder(charstatus, 0);
 				bn_int_set(&data->summary.charstatus, charstatus);
@@ -558,15 +549,14 @@ namespace pvpgn
 				}
 				std::fclose(fp);
 
-				file = (char*)xmalloc(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1);
+				file_buf.assign(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+				file = file_buf.data();
 				d2char_get_savefile_name(file, charname);
 
 				if (!(fp = std::fopen(file, "rb+"))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "could not open charsave file \"{}\" for reading and writing (std::fopen: {})", file, std::strerror(errno));
-					xfree(file);
 					return 0;
 				}
-				xfree(file);
 				size = std::fread(buffer, 1, sizeof(buffer), fp);
 				if (!std::feof(fp)) {
 					eventlog(eventlog_level_error, __FUNCTION__, "error reading charsave file for character \"{}\" (std::fread: {})", charname, std::strerror(errno));
@@ -598,7 +588,6 @@ namespace pvpgn
 			}
 			else {
 				bn_byte_set(&data->portrait.ladder, 1);
-				xfree(file);
 			}
 			return 0;
 		}

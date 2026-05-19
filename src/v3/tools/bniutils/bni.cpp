@@ -2,7 +2,7 @@
 	Copyright (C) 2000  Marco Ziech (mmz@gmx.net)
 	Copyright (C) 2000  Ross Combs (rocombs@cs.nmsu.edu)
 
-	This program is xfree software; you can redistribute it and/or modify
+	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation; either version 2 of the License, or
 	(at your option) any later version.
@@ -19,7 +19,6 @@
 #include "bni.h"
 
 #include <cstdio>
-#include <cstdlib>
 
 #include "fileio.h"
 
@@ -29,79 +28,80 @@ namespace pvpgn
 	namespace bni
 	{
 
-		extern t_bnifile * load_bni(std::FILE *f) {
-			t_bnifile *b;
-			unsigned int i;
+		/* ----------------------------------------------------------------- *
+		 * BNI header reader / writer.
+		 *
+		 * The previous implementation used a fixed-size
+		 * `t_bniicon icon[BNI_MAXICONS]` array tunneled through a
+		 * separate `bni_iconlist_struct` and a global `std::stack<FILE*>`
+		 * for I/O context.  Both are gone: the icon list now lives in
+		 * `std::vector<t_bniicon>` and every read/write call takes the
+		 * target `FILE *` explicitly.
+		 * ----------------------------------------------------------------- */
 
+		extern t_bnifile * load_bni(std::FILE *f) {
 			if (f == NULL) return NULL;
-			b = static_cast<t_bnifile*>(std::malloc(sizeof(t_bnifile)));
-			if (!b) { std::fputs("bni: out of memory\n", stderr); std::abort(); }
-			file_rpush(f);
-			b->unknown1 = file_readd_le();
+			auto *b = new t_bnifile{};
+
+			b->unknown1 = file_readd_le(f);
 			if (b->unknown1 != 0x00000010)
 				std::fprintf(stderr, "load_bni: field 1 is not 0x00000010. Data may be invalid!\n");
-			b->unknown2 = file_readd_le();
+			b->unknown2 = file_readd_le(f);
 			if (b->unknown2 != 0x00000001)
 				std::fprintf(stderr, "load_bni: field 2 is not 0x00000001. Data may be invalid!\n");
-			b->numicons = file_readd_le();
-			if (b->numicons > BNI_MAXICONS) {
-				std::fprintf(stderr, "load_bni: more than %d (BNI_MAXICONS) icons. Increase maximum number of icons in \"bni.h\".\n", BNI_MAXICONS);
-				b->numicons = BNI_MAXICONS;
-			}
-			b->dataoffset = file_readd_le();
+			b->numicons = file_readd_le(f);
+			b->dataoffset = file_readd_le(f);
 			if (b->numicons < 1) {
 				std::fprintf(stderr, "load_bni: strange, no icons present in BNI file\n");
-				b->icons = NULL;
 			}
-			else {
-				b->icons = static_cast<struct bni_iconlist_struct*>(std::malloc(b->numicons*sizeof(t_bniicon)));
-				if (!b->icons) { std::fputs("bni: out of memory\n", stderr); std::abort(); }
-			}
-			for (i = 0; i < b->numicons; i++) {
-				b->icons->icon[i].id = file_readd_le();
-				b->icons->icon[i].x = file_readd_le();
-				b->icons->icon[i].y = file_readd_le();
-				if (b->icons->icon[i].id == 0) {
-					b->icons->icon[i].tag = file_readd_le();
+			b->icons.resize(b->numicons);
+			for (unsigned int i = 0; i < b->numicons; i++) {
+				b->icons[i].id = file_readd_le(f);
+				b->icons[i].x = file_readd_le(f);
+				b->icons[i].y = file_readd_le(f);
+				if (b->icons[i].id == 0) {
+					b->icons[i].tag = file_readd_le(f);
 				}
 				else {
-					b->icons->icon[i].tag = 0;
+					b->icons[i].tag = 0;
 				}
-				b->icons->icon[i].unknown = file_readd_le();
+				b->icons[i].unknown = file_readd_le(f);
 			}
 			if (std::ftell(f) != static_cast<long>(b->dataoffset))
-				std::fprintf(stderr, "load_bni: Warning, %lu bytes of garbage after BNI header\n", static_cast<unsigned long>(b->dataoffset - std::ftell(f)));
-			file_rpop();
+				std::fprintf(stderr, "load_bni: Warning, %lu bytes of garbage after BNI header\n",
+					static_cast<unsigned long>(b->dataoffset - std::ftell(f)));
 			return b;
 		}
 
 		extern int write_bni(std::FILE *f, t_bnifile *b) {
-			unsigned int i;
-
 			if (f == NULL) return -1;
 			if (b == NULL) return -1;
-			file_wpush(f);
-			file_writed_le(b->unknown1);
+			file_writed_le(f, b->unknown1);
 			if (b->unknown1 != 0x00000010)
 				std::fprintf(stderr, "write_bni: field 1 is not 0x00000010. Data may be invalid!\n");
-			file_writed_le(b->unknown2);
+			file_writed_le(f, b->unknown2);
 			if (b->unknown2 != 0x00000001)
 				std::fprintf(stderr, "write_bni: field 2 is not 0x00000001. Data may be invalid!\n");
-			file_writed_le(b->numicons);
-			file_writed_le(b->dataoffset);
-			for (i = 0; i < b->numicons; i++) {
-				file_writed_le(b->icons->icon[i].id);
-				file_writed_le(b->icons->icon[i].x);
-				file_writed_le(b->icons->icon[i].y);
-				if (b->icons->icon[i].id == 0) {
-					file_writed_le(b->icons->icon[i].tag);
+			file_writed_le(f, b->numicons);
+			file_writed_le(f, b->dataoffset);
+			for (unsigned int i = 0; i < b->numicons; i++) {
+				file_writed_le(f, b->icons[i].id);
+				file_writed_le(f, b->icons[i].x);
+				file_writed_le(f, b->icons[i].y);
+				if (b->icons[i].id == 0) {
+					file_writed_le(f, b->icons[i].tag);
 				}
-				file_writed_le(b->icons->icon[i].unknown);
+				file_writed_le(f, b->icons[i].unknown);
 			}
 			if (std::ftell(f) != static_cast<long>(b->dataoffset))
-				std::fprintf(stderr, "Warning: dataoffset is incorrect! (=0x%lx should be 0x%lx)\n", static_cast<unsigned long>(b->dataoffset), static_cast<unsigned long>(std::ftell(f)));
-			file_wpop();
+				std::fprintf(stderr, "Warning: dataoffset is incorrect! (=0x%lx should be 0x%lx)\n",
+					static_cast<unsigned long>(b->dataoffset),
+					static_cast<unsigned long>(std::ftell(f)));
 			return 0;
+		}
+
+		extern void destroy_bni(t_bnifile *b) {
+			delete b;
 		}
 
 	}

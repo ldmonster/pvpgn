@@ -68,18 +68,18 @@ namespace pvpgn
 					continue;
 				}
 
-				namebuff = (char*)xmalloc(filedirlen + 1 + std::strlen(buff) + 1);
+				namebuff = new char[filedirlen + 1 + std::strlen(buff) + 1];
 				std::sprintf(namebuff, "%s/%s", prefs_get_filedir(), buff);
 
 				if (!std::filesystem::exists(namebuff))
 				{
 					eventlog(eventlog_level_fatal, __FUNCTION__, "necessary file \"{}\" missing", namebuff);
-					xfree((void *)namebuff);
+					delete[] namebuff;
 					std::fclose(fp);
 					return -1;
 				}
 
-				xfree((void *)namebuff);
+				delete[] namebuff;
 			}
 
 			file_get_line(NULL); // clear file_get_line buffer

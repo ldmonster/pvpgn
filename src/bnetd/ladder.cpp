@@ -349,11 +349,11 @@ namespace pvpgn
 			}
 
 			/* then lets allocate mem for all the arrays */
-			xpcalc = (t_xpcalc_entry*)xmalloc(sizeof(t_xpcalc_entry)* W3_XPCALC_MAXLEVEL); //presume the maximal leveldiff is level number
+			xpcalc = new t_xpcalc_entry[W3_XPCALC_MAXLEVEL]{}; //presume the maximal leveldiff is level number
 
 			w3_xpcalc_maxleveldiff = -1;
 			std::memset(xpcalc, 0, sizeof(t_xpcalc_entry)* W3_XPCALC_MAXLEVEL);
-			xplevels = (t_xplevel_entry*)xmalloc(sizeof(t_xplevel_entry)* W3_XPCALC_MAXLEVEL);
+			xplevels = new t_xplevel_entry[W3_XPCALC_MAXLEVEL]{};
 			std::memset(xplevels, 0, sizeof(t_xplevel_entry)* W3_XPCALC_MAXLEVEL);
 
 			/* finally, lets read from the files */
@@ -417,7 +417,7 @@ namespace pvpgn
 			}
 			std::fclose(fd2);
 
-			newxpcalc = (t_xpcalc_entry*)xrealloc(xpcalc, sizeof(t_xpcalc_entry)* (w3_xpcalc_maxleveldiff + 1));
+			newxpcalc = ([&](){ int _nc = w3_xpcalc_maxleveldiff + 1; auto* _p = new t_xpcalc_entry[_nc]{}; if (xpcalc) { std::memcpy(_p, xpcalc, sizeof(t_xpcalc_entry)*W3_XPCALC_MAXLEVEL); } delete[] xpcalc; return _p; })();
 			xpcalc = newxpcalc;
 
 			/* OK, now we need to test couse if the user forgot to put some values
@@ -454,8 +454,8 @@ namespace pvpgn
 
 		extern void ladder_destroyxptable()
 		{
-			if (xpcalc != NULL) xfree(xpcalc);
-			if (xplevels != NULL) xfree(xplevels);
+			if (xpcalc != NULL) delete[] xpcalc;
+			if (xplevels != NULL) delete[] xplevels;
 		}
 
 		extern int war3_get_maxleveldiff()

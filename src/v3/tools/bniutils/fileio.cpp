@@ -18,7 +18,11 @@
 	*/
 #include "fileio.h"
 
-#include <stack>
+#include <array>
+#include <cstdio>
+
+#include "core/bytes.hpp"
+#include "core/endian.hpp"
 
 namespace pvpgn
 {
@@ -26,153 +30,101 @@ namespace pvpgn
 	namespace bni
 	{
 
+		/* ----------------------------------------------------------------- *
+		 * Stateless byte / little- / big-endian readers and writers.
+		 *
+		 * Byte-order conversion is delegated to `pvpgn::core::read_le` /
+		 * `read_be` / `write_le` / `write_be` so the byte-fiddling lives
+		 * in exactly one place in the v3 tree.
+		 * ----------------------------------------------------------------- */
+
 		namespace
 		{
 
-			std::stack<std::FILE *> r_stack;
-			std::stack<std::FILE *> w_stack;
+			template <class T>
+			T read_le_from_file(std::FILE *f, char const *who) {
+				std::array<std::byte, sizeof(T)> buff{};
+				if (std::fread(buff.data(), 1, buff.size(), f) < buff.size()) {
+					if (std::ferror(f)) std::perror(who);
+					return 0;
+				}
+				auto r = core::read_le<T>(core::ByteView{buff.data(), buff.size()});
+				return r ? r.value() : T{0};
+			}
 
-		}
+			template <class T>
+			T read_be_from_file(std::FILE *f, char const *who) {
+				std::array<std::byte, sizeof(T)> buff{};
+				if (std::fread(buff.data(), 1, buff.size(), f) < buff.size()) {
+					if (std::ferror(f)) std::perror(who);
+					return 0;
+				}
+				auto r = core::read_be<T>(core::ByteView{buff.data(), buff.size()});
+				return r ? r.value() : T{0};
+			}
 
-		/* ----------------------------------------------------------------- */
-
-		extern void file_rpush(std::FILE *f) { r_stack.push(f); }
-		extern void file_rpop(void) { r_stack.pop(); }
-		extern void file_wpush(std::FILE *f) { w_stack.push(f); }
-		extern void file_wpop(void) { w_stack.pop(); }
-
-		/* ----------------------------------------------------------------- */
-
-		extern std::uint8_t file_readb(void) {
-			unsigned char buff[1];
-			std::FILE *f = r_stack.top();
-			if (std::fread(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_readb: std::fread");
+			template <class T>
+			int write_le_to_file(std::FILE *f, T v, char const *who) {
+				std::array<std::byte, sizeof(T)> buff{};
+				(void)core::write_le<T>(core::ByteSpan{buff.data(), buff.size()}, v);
+				if (std::fwrite(buff.data(), 1, buff.size(), f) < buff.size()) {
+					if (std::ferror(f)) std::perror(who);
+					return -1;
+				}
 				return 0;
 			}
-			return static_cast<std::uint8_t>(buff[0]);
-		}
 
-
-		extern std::uint16_t file_readw_le(void) {
-			unsigned char buff[2];
-			std::FILE *f = r_stack.top();
-			if (std::fread(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_readw_le: std::fread");
+			template <class T>
+			int write_be_to_file(std::FILE *f, T v, char const *who) {
+				std::array<std::byte, sizeof(T)> buff{};
+				(void)core::write_be<T>(core::ByteSpan{buff.data(), buff.size()}, v);
+				if (std::fwrite(buff.data(), 1, buff.size(), f) < buff.size()) {
+					if (std::ferror(f)) std::perror(who);
+					return -1;
+				}
 				return 0;
 			}
-			return static_cast<std::uint16_t>(
-				static_cast<std::uint16_t>(buff[0]) |
-				static_cast<std::uint16_t>(static_cast<std::uint16_t>(buff[1]) << 8));
+
+		} // namespace
+
+		extern std::uint8_t file_readb(std::FILE *f) {
+			return read_le_from_file<std::uint8_t>(f, "file_readb: std::fread");
 		}
 
-
-		extern std::uint16_t file_readw_be(void) {
-			unsigned char buff[2];
-			std::FILE *f = r_stack.top();
-			if (std::fread(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_readw_be: std::fread");
-				return 0;
-			}
-			return static_cast<std::uint16_t>(
-				static_cast<std::uint16_t>(static_cast<std::uint16_t>(buff[0]) << 8) |
-				static_cast<std::uint16_t>(buff[1]));
+		extern std::uint16_t file_readw_le(std::FILE *f) {
+			return read_le_from_file<std::uint16_t>(f, "file_readw_le: std::fread");
 		}
 
-
-		extern std::uint32_t file_readd_le(void) {
-			unsigned char buff[4];
-			std::FILE *f = r_stack.top();
-			if (std::fread(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_readd_le: std::fread");
-				return 0;
-			}
-			return static_cast<std::uint32_t>(buff[0]) |
-				(static_cast<std::uint32_t>(buff[1]) << 8) |
-				(static_cast<std::uint32_t>(buff[2]) << 16) |
-				(static_cast<std::uint32_t>(buff[3]) << 24);
+		extern std::uint16_t file_readw_be(std::FILE *f) {
+			return read_be_from_file<std::uint16_t>(f, "file_readw_be: std::fread");
 		}
 
-
-		extern std::uint32_t file_readd_be(void) {
-			unsigned char buff[4];
-			std::FILE *f = r_stack.top();
-			if (std::fread(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_readd_be: std::fread");
-				return 0;
-			}
-			return (static_cast<std::uint32_t>(buff[0]) << 24) |
-				(static_cast<std::uint32_t>(buff[1]) << 16) |
-				(static_cast<std::uint32_t>(buff[2]) << 8) |
-				static_cast<std::uint32_t>(buff[3]);
+		extern std::uint32_t file_readd_le(std::FILE *f) {
+			return read_le_from_file<std::uint32_t>(f, "file_readd_le: std::fread");
 		}
 
-
-		extern int file_writeb(std::uint8_t u) {
-			unsigned char buff[1];
-			std::FILE *f = w_stack.top();
-			buff[0] = static_cast<unsigned char>(u);
-			if (std::fwrite(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_writeb: std::fwrite");
-				return -1;
-			}
-			return 0;
+		extern std::uint32_t file_readd_be(std::FILE *f) {
+			return read_be_from_file<std::uint32_t>(f, "file_readd_be: std::fread");
 		}
 
-
-		extern int file_writew_le(std::uint16_t u) {
-			unsigned char buff[2];
-			std::FILE *f = w_stack.top();
-			buff[0] = static_cast<unsigned char>(u);
-			buff[1] = static_cast<unsigned char>(u >> 8);
-			if (std::fwrite(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_writew_le: std::fwrite");
-				return -1;
-			}
-			return 0;
+		extern int file_writeb(std::FILE *f, std::uint8_t u) {
+			return write_le_to_file<std::uint8_t>(f, u, "file_writeb: std::fwrite");
 		}
 
-
-		extern int file_writew_be(std::uint16_t u) {
-			unsigned char buff[2];
-			std::FILE *f = w_stack.top();
-			buff[0] = static_cast<unsigned char>(u >> 8);
-			buff[1] = static_cast<unsigned char>(u);
-			if (std::fwrite(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_writew_be: std::fwrite");
-				return -1;
-			}
-			return 0;
+		extern int file_writew_le(std::FILE *f, std::uint16_t u) {
+			return write_le_to_file<std::uint16_t>(f, u, "file_writew_le: std::fwrite");
 		}
 
-
-		extern int file_writed_le(std::uint32_t u) {
-			unsigned char buff[4];
-			std::FILE *f = w_stack.top();
-			buff[0] = static_cast<unsigned char>(u);
-			buff[1] = static_cast<unsigned char>(u >> 8);
-			buff[2] = static_cast<unsigned char>(u >> 16);
-			buff[3] = static_cast<unsigned char>(u >> 24);
-			if (std::fwrite(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_writed_le: std::fwrite");
-				return -1;
-			}
-			return 0;
+		extern int file_writew_be(std::FILE *f, std::uint16_t u) {
+			return write_be_to_file<std::uint16_t>(f, u, "file_writew_be: std::fwrite");
 		}
 
+		extern int file_writed_le(std::FILE *f, std::uint32_t u) {
+			return write_le_to_file<std::uint32_t>(f, u, "file_writed_le: std::fwrite");
+		}
 
-		extern int file_writed_be(std::uint32_t u) {
-			unsigned char buff[4];
-			std::FILE *f = w_stack.top();
-			buff[0] = static_cast<unsigned char>(u >> 24);
-			buff[1] = static_cast<unsigned char>(u >> 16);
-			buff[2] = static_cast<unsigned char>(u >> 8);
-			buff[3] = static_cast<unsigned char>(u);
-			if (std::fwrite(buff, 1, sizeof(buff), f) < sizeof(buff)) {
-				if (std::ferror(f)) std::perror("file_writed_be: std::fwrite");
-				return -1;
-			}
-			return 0;
+		extern int file_writed_be(std::FILE *f, std::uint32_t u) {
+			return write_be_to_file<std::uint32_t>(f, u, "file_writed_be: std::fwrite");
 		}
 
 	}

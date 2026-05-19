@@ -47,6 +47,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* ss_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_storage_info *sql_create_account(char const *);
 		static int sql_read_attrs(t_storage_info *, t_read_attr_func, void *, const char *);
 		static t_attr *sql_read_attr(t_storage_info *, const char *);
@@ -132,7 +142,7 @@ namespace pvpgn
 				return NULL;
 			}
 
-			user = xstrdup(username);
+			user = ss_strdup(username);
 			strtolower(user);
 			std::snprintf(query, sizeof(query), "SELECT count(*) FROM %sBNET WHERE username='%s'", tab_prefix, user);
 			eventlog(eventlog_level_trace, __FUNCTION__, "{}", query);
@@ -162,7 +172,7 @@ namespace pvpgn
 				goto err_dup;
 			}
 
-			info = xmalloc(sizeof(t_sql_info));
+			info = new unsigned int{0};
 			*((unsigned int *)info) = uid;
 			std::snprintf(query, sizeof(query), "DELETE FROM %sBNET WHERE " SQL_UID_FIELD " = '%u'", tab_prefix, uid);
 			eventlog(eventlog_level_trace, __FUNCTION__, "{}", query);
@@ -208,14 +218,14 @@ namespace pvpgn
 				goto err_info;
 			}
 
-			xfree(user);
+			delete[] user;
 			return info;
 
 		err_info:
-			xfree((void *)info);
+			delete static_cast<unsigned int*>(info);
 
 		err_dup:
-			xfree(user);
+			delete[] user;
 
 			return NULL;
 		}
@@ -300,7 +310,7 @@ namespace pvpgn
 						if (cb(_db_add_tab(*tab, *fentry), (output = unescape_chars(row[i])), data))
 							eventlog(eventlog_level_error, __FUNCTION__, "got error from callback on UID: {}", uid);
 						if (output)
-							xfree((void *)output);
+							delete[] output;
 						//              eventlog(eventlog_level_trace, __FUNCTION__, "read key (final): '{}' val: '{}'", _db_add_tab(*tab, *fentry), unescape_chars(row[i]));
 					}
 
@@ -540,11 +550,11 @@ namespace pvpgn
 			/* SELECT uid from BNET WHERE uid=x sounds stupid, I agree but its a clean
 			* way to check for account existence by an uid */
 			if (name) {
-				char *user = xstrdup(name);
+				char *user = ss_strdup(name);
 				strtolower(user);
 
 				std::snprintf(query, sizeof(query), "SELECT " SQL_UID_FIELD " FROM %sBNET WHERE username='%s'", tab_prefix, user);
-				xfree(user);
+				delete[] user;
 			}
 			else
 				std::snprintf(query, sizeof(query), "SELECT " SQL_UID_FIELD " FROM %sBNET WHERE " SQL_UID_FIELD " = '%u'", tab_prefix, uid);
@@ -576,7 +586,7 @@ namespace pvpgn
 			else if ((unsigned int)std::atoi(row[0]) == sql_defacct);
 			/* skip default account */
 			else {
-				info = xmalloc(sizeof(t_sql_info));
+				info = new unsigned int{0};
 				*((unsigned int *)info) = std::atoi(row[0]);
 				sql->free_result(result);
 				return info;
@@ -594,7 +604,7 @@ namespace pvpgn
 
 			for (idx = 0, p = (char *)newkey; *p; p++, idx++)
 			if (*p == '\\' || *p == '`' || *p == '"' || *p == '\'') {
-				newkey = xstrdup(key);
+				newkey = ss_strdup(key);
 				p = (char *)(newkey + idx);
 				*(p++) = '_';
 				for (; *p; p++)

@@ -21,10 +21,11 @@
 #include "anongame_wol.h"
 
 #include <cstring>
+#include <vector>
 #include <cctype>
 #include <cstdlib>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 
 #include "common/irc_protocol.h"
 #include "common/packet.h"
@@ -89,7 +90,7 @@ namespace pvpgn
 		{
 			t_anongame_wol_player * player;
 
-			player = (t_anongame_wol_player*)xmalloc(sizeof(t_anongame_wol_player));
+			player = new t_anongame_wol_player{};
 
 			player->conn = conn;
 
@@ -117,7 +118,7 @@ namespace pvpgn
 
 			DEBUG0("[** WOL **] destroying annongame player");
 
-			xfree(player);
+			delete player;
 
 			return 0;
 		}
@@ -538,13 +539,14 @@ namespace pvpgn
 			 * :user!YURI@host PRIVMSG matchbot :Pings nickname,2;
 			 */
 
-			line = (char *)xmalloc(std::strlen(text) + 2);
-			strcpy(line, text);
+			std::size_t const text_len = std::strlen(text);
+			std::vector<char> linebuf(text_len + 2);
+			std::memcpy(linebuf.data(), text, text_len + 1);
+			line = linebuf.data();
 
 			command = line;
 			if (!(temp = strchr(command, ' '))) {
 				WARN0("got malformed line (missing command)");
-				xfree(line);
 				return -1;
 			}
 			*temp++ = '\0';
@@ -572,9 +574,6 @@ namespace pvpgn
 			else {
 				DEBUG1("[** WOL **] got line /{}/", text);
 			}
-
-			if (line)
-				xfree(line);
 
 			return 0;
 		}

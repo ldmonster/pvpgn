@@ -891,6 +891,8 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/send_logonproof_reply_bridge.cpp
         integration/legacy_bnetd/src/send_createacct_reply_bridge.cpp
         integration/legacy_bnetd/src/send_iconreply_bridge.cpp
+        integration/legacy_bnetd/src/send_channellist_bridge.cpp
+        integration/legacy_bnetd/src/channel_state_bridge.cpp
         integration/legacy_bnetd/src/send_chatevent_compose_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include

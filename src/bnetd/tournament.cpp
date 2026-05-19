@@ -41,6 +41,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* tn_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_tournament_info * tournament_info = NULL;
 		static t_list * tournament_head = NULL;
 
@@ -73,9 +83,9 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
 
 					if (user->name)
-						xfree((void *)user->name); /* avoid warning */
+						delete[] user->name; /* avoid warning */
 
-					xfree(user);
+					delete user;
 
 				}
 
@@ -109,8 +119,8 @@ namespace pvpgn
 				return 0;
 			}
 
-			user = (t_tournament_user*)xmalloc(sizeof(t_tournament_user));
-			user->name = xstrdup(account_get_name(account));
+			user = new t_tournament_user{};
+			user->name = tn_strdup(account_get_name(account));
 			user->wins = 0;
 			user->losses = 0;
 			user->ties = 0;
@@ -300,11 +310,11 @@ namespace pvpgn
 			char *sponsor = NULL;
 			char *have_sponsor = NULL;
 			char *have_icon = NULL;
-			struct std::tm * timestamp = (struct std::tm*)xmalloc(sizeof(struct std::tm));
+			struct std::tm * timestamp = new std::tm{};
 
 			std::sprintf(format, "%%02u/%%02u/%%04u %%02u:%%02u:%%02u");
 
-			tournament_info = (t_tournament_info*)xmalloc(sizeof(t_tournament_info));
+			tournament_info = new t_tournament_info{};
 			tournament_info->start_preliminary = 0;
 			tournament_info->end_signup = 0;
 			tournament_info->end_preliminary = 0;
@@ -317,21 +327,21 @@ namespace pvpgn
 			tournament_info->game_type = 1; /* Default to 1v1 */
 			tournament_info->game_client = 2; /* Default to FT */
 			tournament_info->races = 0x3F; /* Default to all races */
-			tournament_info->format = xstrdup("");
-			tournament_info->sponsor = xstrdup("");
+			tournament_info->format = tn_strdup("");
+			tournament_info->sponsor = tn_strdup("");
 			tournament_info->thumbs_down = 0;
 
 			anongame_tournament_maplists_destroy();
 
 			if (!filename) {
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL filename");
-				xfree((void *)timestamp);
+				delete timestamp;
 				return -1;
 			}
 
 			if (!(fp = std::fopen(filename, "r"))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
-				xfree((void *)timestamp);
+				delete timestamp;
 				return -1;
 			}
 
@@ -384,11 +394,11 @@ namespace pvpgn
 						if (!tag_check_client((ctag = tag_case_str_to_uint(clienttag)))) {
 							continue;
 						}
-						mname = xstrdup(mapname);
+						mname = tn_strdup(mapname);
 
 						anongame_add_tournament_map(ctag, mname);
 						eventlog(eventlog_level_trace, __FUNCTION__, "added tournament map \"{}\" for {}", mname, clienttag);
-						xfree(mname);
+						delete[] mname;
 					}
 				}
 				else {
@@ -588,8 +598,8 @@ namespace pvpgn
 						pointer = std::strchr(pointer, '\"');
 						pointer[0] = '\0';
 
-						if (tournament_info->format) xfree((void *)tournament_info->format);
-						tournament_info->format = xstrdup(value);
+						if (tournament_info->format) delete[] tournament_info->format;
+						tournament_info->format = tn_strdup(value);
 					}
 					else if (std::strcmp(variable, "races") == 0) {
 						unsigned int intvalue = 0;
@@ -622,7 +632,7 @@ namespace pvpgn
 						pointer = std::strchr(pointer, '\"');
 						pointer[0] = '\0';
 
-						have_sponsor = xstrdup(value);
+						have_sponsor = tn_strdup(value);
 					}
 					else if (std::strcmp(variable, "icon") == 0) {
 						pointer = std::strchr(pointer, '\"');
@@ -631,7 +641,7 @@ namespace pvpgn
 						pointer = std::strchr(pointer, '\"');
 						pointer[0] = '\0';
 
-						have_icon = xstrdup(value);
+						have_icon = tn_strdup(value);
 					}
 					else if (std::strcmp(variable, "thumbs_down") == 0) {
 						tournament_info->thumbs_down = std::atoi(pointer);
@@ -640,7 +650,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "bad option \"{}\" in \"{}\"", variable, filename);
 
 					if (have_sponsor && have_icon) {
-						sponsor = (char*)xmalloc(std::strlen(have_sponsor) + 6);
+						sponsor = new char[std::strlen(have_sponsor) + 6];
 
 						if (std::strlen(have_icon) == 4)
 							std::sprintf(sponsor, "%c%c%c%c,%s", have_icon[3], have_icon[2], have_icon[1], have_icon[0], have_sponsor);
@@ -652,20 +662,20 @@ namespace pvpgn
 						}
 
 						if (tournament_info->sponsor)
-							xfree((void *)tournament_info->sponsor);
+							delete[] tournament_info->sponsor;
 
-						tournament_info->sponsor = xstrdup(sponsor);
-						xfree((void *)have_sponsor);
-						xfree((void *)have_icon);
-						xfree((void *)sponsor);
+						tournament_info->sponsor = tn_strdup(sponsor);
+						delete[] have_sponsor;
+						delete[] have_icon;
+						delete[] sponsor;
 						have_sponsor = NULL;
 						have_icon = NULL;
 					}
 				}
 			}
-			if (have_sponsor) xfree((void *)have_sponsor);
-			if (have_icon) xfree((void *)have_icon);
-			xfree((void *)timestamp);
+			if (have_sponsor) delete[] have_sponsor;
+			if (have_icon) delete[] have_icon;
+			delete timestamp;
 			file_get_line(NULL); // clear file_get_line buffer
 			std::fclose(fp);
 
@@ -689,9 +699,9 @@ namespace pvpgn
 		{
 			if (tournament_info)
 			{
-				if (tournament_info->format) xfree((void *)tournament_info->format);
-				if (tournament_info->sponsor) xfree((void *)tournament_info->sponsor);
-				xfree((void *)tournament_info);
+				if (tournament_info->format) delete[] tournament_info->format;
+				if (tournament_info->sponsor) delete[] tournament_info->sponsor;
+				delete tournament_info;
 			}
 			tournament_info = NULL;
 			_gamelist_destroy();

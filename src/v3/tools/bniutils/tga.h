@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <vector>
 
 
 namespace pvpgn
@@ -45,7 +46,7 @@ namespace pvpgn
 			std::uint8_t desc; /* image descriptor: bits 0,1,2,3==num attribute bits per pixel, bit 4==horizontal order, bit 5==vertical order, bits 6,7==interleaving */
 			/* field 6, optional */
 			/* field 7, colormap data in ARGB, optional, entries are (min(cmapes/3,8)*3+7)/8 bits wide */
-			std::uint8_t* data;
+			std::vector<std::uint8_t> data;
 			/* field 9, developer area, optional */
 			/* field 10, extension area, optional */
 			std::uint32_t extareaoff; /* extension area offset, 0==none */
@@ -93,7 +94,7 @@ namespace pvpgn
 
 		extern t_tgaimg * new_tgaimg(unsigned int width, unsigned int height, unsigned int bpp, t_tgaimgtype imgtype);
 		extern int getpixelsize(t_tgaimg const *img);
-		extern t_tgaimg * load_tgaheader(void);
+		extern t_tgaimg * load_tgaheader(std::FILE *f);
 		extern t_tgaimg * load_tga(std::FILE *f);
 		extern int write_tga(std::FILE *f, t_tgaimg *img);
 		extern void destroy_img(t_tgaimg * img);

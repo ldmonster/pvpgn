@@ -104,27 +104,25 @@ extern int main(int argc, char * argv[])
 		int        i;
 		int        bniid, unknown, icons, datastart;
 		int        expected_width, expected_height;
-
-		file_rpush(fp);
-		bniid = file_readd_le();
-		unknown = file_readd_le();
-		icons = file_readd_le();
-		datastart = file_readd_le();
+		bniid = file_readd_le(fp);
+		unknown = file_readd_le(fp);
+		icons = file_readd_le(fp);
+		datastart = file_readd_le(fp);
 		std::fprintf(stderr, "BNIHeader: id=0x%08x unknown=0x%08x icons=0x%08x datastart=0x%08x\n", bniid, unknown, icons, datastart);
 		expected_width = 0;
 		expected_height = 0;
 		for (i = 0; i < icons; i++) {
 			int id, x, y, flags, tag;
-			id = file_readd_le();
-			x = file_readd_le();
-			y = file_readd_le();
+			id = file_readd_le(fp);
+			x = file_readd_le(fp);
+			y = file_readd_le(fp);
 			if (id == 0) {
-				tag = file_readd_le();
+				tag = file_readd_le(fp);
 			}
 			else {
 				tag = 0;
 			}
-			flags = file_readd_le();
+			flags = file_readd_le(fp);
 			std::fprintf(stderr, "Icon[%d]: id=0x%08x x=%d y=%d tag=0x%08x(\"%c%c%c%c\") flags=0x%08x\n", i, id, x, y, tag,
 				static_cast<unsigned char>((tag >> 24) & 0xff),
 				static_cast<unsigned char>((tag >> 16) & 0xff),
@@ -136,13 +134,12 @@ extern int main(int argc, char * argv[])
 		if (std::ftell(fp) != datastart) {
 			std::fprintf(stderr, "Warning: garbage after header (pos=0x%lx-datastart=0x%lx) = %ld bytes of garbage! \n", static_cast<unsigned long>(std::ftell(fp)), static_cast<unsigned long>(datastart), static_cast<long>(std::ftell(fp) - datastart));
 		}
-		tgaimg = load_tgaheader();
+		tgaimg = load_tgaheader(fp);
 		print_tga_info(tgaimg, stdout);
 		std::fprintf(stderr, "\n");
 		std::fprintf(stderr, "Check: Expected %dx%d TGA, got %ux%u. %s\n", expected_width, expected_height, tgaimg->width, tgaimg->height, ((tgaimg->width == expected_width) && (tgaimg->height == expected_height)) ? "OK." : "FAIL.");
 		std::fprintf(stderr, "Check: Expected 24bit color depth TGA, got %dbit. %s\n", tgaimg->bpp, (tgaimg->bpp == 24) ? "OK." : "FAIL.");
 		std::fprintf(stderr, "Check: Expected ImageType 10, got %d. %s\n", tgaimg->imgtype, (tgaimg->imgtype == 10) ? "OK." : "FAIL.");
-		file_rpop();
 	}
 
 	if (bnifile != dash && std::fclose(fp) < 0)

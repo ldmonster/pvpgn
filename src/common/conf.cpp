@@ -69,9 +69,15 @@ namespace pvpgn
 
 	extern int conf_set_str(const char **pstr, const char *valstr, const char *def)
 	{
-		if (*pstr) xfree((void*)*pstr);
-		if (!valstr && !def) *pstr = NULL;
-		else *pstr = xstrdup(valstr ? valstr : def);
+		if (*pstr) delete[] const_cast<char*>(*pstr);
+		const char *src = valstr ? valstr : def;
+		if (!src) {
+			*pstr = NULL;
+		} else {
+			char *tmp = new char[std::strlen(src) + 1];
+			std::strcpy(tmp, src);
+			*pstr = tmp;
+		}
 
 		return 0;
 	}
@@ -253,7 +259,7 @@ namespace pvpgn
 	extern int conf_load_cmdline(int argc, char **argv, t_conf_entry *conftab)
 	{
 		int i;
-		char *key, *val, *newkey;
+		char *key, *val;
 
 		if (!conftab) {
 			eventlog(eventlog_level_error, __FUNCTION__, "got NULL conftab");
@@ -264,7 +270,7 @@ namespace pvpgn
 		_conf_reset_defaults(conftab);
 
 		for (i = 1; i < argc; ++i) {
-			newkey = NULL;
+			std::string newkey;
 			key = argv[i];
 
 			if (*(key++) != '-') /* skip non options */
@@ -273,8 +279,8 @@ namespace pvpgn
 			if (*key == '-') key++;	/* allow both - and -- options */
 
 			if ((val = std::strchr(key, '='))) {	/* we got option=value format */
-				newkey = xstrdup(key);
-				key = newkey;
+				newkey = key;
+				key = newkey.empty() ? nullptr : &newkey[0];
 				val = std::strchr(key, '=');
 				*(val++) = '\0';
 			}
@@ -286,8 +292,6 @@ namespace pvpgn
 				val = (char *)("true");
 
 			_process_option(key, val, conftab);
-
-			if (newkey) xfree(newkey);
 		}
 
 		return 0;

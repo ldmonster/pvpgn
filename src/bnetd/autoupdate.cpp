@@ -39,6 +39,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* au_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static t_list * autoupdate_head = NULL;
 		static std::FILE * fp = NULL;
 
@@ -118,22 +128,22 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "missing path on line {} of file \"{}\"", line, filename);
 				}
 
-				entry = (t_autoupdate*)xmalloc(sizeof(t_autoupdate));
+				entry = new t_autoupdate{};
 
 				if (!tag_check_arch((entry->archtag = tag_str_to_uint(archtag)))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "got unknown archtag");
-					xfree(entry);
+					delete entry;
 					continue;
 				}
 				if (!tag_check_client((entry->clienttag = tag_str_to_uint(clienttag)))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "got unknown clienttag");
-					xfree(entry);
+					delete entry;
 					continue;
 				}
-				entry->versiontag = xstrdup(versiontag);
-				entry->updatefile = xstrdup(updatefile);
+				entry->versiontag = au_strdup(versiontag);
+				entry->updatefile = au_strdup(updatefile);
 				if (path)
-					entry->path = xstrdup(path);
+					entry->path = au_strdup(path);
 				else
 					entry->path = NULL;
 
@@ -160,11 +170,11 @@ namespace pvpgn
 					if (!(entry = (t_autoupdate*)elem_get_data(curr)))
 						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
 					else {
-						xfree((void *)entry->versiontag);	/* avoid warning */
-						xfree((void *)entry->updatefile);	/* avoid warning */
+						delete[] const_cast<char*>(entry->versiontag);	/* avoid warning */
+						delete[] const_cast<char*>(entry->updatefile);	/* avoid warning */
 						if (entry->path)
-							xfree((void *)entry->path);		/* avoid warning */
-						xfree(entry);
+							delete[] const_cast<char*>(entry->path);		/* avoid warning */
+						delete entry;
 					}
 					list_remove_elem(autoupdate_head, &curr);
 				}
@@ -211,7 +221,7 @@ namespace pvpgn
 						char * extention;
 						char const * path = entry->path;
 
-						tempmpq = xstrdup(entry->updatefile);
+						tempmpq = au_strdup(entry->updatefile);
 
 						extention = std::strrchr(tempmpq, '.');
 						*extention = '\0';
@@ -220,18 +230,18 @@ namespace pvpgn
 						if ((clienttag == CLIENTTAG_WARCRAFT3_UINT) || (clienttag == CLIENTTAG_WAR3XP_UINT)) {
 							tag_uint_to_str(gltag, gamelang);
 
-							temp = (char*)xmalloc(std::strlen(entry->updatefile) + 6);
+							temp = new char[std::strlen(entry->updatefile) + 6];
 							std::sprintf(temp, "%s_%s.%s", tempmpq, gltag, extention);
 						}
 						else {
-							temp = (char*)xmalloc(std::strlen(path) + std::strlen(entry->updatefile) + std::strlen(sku) + 3);
+							temp = new char[std::strlen(path) + std::strlen(entry->updatefile) + std::strlen(sku) + 3];
 							std::sprintf(temp, "%s %s_%s.%s", path, tempmpq, sku, extention);
 						}
 
-						xfree((void *)tempmpq);
+						delete[] const_cast<char*>(tempmpq);
 						return temp;
 					}
-					temp = xstrdup(entry->updatefile);
+					temp = au_strdup(entry->updatefile);
 					return temp;
 				}
 			}

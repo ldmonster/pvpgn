@@ -23,9 +23,9 @@
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
+#include <chrono>
 #include <ctime>
 
-#include "compat/gettimeofday.h"
 #include "common/eventlog.h"
 #include "common/bn_type.h"
 #include "common/setup_after.h"
@@ -120,14 +120,11 @@ namespace pvpgn
 	/* return current time as bnettime */
 	extern t_bnettime bnettime(void)
 	{
-		struct timeval tv;
-
-		if (gettimeofday(&tv, NULL) < 0)
-		{
-			eventlog(eventlog_level_error, __FUNCTION__, "could not get time (gettimeofday: {})", std::strerror(errno));
-			return time_to_bnettime(std::time(NULL), 0);
-		}
-		return time_to_bnettime((std::time_t)tv.tv_sec, tv.tv_usec);
+		using namespace std::chrono;
+		auto const now = system_clock::now().time_since_epoch();
+		auto const sec = duration_cast<seconds>(now).count();
+		auto const usec = duration_cast<microseconds>(now - seconds(sec)).count();
+		return time_to_bnettime(static_cast<std::time_t>(sec), static_cast<long>(usec));
 	}
 
 

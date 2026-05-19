@@ -36,7 +36,7 @@
 #include <iostream>
 #include <string>
 
-#include "compat/strcasecmp.h"
+#include <strings.h>
 #include "common/tag.h"
 #include "common/util.h"
 #include "common/version.h"
@@ -96,6 +96,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 		static char const * bnclass_get_str(unsigned int cclass);
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* cmd_strdup(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		static void do_whisper(t_connection * user_c, char const * dest, char const * text);
 		static void do_whois(t_connection * c, char const * dest);
 		static void user_timer_cb(t_connection * c, std::time_t now, t_timer_data str);
@@ -329,7 +339,7 @@ namespace pvpgn
 
 			if (now != (std::time_t)0) /* zero means user logged out before expiration */
 				message_send_text(c, message_type_info, c, (char*)str.p);
-			xfree(str.p);
+			delete[] str.p;
 		}
 
 		typedef int(*t_command)(t_connection * c, char const * text);
@@ -2097,7 +2107,7 @@ namespace pvpgn
 						message_send_text(c, message_type_info, c, output_array);
 						output_array = strtok(NULL, "\n");
 					}
-					xfree((char*)text);
+					delete[] const_cast<char*>(text);
 
 					return 0;
 				}
@@ -4236,14 +4246,14 @@ namespace pvpgn
 			}
 
 			if (msgtext_s[0] == '\0')
-				data.p = xstrdup(localize(c, "Your timer has expired.").c_str());
+				data.p = cmd_strdup(localize(c, "Your timer has expired.").c_str());
 			else
-				data.p = xstrdup(msgtext_s);
+				data.p = cmd_strdup(msgtext_s);
 
 			if (timerlist_add_timer(c, std::time(NULL) + (std::time_t)delta, user_timer_cb, data) < 0)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "Could not add timer");
-				xfree(data.p);
+				delete[] data.p;
 				message_send_text(c, message_type_error, c, localize(c, "Could not set timer."));
 			}
 			else

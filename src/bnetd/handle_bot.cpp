@@ -46,6 +46,16 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+
+		/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+		static char* handlebot(char const* s)
+		{
+			if (!s) return nullptr;
+			std::size_t n = std::strlen(s) + 1;
+			char* r = new char[n];
+			std::memcpy(r, s, n);
+			return r;
+		}
 		extern int handle_bot_packet(t_connection * c, t_packet const * const packet)
 		{
 			t_packet * rpacket;
@@ -219,7 +229,7 @@ namespace pvpgn
 														break;
 													}
 
-													testpass = xstrdup(linestr);
+													testpass = handlebot(linestr);
 													{
 														strtolower(testpass);
 													}
@@ -228,7 +238,7 @@ namespace pvpgn
 														eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (unable to hash password)", conn_get_socket(c), loggeduser);
 														conn_set_state(c, conn_state_bot_username);
 
-														xfree((void *)testpass);
+														delete[] testpass;
 
 														if (!(rpacket = packet_create(packet_class_raw)))
 														{
@@ -241,7 +251,7 @@ namespace pvpgn
 														packet_del_ref(rpacket);
 														break;
 													}
-													xfree((void *)testpass);
+													delete[] testpass;
 													if (hash_eq(trypasshash1, oldpasshash1) != 1)
 													{
 														eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (wrong password)", conn_get_socket(c), loggeduser);
