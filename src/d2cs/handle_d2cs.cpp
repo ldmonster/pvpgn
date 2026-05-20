@@ -48,6 +48,53 @@
 
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+extern "C" int pvpgn_v3_d2cs_send_createcharreply(void*        conn_ptr,
+                                                   unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_creategamereply(void*        conn_ptr,
+                                                   unsigned int seqno,
+                                                   unsigned int gameid,
+                                                   unsigned int u1,
+                                                   unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_joingamereply(void*         conn_ptr,
+                                                 unsigned int  seqno,
+                                                 unsigned int  gameid,
+                                                 unsigned int  u1,
+                                                 std::uint32_t addr_host,
+                                                 std::uint32_t token,
+                                                 unsigned int  reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_charloginreply(void*        conn_ptr,
+                                                  unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_deletecharreply(void*        conn_ptr,
+                                                   unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_motdreply(void*       conn_ptr,
+                                             char const* message) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_creategamewait(void*        conn_ptr,
+                                                  unsigned int position) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_convertcharreply(void*        conn_ptr,
+                                                    unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_gamelistreply(void*        conn_ptr,
+                                                 unsigned int seqno,
+                                                 std::uint32_t token,
+                                                 unsigned int currchar,
+                                                 std::uint32_t gameflag,
+                                                 char const*  game_name,
+                                                 char const*  game_desc,
+                                                 int          terminator) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_gameinforeply(void*           conn_ptr,
+                                                 unsigned int    seqno,
+                                                 std::uint32_t   gameflag,
+                                                 std::uint32_t   etime,
+                                                 unsigned int    charlevel,
+                                                 unsigned int    leveldiff,
+                                                 unsigned int    maxchar,
+                                                 unsigned int    currchar,
+                                                 unsigned char const* chclass_array,
+                                                 unsigned char const* level_array,
+                                                 char const*     game_desc,
+                                                 char const* const* char_names) noexcept;
+#endif
+
 
 namespace pvpgn
 {
@@ -214,6 +261,13 @@ static int on_client_createcharreq(t_connection * c, t_packet * packet)
 		packet_set_size(rpacket,sizeof(t_d2cs_client_createcharreply));
 		packet_set_type(rpacket,D2CS_CLIENT_CREATECHARREPLY);
 		bn_int_set(&rpacket->u.d2cs_client_createcharreply.reply,reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		if (pvpgn_v3_d2cs_send_createcharreply(c,
+		        static_cast<unsigned int>(reply)) == 1) {
+			packet_del_ref(rpacket);
+			return 0;
+		}
+#endif
 		conn_push_outqueue(c,rpacket);
 		packet_del_ref(rpacket);
 	}
@@ -313,6 +367,15 @@ static int on_client_creategamereq(t_connection * c, t_packet * packet)
 			bn_short_set(&rpacket->u.d2cs_client_creategamereply.u1,0);
 			bn_short_set(&rpacket->u.d2cs_client_creategamereply.gameid,0);
 			bn_int_set(&rpacket->u.d2cs_client_creategamereply.reply,reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			if (pvpgn_v3_d2cs_send_creategamereply(c,
+			        static_cast<unsigned int>(seqno),
+			        0u, 0u,
+			        static_cast<unsigned int>(reply)) == 1) {
+				packet_del_ref(rpacket);
+				return 0;
+			}
+#endif
 			conn_push_outqueue(c,rpacket);
 			packet_del_ref(rpacket);
 		}
@@ -407,6 +470,15 @@ static int on_client_joingamereq(t_connection * c, t_packet * packet)
 			bn_int_set(&rpacket->u.d2cs_client_joingamereply.addr,0);
 			bn_int_set(&rpacket->u.d2cs_client_joingamereply.token,0);
 			bn_int_set(&rpacket->u.d2cs_client_joingamereply.reply,reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			if (pvpgn_v3_d2cs_send_joingamereply(c,
+			        static_cast<unsigned int>(seqno),
+			        0u, 0u, 0u, 0u,
+			        static_cast<unsigned int>(reply)) == 1) {
+				packet_del_ref(rpacket);
+				return 0;
+			}
+#endif
 			conn_push_outqueue(c,rpacket);
 			packet_del_ref(rpacket);
 		}
@@ -489,6 +561,21 @@ static int on_client_gamelistreq(t_connection * c, t_packet * packet)
 			bn_int_set(&rpacket->u.d2cs_client_gamelistreply.gameflag,game_get_gameflag(game));
 			packet_append_string(rpacket,d2cs_game_get_name(game));
 			packet_append_string(rpacket,game_get_desc(game));
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			if (pvpgn_v3_d2cs_send_gamelistreply(c,
+			        static_cast<unsigned int>(seqno),
+			        static_cast<std::uint32_t>(d2cs_game_get_id(game)),
+			        static_cast<unsigned int>(game_get_currchar(game)),
+			        static_cast<std::uint32_t>(game_get_gameflag(game)),
+			        d2cs_game_get_name(game),
+			        game_get_desc(game),
+			        /*terminator=*/0) == 1) {
+				packet_del_ref(rpacket);
+				count++;
+				if (prefs_get_maxgamelist() && count>=prefs_get_maxgamelist()) break;
+				continue;
+			}
+#endif
 			conn_push_outqueue(c,rpacket);
 			packet_del_ref(rpacket);
 			count++;
@@ -507,6 +594,14 @@ static int on_client_gamelistreq(t_connection * c, t_packet * packet)
 			packet_append_string(rpacket,"");
 			packet_append_string(rpacket,"");
 			packet_append_string(rpacket,"");
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			if (pvpgn_v3_d2cs_send_gamelistreply(c,
+			        static_cast<unsigned int>(seqno),
+			        0u, 0u, 0u, "", "", /*terminator=*/1) == 1) {
+				packet_del_ref(rpacket);
+				return 0;
+			}
+#endif
 			conn_push_outqueue(c,rpacket);
 			packet_del_ref(rpacket);
 		}
@@ -531,6 +626,40 @@ static int on_client_gameinforeq(t_connection * c, t_packet * packet)
 		return 0;
 	}
 	seqno=bn_short_get(packet->u.client_d2cs_gameinforeq.seqno);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	{
+		t_game_charinfo* v3_info;
+		unsigned char v3_chclass[16] = {0};
+		unsigned char v3_level[16]   = {0};
+		char const*  v3_names[16]    = {nullptr};
+		unsigned int v3_n            = 0;
+
+		BEGIN_LIST_TRAVERSE_DATA_CONST(game_get_charlist(game),v3_info,t_game_charinfo)
+		{
+			if (!v3_info->charname) continue;
+			if (v3_n >= 16) break;
+			v3_names[v3_n]   = v3_info->charname;
+			v3_chclass[v3_n] = v3_info->chclass;
+			v3_level[v3_n]   = (v3_info->level < 255) ? v3_info->level : 255;
+			v3_n++;
+		}
+		END_LIST_TRAVERSE_DATA_CONST()
+
+		if (pvpgn_v3_d2cs_send_gameinforeply(c,
+		        static_cast<unsigned int>(seqno),
+		        static_cast<std::uint32_t>(game_get_gameflag(game)),
+		        static_cast<std::uint32_t>(std::time(NULL)-d2cs_game_get_create_time(game)),
+		        static_cast<unsigned int>(game_get_charlevel(game)),
+		        static_cast<unsigned int>(game_get_leveldiff(game)),
+		        static_cast<unsigned int>(game_get_maxchar(game)),
+		        v3_n,
+		        v3_chclass, v3_level,
+		        game_get_desc(game) ? game_get_desc(game) : "",
+		        v3_names) == 1) {
+			return 0;
+		}
+	}
+#endif
 	if ((rpacket=packet_create(packet_class_d2cs))) {
 		packet_set_size(rpacket,sizeof(t_d2cs_client_gameinforeply));
 		packet_set_type(rpacket,D2CS_CLIENT_GAMEINFOREPLY);
@@ -603,6 +732,14 @@ static int on_client_charloginreq(t_connection * c, t_packet * packet)
 			packet_set_size(rpacket,sizeof(t_d2cs_client_charloginreply));
 			packet_set_type(rpacket,D2CS_CLIENT_CHARLOGINREPLY);
 			bn_int_set(&rpacket->u.d2cs_client_charloginreply.reply, D2CS_CLIENT_CHARLOGINREPLY_EXPIRED);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			if (pvpgn_v3_d2cs_send_charloginreply(c,
+			        static_cast<unsigned int>(D2CS_CLIENT_CHARLOGINREPLY_EXPIRED)) == 1) {
+				packet_del_ref(rpacket);
+				eventlog(eventlog_level_info,__FUNCTION__,"character {}(*{}) login rejected due to char expired",charname,account);
+				return 0;
+			}
+#endif
 			conn_push_outqueue(c,rpacket);
 			packet_del_ref(rpacket);
 		}
@@ -656,6 +793,13 @@ static int on_client_deletecharreq(t_connection * c, t_packet * packet)
 		packet_set_type(rpacket,D2CS_CLIENT_DELETECHARREPLY);
 		bn_short_set(&rpacket->u.d2cs_client_deletecharreply.u1,0);
 		bn_int_set(&rpacket->u.d2cs_client_deletecharreply.reply,reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		if (pvpgn_v3_d2cs_send_deletecharreply(c,
+		        static_cast<unsigned int>(reply)) == 1) {
+			packet_del_ref(rpacket);
+			return 0;
+		}
+#endif
 		conn_push_outqueue(c,rpacket);
 		packet_del_ref(rpacket);
 	}
@@ -757,6 +901,12 @@ static int on_client_motdreq(t_connection * c, t_packet * packet)
 		packet_set_type(rpacket,D2CS_CLIENT_MOTDREPLY);
 		bn_byte_set(&rpacket->u.d2cs_client_motdreply.u1,0);
 		packet_append_string(rpacket,motd.c_str());
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		if (pvpgn_v3_d2cs_send_motdreply(c, motd.c_str()) == 1) {
+			packet_del_ref(rpacket);
+			return 0;
+		}
+#endif
 		conn_push_outqueue(c,rpacket);
 		packet_del_ref(rpacket);
 	}
@@ -1085,6 +1235,13 @@ static int on_client_convertcharreq(t_connection * c, t_packet * packet)
 		packet_set_size(rpacket,sizeof(t_d2cs_client_convertcharreply));
 		packet_set_type(rpacket,D2CS_CLIENT_CONVERTCHARREPLY);
 		bn_int_set(&rpacket->u.d2cs_client_convertcharreply.reply,reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		if (pvpgn_v3_d2cs_send_convertcharreply(c,
+		        static_cast<unsigned int>(reply)) == 1) {
+			packet_del_ref(rpacket);
+			return 0;
+		}
+#endif
 		conn_push_outqueue(c,rpacket);
 		packet_del_ref(rpacket);
 	}
@@ -1100,6 +1257,13 @@ extern int d2cs_send_client_creategamewait(t_connection * c, unsigned int positi
 		packet_set_size(packet,sizeof(t_d2cs_client_creategamewait));
 		packet_set_type(packet,D2CS_CLIENT_CREATEGAMEWAIT);
 		bn_int_set(&packet->u.d2cs_client_creategamewait.position,position);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		if (pvpgn_v3_d2cs_send_creategamewait(c,
+		        static_cast<unsigned int>(position)) == 1) {
+			packet_del_ref(packet);
+			return 0;
+		}
+#endif
 		conn_push_outqueue(c,packet);
 		packet_del_ref(packet);
 	}

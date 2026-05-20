@@ -839,6 +839,147 @@ Legend: `[ ]` = not started, `[~]` = in progress, `[x]` = done.
         op logged, null op -> "?". 5 cases / ~16 assertions.
         Legacy + v3 docker builds green; v3 still 1225 / 213 +
         the new test binary; 4 e2e green.
+    - [x] Round 38 -- coalesced observation bridge for the bnetd
+        d2cs<->bnetd link dispatcher in `src/bnetd/handle_d2cs.cpp`:
+        4 handlers `on_d2cs_authreply`, `on_d2cs_accountloginreq`,
+        `on_d2cs_charloginreq`, `on_d2cs_gameinforeply`. Added
+        `pvpgn_v3_d2cs_link_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/d2cs_link_dispatch_bridge.{hpp,cpp}`,
+        module `v3_d2cs_link_dispatch_bridge`, message
+        `d2cs dispatch observed`, field `{op}`. Forward-decl
+        after `setup_after.h`; call inserted at top of each
+        handler under `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit
+        test `d2cs_link_dispatch_bridge_test.cpp`: null-conn
+        no-op, each of 4 ops logged, null op -> "?". 6 cases /
+        ~19 assertions. Legacy + v3 docker builds green; v3
+        still 1225 / 213 + the new test binary; 4 e2e green.
+        NOTE: validation surfaced 5 pre-existing breakages from
+        other-agent edits between sessions: (1) handle_bnet.cpp
+        invalid `bn_long` array assignment fixed via
+        `bn_long_set/get`; (2-5) 7 `send_*_bridge.hpp` decls
+        missing `noexcept`; cdkey reply encoders skipping NUL
+        for empty owner; Dockerfile.v3 build-target list missing
+        6 send_* test names; send_motdw3 and send_realmjoin
+        tests asserting wrong SID bytes (0x1A/0x3C instead of
+        actual 0x46/0x3E from legacy headers) -- all fixed.
+
+        BUILD INFRA: also fixed long-standing legacy Docker
+        build gaps -- `cmake/Modules/FindMySQL.cmake` was
+        missing (broke `build-mysql` stage), and
+        `ConfigureChecks.cmake` did not mirror the
+        `SQLite3_*` / `PostgreSQL_*` find_package variables
+        into the legacy `SQLITE3_*` / `PGSQL_*` spellings
+        (broke `build-sqlite3` and `build-pgsql` link steps).
+        Also added `cmake/Modules` to `CMAKE_MODULE_PATH`.
+        Two `const_cast` fixes in `sql_common.cpp` and
+        `storage_sql.cpp` for GCC 15 const-correctness on
+        `t_storage_info = const void`. All 4 legacy variants
+        (plain, mysql, pgsql, sqlite3, odbc) now build green
+        in Docker; final `pvpgn:legacy` multi-stage image
+        builds. v3 docker: 1225 assertions / 213 cases + every
+        bridge unit test + 4 e2e OK -- green end-to-end.
+    - [x] Round 39 -- coalesced observation bridge for the Bot/
+        Telnet text protocol dispatcher in
+        `src/bnetd/handle_bot.cpp::handle_bot_packet`. Added
+        `pvpgn_v3_bot_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/bot_dispatch_bridge.{hpp,cpp}`,
+        module `v3_bot_dispatch_bridge`, message
+        `bot dispatch observed`, field `{op}` (connection state
+        name from `conn_state_get_str`). Forward-decl after
+        `setup_after.h`; single call inserted at top of
+        `handle_bot_packet` (after sanity checks) under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `bot_dispatch_bridge_test.cpp`: null-conn no-op, four
+        state names logged (connected / bot_username /
+        bot_password / loggedin), null op -> "?", empty op ->
+        "?". 7 cases / ~21 assertions. Legacy plain docker +
+        v3 docker both green; v3 still 1225 / 213 + the new
+        test binary; 4 e2e green.
+    - [x] Round 40 -- coalesced observation bridge for the
+        Telnet text protocol dispatcher in
+        `src/bnetd/handle_telnet.cpp::handle_telnet_packet`
+        (twin of R39 for `handle_bot.cpp`). Added
+        `pvpgn_v3_telnet_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/telnet_dispatch_bridge.{hpp,cpp}`,
+        module `v3_telnet_dispatch_bridge`, message
+        `telnet dispatch observed`, field `{op}` (connection
+        state name from `conn_state_get_str`). Forward-decl
+        after `setup_after.h`; single call at top of
+        `handle_telnet_packet` (after sanity checks) under
+        `#ifdef PVPGN_V3_BNETD_INTEGRATION`. Unit test
+        `telnet_dispatch_bridge_test.cpp`: null-conn no-op,
+        four state names logged, null op -> "?", empty op ->
+        "?". 7 cases / ~21 assertions. Legacy plain docker +
+        v3 docker both green; v3 still 1225 / 213 + the new
+        test binary; 4 e2e green.
+    - [x] Round 41 -- coalesced observation bridge for the
+        Westwood Online (WoL) dispatcher in
+        `src/bnetd/handle_wol.cpp`. Added
+        `pvpgn_v3_wol_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/wol_dispatch_bridge.{hpp,cpp}`,
+        module `v3_wol_dispatch_bridge`, message
+        `wol dispatch observed`. Wired into 3 entry points
+        (`handle_wol_con_command`, `handle_wol_log_command`,
+        `handle_wol_welcome`) with distinct op strings
+        ("con_command" / "log_command" / "welcome"). Unit
+        test `wol_dispatch_bridge_test.cpp` covers 5 cases.
+        Legacy plain docker + v3 docker both green.
+    - [x] Round 42 -- coalesced observation bridge for the IRC
+        dispatcher in `src/bnetd/handle_irc.cpp`. Added
+        `pvpgn_v3_irc_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/irc_dispatch_bridge.{hpp,cpp}`,
+        module `v3_irc_dispatch_bridge`, message
+        `irc dispatch observed`. Wired into 3 entry points
+        (`handle_irc_con_command`, `handle_irc_log_command`,
+        `handle_irc_welcome`). Unit test
+        `irc_dispatch_bridge_test.cpp` covers 5 cases. Both
+        docker builds green.
+    - [x] Round 43 -- observation bridge for the connection
+        state-transition dispatcher in `src/bnetd/connection.cpp`.
+        Added `pvpgn_v3_connection_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/connection_dispatch_bridge.{hpp,cpp}`,
+        module `v3_connection_dispatch_bridge`, message
+        `connection dispatch observed`. Hooked at the top of
+        `conn_set_state` with `op = conn_state_get_str(state)`
+        so every state transition emits one observation
+        record (covers all 5 dispatcher sites in the audit).
+        Unit test `connection_dispatch_bridge_test.cpp`
+        covers 4 cases. Both docker builds green.
+    - [x] Round 44 -- observation bridge for the message
+        dispatcher in `src/bnetd/message.cpp`. Added
+        `pvpgn_v3_message_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/message_dispatch_bridge.{hpp,cpp}`,
+        module `v3_message_dispatch_bridge`, message
+        `message dispatch observed`. Hooked at the top of
+        `message_send_text(dst, type, src, char const* text)`
+        with `op = message_type_get_str(type)` (covers all 5
+        audit sites). Unit test
+        `message_dispatch_bridge_test.cpp` covers 4 cases.
+        Both docker builds green.
+    - [x] Round 45 -- observation bridge for the server
+        dispatcher in `src/bnetd/server.cpp`. Added
+        `pvpgn_v3_server_dispatch_try(opaque, op)` in
+        `integration/legacy_bnetd/server_dispatch_bridge.{hpp,cpp}`,
+        module `v3_server_dispatch_bridge`, message
+        `server dispatch observed`. Hooked at the top of
+        `server_process` (single startup invocation in
+        `main.cpp`) with `op = "process"`. Bridge accepts a
+        null `opaque` since server-level observation is keyed
+        by op only. Unit test
+        `server_dispatch_bridge_test.cpp` covers 4 cases.
+        Both docker builds green.
+    - [x] Round 46 -- observation bridge for the chat-command
+        dispatcher in `src/bnetd/command.cpp`. Added
+        `pvpgn_v3_command_dispatch_try(conn, op)` in
+        `integration/legacy_bnetd/command_dispatch_bridge.{hpp,cpp}`,
+        module `v3_command_dispatch_bridge`, message
+        `command dispatch observed`. Hooked at the top of
+        `handle_command(c, text)` with `op = text` so the
+        full command (including `/` prefix and arguments) is
+        captured. Unit test
+        `command_dispatch_bridge_test.cpp` covers 4 cases.
+        Both docker builds green; observation seam complete
+        for all 6 remaining audit families.
 
 For each module:
 
@@ -2413,3 +2554,820 @@ Next refactoring-plan-legacy-common steps to consider:
 ### packet_create count
 - Before: 121 remaining
 - After:  114 remaining (7 sites guarded)
+
+## Round 50 -- send bridge: clan_motdreply (clan.cpp)
+
+First send-replacement bridge sourced from `src/bnetd/clan.cpp` (rather
+than `handle_bnet.cpp`). Validates the bridge pattern on a fixed-shape
+clan reply before tackling the harder broadcast / variable-payload
+sites (CLANMEMBERLIST_REPLY, CLANMEMBERUPDATE, CLAN_CREATEREPLY,
+CLAN_CLANACK, CLAN_QUITNOTIFY).
+
+### Bridges implemented
+- [x] `send_clan_motdreply_bridge` (header + impl) -- `pvpgn_v3_send_clan_motdreply`
+  - Encodes `pvpgn::protocol::bnet::ClanMotdReply{cookie, unknown1, motd}`
+    via `protocol::Writer` and dispatches through
+    `::pvpgn_v3_send_packet_try`.
+  - Returns 1 on full v3 success so caller skips legacy
+    `conn_push_outqueue`; 0 otherwise (legacy fallback runs).
+
+### Tests written
+- [x] `send_clan_motdreply_bridge_test.cpp` -- 6 cases including
+  byte-parity against hand-computed wire layout
+  (empty motd = 13 bytes; non-empty appends cstring).
+
+### clan.cpp guards added
+- [x] `clan_send_motd_reply` (~L478) -- `pvpgn_v3_send_clan_motdreply`
+  guard wrapping `conn_push_outqueue(c, rpacket)`; on v3rc==1 the
+  function `packet_del_ref(rpacket); return 0;` short-circuits the
+  legacy send.
+
+### Build system
+- [x] `src/v3/CMakeLists.txt` -- 1 new `.cpp` source added
+- [x] `tests/unit/integration/legacy_bnetd/CMakeLists.txt` -- 1 new
+  `pvpgn_v3_add_test` entry
+- [x] `Dockerfile.v3` -- 1 new build target + 1 new RUN line
+
+### Validation
+- docker v3-e2e build: exit 0; new bridge built, linked, and exec'd
+  in the RUN chain.
+
+### Sites deferred (clan.cpp)
+- CLANMEMBERLIST_REPLY -- variable list payload built inside
+  member iteration; needs vector-collect refactor first.
+- CLANMEMBERUPDATE -- uses `clan_send_packet_to_online_members`
+  broadcast (one encode -> N sends); doesn't match the single-conn
+  send model. Requires either a new broadcast API or per-member
+  iteration at the bridge call site.
+- CLAN_CREATEREPLY -- variable payload via `packet_append_string`
+  in a traversal loop.
+- CLAN_CLANACK -- reuses same `rpacket` while mutating `.status`
+  per member; needs new ClanAck encoder (0x75ff) + parity test.
+- CLAN_QUITNOTIFY -- needs new ClanQuitNotify encoder (0x76ff).
+
+### packet_create count
+- Before: 114 remaining
+- After:  113 remaining (1 site guarded)
+
+## Round 51 -- encode-only bridge + broadcast wiring: clanmemberupdate (clan.cpp)
+
+First **broadcast** site moved into the strangler. Earlier rounds all
+followed the single-conn `pvpgn_v3_send_*` pattern; `CLANMEMBERUPDATE`
+is emitted once and fanned out to every online WC3/W3XP clan member by
+`clan_send_packet_to_online_members`. The single-conn pattern doesn't
+fit: each `pvpgn_v3_send_packet_try` already pushes via legacy
+`conn_push_outqueue`, so calling it N times AND running the legacy
+broadcast would double-send.
+
+Design (chosen via design-question dialog: Option A):
+1. New bridge `pvpgn_v3_encode_clanmemberupdate(...)` -- pure encoder,
+   no dispatch. Writes wire bytes into a caller-supplied buffer.
+2. Iteration stays in legacy `clan.cpp` (where `t_clan` lives, so the
+   v3 layer remains free of legacy types).
+3. New probe `pvpgn_v3_send_packet_available()` -- 0 if no v3 sink is
+   registered, 1 if a sink is installed. Lets the caller commit to an
+   all-or-nothing dispatch decision before any bytes leave.
+4. clan.cpp:
+   a. If sink unavailable -> skip v3 path, fall through to legacy.
+   b. If sink available and encode succeeds -> iterate
+      `clan->members`, filter by WC3/W3XP clienttag (matches legacy
+      `clan_send_packet_to_online_members`), call
+      `pvpgn_v3_send_packet_try` per online member. If ALL return 1,
+      `packet_del_ref(rpacket); return 0;` (skip legacy). On any
+      mid-iteration failure, break and fall through to legacy.
+
+### Bridges implemented
+- [x] `encode_clanmemberupdate_bridge` (header + impl) --
+  `pvpgn_v3_encode_clanmemberupdate(name, status, online_flag,
+  online_status, out_buf, max_size, *out_size)`. Encodes
+  SID 0x7F via `protocol::Writer`. Wire layout:
+  `FF 7F LL LL | name\0 | status_u8 | online_u8 | online_status\0`.
+- [x] Extended `send_packet_bridge` with
+  `pvpgn_v3_send_packet_available()` cheap probe.
+
+### Tests written
+- [x] `encode_clanmemberupdate_bridge_test.cpp` -- 7 cases:
+  rejects null name / empty name / null out_buf / null out_size /
+  undersized buffer; byte parity for online-with-clienttag (15 bytes);
+  byte parity for offline-null-clienttag (9 bytes).
+
+### clan.cpp guards added
+- [x] `clanmember_on_change_status` (~L660) -- v3 broadcast path
+  wrapping legacy `clan_send_packet_to_online_members`. Iterates
+  `member->clan->members` with the same WC3/W3XP clienttag filter as
+  the legacy helper.
+- [x] `clanmember_on_change_status_by_connection` (~L696) -- same
+  pattern, name source is `account_get_name(acc)`, status helper is
+  `clanmember_get_online_status_by_connection`.
+
+### Build system
+- [x] `src/v3/CMakeLists.txt` -- 1 new `.cpp` source added
+  (`encode_clanmemberupdate_bridge.cpp`).
+- [x] `tests/unit/integration/legacy_bnetd/CMakeLists.txt` -- 1 new
+  `pvpgn_v3_add_test` entry.
+- [x] `Dockerfile.v3` -- 1 new build target + 1 new RUN line.
+
+### Validation
+- docker v3-e2e build: exit 0; new bridge built, linked, ran.
+- docker legacy-plain build: exit 0 (clan.cpp wiring is `#ifdef`-gated
+  so legacy build is unaffected).
+
+### packet_create count
+- Before: 113 remaining
+- After:  113 remaining (broadcast site uses 1 `packet_create` that is
+  still kept as the legacy fallback path; the v3 path is in addition,
+  not replacement -- the legacy `packet_create` call stays so the
+  fallback can run when the v3 sink is unavailable). Future cleanup
+  can drop it once the legacy fallback is removed.
+
+
+## Round 52-55 -- clan_bridges: clanmemberlist_reply, clan_createreply, clan_clanack, clan_quitnotify
+
+Consolidated 6 C-ABI bridges into one header/cpp pair plus 2 new SID constants. Wired six call sites in clan.cpp; legacy fallback paths preserved.
+
+### v3 layer additions
+- src/v3/protocol/bnet/include/protocol/bnet/messages.hpp: added kSidClanClanAck=0x75 and kSidClanQuitNotify=0x76 SID constants (no full Message variants -- direct Writer encoding in bridges).
+- src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/clan_bridges.hpp: declares 6 extern C functions.
+- src/v3/integration/legacy_bnetd/src/clan_bridges.cpp: implementations using shared finalize_into() helper.
+
+### Bridges
+- pvpgn_v3_encode_clanmemberlist_reply(cookie, count, names[], statuses[], online_flags[], online_statuses[], buf, max, *size) -- SID 0x7D variable list; per-member wire: name\\0 status_u8 online_u8 online_status\\0; rejects null/empty names; null online_statuses entries serialize as empty \\0.
+- pvpgn_v3_encode_clan_createreply(cookie, check_result, friend_count, friend_names[], buf, max, *size) -- SID 0x70; friend list as series of C-strings.
+- pvpgn_v3_send_clan_clanack(conn, unknown1, clantag, status) -- SID 0x75 single-conn send.
+- pvpgn_v3_encode_clan_clanack(unknown1, clantag, status, buf, max, *size) -- SID 0x75 for per-conn iteration.
+- pvpgn_v3_send_clan_quitnotify(conn, status) -- SID 0x76 single-conn send.
+- pvpgn_v3_encode_clan_quitnotify(status, buf, max, *size) -- SID 0x76 for broadcast iteration.
+
+### Tests (clan_bridges_test.cpp, 10 cases / 26 assertions)
+- encode_clanmemberlist_reply: empty list (9 bytes), 2-members byte parity (29 bytes), rejects null name in list.
+- encode_clan_createreply: zero friends (10 bytes), 2 friends byte parity (15 bytes).
+- encode/send_clan_clanack: byte parity, FakeSink dispatch success, null-conn/no-sink rejections.
+- encode/send_clan_quitnotify: byte parity (5 bytes), dispatch.
+
+### clan.cpp call sites wired (6 sites, all under #ifdef PVPGN_V3_BNETD_INTEGRATION)
+- clan_send_status_window           -- single-conn send-replacement (CLAN_CLANACK).
+- clan_close_status_window          -- single-conn send-replacement (CLANQUITNOTIFY).
+- clan_send_status_window_on_create -- per-conn iter loop, per-call wrap (encode_clan_clanack + send_packet_try, legacy fallback per iteration).
+- clan_close_status_window_on_disband -- per-conn broadcast loop, per-call wrap (encode_clan_quitnotify).
+- clan_send_memberlist              -- variable-list: collects 4 parallel std::vector<...> arrays during LIST_TRAVERSE, then encode + send.
+- clan_get_possible_member          -- 3 paths wired: tag-in-use (check=ALREADY_IN_USE, count=0), already-in-clan (check=EXCEPTION, count=0), success (collects v3_friend_names vector then encode with check=OK).
+
+Added #include <string> and #include <vector> to clan.cpp. Forward-decl block now lists 10 extern C symbols.
+
+### Build system
+- src/v3/CMakeLists.txt: 1 new .cpp source (clan_bridges.cpp).
+- tests/unit/integration/legacy_bnetd/CMakeLists.txt: 1 new test entry (test_integration_legacy_bnetd_clan_bridges).
+- Dockerfile.v3: build target + RUN exec line for new test binary.
+
+### Validation
+- docker v3-e2e build: exit 0 (10 new test cases pass; total assertions/cases incremented).
+- docker legacy-plain build: exit 0 (all #ifdef-gated; legacy build unaffected).
+
+### packet_create count
+- Before: 113 remaining
+- After:  113 remaining (legacy packet_create calls retained as fallback paths in each wired site; will be removed in a later cleanup round once the v3 send sink is mandatory).
+
+## Round 49 -- send bridge: echoreq (SERVER_ECHOREQ / SID_PING 0x25)
+
+Smallest-possible E.4 slice: a single new bridge wired into the one
+unbridged `packet_create` site in `_client_auth_info` that emits
+the initial server-to-client ECHO_REQ challenge.
+
+### Bridge implemented
+- [x] `send_echoreq_bridge` (header + impl) -- `pvpgn_v3_send_echoreq(conn, ticks)`
+  - Wire layout: ff 25 08 00 + u32 LE ticks (8 bytes total)
+  - Reuses existing `protocol::bnet::encode(Ping&)` (same SID 0x25)
+
+### Files added
+- `src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/send_echoreq_bridge.hpp`
+- `src/v3/integration/legacy_bnetd/src/send_echoreq_bridge.cpp`
+- `tests/unit/integration/legacy_bnetd/send_echoreq_bridge_test.cpp` (5 cases)
+  - no-handler returns 0; null-conn rejected; 8-byte wire-parity check;
+    zero-ticks emission; handler return propagation (1/0/-1)
+
+### Build wiring
+- Added source to `src/v3/CMakeLists.txt` (after send_handshake_bridge.cpp)
+- Added test target `test_integration_legacy_bnetd_send_echoreq_bridge`
+  to `tests/unit/integration/legacy_bnetd/CMakeLists.txt`
+- Added build target + RUN test line to `Dockerfile.v3` (after
+  send_handshake_bridge entries)
+
+### handle_bnet.cpp wiring
+- Added forward decl `pvpgn_v3_send_echoreq(void*, unsigned int)` under
+  `#ifdef PVPGN_V3_BNETD_INTEGRATION` (lines ~233).
+- `_client_auth_info` (line 962): the ECHOREQ `packet_create` block
+  is now guarded by `if (pvpgn_v3_send_echoreq(c, get_ticks()) <= 0)`.
+  Legacy fallback retained.
+
+### Status
+- handle_bnet.cpp packet_create call sites: 91 (unchanged at source level;
+  Round 49 *guards* one previously unbridged site -- legacy branch kept
+  as fallback per established strangler-fig pattern).
+- Validation: deferred to docker build with cache (per orchestrator
+  request). Source-level edits only this round.
+
+## Round 49 -- send bridge: echoreq (SERVER_ECHOREQ / SID_PING 0x25)
+
+Smallest-possible E.4 slice: a single new bridge wired into the one
+unbridged `packet_create` site in `_client_auth_info` that emits
+the initial server-to-client ECHO_REQ challenge.
+
+### Bridge implemented
+- [x] `send_echoreq_bridge` (header + impl) -- `pvpgn_v3_send_echoreq(conn, ticks)`
+  - Wire layout: ff 25 08 00 + u32 LE ticks (8 bytes total)
+  - Reuses existing `protocol::bnet::encode(Ping&)` (same SID 0x25)
+
+### Files added
+- `src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/send_echoreq_bridge.hpp`
+- `src/v3/integration/legacy_bnetd/src/send_echoreq_bridge.cpp`
+- `tests/unit/integration/legacy_bnetd/send_echoreq_bridge_test.cpp` (5 cases)
+  - no-handler returns 0; null-conn rejected; 8-byte wire-parity check;
+    zero-ticks emission; handler return propagation (1/0/-1)
+
+### Build wiring
+- Added source to `src/v3/CMakeLists.txt` (after send_handshake_bridge.cpp)
+- Added test target `test_integration_legacy_bnetd_send_echoreq_bridge`
+  to `tests/unit/integration/legacy_bnetd/CMakeLists.txt`
+- Added build target + RUN test line to `Dockerfile.v3` (after
+  send_handshake_bridge entries)
+
+### handle_bnet.cpp wiring
+- Added forward decl `pvpgn_v3_send_echoreq(void*, unsigned int)` under
+  `#ifdef PVPGN_V3_BNETD_INTEGRATION` (lines ~233).
+- `_client_auth_info` (line 962): the ECHOREQ `packet_create` block
+  is now guarded by `if (pvpgn_v3_send_echoreq(c, get_ticks()) <= 0)`.
+  Legacy fallback retained.
+
+### Status
+- handle_bnet.cpp packet_create call sites: 91 (unchanged at source level;
+  Round 49 *guards* one previously unbridged site -- legacy branch kept
+  as fallback per established strangler-fig pattern).
+- Validation: deferred to docker build with cache (per orchestrator
+  request). Source-level edits only this round.
+
+## Round 50 -- reuse send_motdw3 bridge for per-news entries
+
+Tiny call-site-only round: wire the **existing** `pvpgn_v3_send_motdw3`
+into the `_news_cb` per-news-entry emitter. No new bridge file, no new
+test (existing send_motdw3_bridge tests already cover wire parity for
+the same encoder path).
+
+### Wiring
+- `src/bnetd/handle_bnet.cpp` `_news_cb`: guarded `packet_create`
+  block with `pvpgn_v3_send_motdw3(motdd->c, msgtype, now, fnews,
+  date, date, lstr_get_str(lstr))`. Returns 0 (success) on rc==1
+  instead of falling through to the legacy emit.
+- Forward decl `pvpgn_v3_send_motdw3` already present in the
+  `#ifdef PVPGN_V3_BNETD_INTEGRATION` block (added in Round 46).
+
+### Parity note
+- `packet_append_lstr` writes `lstr_get_len(lstr) - 1` text bytes
+  plus a single NUL terminator -- byte-identical to `write_cstring`
+  in the v3 codec for lstrs built via `lstr_set_str`.
+
+### Status
+- `handle_bnet.cpp` packet_create call sites: 91 source-level
+  (Round 50 *guards* one previously unbridged site -- the news-entry
+  emit -- via reuse of the existing motdw3 bridge).
+- Validation: docker build with cache.
+
+## Round 50 -- reuse send_motdw3 bridge for per-news entries
+
+Tiny call-site-only round: wire the **existing** `pvpgn_v3_send_motdw3`
+into the `_news_cb` per-news-entry emitter. No new bridge file, no new
+test (existing send_motdw3_bridge tests already cover wire parity for
+the same encoder path).
+
+### Wiring
+- `src/bnetd/handle_bnet.cpp` `_news_cb`: guarded `packet_create`
+  block with `pvpgn_v3_send_motdw3(motdd->c, msgtype, now, fnews,
+  date, date, lstr_get_str(lstr))`. Returns 0 (success) on rc==1
+  instead of falling through to the legacy emit.
+- Forward decl `pvpgn_v3_send_motdw3` already present in the
+  `#ifdef PVPGN_V3_BNETD_INTEGRATION` block (added in Round 46).
+
+### Parity note
+- `packet_append_lstr` writes `lstr_get_len(lstr) - 1` text bytes
+  plus a single NUL terminator -- byte-identical to `write_cstring`
+  in the v3 codec for lstrs built via `lstr_set_str`.
+
+### Status
+- `handle_bnet.cpp` packet_create call sites: 91 source-level
+  (Round 50 *guards* one previously unbridged site -- the news-entry
+  emit -- via reuse of the existing motdw3 bridge).
+- Validation: docker build with cache.
+
+### Round 51 -- send_clan_invitereply (SID 0x77)
+
+- Created v3 bridge `pvpgn_v3_send_clan_invitereply(void*, count u32, result u8)`:
+  - Header `src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/send_clan_invitereply_bridge.hpp`
+  - Impl   `src/v3/integration/legacy_bnetd/src/send_clan_invitereply_bridge.cpp`
+  - Encodes `ClanGenericResultReply{sid=kSidClanInvite, cookie=count, result}` -> 9-byte wire (ff 77 09 00 + u32 LE + u8).
+- Reused existing codec entry; no new struct or wire type.
+- Test `tests/unit/integration/legacy_bnetd/send_clan_invitereply_bridge_test.cpp` (5 cases: no-handler / null-conn / 9-byte wire parity / zero values / return propagation).
+- Wired into 2 sites in `src/bnetd/handle_bnet.cpp` under `PVPGN_V3_BNETD_INTEGRATION`:
+  - `_client_clan_invitereq` early-reject (~line 6945, recipient = c)
+  - `_client_clan_invitereply` invitee response (~line 7038, recipient = conn, reads back the bytes that legacy code just set on rpacket)
+- Updated `src/v3/CMakeLists.txt`, `tests/unit/integration/legacy_bnetd/CMakeLists.txt`, and `Dockerfile.v3` (build target list + RUN test line).
+- Validation: docker v3-test image built green (`pvpgn-v3:round51`); new bridge test passes; full chain still `1225 assertions in 213 test cases` for the final binary in the chain. `handle_bnet.cpp` call-site edits remain unvalidated by docker (WITH_BNETD=OFF), same caveat as Rounds 46-50.
+
+### Round 52 -- send_clan_membernewchief_reply (SID 0x74)
+
+- Created v3 bridge `pvpgn_v3_send_clan_membernewchief_reply(void*, count u32, result u8)`.
+  - Reuses `ClanGenericResultReply` codec with `sid=kSidClanMemberNewChief` -> 9-byte wire (ff 74 09 00 + u32 LE + u8).
+  - Header / impl files under `src/v3/integration/legacy_bnetd/{include,src}/...`.
+- Test `send_clan_membernewchief_reply_bridge_test.cpp` (5 cases: same pattern as the 0x77 bridge).
+- Wired ONLY the FAILED branch in `_client_clan_membernewchiefreq` (handle_bnet.cpp ~line 6862, recipient = c). The SUCCESS branch broadcasts to all online clan members via `clan_send_packet_to_online_members()` and is intentionally left on the legacy path -- the single-conn send_packet ABI cannot model the broadcast.
+- Updated `src/v3/CMakeLists.txt`, `tests/unit/integration/legacy_bnetd/CMakeLists.txt`, and `Dockerfile.v3` (build target list + RUN test line).
+- Validation: docker v3-test image built green (`pvpgn-v3:round52`); new bridge test runs in the chain. `handle_bnet.cpp` edit remains unvalidated by docker (WITH_BNETD=OFF), same caveat as Rounds 46-51.
+
+### Round 52 -- send_clan_membernewchief_reply (SID 0x74)
+
+- Created v3 bridge pvpgn_v3_send_clan_membernewchief_reply(void*, count u32, result u8).
+  - Reuses ClanGenericResultReply codec with sid=kSidClanMemberNewChief -> 9-byte wire (ff 74 09 00 + u32 LE + u8).
+  - Header / impl files under src/v3/integration/legacy_bnetd/{include,src}/...
+- Test send_clan_membernewchief_reply_bridge_test.cpp (5 cases: same pattern as the 0x77 bridge).
+- Wired ONLY the FAILED branch in _client_clan_membernewchiefreq (handle_bnet.cpp ~line 6862, recipient = c). The SUCCESS branch broadcasts to all online clan members via clan_send_packet_to_online_members() and is intentionally left on the legacy path -- the single-conn send_packet ABI cannot model the broadcast.
+- Updated src/v3/CMakeLists.txt, tests/unit/integration/legacy_bnetd/CMakeLists.txt, and Dockerfile.v3 (build target list + RUN test line).
+- Validation: docker v3-test image built green (pvpgn-v3:round52); new bridge test runs in the chain. handle_bnet.cpp edit remains unvalidated by docker (WITH_BNETD=OFF), same caveat as Rounds 46-51.
+
+
+### Round 53 -- send_clanmember_remove_reply (SID 0x78) + send_clanmember_rankupdate_reply (SID 0x7A)
+
+- Two new v3 bridges, both reusing ClanGenericResultReply codec:
+  - pvpgn_v3_send_clanmember_remove_reply (sid=kSidClanMemberRemove, 0x78) -- 9-byte wire (ff 78 09 00 + u32 LE + u8)
+  - pvpgn_v3_send_clanmember_rankupdate_reply (sid=kSidClanMemberRankUpdate, 0x7A) -- 9-byte wire (ff 7a 09 00 + u32 LE + u8)
+  - Headers / impls under src/v3/integration/legacy_bnetd/{include,src}/...
+- Two new test files, each with 4 Catch2 cases (no-handler / null-conn / wire parity / return propagation).
+- Wired one site per bridge in src/bnetd/handle_bnet.cpp under PVPGN_V3_BNETD_INTEGRATION:
+  - _client_clanmember_rankupdatereq (~line 6780): read back count + result from rpacket, try v3 before legacy push.
+  - _client_clanmember_removereq (~line 6832): same pattern. The interleaved 0x7E SERVER_CLANMEMBER_REMOVED_NOTIFY broadcast stays on the legacy path.
+- Updated src/v3/CMakeLists.txt, tests/unit/integration/legacy_bnetd/CMakeLists.txt, and Dockerfile.v3 (build target list + RUN test lines).
+- Validation: docker v3-test image built green (pvpgn-v3:round53); both new bridge tests run in the chain. handle_bnet.cpp call-site edits remain unvalidated by docker (WITH_BNETD=OFF), same caveat as Rounds 46-52.
+
+
+## Round 54 -- SERVER_CHANGEPASSACK (SID 0x31) bridge
+
+- Added src/v3/integration/legacy_bnetd/{include,src}/send_changepassack_bridge.{hpp,cpp}
+- Added tests/unit/integration/legacy_bnetd/send_changepassack_bridge_test.cpp (5 cases: no-handler / null-conn / success wire / fail wire / return propagation)
+- Reuses existing pvpgn::protocol::bnet::ChangePasswordReply codec.
+- Wired forward decl + call-site in src/bnetd/handle_bnet.cpp::_client_changepassreq under PVPGN_V3_BNETD_INTEGRATION (single push site).
+- Updated src/v3/CMakeLists.txt, tests/.../CMakeLists.txt, Dockerfile.v3 (target list + RUN test block).
+- Validated: docker build pvpgn-v3:round54 OK -- naming to docker.io/library/pvpgn-v3:round54 done.
+- Caveat: handle_bnet.cpp call-site not exercised by v3-test (WITH_BNETD=OFF); pattern matches Rounds 46-53.
+- Pivoted from REGSNOOPREQ (site is inside #if 0 dead code) to SERVER_CHANGEPASSACK.
+
+## Round 55 -- legacy_d2cs scaffold (dispatcher half)
+
+- Added new v3 directory tree src/v3/integration/legacy_d2cs/{include,src}/.
+- Created send_packet_bridge.{hpp,cpp} mirroring legacy_bnetd:
+  - namespace pvpgn::integration::legacy_d2cs
+  - C ABI pvpgn_v3_d2cs_send_packet_try / _send_packet_available
+  - kSendPacketMaxSize=3072 (parity with d2cs MAX_PACKET_SIZE)
+  - install_legacy_send_packet_handler declared but not yet defined
+    (linked half deferred).
+- Added pvpgn_v3_add_library(integration_legacy_d2cs ...) target in
+  src/v3/CMakeLists.txt with only core as PUBLIC_DEPS.
+- Added tests/unit/integration/legacy_d2cs/CMakeLists.txt registering
+  test_integration_legacy_d2cs_send_packet_bridge (5 Catch2 cases:
+  no-handler / null-conn-or-bytes / size-bounds / forward-verbatim /
+  return-propagation).
+- Updated tests/unit/integration/CMakeLists.txt to add_subdirectory(legacy_d2cs).
+- Updated Dockerfile.v3: added test target to build list and RUN block.
+- Validated: docker build pvpgn-v3:round55 OK -- naming to docker.io/library/pvpgn-v3:round55 done.
+- Scope deferred to future round: extract d2cs_legacy static library
+  from the d2cs executable target, then add
+  integration_legacy_d2cs_linked with the real packet_create +
+  conn_d2cs_outqueue implementation, plus PVPGN_V3_D2CS_INTEGRATION
+  macro wiring in src/d2cs/CMakeLists.txt. Until that is in place,
+  pvpgn_v3_d2cs_send_packet_try has no production producer; only
+  unit tests exercise the dispatcher.
+
+## Round 56 -- d2cs_legacy static library carve-out
+
+- Refactored src/d2cs/CMakeLists.txt to mirror the bnetd_legacy pattern:
+  - New STATIC library d2cs_legacy containing all .cpp/.h sources
+    except main.cpp and the win32 winmain/resource files.
+  - Original d2cs executable now contains only main.cpp + winmain
+    (+ resource.rc on Win32) and links against d2cs_legacy.
+  - PUBLIC link deps on d2cs_legacy: common compat fmt win32
+    ${NETWORK_LIBRARIES} (matches prior d2cs link line).
+  - PUBLIC include dir on d2cs_legacy: src/d2cs/ (so future
+    integration_legacy_d2cs_linked can include legacy headers as
+    'd2cs/connection.h' etc relative to src/).
+- Validated:
+  - Legacy build: docker build -f Dockerfile pvpgn-legacy:round56 OK
+    (d2cs_legacy.a built, d2cs exe linked against it,
+    naming to docker.io/library/pvpgn-legacy:round56 done).
+  - v3 build:     docker build -f Dockerfile.v3 pvpgn-v3:round56 OK
+    (no regression, naming to docker.io/library/pvpgn-v3:round56 done).
+- Unblocks future round: integration_legacy_d2cs_linked can now be
+  added with a PUBLIC_DEPS d2cs_legacy + the real send_packet_via_legacy
+  implementation calling packet_create(packet_class_d2cs) and
+  conn_d2cs_outqueue (parity with bnetd link half).
+- No code changes outside src/d2cs/CMakeLists.txt; no source edits.
+
+## Round 57 -- integration_legacy_d2cs_linked (real send_packet_via_legacy)
+
+- Added src/v3/integration/legacy_d2cs/src/send_packet_bridge_link.cpp:
+  - install_legacy_send_packet_handler() installs send_packet_via_legacy.
+  - send_packet_via_legacy:
+      1. casts conn_ptr to pvpgn::d2cs::t_connection*
+      2. packet_create(packet_class_raw)
+      3. packet_get_raw_data_build + memcpy + packet_set_size
+      4. pvpgn::d2cs::conn_push_outqueue + packet_del_ref
+      5. returns 1 on push >= 0, else 0.
+  - Mirrors integration/legacy_bnetd/src/send_packet_bridge_link.cpp.
+- Added pvpgn_v3_add_library(integration_legacy_d2cs_linked ...) target in
+  src/v3/CMakeLists.txt, gated by if(TARGET d2cs_legacy):
+  - PUBLIC_DEPS: core, integration_legacy_d2cs
+  - DEPS: d2cs_legacy
+  - target_compile_options -w on the linked TU (legacy headers not
+    warning-clean under v3 strict warnings).
+  - target_include_directories adds src/ + build dir for
+    'common/setup_before.h', 'd2cs/connection.h', 'common/packet.h'.
+- Validated v3-test build: pvpgn-v3:round57 OK -- no regression
+  (linked half not built in v3-only image because WITH_D2CS=OFF means
+  d2cs_legacy target absent; same precedent as integration_legacy_bnetd_linked).
+- Combined-build validation deferred: no existing docker stage configures
+  both d2cs_legacy and the v3 tree simultaneously; same situation
+  applies to the bnetd linked half. Future combined-build docker stage
+  could exercise both.
+
+## Round 59 -- legacy_d2dbs scaffold + d2dbs_legacy carve-out
+
+Carved d2dbs into a static lib + thin executable (parity with bnetd/d2cs):
+- src/d2dbs/CMakeLists.txt: d2dbs_legacy static lib contains all sources
+  except main.cpp and ../win32/d2dbs_winmain.cpp/resource. d2dbs exe
+  links against d2dbs_legacy. PUBLIC include dir: src/d2dbs/.
+
+Added legacy_d2dbs scaffold under src/v3/integration/legacy_d2dbs/:
+- send_packet_bridge.{hpp,cpp}: dispatcher with C ABI
+  pvpgn_v3_d2dbs_send_packet_try / _send_packet_available;
+  kSendPacketMaxSize=3072 (conservative; kBufferSize=20480 enforced
+  at runtime by the linked half).
+- send_packet_bridge_link.cpp: install_legacy_send_packet_handler
+  memcpys bytes into conn->WriteBuf at nCharsInWriteBuffer (the
+  d2dbs send model -- no t_packet outqueue), with remaining-space
+  guard mirroring legacy dbspacket.cpp handlers.
+
+CMake:
+- integration_legacy_d2dbs static lib (always built, deps: core).
+- integration_legacy_d2dbs_linked gated on TARGET d2dbs_legacy;
+  PUBLIC_DEPS core + integration_legacy_d2dbs; DEPS d2dbs_legacy;
+  -w on the link TU; include dirs src/ + build for legacy headers.
+
+Tests:
+- tests/unit/integration/legacy_d2dbs/send_packet_bridge_test.cpp:
+  5 Catch2 cases (no-handler / null-conn-or-bytes / size-bounds /
+  forward-verbatim / return-propagation).
+- Added test subdir to tests/unit/integration/CMakeLists.txt.
+- Added Dockerfile.v3 entry (target list + RUN block).
+
+Validation:
+- docker build -f Dockerfile.v3 pvpgn-v3:round59 OK
+  (naming to docker.io/library/pvpgn-v3:round59 done).
+- docker build -f Dockerfile  pvpgn-legacy:round59 OK
+  (naming to docker.io/library/pvpgn-legacy:round59 done;
+  d2dbs_legacy.a built; d2dbs exe linked against it).
+- Linked half compile validation deferred (no combined-build CI
+  stage; same precedent as bnetd / d2cs linked halves).
+
+## Round 60 -- first real d2cs bridge: send_loginreply (D2CS_CLIENT_LOGINREPLY 0x01)
+
+- New: src/v3/integration/legacy_d2cs/include/integration/legacy_d2cs/send_loginreply_bridge.hpp
+- New: src/v3/integration/legacy_d2cs/src/send_loginreply_bridge.cpp
+- New: tests/unit/integration/legacy_d2cs/send_loginreply_bridge_test.cpp (5 cases / 22 assertions)
+- Wired: src/v3/CMakeLists.txt (integration_legacy_d2cs += send_loginreply_bridge.cpp; PUBLIC_DEPS += protocol_common, protocol_d2cs)
+- Wired: tests/unit/integration/legacy_d2cs/CMakeLists.txt (+ pvpgn_v3_add_test target)
+- Wired: Dockerfile.v3 (build list + RUN block)
+- Wired: src/d2cs/CMakeLists.txt (PVPGN_V3_D2CS_INTEGRATION macro + linked-lib link gated on TARGET integration_legacy_d2cs_linked)
+- Wired: src/d2cs/handle_bnetd.cpp on_bnetd_accountloginreply -- forward decl + #ifdef hook before conn_push_outqueue.
+- Validation: pvpgn-v3:round60 OK (5/5 new cases pass; all tests pass). pvpgn-legacy:round60 OK.
+- Note: Legacy build has no v3 tree configured so PVPGN_V3_D2CS_INTEGRATION stays undefined; call-site hook compiles but is dormant. Same precedent as bnetd rounds.
+
+## Round 61 -- d2cs send_createcharreply bridge (D2CS_CLIENT_CREATECHARREPLY 0x02)
+- New: src/v3/integration/legacy_d2cs/{include,src}/send_createcharreply_bridge.{hpp,cpp}
+- New: tests/unit/integration/legacy_d2cs/send_createcharreply_bridge_test.cpp (4 cases)
+- Wired: src/v3/CMakeLists.txt, tests CMake, Dockerfile.v3.
+- Wired two call sites: src/d2cs/handle_d2cs.cpp::on_client_createcharreq and src/d2cs/handle_bnetd.cpp on_bnetd_charloginreply (CREATECHARREQ branch) under PVPGN_V3_D2CS_INTEGRATION.
+- Validation: pvpgn-v3:round61 OK + pvpgn-legacy:round61 OK.
+
+## Round 62 -- d2cs send_charloginreply bridge (D2CS_CLIENT_CHARLOGINREPLY 0x07)
+- New: protocol/d2cs/codec adds CharLoginReply struct + kClientCharLoginReply (0x07) + reply constants, encode() impl.
+- New: src/v3/integration/legacy_d2cs/{include,src}/send_charloginreply_bridge.{hpp,cpp}
+- New: tests/unit/integration/legacy_d2cs/send_charloginreply_bridge_test.cpp (4 cases)
+- Wired: src/v3/CMakeLists.txt, tests CMake, Dockerfile.v3.
+- Wired call site: src/d2cs/handle_bnetd.cpp on_bnetd_charloginreply (CHARLOGINREQ branch) under PVPGN_V3_D2CS_INTEGRATION.
+- Validation: pvpgn-v3:round62 OK + pvpgn-legacy:round62 OK.
+
+## R63 - d2cs send_creategamereply + send_joingamereply
+- Added bridges in src/v3/integration/legacy_d2cs/{include,src}/.../send_{creategame,joingame}reply_bridge.{hpp,cpp}.
+- joingamereply addr trick: legacy used bn_int_nset (BE wire); bridge takes addr_host and applies internal bswap32() before assigning to m.addr so subsequent LE encode produces the desired BE wire bytes.
+- Wire format: creategamereply 13B (type 0x03), joingamereply 21B (type 0x04).
+- Wired 3 call sites under PVPGN_V3_D2CS_INTEGRATION:
+  - src/d2cs/handle_d2cs.cpp - on_client_creategamereq failure path
+  - src/d2cs/handle_d2gs.cpp - on_d2gs_creategamereply
+  - src/d2cs/handle_d2gs.cpp - on_d2gs_joingamereply (computes v3_addr via trans_net on success)
+- Catch2 test send_gamereply_bridges_test.cpp asserts wire bytes incl. BE addr ordering.
+- Validation: pvpgn-v3:round63 + pvpgn-legacy:round63 both built; 1225 assertions / 213 cases pass.
+
+## R64 - first d2dbs bridge: send_echorequest
+- Added bridge in src/v3/integration/legacy_d2dbs/{include,src}/.../send_echorequest_bridge.{hpp,cpp}.
+- Wire: 8B, all LE - u16 size=8 | u16 type=0x34 | u32 seqno (codec.EchoRequest).
+- Added PVPGN_V3_D2DBS_INTEGRATION macro wiring in src/d2dbs/CMakeLists.txt (mirrors d2cs R60 pattern).
+- Wired src/d2dbs/dbspacket.cpp dbs_keepalive() with forward decl + per-connection #ifdef hook that returns early on handled=1 (skips legacy memcpy into WriteBuf).
+- New Catch2 test send_echorequest_bridge_test.cpp asserts 8-byte wire incl. LE seqno encoding (0xdeadbeef -> ef be ad de).
+- Validation: pvpgn-v3:round64 + pvpgn-legacy:round64 both built; test count 128 -> 129; 1225+ assertions pass.
+
+## R65 - bnetd legacy-fallback removal audit
+- Scanned src/bnetd/*.cpp for packet_create(packet_class_bnet) and checked PVPGN_V3_BNETD_INTEGRATION within ±120 lines.
+- handle_*.cpp: 76 / 76 sites covered (100%). All dispatched client packet handlers are bridged.
+- Full src/bnetd: 97 sites total, 87 covered, 10 uncovered.
+- Of the 10 uncovered: 1 is a false positive (server.cpp:815 is an INPUT read-buffer alloc, not an outbound reply). 9 real gaps remain.
+- Full report: plans/r65-bnetd-fallback-audit.md (lists each gap with packet type + trigger and suggested R66-R69 grouping).
+- No correctness risk: strangler-fig contract leaves un-bridged sites running legacy unchanged.
+
+## R66 - SERVER_ECHOREQ + SERVER_MESSAGEBOX bridges
+- Existing send_echoreq bridge was already in v3 (only handle_bnet.cpp call site wired); added second hook in src/bnetd/connection.cpp conn_test_latency() pre-game branch.
+- New send_messagebox bridge (v3 codec MessageBox already present):
+  - src/v3/integration/legacy_bnetd/{include,src}/.../send_messagebox_bridge.{hpp,cpp}
+  - Wire: ff 19 <size_LE> | u32 style LE | text \0 | caption \0.
+  - Wired in src/bnetd/message.cpp messagebox_show().
+- New Catch2 test send_messagebox_bridge_test.cpp asserts header + style + cstring layout.
+- Validation: pvpgn-v3:round67 + pvpgn-legacy:round67 both built; test count 129 -> 130 after R66.
+
+## R67 - friend-list acks (SERVER_FRIEND{ADD,DEL,MOVE}_ACK)
+- Three new bridges (v3 codec already had FriendAddAck/FriendDelAck/FriendMoveAck encoders):
+  - send_friendadd_ack_bridge: hdr | name \0 | status u8 | location u8 | client_tag u32 LE | loc_name \0 (variable size)
+  - send_frienddel_ack_bridge: hdr | friend_num u8 (5B)
+  - send_friendmove_ack_bridge: hdr | pos1 u8 | pos2 u8 (6B)
+- Wired 4 call sites in src/bnetd/command.cpp under PVPGN_V3_BNETD_INTEGRATION:
+  - /f a (line ~1544) -> send_friendadd_ack (reads back status fields via bn_byte_get/bn_int_get on the local status struct)
+  - /f r (line ~1655) -> send_frienddel_ack
+  - /f promote / /f demote (lines ~1699/1742) -> send_friendmove_ack
+- New Catch2 test send_friend_acks_bridges_test.cpp covers all three with wire-byte assertions.
+- Validation: test count 129 -> 131 across R66+R67; both docker images built; 1225 assertions / 213 cases.
+
+## Round 69 -- antihack: SERVER_READMEMORY + SERVER_REQUIREDWORK
+- src/v3/integration/legacy_bnetd/{include,src}/.../send_readmemory_bridge.{hpp,cpp} (hdr | 3 u32 LE = 16B).
+- src/v3/integration/legacy_bnetd/{include,src}/.../send_requiredwork_bridge.{hpp,cpp} (hdr | filename\0).
+- src/v3/CMakeLists.txt: integration_legacy_bnetd SOURCES += both bridges.
+- src/bnetd/connection.cpp: forward decls added under PVPGN_V3_BNETD_INTEGRATION. Hooks in conn_client_readmemory() pre-create and conn_client_requiredwork() pre-create.
+- tests/unit/integration/legacy_bnetd/send_antihack_bridges_test.cpp: 3 cases (16B readmemory wire; 22B requiredwork wire for IX86ExtraWork.mpq; null-rejection).
+- Dockerfile.v3: build list + RUN block updated.
+- Validation: pvpgn-v3:round69 + pvpgn-legacy:round69 both green (213 test cases, 1225 assertions in v3-test stage).
+
+## Round 71 -- handle_bnetd.cpp d2cs scope (3 sites)
+- send_init_bnetd_bridge (1-byte init class 0x65), send_authreply_bnetd_bridge (8B hdr + version u32 + realm\0), send_gameinforeply_bnetd_bridge (8B hdr + gamename\0 + difficulty u8).
+- All three bridges build wire bytes directly via Writer + write_le; no codec changes needed.
+- src/d2cs/handle_bnetd.cpp: forward decls in #ifdef PVPGN_V3_D2CS_INTEGRATION block; hooks in handle_bnetd_init, on_bnetd_authreq, on_bnetd_gameinforeq pre-create.
+- src/v3/CMakeLists.txt: integration_legacy_d2cs SOURCES += 3 bridges.
+- tests/unit/integration/legacy_d2cs/send_handle_bnetd_bridges_test.cpp: 4 cases.
+- Dockerfile.v3: build list + RUN block updated.
+- Validation: pvpgn-v3:round71 + pvpgn-legacy:round71 both green.
+
+## R72: d2cs handle_d2gs.cpp bridges
+- v3 ✅ pvpgn-v3:round72 (1225 assertions / 213 cases)
+- legacy ✅ pvpgn-legacy:round72
+- bridges: AUTHREQ(0x10) / AUTHREPLY(0x11) / SETGSINFO(0x12) / SETINITINFO(0x15) / SETCONFFILE(0x16)
+- files: send_handle_d2gs_bridges.{hpp,cpp}, handle_d2gs.cpp hooks at d2gs_send_init_info, d2gs_send_server_conffile, on_d2gs_authreply, on_d2gs_setgsinfo, handle_d2gs_init
+
+
+## R73: d2cs handle_d2cs.cpp wire existing bridges
+- v3 ✅ pvpgn-v3:round73
+- legacy ✅ pvpgn-legacy:round73
+- wired: joingamereply at L427 (failure path); charloginreply at L628 (expired path)
+
+
+## R74: d2cs simple-reply bridges
+- v3 ✅ pvpgn-v3:round74b (with tests)
+- legacy ✅ pvpgn-legacy:round74
+- new bridges: deletecharreply(0x0a) / motdreply(0x12) / creategamewait(0x14) / convertcharreply(0x18)
+- files: send_simple_replies.{hpp,cpp}, send_simple_replies_test.cpp
+- wired at handle_d2cs.cpp on_client_deletecharreq, on_client_motdreq, d2cs_send_client_creategamewait, on_client_convertcharreq
+
+
+## R75: d2cs variable-length list-reply bridges
+- v3 ? pvpgn-v3:round75b (with tests)
+- legacy ? pvpgn-legacy:round75
+- new bridges: gamelistreply(0x05) entry+terminator / gameinforeply(0x06)
+- files: send_listreply_bridges.{hpp,cpp}, send_listreply_bridges_test.cpp
+- wired at handle_d2cs.cpp on_client_gamelistreq (loop body + terminator), on_client_gameinforeq (pre-create with name array)
+
+
+## R76 -- Re-enable disabled protocol FSMs (bnetd plan Step 3c)
+
+- Created src/v3/application/ports/include/application/ports/command_registry.hpp
+  defining abstract `ICommandRegistry` (dispatch + list_available) so
+  protocol/telnet can depend on the port without coupling to chat-specific
+  concrete `application::chat::CommandRegistry`.
+- src/v3/CMakeLists.txt: re-enabled protocol/telnet/src/admin_fsm.cpp
+  (added protocol_bnet to protocol_telnet PUBLIC_DEPS for session_context.hpp).
+- src/v3/CMakeLists.txt: re-enabled protocol/file/src/bnftp_fsm.cpp
+  (added protocol_bnet to protocol_file PUBLIC_DEPS).
+- Validation: pvpgn-v3:round76 + pvpgn-legacy:round76 green.
+
+## R77 -- ICommandRegistry adapter + admin_fsm dispatch wiring
+
+- src/v3/application/chat/include/application/chat/command_registry.hpp:
+  `CommandRegistry` now inherits `application::ports::ICommandRegistry`;
+  `dispatch` and `list_available` marked `override` (signatures already
+  matched the port verbatim).
+- src/v3/protocol/telnet/src/admin_fsm.cpp:
+  `execute_command` no longer a no-op stub -- it now calls
+  `commands_->dispatch(caller=AccountId{0}, line, *permissions_)`
+  (guest caller until login flow lands). Errors are swallowed to keep the
+  session alive; sending the textual reply is still deferred until a
+  telnet-shaped session-context (vs the BNet-only `ISessionContext`) is
+  introduced.
+- Validation: pvpgn-v3:round77 + pvpgn-legacy:round77 green.
+
+## R79 -- Plan reconnaissance past Step 3c
+
+Read plans/refactoring-plan-legacy-bnetd.md lines 200-400. Roadmap after 3c:
+  * Step 4a-d: Infrastructure -- storage backends (mysql/postgres/odbc impls),
+    tracker, runprog (process), userlog/audit.
+  * Step 5: Connection state-machine decomposition (single largest task --
+    split `t_connection` across TcpSession + domain aggregates + SessionContext).
+  * Step 6: Replace `server.cpp` event loop with `IoRuntime` + `TcpAcceptor`
+    + `FiberPool` + `ShutdownCoordinator`.
+  * Step 7: `services/bnetd/` composition root + `main_bnetd.cpp`.
+  * Step 8: Lua scripting migration.
+
+Deferred (still): R76 LADDERREPLY pagination, R77 CHARLISTREPLY two-pass walk,
+R78 d2cs->bnetd accountlogin/charlogin -- all big enough to warrant their own
+rounds; revisit after a milestone step on the bnetd plan.
+
+## R80 -- infra/tracker (Step 4b: tracker.cpp -> v3 infra)
+
+- src/v3/infra/tracker/include/infra/tracker/tracker_client.hpp:
+  `ReportStats` POD + `TrackServer` + `encode_trackpacket(listen_port, stats)`
+  + `parse_servers(csv, default_port=6114)`. Wire layout matches legacy
+  `t_trackpacket` (TRACK_VERSION=2, 464 bytes, big-endian) byte-for-byte
+  per common/tracker.h offsets 0/2/4/8/40/56/88/152/216/312/376/440..460.
+- src/v3/infra/tracker/src/tracker_client.cpp: pure encoder + parser, no I/O.
+  Hand-rolled write_be16/be32/cstr helpers (no boost, no asio).
+- src/v3/CMakeLists.txt: new `infra_tracker` STATIC library (DEPS: core).
+- tests/unit/infra/tracker/{CMakeLists.txt, tracker_client_test.cpp}:
+  7 test cases / 49 assertions -- header BE layout, NUL padding, oversize
+  truncation, parse_servers (host/host:port/lists/defaults/empty/malformed).
+- tests/unit/infra/CMakeLists.txt: added `add_subdirectory(tracker)`.
+- Dockerfile.v3: `test_infra_tracker_client` added to both the
+  cmake --build target list (line 46) and the RUN test execution block.
+- Validation: pvpgn-v3:round80 green (1225+49 assertions);
+  pvpgn-legacy:round80 green. UDP send and integration with the live
+  bnetd service host are deferred to the Step 6 / Step 7 milestones --
+  this round delivers a fully-tested encoder + parser the future
+  composition root can wire into a UDP socket.
+
+## R81 -- infra/process (Step 4c: runprog.cpp -> v3 infra)
+
+- src/v3/infra/process/include/infra/process/external_program.hpp:
+  `CaptureResult { int exit_status, std::string stdout_text }` +
+  `run_capture(string_view command)` returning `Result<CaptureResult, Error>`.
+- src/v3/infra/process/src/external_program.cpp:
+  * POSIX: pipe+fork+execlp, parent reads child stdout/stderr until EOF, waitpid.
+  * Windows: returns `StatusCode::Unimplemented` (mirrors legacy
+    `#ifndef DO_SUBPROC` always-fail branch).
+  * Argument-vector form deliberately deferred -- legacy only ever calls
+    with a single command-name (matches `execlp(cmd, cmd, NULL)` exactly).
+- src/v3/CMakeLists.txt: new `infra_process` STATIC library (DEPS: core).
+- tests/unit/infra/process/{CMakeLists.txt, external_program_test.cpp}:
+  4 cases / 9 assertions -- empty-command rejection (cross-platform) + 3
+  POSIX-only happy-path tests (`true` exit 0, `echo` "\\n" stdout,
+  missing command exit 127). Windows guard runs a single Unimplemented case.
+- tests/unit/infra/CMakeLists.txt: added `add_subdirectory(process)`.
+- Dockerfile.v3: `test_infra_process_external_program` added to both the
+  build target list and the RUN test execution block.
+- Validation: pvpgn-v3:round81 green (1225+49+9 assertions);
+  pvpgn-legacy:round81 green.
+
+## R82 -- infra/audit file-based audit log (Step 4d)
+
+- src/v3/infra/audit/include/infra/audit/file_audit_log.hpp:
+  `FileAuditLog` implements `ports::IAuditLog` with append-only TSV
+  persistence. Format per line:
+  `<iso8601_utc>\t<action_name>\t<actor_id>\t<subject>\t<details>\n`
+  with tab / newline / backslash escaped via backslash sequences.
+  Exposes static `format_line` and `parse_line` for testability.
+- src/v3/infra/audit/src/file_audit_log.cpp: action_name <-> enum lookup,
+  ISO-8601 UTC encode/decode (gmtime_r/timegm on POSIX, gmtime_s/_mkgmtime
+  on Windows), open in "ab" mode, `fflush` after every record, mutex-
+  serialized writes. `recent(N)` reads the file and returns the tail.
+- src/v3/CMakeLists.txt: added file_audit_log.cpp to infra_audit SOURCES.
+- tests/unit/infra/audit/{CMakeLists.txt, file_audit_log_test.cpp}:
+  6 test cases / 22 assertions -- exact line format, escaping, round-trip
+  parse, malformed-input rejection, persistence-and-replay across two
+  `try_open` instances using std::filesystem::temp_directory_path,
+  `recent(0)` empty result.
+- tests/unit/infra/CMakeLists.txt: added `add_subdirectory(audit)`.
+- Dockerfile.v3: `test_infra_audit_file_audit_log` added to build list
+  + RUN block.
+- Validation: pvpgn-v3:round82 green (1225+49+9+22 assertions);
+  pvpgn-legacy:round82 green.
+
+## R85 -- Telnet admin FSM wires real session sends
+
+- New port: `protocol::telnet::ITelnetSessionContext`
+  (`src/v3/protocol/telnet/include/protocol/telnet/telnet_session_context.hpp`)
+  with `send(ByteView)`, `send_line(string_view)`, `close()`.
+- `TelnetAdminFsm` ctor now takes `shared_ptr<ITelnetSessionContext>`
+  instead of the bnet session context.
+- `admin_fsm.cpp` now actually emits bytes:
+  banner + prompt on connect, echo dispatch result + re-prompt per line,
+  "error: <StatusCode>" on dispatch failure, "bye" + close() on quit/exit.
+- New test `test_protocol_telnet_admin_fsm` -- 6 cases / 16 assertions.
+- Validated: pvpgn-v3:round85 (all suites green, totals unchanged
+  + 16 new asserts), pvpgn-legacy:round85 green.
+
+## R86 -- Shared SQL connection-string parser (step 4a/persistence)
+
+- New header-only API
+  `infra/persistence/connection_string.hpp` -- `ParsedConnectionString` +
+  `parse_connection_string("host[:port]/database")`.
+- Header-only so it is available regardless of whether the optional
+  PVPGN_V3_WITH_MYSQL / PVPGN_V3_WITH_PGSQL backends are enabled (those
+  CMake gates currently mean no .cpp can link reliably; the orphaned
+  `infra_persistence` library is not yet wired into the v3 root build).
+- Handles bare host, host:port, and UNIX-socket-style paths in host.
+  Rejects empty input, missing '/', empty host/database, non-numeric or
+  out-of-range ports, and trailing ':'.
+- New test `test_infra_persistence_connection_string` -- 5 cases /
+  32 assertions; wired in via small INTERFACE shim
+  (`infra_persistence_connection_string_iface`) since the test sits
+  outside the optional backend libraries.
+- Validated: pvpgn-v3:round86 (all suites green + 32 new asserts),
+  pvpgn-legacy:round86 green.
+- Deferred (still part of Step 4a): real MySQL / Postgres connection +
+  query implementations -- those require linking libmariadb /
+  libpq and a running DB for any meaningful test, and adding both to
+  the Alpine v3-test image is its own round.
+
+## R87 -- Wire infra_persistence into v3 root build
+
+- `src/v3/CMakeLists.txt` now does
+  `add_subdirectory(infra/persistence)` directly after the
+  `application_ports` interface library is declared, so the previously
+  orphaned `infra_persistence` target is part of every v3 configure.
+- `src/v3/infra/persistence/CMakeLists.txt` reduced to the buildable
+  subset: `adapter_registry.cpp` + the new `connection_string.cpp`
+  (moved out of the header). `backend_registration.cpp` is still
+  deferred -- it references `infra_sqlite` / `infra_file`, both of
+  which are defined under different target names today
+  (`pvpgn_infra_sqlite` / `pvpgn_infra_file`) and themselves still
+  orphaned. Cleaning that up is the next persistence round.
+- `connection_string.hpp` reverted to a declaration-only header,
+  implementation in `src/connection_string.cpp`. The interface-shim
+  used in R86 is gone; the test now links `infra_persistence`
+  directly.
+- Validated: pvpgn-v3:round87 (all suites green, totals unchanged;
+  connection_string still 5 cases / 32 assertions, now built into the
+  real lib), pvpgn-legacy:round87 green.
+
+## R88 -- d2cs parity harness design (R83/R84 enabler)
+
+- Wrote `plans/d2cs-parity-harness.md` describing the
+  capture/replay architecture for D2CS_CLIENT_LADDERREPLY and
+  D2CS_CLIENT_CHARLISTREPLY:
+  - capture lives next to the existing legacy d2cs bridges, drives
+    `d2cs_send_client_ladder` / `on_client_charlistreq` payload walks
+    against synthetic ladder/charinfo inputs, captures bytes from
+    `conn_push_outqueue`.
+  - replay test (`tests/unit/integration/legacy_d2cs/parity_replay/`)
+    diffs the v3 encoder output against the captured golden file.
+  - bridge gating follows the established
+    `pvpgn_v3_d2cs_send_*_try` pattern (1 = handled, 0 = fallback).
+- Catalogued 7 LADDERREPLY pagination scenarios (0..100 entries,
+  multiple `type` values) and 8 CHARLISTREPLY scenarios covering
+  ASC/DESC, maxchar boundary, allow_newchar=false, and the
+  Directory::OpenError retry branch.
+- Called out concrete risks: legacy `t_packet` pool needs
+  init shim (mirror `send_packet_bridge.cpp`); `-4` truncation
+  needs definitive byte-level inspection; `prefs_get_*` stubbing
+  approach (link shadow vs --wrap) needs a quick toolchain check.
+- No code changes this round; checklist deliverable is the design
+  itself so the next session can capture + bridge with confidence.
+
+## R89 - v3 byte-accurate LADDERREPLY encoder
+
+- [x] Header-only encoder src/v3/protocol/d2cs/include/protocol/d2cs/ladderreply_encoder.hpp
+  - namespace pvpgn::protocol::d2cs::ladderreply
+  - encode(uint8_t type, uint16_t start_pos, vector<LadderInfo>) -> vector<EmittedPacket>
+  - constants kPacketType=0x11, kEntriesPerPacket=14, kLadderInfoSize=28
+  - reproduces legacy d2cs_send_client_ladder, including the
+    first-packet `packet_set_size(rpacket, packet_get_size(rpacket) - 4)`
+    truncation that cuts into the trailing charname bytes.
+- [x] tests/unit/protocol/d2cs/ladderreply_encoder_test.cpp - 6 cases / 67 assertions
+  - empty reply (single 10-byte zero-fields packet)
+  - 1 entry verifies the -4 truncation cuts charname tail
+  - 14 entries (full first packet, total_len=400)
+  - 15 entries (two packets, cont_len=400 on packet 1, count2=0)
+  - 28 entries (two full packets, total_len=796)
+  - start_pos preserved through ladderheader at offset 10
+- [x] registered in tests/unit/protocol/d2cs/CMakeLists.txt
+- [x] added to Dockerfile.v3 build target list + RUN block
+- [x] docker pvpgn-v3:round89 green (suites unchanged + 67/6 new asserts)
+- [x] docker pvpgn-legacy:round89 green
+- [ ] R83/R84 deferred - integration bridge
+      `pvpgn_v3_d2cs_send_ladderreply_try` to consume this encoder.

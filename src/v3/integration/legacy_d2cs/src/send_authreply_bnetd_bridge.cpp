@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+#include "integration/legacy_d2cs/send_authreply_bnetd_bridge.hpp"
+
+#include <cstdint>
+#include <cstring>
+
+#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "protocol/common/writer.hpp"
+#include "protocol/d2cs/bnetd_wire_types.hpp"
+
+extern "C" int pvpgn_v3_d2cs_send_authreply_bnetd(void*        conn_ptr,
+                                                    unsigned int seqno,
+                                                    unsigned int version,
+                                                    char const*  realmname) noexcept {
+    if (conn_ptr == nullptr) return 0;
+    if (realmname == nullptr) return 0;
+
+    namespace bnetd = pvpgn::protocol::d2cs::bnetd;
+
+    const std::size_t realm_len = std::strlen(realmname);
+    const std::size_t total = bnetd::kWireBytesAuthReplyFromD2cs + realm_len + 1;
+    if (total > 0xFFFFu) return 0;
+
+    pvpgn::protocol::Writer w;
+    // header
+    w.write_le<std::uint16_t>(static_cast<std::uint16_t>(total));
+    w.write_le<std::uint16_t>(bnetd::kD2csToBnetdAuthReply);
+    w.write_le<std::uint32_t>(static_cast<std::uint32_t>(seqno));
+    // body
+    w.write_le<std::uint32_t>(static_cast<std::uint32_t>(version));
+    w.write_cstring(realmname);
+
+    auto bytes = w.take();
+    if (bytes.empty()) return 0;
+    if (bytes.size() > pvpgn::integration::legacy_d2cs::kSendPacketMaxSize) {
+        return 0;
+    }
+    return ::pvpgn_v3_d2cs_send_packet_try(
+        conn_ptr,
+        bytes.data(),
+        static_cast<unsigned int>(bytes.size()));
+}

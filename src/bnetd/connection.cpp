@@ -80,6 +80,23 @@
 #include "luainterface.h"
 #endif
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Strangler-fig hook for the bnetd connection dispatcher (state transitions).
+extern "C" int pvpgn_v3_connection_dispatch_try(void* conn_ptr, char const* op) noexcept;
+// Strangler-fig hook for SERVER_ECHOREQ (SID_PING, 0x25) emitted by the
+// latency-probe timer for pre-game bnet clients (conn_test_latency).
+extern "C" int pvpgn_v3_send_echoreq(void* conn_ptr,
+                                      unsigned int ticks) noexcept;
+// Strangler-fig hooks for SERVER_READMEMORY (0x17) and
+// SERVER_REQUIREDWORK (0x4C) anti-cheat probes.
+extern "C" int pvpgn_v3_send_readmemory(void* conn_ptr,
+                                         unsigned int request_id,
+                                         unsigned int address,
+                                         unsigned int length) noexcept;
+extern "C" int pvpgn_v3_send_requiredwork(void* conn_ptr,
+                                           char const* filename) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -251,6 +268,11 @@ namespace pvpgn
 				/* FIXME: I think real Battle.net sends these even before login */
 				if (!conn_get_game(c))
 				{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_echoreq(c, static_cast<unsigned int>(get_ticks())) > 0) {
+						/* handled by v3 */
+					} else
+#endif
 					if ((packet = packet_create(packet_class_bnet)))
 					{
 						packet_set_size(packet, sizeof(t_server_echoreq));
@@ -870,6 +892,9 @@ namespace pvpgn
 
 		extern void conn_set_state(t_connection * c, t_conn_state state)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_connection_dispatch_try(c, conn_state_get_str(state));
+#endif
 			t_elem * elem;
 
 			if (!c)
@@ -4253,6 +4278,14 @@ namespace pvpgn
 			{
 				return -1;
 			}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_send_readmemory(c,
+					static_cast<unsigned int>(request_id),
+					static_cast<unsigned int>(offset),
+					static_cast<unsigned int>(length)) > 0) {
+				return 0;
+			}
+#endif
 			if (!(rpacket = packet_create(packet_class_bnet)))
 				return -1;
 
@@ -4278,6 +4311,11 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL conn");
 				return -1;
 			}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_send_requiredwork(c, filename ? filename : "") > 0) {
+				return 0;
+			}
+#endif
 			if (!(rpacket = packet_create(packet_class_bnet)))
 				return -1;
 

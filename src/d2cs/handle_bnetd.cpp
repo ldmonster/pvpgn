@@ -33,6 +33,26 @@
 #include "game.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// Strangler-fig hook for D2CS_CLIENT_LOGINREPLY (type 0x01). Covers
+// the single push at the end of on_bnetd_accountloginreply.
+extern "C" int pvpgn_v3_d2cs_send_loginreply(void*        conn_ptr,
+                                              unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_createcharreply(void*        conn_ptr,
+                                                   unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_charloginreply(void*        conn_ptr,
+                                                  unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_init_bnetd(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_authreply_bnetd(void*        conn_ptr,
+                                                    unsigned int seqno,
+                                                    unsigned int version,
+                                                    char const*  realmname) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_gameinforeply_bnetd(void*        conn_ptr,
+                                                        unsigned int seqno,
+                                                        char const*  gamename,
+                                                        unsigned int difficulty) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -77,6 +97,13 @@ namespace pvpgn
 		{
 			t_packet * packet;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			if (pvpgn_v3_d2cs_send_init_bnetd(c) == 1) {
+				d2cs_conn_set_state(c, conn_state_connected);
+				eventlog(eventlog_level_info, __FUNCTION__, "sent init class packet to bnetd");
+				return 0;
+			}
+#endif
 			packet = packet_create(packet_class_init);
 			packet_set_size(packet, sizeof(t_client_initconn));
 			bn_byte_set(&packet->u.client_initconn.cclass, CLIENT_INITCONN_CLASS_D2CS_BNETD);
@@ -94,6 +121,14 @@ namespace pvpgn
 
 			sessionnum = bn_int_get(packet->u.bnetd_d2cs_authreq.sessionnum);
 			eventlog(eventlog_level_info, __FUNCTION__, "received bnetd sessionnum {}", sessionnum);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			if (pvpgn_v3_d2cs_send_authreply_bnetd(c,
+			        1u,
+			        static_cast<unsigned int>(D2CS_VERSION_NUMBER),
+			        prefs_get_realmname() ? prefs_get_realmname() : "") == 1) {
+				return 0;
+			}
+#endif
 			if ((rpacket = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(rpacket, sizeof(t_d2cs_bnetd_authreply));
 				packet_set_type(rpacket, D2CS_BNETD_AUTHREPLY);
@@ -166,6 +201,14 @@ namespace pvpgn
 				packet_set_size(rpacket, sizeof(t_d2cs_client_loginreply));
 				packet_set_type(rpacket, D2CS_CLIENT_LOGINREPLY);
 				bn_int_set(&rpacket->u.d2cs_client_loginreply.reply, reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+				if (pvpgn_v3_d2cs_send_loginreply(client,
+				        static_cast<unsigned int>(reply)) == 1) {
+					packet_del_ref(rpacket);
+					sq_destroy(sq, &elem);
+					return 0;
+				}
+#endif
 				conn_push_outqueue(client, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -225,6 +268,14 @@ namespace pvpgn
 					packet_set_size(rpacket, sizeof(t_d2cs_client_createcharreply));
 					packet_set_type(rpacket, D2CS_CLIENT_CREATECHARREPLY);
 					bn_int_set(&rpacket->u.d2cs_client_createcharreply.reply, reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+					if (pvpgn_v3_d2cs_send_createcharreply(client,
+					        static_cast<unsigned int>(reply)) == 1) {
+						packet_del_ref(rpacket);
+						sq_destroy(sq, &elem);
+						return 0;
+					}
+#endif
 					conn_push_outqueue(client, rpacket);
 					packet_del_ref(rpacket);
 				}
@@ -251,6 +302,14 @@ namespace pvpgn
 					packet_set_size(rpacket, sizeof(t_d2cs_client_charloginreply));
 					packet_set_type(rpacket, D2CS_CLIENT_CHARLOGINREPLY);
 					bn_int_set(&rpacket->u.d2cs_client_charloginreply.reply, reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+					if (pvpgn_v3_d2cs_send_charloginreply(client,
+					        static_cast<unsigned int>(reply)) == 1) {
+						packet_del_ref(rpacket);
+						sq_destroy(sq, &elem);
+						return 0;
+					}
+#endif
 					conn_push_outqueue(client, rpacket);
 					packet_del_ref(rpacket);
 				}
@@ -288,6 +347,14 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			if (pvpgn_v3_d2cs_send_gameinforeply_bnetd(c,
+			        0u,
+			        gamename,
+			        static_cast<unsigned int>(game_get_gameflag_difficulty(game))) == 1) {
+				return 0;
+			}
+#endif
 			if ((rpacket = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(rpacket, sizeof(t_d2cs_bnetd_gameinforeply));
 				packet_set_type(rpacket, D2CS_BNETD_GAMEINFOREPLY);

@@ -222,7 +222,7 @@ namespace pvpgn
 			return info;
 
 		err_info:
-			delete static_cast<unsigned int*>(info);
+			delete static_cast<unsigned int*>(const_cast<void*>(info));
 
 		err_dup:
 			delete[] user;

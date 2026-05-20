@@ -20,7 +20,7 @@ int pvpgn_v3_send_adreply(void*                conn_ptr,
                            unsigned int         extension_tag,
                            unsigned long long   timestamp,
                            char const*          filename,
-                           char const*          link);
+                           char const*          link) noexcept;
 
 #ifdef __cplusplus
 }

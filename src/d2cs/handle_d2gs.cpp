@@ -21,6 +21,10 @@
 
 #include <ctime>
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+#include <vector>
+#endif
+
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -39,6 +43,46 @@
 #include "game.h"
 #include "prefs.h"
 #include "common/setup_after.h"
+
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+extern "C" int pvpgn_v3_d2cs_send_creategamereply(void*        conn_ptr,
+                                                   unsigned int seqno,
+                                                   unsigned int gameid,
+                                                   unsigned int u1,
+                                                   unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_joingamereply(void*         conn_ptr,
+                                                 unsigned int  seqno,
+                                                 unsigned int  gameid,
+                                                 unsigned int  u1,
+                                                 std::uint32_t addr_host,
+                                                 std::uint32_t token,
+                                                 unsigned int  reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_authreq_d2gs(void*        conn_ptr,
+                                                 unsigned int seqno,
+                                                 unsigned int sessionnum,
+                                                 unsigned int signlen,
+                                                 char const*  realmname) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_authreply_d2gs(void*        conn_ptr,
+                                                   unsigned int seqno,
+                                                   unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_setgsinfo_d2gs(void*        conn_ptr,
+                                                   unsigned int seqno,
+                                                   unsigned int maxgame,
+                                                   unsigned int gameflag) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_setinitinfo_d2gs(void*        conn_ptr,
+                                                     unsigned int seqno,
+                                                     unsigned int time_value,
+                                                     unsigned int gs_id,
+                                                     unsigned int ac_version,
+                                                     char const*  ac_checksum,
+                                                     char const*  ac_string) noexcept;
+extern "C" int pvpgn_v3_d2cs_send_setconffile_d2gs(void*        conn_ptr,
+                                                     unsigned int seqno,
+                                                     unsigned int size_field,
+                                                     unsigned int reserved1,
+                                                     void const*  data,
+                                                     unsigned int data_size) noexcept;
+#endif
 
 namespace pvpgn
 {
@@ -98,6 +142,17 @@ static void d2gs_send_init_info(t_d2gs * gs, t_connection * c)
 {
 	t_packet * rpacket;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	if (pvpgn_v3_d2cs_send_setinitinfo_d2gs(c,
+	        0u,
+	        static_cast<unsigned int>(std::time(NULL)),
+	        static_cast<unsigned int>(d2gs_get_id(gs)),
+	        0u,
+	        "bogus_ac_checksum",
+	        "bogus_ac_string") == 1) {
+		return;
+	}
+#endif
 	if ((rpacket=packet_create(packet_class_d2gs))) {
 		packet_set_size(rpacket,sizeof(t_d2cs_d2gs_setinitinfo));
 		packet_set_type(rpacket,D2CS_D2GS_SETINITINFO);
@@ -133,6 +188,29 @@ static void d2gs_send_server_conffile(t_d2gs *gs, t_connection *c)
 		goto err_fp;
 	}
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	{
+		// Slurp file into a heap buffer, then call the v3 bridge.
+		// Bridge will fail and fall through if size > MAX_PACKET_SIZE.
+		std::size_t file_sz = static_cast<std::size_t>(sfile.st_size);
+		if (file_sz <= 60000u) {
+			std::vector<unsigned char> buf(file_sz);
+			std::size_t got = std::fread(buf.data(), 1, file_sz, fp);
+			if (got == file_sz &&
+			    pvpgn_v3_d2cs_send_setconffile_d2gs(c,
+			        0u,
+			        static_cast<unsigned int>(sfile.st_size),
+			        static_cast<unsigned int>(std::time(NULL)),
+			        buf.data(),
+			        static_cast<unsigned int>(got)) == 1) {
+				std::fclose(fp);
+				return;
+			}
+			// Bridge declined or read short: rewind and fall through.
+			std::rewind(fp);
+		}
+	}
+#endif
 	rpacket = packet_create(packet_class_d2cs);
 	packet_set_size(rpacket,sizeof(t_d2cs_d2gs_setconffile));
 	packet_set_type(rpacket,D2CS_D2GS_SETCONFFILE);
@@ -216,6 +294,11 @@ static int on_d2gs_authreply(t_connection * c, t_packet * packet)
 		d2cs_conn_set_state(c,conn_state_destroy);
 		*/
 	}
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	if (pvpgn_v3_d2cs_send_authreply_d2gs(c, 0u, static_cast<unsigned int>(reply)) == 1) {
+		return 0;
+	}
+#endif
 	if ((rpacket=packet_create(packet_class_d2gs))) {
 		packet_set_size(rpacket,sizeof(t_d2cs_d2gs_authreply));
 		packet_set_type(rpacket,D2CS_D2GS_AUTHREPLY);
@@ -246,6 +329,14 @@ static int on_d2gs_setgsinfo(t_connection * c, t_packet * packet)
 	eventlog(eventlog_level_info, __FUNCTION__, "change game server {} max game from {} to {} ({} current)",addr_num_to_ip_str(d2cs_conn_get_addr(c)),prev_maxgame, maxgame, currgame);
 	d2gs_set_maxgame(gs,maxgame);
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	if (pvpgn_v3_d2cs_send_setgsinfo_d2gs(c, 0u,
+	        static_cast<unsigned int>(maxgame),
+	        static_cast<unsigned int>(gameflag)) == 1) {
+		gqlist_check_creategame(maxgame - currgame);
+		return 0;
+	}
+#endif
         if ((rpacket=packet_create(packet_class_d2gs))) {
 	    packet_set_size(rpacket,sizeof(t_d2cs_d2gs_setgsinfo));
 	    packet_set_type(rpacket,D2CS_D2GS_SETGSINFO);
@@ -319,6 +410,19 @@ static int on_d2gs_creategamereply(t_connection * c, t_packet * packet)
 		bn_short_set(&rpacket->u.d2cs_client_creategamereply.gameid,1);
 		bn_short_set(&rpacket->u.d2cs_client_creategamereply.u1,1);
 		bn_int_set(&rpacket->u.d2cs_client_creategamereply.reply,reply);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		{
+			unsigned int v3_seqno =
+				bn_short_get(opacket->u.client_d2cs_creategamereq.seqno);
+			if (pvpgn_v3_d2cs_send_creategamereply(client,
+			        v3_seqno, 1u, 1u,
+			        static_cast<unsigned int>(reply)) == 1) {
+				packet_del_ref(rpacket);
+				sq_destroy(sq,&curr);
+				return 0;
+			}
+		}
+#endif
 		conn_push_outqueue(client,rpacket);
 		packet_del_ref(rpacket);
 	}
@@ -420,6 +524,30 @@ static int on_d2gs_joingamereply(t_connection * c, t_packet * packet)
 			bn_int_set(&rpacket->u.d2cs_client_joingamereply.token,0);
 			bn_int_set(&rpacket->u.d2cs_client_joingamereply.addr,0);
 		}
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		{
+			unsigned int v3_seqno =
+				bn_short_get(opacket->u.client_d2cs_joingamereq.seqno);
+			unsigned int v3_gameid =
+				(unsigned short)game_get_d2gs_gameid(game);
+			std::uint32_t v3_addr  = 0;
+			std::uint32_t v3_token = 0;
+			if (reply == D2CS_CLIENT_JOINGAMEREPLY_SUCCEED) {
+				v3_token = sq_get_gametoken(sq);
+				v3_addr  = d2gs_get_ip(gs);
+				unsigned short v3_gsport = 4000;
+				trans_net(d2cs_conn_get_addr(client), &v3_addr, &v3_gsport);
+			}
+			if (pvpgn_v3_d2cs_send_joingamereply(client,
+			        v3_seqno, v3_gameid, 0u,
+			        v3_addr, v3_token,
+			        static_cast<unsigned int>(reply)) == 1) {
+				packet_del_ref(rpacket);
+				sq_destroy(sq,&curr);
+				return 0;
+			}
+		}
+#endif
 		conn_push_outqueue(client,rpacket);
 		packet_del_ref(rpacket);
 	}
@@ -485,6 +613,15 @@ extern int handle_d2gs_init(t_connection * c)
 {
 	t_packet	* packet;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	if (pvpgn_v3_d2cs_send_authreq_d2gs(c, 0u,
+	        static_cast<unsigned int>(d2cs_conn_get_sessionnum(c)),
+	        0u,
+	        prefs_get_realmname() ? prefs_get_realmname() : "") == 1) {
+		eventlog(eventlog_level_info,__FUNCTION__,"sent init packet to d2gs {} (sessionnum={})",conn_get_d2gs_id(c),d2cs_conn_get_sessionnum(c));
+		return 0;
+	}
+#endif
 	if ((packet=packet_create(packet_class_d2gs))) {
 		packet_set_size(packet,sizeof(t_d2cs_d2gs_authreq));
 		packet_set_type(packet,D2CS_D2GS_AUTHREQ);

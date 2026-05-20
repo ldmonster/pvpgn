@@ -119,9 +119,9 @@ TEST_CASE("send_realmjoinreply emits correct wire bytes",
     // = 4 + 20 + 4 + 28 + 20 + 5 = 81 bytes
     REQUIRE(FakeSink::last_bytes.size() == 81u);
 
-    // header: FF 3C 51 00  (SID_REALMJOIN = 0x3C, size = 81 = 0x51)
+    // header: FF 3E 51 00  (kSidRealmJoin = 0x3E = SERVER_REALMJOINREPLY_109 low byte, size = 81 = 0x51)
     REQUIRE(FakeSink::last_bytes[0] == 0xFFu);
-    REQUIRE(FakeSink::last_bytes[1] == 0x3Cu);
+    REQUIRE(FakeSink::last_bytes[1] == 0x3Eu);
     REQUIRE(FakeSink::last_bytes[2] == 81u);
     REQUIRE(FakeSink::last_bytes[3] == 0u);
 

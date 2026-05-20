@@ -284,6 +284,12 @@ core::Status<> encode(Writer& w, const CreateCharReply& m) {
     return emit(w, kClientCreateCharReply, p);
 }
 
+core::Status<> encode(Writer& w, const CharLoginReply& m) {
+    Writer p;
+    p.write_le<std::uint32_t>(m.reply);
+    return emit(w, kClientCharLoginReply, p);
+}
+
 core::Status<> encode(Writer& w, const CreateGameReq& m) {
     Writer p;
     p.write_le<std::uint16_t>(m.seqno);

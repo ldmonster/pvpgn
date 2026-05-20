@@ -325,12 +325,13 @@ pvpgn_v3_add_library(protocol_telnet
     STATIC
     SOURCES
         protocol/telnet/src/codec.cpp
-        # protocol/telnet/src/admin_fsm.cpp  # DISABLED: missing command_registry.hpp
+        protocol/telnet/src/admin_fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/telnet/include
     PUBLIC_DEPS
         core
         protocol_common
+        protocol_bnet
         application_ports
 )
 
@@ -340,12 +341,13 @@ pvpgn_v3_add_library(protocol_file
     STATIC
     SOURCES
         protocol/file/src/codec.cpp
-        # protocol/file/src/bnftp_fsm.cpp  # DISABLED: missing session_context.hpp
+        protocol/file/src/bnftp_fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/file/include
     PUBLIC_DEPS
         core
         protocol_common
+        protocol_bnet
 )
 
 # ---- protocol/d2cs ------------------------------------------------------
@@ -524,6 +526,9 @@ pvpgn_v3_add_library(application_ports
         domain_moderation
         domain_social
 )
+
+# ---- infra/persistence (adapter registry + shared SQL helpers) ----------
+add_subdirectory(infra/persistence)
 
 # ---- application/auth (LoginUser) ---------------------------------------
 
@@ -782,11 +787,36 @@ pvpgn_v3_add_library(infra_audit
     STATIC
     SOURCES
         infra/audit/src/in_memory_audit_log.cpp
+        infra/audit/src/file_audit_log.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/infra/audit/include
     PUBLIC_DEPS
         core
         application_ports
+)
+
+# ---- infra/tracker (UDP track-server reporter) ------------------------------
+
+pvpgn_v3_add_library(infra_tracker
+    STATIC
+    SOURCES
+        infra/tracker/src/tracker_client.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/tracker/include
+    PUBLIC_DEPS
+        core
+)
+
+# ---- infra/process (external program launcher) ------------------------------
+
+pvpgn_v3_add_library(infra_process
+    STATIC
+    SOURCES
+        infra/process/src/external_program.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/process/include
+    PUBLIC_DEPS
+        core
 )
 
 # ---- infra/inmemory (test + dev adapters, header-only) ------------------
@@ -888,6 +918,18 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/send_authreply109_bridge.cpp
         integration/legacy_bnetd/src/send_authinfo_reply_bridge.cpp
         integration/legacy_bnetd/src/send_handshake_bridge.cpp
+        integration/legacy_bnetd/src/send_echoreq_bridge.cpp
+        integration/legacy_bnetd/src/send_messagebox_bridge.cpp
+        integration/legacy_bnetd/src/send_friendadd_ack_bridge.cpp
+        integration/legacy_bnetd/src/send_frienddel_ack_bridge.cpp
+        integration/legacy_bnetd/src/send_friendmove_ack_bridge.cpp
+        integration/legacy_bnetd/src/send_readmemory_bridge.cpp
+        integration/legacy_bnetd/src/send_requiredwork_bridge.cpp
+        integration/legacy_bnetd/src/send_clan_invitereply_bridge.cpp
+        integration/legacy_bnetd/src/send_clan_membernewchief_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_clanmember_remove_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_clanmember_rankupdate_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_changepassack_bridge.cpp
         integration/legacy_bnetd/src/send_loginreply_bridge.cpp
         integration/legacy_bnetd/src/send_loginreply_w3_bridge.cpp
         integration/legacy_bnetd/src/send_logonproof_reply_bridge.cpp
@@ -952,6 +994,18 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/send_clandisbandreply_bridge.cpp
         integration/legacy_bnetd/src/send_clancreateinviteforward_bridge.cpp
         integration/legacy_bnetd/src/send_clancreateinvitereply_bridge.cpp
+        integration/legacy_bnetd/src/d2cs_link_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/bot_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/telnet_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/wol_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/irc_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/connection_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/message_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/server_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/command_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/send_clan_motdreply_bridge.cpp
+        integration/legacy_bnetd/src/encode_clanmemberupdate_bridge.cpp
+        integration/legacy_bnetd/src/clan_bridges.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
     PUBLIC_DEPS
@@ -965,6 +1019,116 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         protocol_common
         protocol_bnet
 )
+
+# ---- integration/legacy_d2cs (strangler-fig scaffold) -------------------
+#
+# Dispatcher-only scaffold for the d2cs server, mirroring the
+# legacy_bnetd pattern. Provides the v3->legacy send_packet
+# C ABI (`pvpgn_v3_d2cs_send_packet_try`) and a runtime-pluggable
+# handler. The linked half (which would call legacy
+# `packet_create(packet_class_d2cs)` + `conn_d2cs_outqueue`) is
+# deferred to a future round, pending extraction of a
+# `d2cs_legacy` static library from the d2cs executable target.
+
+pvpgn_v3_add_library(integration_legacy_d2cs
+    STATIC
+    SOURCES
+        integration/legacy_d2cs/src/send_packet_bridge.cpp
+        integration/legacy_d2cs/src/send_loginreply_bridge.cpp
+        integration/legacy_d2cs/src/send_createcharreply_bridge.cpp
+        integration/legacy_d2cs/src/send_charloginreply_bridge.cpp
+        integration/legacy_d2cs/src/send_creategamereply_bridge.cpp
+        integration/legacy_d2cs/src/send_joingamereply_bridge.cpp
+        integration/legacy_d2cs/src/send_init_bnetd_bridge.cpp
+        integration/legacy_d2cs/src/send_authreply_bnetd_bridge.cpp
+        integration/legacy_d2cs/src/send_gameinforeply_bnetd_bridge.cpp
+        integration/legacy_d2cs/src/send_handle_d2gs_bridges.cpp
+        integration/legacy_d2cs/src/send_simple_replies.cpp
+        integration/legacy_d2cs/src/send_listreply_bridges.cpp
+        integration/legacy_d2cs/src/send_ladderreply_bridge.cpp
+        integration/legacy_d2cs/src/send_charlistreply_bridge.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2cs/include
+    PUBLIC_DEPS
+        core
+        protocol_common
+        protocol_d2cs
+        protocol_d2gs
+)
+
+# ---- integration/legacy_d2cs/linked (real d2cs_legacy hookup) -----------
+#
+# Only built when `d2cs_legacy` is in the same configure (i.e. when
+# WITH_D2CS=ON). Provides the real `send_packet_via_legacy` that
+# wraps the v3 bytes in a `packet_class_raw` t_packet and pushes
+# via `pvpgn::d2cs::conn_push_outqueue`.
+
+if(TARGET d2cs_legacy)
+    pvpgn_v3_add_library(integration_legacy_d2cs_linked
+        STATIC
+        SOURCES
+            integration/legacy_d2cs/src/send_packet_bridge_link.cpp
+        PUBLIC_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2cs/include
+        PUBLIC_DEPS
+            core
+            integration_legacy_d2cs
+        DEPS
+            d2cs_legacy
+    )
+    # Legacy headers are not warning-clean under v3 strict warnings.
+    target_compile_options(integration_legacy_d2cs_linked PRIVATE
+        -w)
+    # Legacy headers expect to be reached as `common/packet.h`,
+    # `d2cs/connection.h`, etc -- i.e. relative to `src/`.
+    target_include_directories(integration_legacy_d2cs_linked PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_BINARY_DIR})
+endif()
+
+# ---- integration/legacy_d2dbs (strangler-fig scaffold) -----------------
+#
+# Dispatcher-only scaffold for the d2dbs server, mirroring the
+# legacy_d2cs pattern.
+
+pvpgn_v3_add_library(integration_legacy_d2dbs
+    STATIC
+    SOURCES
+        integration/legacy_d2dbs/src/send_packet_bridge.cpp
+        integration/legacy_d2dbs/src/send_echorequest_bridge.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2dbs/include
+    PUBLIC_DEPS
+        core
+        protocol_common
+        protocol_d2dbs
+)
+
+# ---- integration/legacy_d2dbs/linked (real d2dbs_legacy hookup) --------
+#
+# Only built when `d2dbs_legacy` is in the same configure.
+# d2dbs has no t_packet outqueue; the linked half memcpys directly
+# into the connection's WriteBuf.
+
+if(TARGET d2dbs_legacy)
+    pvpgn_v3_add_library(integration_legacy_d2dbs_linked
+        STATIC
+        SOURCES
+            integration/legacy_d2dbs/src/send_packet_bridge_link.cpp
+        PUBLIC_INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2dbs/include
+        PUBLIC_DEPS
+            core
+            integration_legacy_d2dbs
+        DEPS
+            d2dbs_legacy
+    )
+    target_compile_options(integration_legacy_d2dbs_linked PRIVATE
+        -w)
+    target_include_directories(integration_legacy_d2dbs_linked PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_BINARY_DIR})
+endif()
 
 # ---- integration/legacy_bnetd/linked (real bnetd_legacy hookup) ---------
 #

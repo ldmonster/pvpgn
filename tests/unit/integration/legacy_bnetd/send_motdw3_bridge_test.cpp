@@ -97,9 +97,9 @@ TEST_CASE("send_motdw3 emits correct wire bytes (null text = empty)",
     // timestamp(4) + timestamp2(4) + "\0"(1) = 22 bytes
     REQUIRE(FakeSink::last_bytes.size() == 22u);
 
-    // header: FF 1A 16 00  (SID_MOTD = 0x1A, size = 22 = 0x16)
+    // header: FF 46 16 00  (kSidMotd = 0x46 = SERVER_MOTD_W3 low byte, size = 22 = 0x16)
     REQUIRE(FakeSink::last_bytes[0] == 0xFFu);
-    REQUIRE(FakeSink::last_bytes[1] == 0x1Au);
+    REQUIRE(FakeSink::last_bytes[1] == 0x46u);
     REQUIRE(FakeSink::last_bytes[2] == 22u);
     REQUIRE(FakeSink::last_bytes[3] == 0u);
 

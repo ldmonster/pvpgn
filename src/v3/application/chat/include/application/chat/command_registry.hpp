@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "application/ports/command_registry.hpp"
 #include "application/ports/permission_checker.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
@@ -24,7 +25,7 @@ namespace pvpgn::application::chat {
 using CommandHandler = std::function<core::Result<std::string, core::Error>(
     domain::AccountId caller, const std::vector<std::string_view>& args)>;
 
-class CommandRegistry {
+class CommandRegistry : public application::ports::ICommandRegistry {
 public:
     CommandRegistry() = default;
 
@@ -36,12 +37,12 @@ public:
     /// Dispatch a command line, checking permissions.
     core::Result<std::string, core::Error>
     dispatch(domain::AccountId caller, std::string_view command_line,
-             const application::ports::IPermissionChecker& checker) const;
+             const application::ports::IPermissionChecker& checker) const override;
 
     /// List all commands available to the given account.
     std::vector<std::string> list_available(
         domain::AccountId caller,
-        const application::ports::IPermissionChecker& checker) const;
+        const application::ports::IPermissionChecker& checker) const override;
 
 private:
     struct CommandEntry {

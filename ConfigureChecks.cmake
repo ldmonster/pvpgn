@@ -82,9 +82,21 @@ if(WITH_MYSQL)
 endif(WITH_MYSQL)
 if(WITH_SQLITE3)
     find_package(SQLite3 REQUIRED)
+    # CMake's FindSQLite3 sets SQLite3_*; legacy bnetd CMakeLists references
+    # the SQLITE3_* spelling. Mirror the variables so target_link_libraries works.
+    set(SQLITE3_FOUND        ${SQLite3_FOUND})
+    set(SQLITE3_INCLUDE_DIR  ${SQLite3_INCLUDE_DIRS})
+    set(SQLITE3_INCLUDE_DIRS ${SQLite3_INCLUDE_DIRS})
+    set(SQLITE3_LIBRARIES    ${SQLite3_LIBRARIES})
 endif(WITH_SQLITE3)
 if(WITH_PGSQL)
     find_package(PostgreSQL REQUIRED)
+    # CMake's FindPostgreSQL sets PostgreSQL_*; legacy bnetd CMakeLists
+    # references the PGSQL_* spelling. Mirror the variables.
+    set(PGSQL_FOUND        ${PostgreSQL_FOUND})
+    set(PGSQL_INCLUDE_DIR  ${PostgreSQL_INCLUDE_DIRS})
+    set(PGSQL_INCLUDE_DIRS ${PostgreSQL_INCLUDE_DIRS})
+    set(PGSQL_LIBRARIES    ${PostgreSQL_LIBRARIES})
 endif(WITH_PGSQL)
 
 

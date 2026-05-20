@@ -1,4 +1,6 @@
 add_subdirectory(legacy_bnetd)
+add_subdirectory(legacy_d2cs)
+add_subdirectory(legacy_d2dbs)
 if(TARGET pvpgn_integration_wol)
     add_subdirectory(wol)
 endif()

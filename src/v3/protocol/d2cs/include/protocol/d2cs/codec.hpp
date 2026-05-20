@@ -50,7 +50,10 @@ inline constexpr std::uint8_t kClientGameInfoReply   = 0x06;
 // 0x17 — char-list
 inline constexpr std::uint8_t kClientCharListReq     = 0x17;
 inline constexpr std::uint8_t kClientCharListReply   = 0x17;
-
+// 0x07 -- server -> client char-login result (no client request variant
+// of this opcode exists; this is the bnetd-relayed reply to
+// CLIENT_D2CS_CHARLOGINREQ)
+inline constexpr std::uint8_t kClientCharLoginReply  = 0x07;
 struct D2csHeader {
     std::uint16_t size = 0;
     std::uint8_t  type = 0;
@@ -101,6 +104,18 @@ inline constexpr std::uint32_t kCreateCharReplyNameRejected  = 0x15;
 struct CreateCharReply {
     std::uint32_t reply = kCreateCharReplyOk;
     bool operator==(const CreateCharReply&) const = default;
+};
+
+// ---- 0x07 CHARLOGINREPLY (server -> client only) ------------------------
+
+inline constexpr std::uint32_t kCharLoginReplySucceed  = 0x00;
+inline constexpr std::uint32_t kCharLoginReplyFailed   = 0x01;
+inline constexpr std::uint32_t kCharLoginReplyNotFound = 0x46;
+inline constexpr std::uint32_t kCharLoginReplyExpired  = 0x7B;
+
+struct CharLoginReply {
+    std::uint32_t reply = kCharLoginReplySucceed;
+    bool operator==(const CharLoginReply&) const = default;
 };
 
 // ---- 0x03 CREATEGAME ----------------------------------------------------
@@ -245,6 +260,7 @@ core::Status<> encode(Writer& w, const LoginReq&        m);
 core::Status<> encode(Writer& w, const LoginReply&      m);
 core::Status<> encode(Writer& w, const CreateCharReq&   m);
 core::Status<> encode(Writer& w, const CreateCharReply& m);
+core::Status<> encode(Writer& w, const CharLoginReply&  m);
 core::Status<> encode(Writer& w, const CreateGameReq&   m);
 core::Status<> encode(Writer& w, const CreateGameReply& m);
 core::Status<> encode(Writer& w, const JoinGameReq&     m);

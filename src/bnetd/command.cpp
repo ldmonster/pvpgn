@@ -90,6 +90,24 @@
 #endif
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Strangler-fig hook for the bnetd chat-command dispatcher.
+extern "C" int pvpgn_v3_command_dispatch_try(void* conn_ptr, char const* op) noexcept;
+// Strangler-fig hooks for the SERVER_FRIEND{ADD,DEL,MOVE}_ACK packets
+// emitted by the /f a, /f r, /f promote, /f demote handlers below.
+extern "C" int pvpgn_v3_send_friendadd_ack(void* conn_ptr,
+                                            char const* name,
+                                            unsigned int status,
+                                            unsigned int location,
+                                            unsigned int client_tag,
+                                            char const* location_name) noexcept;
+extern "C" int pvpgn_v3_send_frienddel_ack(void* conn_ptr,
+                                            unsigned int friend_num) noexcept;
+extern "C" int pvpgn_v3_send_friendmove_ack(void* conn_ptr,
+                                             unsigned int pos1,
+                                             unsigned int pos2) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -561,6 +579,10 @@ namespace pvpgn
 		{
 			int result = 0;
 			t_command_table_row const *p;
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_command_dispatch_try(c, text);
+#endif
 
 #ifdef WITH_LUA
 				// feature to ignore flood protection
@@ -1582,6 +1604,23 @@ namespace pvpgn
 				else if (channel) packet_append_string(rpacket, channel_get_name(channel));
 				else packet_append_string(rpacket, "");
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					char const* v3_loc =
+						game     ? game_get_name(game)
+						: channel ? channel_get_name(channel)
+						: "";
+					if (pvpgn_v3_send_friendadd_ack(c,
+							account_get_name(friend_acc),
+							static_cast<unsigned int>(bn_byte_get(status.status)),
+							static_cast<unsigned int>(bn_byte_get(status.location)),
+							static_cast<unsigned int>(bn_int_get(status.clienttag)),
+							v3_loc ? v3_loc : "") > 0) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -1651,6 +1690,12 @@ namespace pvpgn
 
 					bn_byte_set(&rpacket->u.server_frienddel_ack.friendnum, num);
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_frienddel_ack(c, static_cast<unsigned int>(num)) > 0) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 
@@ -1695,6 +1740,14 @@ namespace pvpgn
 					bn_byte_set(&rpacket->u.server_friendmove_ack.pos1, n - 1);
 					bn_byte_set(&rpacket->u.server_friendmove_ack.pos2, n);
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_friendmove_ack(c,
+							static_cast<unsigned int>(n - 1),
+							static_cast<unsigned int>(n)) > 0) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 					return 0;
@@ -1738,6 +1791,14 @@ namespace pvpgn
 					bn_byte_set(&rpacket->u.server_friendmove_ack.pos1, n);
 					bn_byte_set(&rpacket->u.server_friendmove_ack.pos2, n + 1);
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_friendmove_ack(c,
+							static_cast<unsigned int>(n),
+							static_cast<unsigned int>(n + 1)) > 0) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 					return 0;

@@ -119,6 +119,7 @@
 #include "application/auth/password_rotation_observer.hpp"
 #include "infra/inmemory/event_bus.hpp"
 #include "integration/legacy_bnetd/install_v3_handlers.hpp"
+extern "C" int pvpgn_v3_server_dispatch_try(void* opaque, char const* op) noexcept;
 #endif
 
 extern std::FILE * hexstrm; /* from main.c */
@@ -1940,7 +1941,7 @@ namespace pvpgn
 			t_addrlist *    laddrs;
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
-			// Composition root (Batch 21e + 23c): install a
+			(void)pvpgn_v3_server_dispatch_try(nullptr, "process");
 			// `core::ILogger` adapter as the v3 default sink so any
 			// application/integration code that calls
 			// `pvpgn::core::log(...)` routes through a single seam.

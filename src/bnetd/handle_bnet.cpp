@@ -229,6 +229,41 @@ extern "C" int pvpgn_v3_send_sessionkey1(void* conn_ptr,
 extern "C" int pvpgn_v3_send_sessionkey2(void* conn_ptr,
                                          unsigned int sessionnum,
                                          unsigned int sessionkey) noexcept;
+// Strangler-fig hook for SERVER_ECHOREQ (SID_PING, 0x25) — initial echo
+// challenge emitted by _client_auth_info before SERVER_AUTHREQ_109.
+extern "C" int pvpgn_v3_send_echoreq(void* conn_ptr,
+                                      unsigned int ticks) noexcept;
+// Strangler-fig hook for SERVER_CLAN_INVITEREPLY (SID 0x77). Covers 2
+// packet_create sites: the early-reject in _client_clan_invitereq and the
+// invitee-response reply in _client_clan_invitereply.
+extern "C" int pvpgn_v3_send_clan_invitereply(void*         conn_ptr,
+                                               unsigned int  count,
+                                               unsigned char result) noexcept;
+// Strangler-fig hook for SERVER_CLAN_MEMBERNEWCHIEFREPLY (SID 0x74). Covers
+// only the FAILED branch in _client_clan_membernewchiefreq; the SUCCESS
+// branch broadcasts via clan_send_packet_to_online_members() and stays on
+// the legacy path.
+extern "C" int pvpgn_v3_send_clan_membernewchief_reply(void*         conn_ptr,
+                                                        unsigned int  count,
+                                                        unsigned char result) noexcept;
+// Strangler-fig hook for SERVER_CLANMEMBER_REMOVE_REPLY (SID 0x78). Covers
+// the single-recipient reply at the end of _client_clanmember_removereq.
+// The interleaved 0x7E SERVER_CLANMEMBER_REMOVED_NOTIFY is a broadcast
+// (clan_send_packet_to_online_members) and stays on the legacy path.
+extern "C" int pvpgn_v3_send_clanmember_remove_reply(void*         conn_ptr,
+                                                     unsigned int  count,
+                                                     unsigned char result) noexcept;
+// Strangler-fig hook for SERVER_CLANMEMBER_RANKUPDATE_REPLY (SID 0x7A).
+// Covers the single-recipient reply emitted by
+// _client_clanmember_rankupdatereq.
+extern "C" int pvpgn_v3_send_clanmember_rankupdate_reply(void*         conn_ptr,
+                                                          unsigned int  count,
+                                                          unsigned char result) noexcept;
+// Strangler-fig hook for SERVER_CHANGEPASSACK (SID 0x31). Covers the single
+// push at the end of _client_changepassreq (the legacy double-hash
+// password change flow predating the NLS / SRP path).
+extern "C" int pvpgn_v3_send_changepassack(void*        conn_ptr,
+                                            unsigned int message) noexcept;
 // Strangler-fig hook for SERVER_AUTHREQ1 (0x06) — CheckRevision challenge
 // sent in response to CLIENT_PROGIDENT. Covers the 1 packet_create site in
 // _client_progident.
@@ -959,6 +994,9 @@ namespace pvpgn
 
 				/* First, send an ECHO_REQ */
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_echoreq(c, static_cast<unsigned int>(get_ticks())) <= 0)
+#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_echoreq));
 					packet_set_type(rpacket, SERVER_ECHOREQ);
@@ -1110,7 +1148,7 @@ namespace pvpgn
 					packet_set_size(rpacket, sizeof(t_server_authreq1));
 					packet_set_type(rpacket, SERVER_AUTHREQ1);
 
-					rpacket->u.server_authreq1.timestamp = ts_bn; // Checkrevision file timestamp
+					bn_long_set(&rpacket->u.server_authreq1.timestamp, bn_long_get(ts_bn)); // Checkrevision file timestamp
 					packet_append_string(rpacket, std::get<0>(checkrevision).c_str()); // CheckRevision filename
 					packet_append_string(rpacket, std::get<1>(checkrevision).c_str()); // CheckRevision equation
 
@@ -1492,6 +1530,16 @@ namespace pvpgn
 					}
 				}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					unsigned int msg_v3 = static_cast<unsigned int>(
+						bn_int_get(rpacket->u.server_changepassack.message));
+					if (pvpgn_v3_send_changepassack(c, msg_v3) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 
@@ -3887,6 +3935,27 @@ namespace pvpgn
 
 			if (date < motdd->lnews)
 				return -1;		/* exit traversing */
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// Strangler-fig: emit per-news SERVER_MOTD_W3 via the v3 codec.
+			// `packet_append_lstr` writes (len - 1) text bytes + a NUL
+			// terminator -- byte-identical to `write_cstring(lstr_get_str)`
+			// when lstr is a normal NUL-terminated string (the only shape
+			// produced by lstr_set_str in this codebase).
+			{
+				int v3rc = pvpgn_v3_send_motdw3(
+				    motdd->c,
+				    SERVER_MOTD_W3_MSGTYPE,
+				    static_cast<unsigned int>(now),
+				    static_cast<unsigned int>(motdd->fnews),
+				    static_cast<unsigned int>(date),
+				    static_cast<unsigned int>(date),
+				    lstr_get_str(lstr));
+				if (v3rc == 1) {
+					return 0;
+				}
+			}
+#endif
 
 			rpacket = packet_create(packet_class_bnet);
 			if (!rpacket)
@@ -6735,6 +6804,18 @@ namespace pvpgn
 				else {
 					bn_byte_set(&rpacket->u.server_clanmember_rankupdate_reply.result, SERVER_CLANMEMBER_RANKUPDATE_FAILED);
 				}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					unsigned int  count_v3  = static_cast<unsigned int>(
+						bn_int_get(rpacket->u.server_clanmember_rankupdate_reply.count));
+					unsigned char result_v3 = static_cast<unsigned char>(
+						bn_byte_get(rpacket->u.server_clanmember_rankupdate_reply.result));
+					if (pvpgn_v3_send_clanmember_rankupdate_reply(c, count_v3, result_v3) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -6788,6 +6869,18 @@ namespace pvpgn
 							SERVER_CLANMEMBER_REMOVE_SUCCESS);
 					}
 				}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					unsigned int  count_v3  = static_cast<unsigned int>(
+						bn_int_get(rpacket->u.server_clanmember_remove_reply.count));
+					unsigned char result_v3 = static_cast<unsigned char>(
+						bn_byte_get(rpacket->u.server_clanmember_remove_reply.result));
+					if (pvpgn_v3_send_clanmember_remove_reply(c, count_v3, result_v3) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -6825,9 +6918,18 @@ namespace pvpgn
 					packet_del_ref(rpacket);
 				}
 				else {
-					bn_byte_set(&rpacket->u.server_clan_membernewchiefreply.result, SERVER_CLAN_MEMBERNEWCHIEFREPLY_FAILED);
-					conn_push_outqueue(c, rpacket);
-					packet_del_ref(rpacket);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					if (pvpgn_v3_send_clan_membernewchief_reply(c,
+							static_cast<unsigned int>(bn_int_get(rpacket->u.server_clan_membernewchiefreply.count)),
+							static_cast<unsigned char>(SERVER_CLAN_MEMBERNEWCHIEFREPLY_FAILED)) == 1) {
+						packet_del_ref(rpacket);
+					} else
+#endif
+					{
+						bn_byte_set(&rpacket->u.server_clan_membernewchiefreply.result, SERVER_CLAN_MEMBERNEWCHIEFREPLY_FAILED);
+						conn_push_outqueue(c, rpacket);
+						packet_del_ref(rpacket);
+					}
 				}
 			}
 
@@ -6913,6 +7015,14 @@ namespace pvpgn
 				bn_byte_set(&rpacket->u.server_clan_invitereply.result, response_code);
 				bn_int_set(&rpacket->u.server_clan_invitereply.count, bn_int_get(packet->u.client_clan_invitereq.count));
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				if (pvpgn_v3_send_clan_invitereply(c,
+						static_cast<unsigned int>(bn_int_get(packet->u.client_clan_invitereq.count)),
+						static_cast<unsigned char>(response_code)) == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
+#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -7005,6 +7115,18 @@ namespace pvpgn
 						bn_byte_set(&rpacket->u.server_clan_invitereply.result, CLAN_RESPONSE_SUCCESS);
 					}
 				}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				{
+					unsigned int  count_v3  = static_cast<unsigned int>(
+						bn_int_get(rpacket->u.server_clan_invitereply.count));
+					unsigned char result_v3 = static_cast<unsigned char>(
+						bn_byte_get(rpacket->u.server_clan_invitereply.result));
+					if (pvpgn_v3_send_clan_invitereply(conn, count_v3, result_v3) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+#endif
 			}
 
 			conn_push_outqueue(conn, rpacket);

@@ -190,6 +190,42 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_send_handshake_bridge
     SOURCES send_handshake_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
 
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_echoreq_bridge
+    SOURCES send_echoreq_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_messagebox_bridge
+    SOURCES send_messagebox_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_friend_acks_bridges
+    SOURCES send_friend_acks_bridges_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_antihack_bridges
+    SOURCES send_antihack_bridges_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_clan_invitereply_bridge
+    SOURCES send_clan_invitereply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_clan_membernewchief_reply_bridge
+    SOURCES send_clan_membernewchief_reply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_clanmember_remove_reply_bridge
+    SOURCES send_clanmember_remove_reply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_clanmember_rankupdate_reply_bridge
+    SOURCES send_clanmember_rankupdate_reply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_changepassack_bridge
+    SOURCES send_changepassack_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
 pvpgn_v3_add_test(test_integration_legacy_bnetd_send_chatevent_compose_bridge
     SOURCES send_chatevent_compose_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
@@ -317,4 +353,52 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_send_clancreateinviteforward_bri
 
 pvpgn_v3_add_test(test_integration_legacy_bnetd_send_clancreateinvitereply_bridge
     SOURCES send_clancreateinvitereply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_d2cs_link_dispatch_bridge
+    SOURCES d2cs_link_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_bot_dispatch_bridge
+    SOURCES bot_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_telnet_dispatch_bridge
+    SOURCES telnet_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_wol_dispatch_bridge
+    SOURCES wol_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_irc_dispatch_bridge
+    SOURCES irc_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_connection_dispatch_bridge
+    SOURCES connection_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_message_dispatch_bridge
+    SOURCES message_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_server_dispatch_bridge
+    SOURCES server_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_command_dispatch_bridge
+    SOURCES command_dispatch_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_clan_motdreply_bridge
+    SOURCES send_clan_motdreply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_encode_clanmemberupdate_bridge
+    SOURCES encode_clanmemberupdate_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_clan_bridges
+    SOURCES clan_bridges_test.cpp
     DEPS    integration_legacy_bnetd)

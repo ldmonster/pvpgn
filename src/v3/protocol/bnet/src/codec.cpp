@@ -3168,7 +3168,7 @@ core::Status<> encode(Writer& w, const CdKey2Request& m) {
 core::Status<> encode(Writer& w, const CdKey2Reply& m) {
     w.begin_bnet_packet(kSidCdKey2);
     w.write_le<std::uint32_t>(m.result);
-    if (!m.owner.empty()) w.write_cstring(m.owner);
+    w.write_cstring(m.owner);
     return w.finalize_bnet_packet();
 }
 
@@ -3705,9 +3705,7 @@ core::Status<> encode(Writer& w, const CdKey3Request& m) {
 core::Status<> encode(Writer& w, const CdKey3Reply& m) {
     w.begin_bnet_packet(kSidCdKey3);
     w.write_le<std::uint32_t>(m.message);
-    if (!m.owner_name.empty()) {
-        w.write_cstring(m.owner_name);
-    }
+    w.write_cstring(m.owner_name);
     return w.finalize_bnet_packet();
 }
 
@@ -4151,7 +4149,7 @@ core::Status<> encode(Writer& w, const CdKeyLegacyRequest& m) {
 core::Status<> encode(Writer& w, const CdKeyLegacyReply& m) {
     w.begin_bnet_packet(kSidCdKeyLegacy);
     w.write_le<std::uint32_t>(m.message);
-    if (!m.owner_name.empty()) w.write_cstring(m.owner_name);
+    w.write_cstring(m.owner_name);
     return w.finalize_bnet_packet();
 }
 core::Status<> encode(Writer& w, const ChangePasswordRequest& m) {

@@ -39,6 +39,13 @@
 #endif
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Strangler-fig hook for the bnetd Bot/Telnet protocol dispatcher.
+// Observation-only: logs each call to handle_bot_packet keyed by the
+// connection state name. Returns 0; legacy path always runs.
+extern "C" int pvpgn_v3_bot_dispatch_try(void* conn_ptr, char const* op) noexcept;
+#endif
+
 
 namespace pvpgn
 {
@@ -75,6 +82,10 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad packet (class {})", conn_get_socket(c), (int)packet_get_class(packet));
 				return -1;
 			}
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bot_dispatch_try(c, conn_state_get_str(conn_get_state(c)));
+#endif
 
 			{
 				char const * const linestr = packet_get_str_const(packet, 0, MAX_MESSAGE_LEN);

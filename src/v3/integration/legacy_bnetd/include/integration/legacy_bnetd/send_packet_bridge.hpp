@@ -67,4 +67,12 @@ int pvpgn_v3_send_packet_try(void* conn_ptr,
                              void const* bytes,
                              unsigned int size) noexcept;
 
+/// Cheap probe: returns 1 if a send-packet handler is currently
+/// registered (i.e. a subsequent `pvpgn_v3_send_packet_try` call may
+/// succeed), 0 otherwise. Intended for all-or-nothing broadcast
+/// callers that need to decide whether to dispatch via the v3 sink
+/// or fall through to legacy iteration before doing any work. The
+/// probe never touches the connection or buffer state.
+int pvpgn_v3_send_packet_available(void) noexcept;
+
 }  // extern "C"

@@ -18,6 +18,8 @@
 #include "clan.h"
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include <cstring>
 #include <strings.h>
@@ -55,6 +57,62 @@
 // Observation bridge for clan packet-send functions (Step 4 E.3).
 extern "C" int pvpgn_v3_clan_send_try(void* conn_ptr,
                                       char const* op) noexcept;
+// Send-replacement bridge for SERVER_CLAN_MOTDREPLY (Step 4 E.4 Round 50).
+extern "C" int pvpgn_v3_send_clan_motdreply(void*        conn_ptr,
+                                             unsigned int cookie,
+                                             unsigned int unknown1,
+                                             char const*  motd) noexcept;
+// Encode-only bridge for SERVER_CLANMEMBERUPDATE broadcast (Step 4 E.4
+// Round 51). The legacy code owns the `clan->members` iteration; this
+// helper just produces the wire bytes so the caller can broadcast them
+// via `pvpgn_v3_send_packet_try`.
+extern "C" int pvpgn_v3_encode_clanmemberupdate(char const*    name,
+                                                 unsigned char  status,
+                                                 unsigned char  online_flag,
+                                                 char const*    online_status,
+                                                 unsigned char* out_buf,
+                                                 unsigned int   max_size,
+                                                 unsigned int*  out_size) noexcept;
+// Generic v3 send-packet dispatcher (already provided by
+// integration_legacy_bnetd). Returns 1 on full v3 success, 0 otherwise.
+extern "C" int pvpgn_v3_send_packet_try(void*        conn_ptr,
+                                         void const*  bytes,
+                                         unsigned int size) noexcept;
+// Cheap probe: 1 if the v3 send-packet sink is registered, 0 otherwise.
+extern "C" int pvpgn_v3_send_packet_available(void) noexcept;
+// Round 52-55: clan_bridges family.
+extern "C" int pvpgn_v3_encode_clanmemberlist_reply(unsigned int          cookie,
+                                                     unsigned int          member_count,
+                                                     char const* const*    names,
+                                                     unsigned char const*  statuses,
+                                                     unsigned char const*  online_flags,
+                                                     char const* const*    online_statuses,
+                                                     unsigned char*        out_buf,
+                                                     unsigned int          max_size,
+                                                     unsigned int*         out_size) noexcept;
+extern "C" int pvpgn_v3_encode_clan_createreply(unsigned int       cookie,
+                                                 unsigned char      check_result,
+                                                 unsigned int       friend_count,
+                                                 char const* const* friend_names,
+                                                 unsigned char*     out_buf,
+                                                 unsigned int       max_size,
+                                                 unsigned int*      out_size) noexcept;
+extern "C" int pvpgn_v3_send_clan_clanack(void*         conn_ptr,
+                                           unsigned char unknown1,
+                                           unsigned int  clantag,
+                                           unsigned char status) noexcept;
+extern "C" int pvpgn_v3_encode_clan_clanack(unsigned char  unknown1,
+                                             unsigned int   clantag,
+                                             unsigned char  status,
+                                             unsigned char* out_buf,
+                                             unsigned int   max_size,
+                                             unsigned int*  out_size) noexcept;
+extern "C" int pvpgn_v3_encode_clan_quitnotify(unsigned char  status,
+                                                unsigned char* out_buf,
+                                                unsigned int   max_size,
+                                                unsigned int*  out_size) noexcept;
+extern "C" int pvpgn_v3_send_clan_quitnotify(void*         conn_ptr,
+                                              unsigned char status) noexcept;
 #endif
 
 namespace pvpgn
@@ -247,8 +305,24 @@ namespace pvpgn
 					bn_byte_set(&rpacket->u.server_clan_clanack.status, member->status);
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 					(void)pvpgn_v3_clan_send_try(conn, "clan_send_status_window_on_create");
-#endif
+					{
+						int v3_ok = 0;
+						if (pvpgn_v3_send_packet_available()) {
+							unsigned char v3_buf[16];
+							unsigned int  v3_size = 0;
+							if (pvpgn_v3_encode_clan_clanack(0,
+							        static_cast<unsigned int>(clan->tag),
+							        static_cast<unsigned char>(member->status),
+							        v3_buf, sizeof(v3_buf), &v3_size) == 1) {
+								v3_ok = (pvpgn_v3_send_packet_try(conn, v3_buf, v3_size) == 1);
+							}
+						}
+						if (!v3_ok)
+							conn_push_outqueue(conn, rpacket);
+					}
+#else
 					conn_push_outqueue(conn, rpacket);
+#endif
 				}
 				packet_del_ref(rpacket);
 			}
@@ -296,8 +370,23 @@ namespace pvpgn
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 					(void)pvpgn_v3_clan_send_try(conn, "clan_close_status_window_on_disband");
-#endif
+					{
+						int v3_ok = 0;
+						if (pvpgn_v3_send_packet_available()) {
+							unsigned char v3_buf[8];
+							unsigned int  v3_size = 0;
+							if (pvpgn_v3_encode_clan_quitnotify(
+							        static_cast<unsigned char>(SERVER_CLANQUITNOTIFY_STATUS_REMOVED_FROM_CLAN),
+							        v3_buf, sizeof(v3_buf), &v3_size) == 1) {
+								v3_ok = (pvpgn_v3_send_packet_try(conn, v3_buf, v3_size) == 1);
+							}
+						}
+						if (!v3_ok)
+							conn_push_outqueue(conn, rpacket);
+					}
+#else
 					conn_push_outqueue(conn, rpacket);
+#endif
 					conn_update_w3_playerinfo(conn);
 				}
 				packet_del_ref(rpacket);
@@ -351,6 +440,12 @@ namespace pvpgn
 				bn_byte_set(&rpacket->u.server_clan_clanack.status, member->status);
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_clan_send_try(c, "clan_send_status_window");
+				if (pvpgn_v3_send_clan_clanack(c, 0,
+				        static_cast<unsigned int>(member->clan->tag),
+				        static_cast<unsigned char>(member->status)) == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
 #endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
@@ -379,6 +474,11 @@ namespace pvpgn
 				bn_byte_set(&rpacket->u.server_clanquitnotify.status, SERVER_CLANQUITNOTIFY_STATUS_REMOVED_FROM_CLAN);
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_clan_send_try(c, "clan_close_status_window");
+				if (pvpgn_v3_send_clan_quitnotify(c,
+				        static_cast<unsigned char>(SERVER_CLANQUITNOTIFY_STATUS_REMOVED_FROM_CLAN)) == 1) {
+					packet_del_ref(rpacket);
+					return 0;
+				}
 #endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
@@ -407,6 +507,13 @@ namespace pvpgn
 			if ((rpacket = packet_create(packet_class_bnet)))
 			{
 				t_account * memberacc;
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				// v3 parallel-collection buffers for the encode bridge.
+				std::vector<std::string> v3_names;
+				std::vector<std::string> v3_online_statuses;
+				std::vector<unsigned char> v3_statuses;
+				std::vector<unsigned char> v3_online_flags;
+#endif
 
 				packet_set_size(rpacket, sizeof(t_server_clanmemberlist_reply));
 				packet_set_type(rpacket, SERVER_CLANMEMBERLIST_REPLY);
@@ -435,11 +542,42 @@ namespace pvpgn
 						packet_append_string(rpacket, append_str);
 					else
 						packet_append_string(rpacket, "");
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+					v3_names.emplace_back(username ? username : "");
+					v3_statuses.push_back(static_cast<unsigned char>(member->status));
+					v3_online_flags.push_back(static_cast<unsigned char>(tmpstr[1]));
+					v3_online_statuses.emplace_back(append_str ? append_str : "");
+#endif
 					count++;
 				}
 				bn_byte_set(&rpacket->u.server_clanmemberlist_reply.member_count, count);
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_clan_send_try(c, "clan_send_memberlist");
+				if (pvpgn_v3_send_packet_available())
+				{
+					std::vector<char const*> name_ptrs;
+					std::vector<char const*> online_status_ptrs;
+					name_ptrs.reserve(v3_names.size());
+					online_status_ptrs.reserve(v3_online_statuses.size());
+					for (auto const& s : v3_names) name_ptrs.push_back(s.c_str());
+					for (auto const& s : v3_online_statuses) online_status_ptrs.push_back(s.c_str());
+
+					unsigned char v3_buf[3072];
+					unsigned int  v3_size = 0;
+					if (pvpgn_v3_encode_clanmemberlist_reply(
+					        static_cast<unsigned int>(bn_int_get(packet->u.client_clanmemberlist_req.count)),
+					        static_cast<unsigned int>(v3_names.size()),
+					        name_ptrs.data(),
+					        v3_statuses.data(),
+					        v3_online_flags.data(),
+					        online_status_ptrs.data(),
+					        v3_buf, sizeof(v3_buf), &v3_size) == 1) {
+						if (pvpgn_v3_send_packet_try(c, v3_buf, v3_size) == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+				}
 #endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
@@ -497,6 +635,17 @@ namespace pvpgn
 				packet_append_string(rpacket, clan->clan_motd);
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_clan_send_try(c, "clan_send_motd_reply");
+				{
+					int v3rc = pvpgn_v3_send_clan_motdreply(
+					    c,
+					    static_cast<unsigned int>(bn_int_get(packet->u.client_clan_motdreq.count)),
+					    static_cast<unsigned int>(SERVER_CLAN_MOTDREPLY_UNKNOW1),
+					    clan->clan_motd);
+					if (v3rc == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
 #endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
@@ -524,6 +673,9 @@ namespace pvpgn
 			{
 				return -1;
 			}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			std::vector<std::string> v3_friend_names;
+#endif
 			packet_set_size(rpacket, sizeof(t_server_clan_createreply));
 			packet_set_type(rpacket, SERVER_CLAN_CREATEREPLY);
 			bn_int_set(&rpacket->u.server_clan_createreply.count, bn_int_get(packet->u.client_clan_createreq.count));
@@ -533,6 +685,20 @@ namespace pvpgn
 				bn_byte_set(&rpacket->u.server_clan_createreply.friend_count, 0);
 	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_clan_send_try(c, "clan_get_possible_member_tag_in_use");
+				if (pvpgn_v3_send_packet_available()) {
+					unsigned char v3_buf[16];
+					unsigned int  v3_size = 0;
+					if (pvpgn_v3_encode_clan_createreply(
+					        static_cast<unsigned int>(bn_int_get(packet->u.client_clan_createreq.count)),
+					        static_cast<unsigned char>(SERVER_CLAN_CREATEREPLY_CHECK_ALLREADY_IN_USE),
+					        0u, nullptr,
+					        v3_buf, sizeof(v3_buf), &v3_size) == 1) {
+						if (pvpgn_v3_send_packet_try(c, v3_buf, v3_size) == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+				}
 	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
@@ -544,6 +710,20 @@ namespace pvpgn
 				bn_byte_set(&rpacket->u.server_clan_createreply.friend_count, 0);
 	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_clan_send_try(c, "clan_get_possible_member_already_in_clan");
+				if (pvpgn_v3_send_packet_available()) {
+					unsigned char v3_buf[16];
+					unsigned int  v3_size = 0;
+					if (pvpgn_v3_encode_clan_createreply(
+					        static_cast<unsigned int>(bn_int_get(packet->u.client_clan_createreq.count)),
+					        static_cast<unsigned char>(SERVER_CLAN_CREATEREPLY_CHECK_EXCEPTION),
+					        0u, nullptr,
+					        v3_buf, sizeof(v3_buf), &v3_size) == 1) {
+						if (pvpgn_v3_send_packet_try(c, v3_buf, v3_size) == 1) {
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+				}
 	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
@@ -575,6 +755,9 @@ namespace pvpgn
 						{
 							friend_count++;
 							packet_append_string(rpacket, username);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+							v3_friend_names.emplace_back(username);
+#endif
 						}
 					}
 				}
@@ -596,12 +779,33 @@ namespace pvpgn
 					{
 						friend_count++;
 						packet_append_string(rpacket, username);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+						v3_friend_names.emplace_back(username);
+#endif
 					}
 				}
 			}
 			bn_byte_set(&rpacket->u.server_clan_createreply.friend_count, friend_count);
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_send_try(c, "clan_get_possible_member");
+			if (pvpgn_v3_send_packet_available()) {
+				std::vector<char const*> name_ptrs;
+				name_ptrs.reserve(v3_friend_names.size());
+				for (auto const& s : v3_friend_names) name_ptrs.push_back(s.c_str());
+				unsigned char v3_buf[3072];
+				unsigned int  v3_size = 0;
+				if (pvpgn_v3_encode_clan_createreply(
+				        static_cast<unsigned int>(bn_int_get(packet->u.client_clan_createreq.count)),
+				        static_cast<unsigned char>(SERVER_CLAN_CREATEREPLY_CHECK_OK),
+				        static_cast<unsigned int>(v3_friend_names.size()),
+				        name_ptrs.empty() ? nullptr : name_ptrs.data(),
+				        v3_buf, sizeof(v3_buf), &v3_size) == 1) {
+					if (pvpgn_v3_send_packet_try(c, v3_buf, v3_size) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+				}
+			}
 #endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
@@ -636,6 +840,44 @@ namespace pvpgn
 					packet_append_string(rpacket, append_str);
 				else
 					packet_append_string(rpacket, "");
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_clan_send_try(NULL, "clanmember_on_change_status");
+				if (pvpgn_v3_send_packet_available())
+				{
+					unsigned char v3_buf[1024];
+					unsigned int  v3_size = 0;
+					if (pvpgn_v3_encode_clanmemberupdate(
+					        account_get_name((t_account*)member->memberacc),
+					        static_cast<unsigned char>(member->status),
+					        static_cast<unsigned char>(tmpstr[1]),
+					        append_str,
+					        v3_buf, sizeof(v3_buf), &v3_size) == 1)
+					{
+						int all_ok = 1;
+						t_elem *curr_v3;
+						LIST_TRAVERSE(member->clan->members, curr_v3)
+						{
+							t_clanmember *m_v3;
+							t_connection *c_v3;
+							t_clienttag    ct_v3;
+							if (!(m_v3 = (t_clanmember*)elem_get_data(curr_v3))) continue;
+							if (!(c_v3 = clanmember_get_conn(m_v3))) continue;
+							if (!(ct_v3 = conn_get_clienttag(c_v3))) continue;
+							if (ct_v3 != CLIENTTAG_WARCRAFT3_UINT && ct_v3 != CLIENTTAG_WAR3XP_UINT) continue;
+							if (pvpgn_v3_send_packet_try(c_v3, v3_buf, v3_size) != 1)
+							{
+								all_ok = 0;
+								break;
+							}
+						}
+						if (all_ok)
+						{
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+				}
+#endif
 				clan_send_packet_to_online_members(member->clan, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -672,6 +914,44 @@ namespace pvpgn
 					packet_append_string(rpacket, append_str);
 				else
 					packet_append_string(rpacket, "");
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_clan_send_try(conn, "clanmember_on_change_status_by_connection");
+				if (pvpgn_v3_send_packet_available())
+				{
+					unsigned char v3_buf[1024];
+					unsigned int  v3_size = 0;
+					if (pvpgn_v3_encode_clanmemberupdate(
+					        account_get_name(acc),
+					        static_cast<unsigned char>(member->status),
+					        static_cast<unsigned char>(tmpstr[1]),
+					        append_str,
+					        v3_buf, sizeof(v3_buf), &v3_size) == 1)
+					{
+						int all_ok = 1;
+						t_elem *curr_v3;
+						LIST_TRAVERSE(member->clan->members, curr_v3)
+						{
+							t_clanmember *m_v3;
+							t_connection *c_v3;
+							t_clienttag    ct_v3;
+							if (!(m_v3 = (t_clanmember*)elem_get_data(curr_v3))) continue;
+							if (!(c_v3 = clanmember_get_conn(m_v3))) continue;
+							if (!(ct_v3 = conn_get_clienttag(c_v3))) continue;
+							if (ct_v3 != CLIENTTAG_WARCRAFT3_UINT && ct_v3 != CLIENTTAG_WAR3XP_UINT) continue;
+							if (pvpgn_v3_send_packet_try(c_v3, v3_buf, v3_size) != 1)
+							{
+								all_ok = 0;
+								break;
+							}
+						}
+						if (all_ok)
+						{
+							packet_del_ref(rpacket);
+							return 0;
+						}
+					}
+				}
+#endif
 				clan_send_packet_to_online_members(member->clan, rpacket);
 				packet_del_ref(rpacket);
 			}

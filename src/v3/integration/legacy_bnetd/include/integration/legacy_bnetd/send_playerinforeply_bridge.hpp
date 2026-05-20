@@ -19,7 +19,7 @@ extern "C" {
 int pvpgn_v3_send_playerinforeply(void*       conn_ptr,
                                    char const* account_name,
                                    char const* player_info,
-                                   char const* username);
+                                   char const* username) noexcept;
 
 #ifdef __cplusplus
 }

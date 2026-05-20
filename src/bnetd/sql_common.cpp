@@ -339,7 +339,7 @@ namespace pvpgn
 		extern int sql_free_info(t_storage_info * info)
 		{
 			if (info)
-				delete static_cast<unsigned int*>(info);
+				delete static_cast<unsigned int*>(const_cast<void*>(info));
 
 			return 0;
 		}

@@ -49,3 +49,9 @@ extern "C" int pvpgn_v3_send_packet_try(void* conn_ptr,
     return h(conn_ptr, bytes, size);
 }
 
+extern "C" int pvpgn_v3_send_packet_available(void) noexcept {
+    return pvpgn::integration::legacy_bnetd::get_send_packet_handler() != nullptr
+               ? 1
+               : 0;
+}
+

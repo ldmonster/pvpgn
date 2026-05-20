@@ -57,6 +57,14 @@
 #include "anongame_wol.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Strangler-fig hook for the bnetd WoL (Westwood Online) dispatcher.
+// Observation-only: logs each entry to handle_wol_con_command /
+// handle_wol_log_command / handle_wol_welcome. Returns 0; legacy
+// path always runs.
+extern "C" int pvpgn_v3_wol_dispatch_try(void* conn_ptr, char const* op) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -190,6 +198,9 @@ namespace pvpgn
 
 		extern int handle_wol_con_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_wol_dispatch_try(conn, "con_command");
+#endif
 			t_wol_command_table_row const *p;
 
 			for (p = wol_con_command_table; p->wol_command_string != NULL; p++) {
@@ -203,6 +214,9 @@ namespace pvpgn
 
 		extern int handle_wol_log_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_wol_dispatch_try(conn, "log_command");
+#endif
 			t_wol_command_table_row const *p;
 
 			for (p = wol_log_command_table; p->wol_command_string != NULL; p++) {
@@ -277,6 +291,9 @@ namespace pvpgn
 
 		extern int handle_wol_welcome(t_connection * conn)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_wol_dispatch_try(conn, "welcome");
+#endif
 			/* This function need rewrite */
 			conn_set_state(conn, conn_state_bot_password);
 

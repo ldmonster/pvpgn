@@ -69,6 +69,12 @@ extern "C" int pvpgn_v3_send_chatevent_compose(
     char const*  playerinfo,
     char const*  text,
     char const*  servername);
+extern "C" int pvpgn_v3_message_dispatch_try(void* conn_ptr, char const* op) noexcept;
+// Strangler-fig hook for SERVER_MESSAGEBOX (SID 0x19) — modal dialog push.
+extern "C" int pvpgn_v3_send_messagebox(void* conn_ptr,
+                                         unsigned int style,
+                                         char const* text,
+                                         char const* caption) noexcept;
 #endif
 
 namespace pvpgn
@@ -1728,6 +1734,9 @@ namespace pvpgn
 
 		extern int message_send_text(t_connection * dst, t_message_type type, t_connection * src, char const * text)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_message_dispatch_try(dst, message_type_get_str(type));
+#endif
 			t_message * message;
 			int         rez;
 
@@ -1853,6 +1862,15 @@ namespace pvpgn
 			t_packet *rpacket;
 
 			std::string newtext = str_replace_nl(text);
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_send_messagebox(dst,
+					static_cast<unsigned int>(type),
+					newtext.c_str(),
+					caption ? caption : "") > 0) {
+				return 0;
+			}
+#endif
 
 			if ((rpacket = packet_create(packet_class_bnet)))
 			{

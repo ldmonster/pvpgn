@@ -48,6 +48,11 @@
 #include "server.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Strangler-fig hook for the bnetd IRC dispatcher. Observation-only.
+extern "C" int pvpgn_v3_irc_dispatch_try(void* conn_ptr, char const* op) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -113,6 +118,9 @@ namespace pvpgn
 
 		extern int handle_irc_con_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_irc_dispatch_try(conn, "con_command");
+#endif
 			t_irc_command_table_row const *p;
 
 			for (p = irc_con_command_table; p->irc_command_string != NULL; p++) {
@@ -126,6 +134,9 @@ namespace pvpgn
 
 		extern int handle_irc_log_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_irc_dispatch_try(conn, "log_command");
+#endif
 			t_irc_command_table_row const *p;
 
 			for (p = irc_log_command_table; p->irc_command_string != NULL; p++) {
@@ -139,6 +150,9 @@ namespace pvpgn
 
 		extern int handle_irc_welcome(t_connection * conn)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_irc_dispatch_try(conn, "welcome");
+#endif
 			char temp[MAX_IRC_MESSAGE_LEN];
 			std::time_t temptime;
 			char const * tempname;

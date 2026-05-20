@@ -36,6 +36,11 @@
 #include "game.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+extern "C" int pvpgn_v3_d2cs_link_dispatch_try(void* conn_ptr,
+                                                char const* op) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -101,6 +106,9 @@ namespace pvpgn
 
 		static int on_d2cs_authreply(t_connection * c, t_packet const * packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_d2cs_link_dispatch_try(c, "authreply");
+#endif
 			t_packet	* rpacket;
 			unsigned int	version;
 			unsigned int	try_version;
@@ -163,6 +171,9 @@ namespace pvpgn
 
 		static int on_d2cs_accountloginreq(t_connection * c, t_packet const * packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_d2cs_link_dispatch_try(c, "accountloginreq");
+#endif
 			unsigned int	sessionkey;
 			unsigned int	sessionnum;
 			unsigned int	salt;
@@ -251,6 +262,9 @@ namespace pvpgn
 #define CHAR_PORTRAIT_LEN	0x30
 		static int on_d2cs_charloginreq(t_connection * c, t_packet const * packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_d2cs_link_dispatch_try(c, "charloginreq");
+#endif
 			t_connection *	client;
 			char const *	charname;
 			char const *	portrait;
@@ -372,6 +386,9 @@ namespace pvpgn
 
 		static int on_d2cs_gameinforeply(t_connection * c, t_packet const * packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_d2cs_link_dispatch_try(c, "gameinforeply");
+#endif
 			t_game *		game;
 			char const *		gamename;
 			unsigned int		difficulty;

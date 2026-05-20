@@ -24,7 +24,7 @@ int pvpgn_v3_send_charlistreply(void*                conn_ptr,
                                  unsigned int         max_chars,
                                  unsigned int         count,
                                  unsigned char const* char_data,
-                                 unsigned int         char_data_len);
+                                 unsigned int         char_data_len) noexcept;
 
 #ifdef __cplusplus
 }

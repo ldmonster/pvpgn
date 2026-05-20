@@ -50,6 +50,7 @@ option(PVPGN_BUILD_LEGACY    "Build the legacy bnetd/d2cs/d2dbs tree"          O
 option(PVPGN_V3_BUILD_TESTS  "Build unit tests for the v3 sub-tree"            ${PVPGN_BUILD_V3})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 if(PVPGN_BUILD_LEGACY)
     include(ConfigureChecks.cmake)

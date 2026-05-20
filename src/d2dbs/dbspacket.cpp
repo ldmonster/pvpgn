@@ -51,6 +51,11 @@
 #include "d2ladder.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+extern "C" int pvpgn_v3_d2dbs_send_echorequest(void* conn_ptr,
+                                                unsigned int seqno) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -784,6 +789,9 @@ namespace pvpgn
 			LIST_TRAVERSE(dbs_server_connection_list, elem)
 			{
 				if (!(tempc = (t_d2dbs_connection*)elem_get_data(elem))) continue;
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+				if (pvpgn_v3_d2dbs_send_echorequest(tempc, 0u) == 1) continue;
+#endif
 				if (writelen > kBufferSize - tempc->nCharsInWriteBuffer) continue;
 				writepos = (unsigned char*)(tempc->WriteBuf + tempc->nCharsInWriteBuffer);
 				echoreq = (t_d2dbs_d2gs_echorequest*)writepos;
