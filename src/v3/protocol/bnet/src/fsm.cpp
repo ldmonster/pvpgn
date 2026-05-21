@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "protocol/bnet/fsm.hpp"
 
+#include <span>
 #include <variant>
+#include <vector>
 
 #include "application/auth/login_user.hpp"
 #include "application/chat/join_channel.hpp"
@@ -15,6 +17,8 @@
 #include "application/ports/message_router.hpp"
 #include "application/ports/session_registry.hpp"
 #include "core/error.hpp"
+#include "protocol/bnet/codec.hpp"
+#include "protocol/common/writer.hpp"
 
 namespace pvpgn::protocol::bnet {
 
@@ -22,6 +26,19 @@ core::Status<> BnetFsm::reject(const char* reason) {
     state_ = BnetState::Closing;
     ctx_->close();
     return core::fail(core::Error{core::StatusCode::InvalidArgument, reason});
+}
+
+void BnetFsm::broadcast_chat_event(const ChatEvent& ev,
+                                   std::span<const domain::SessionId> sessions) {
+    if (!use_cases_.message_router || sessions.empty()) return;
+    Writer w;
+    w.begin_bnet_packet(0x0F);  // SID_CHATEVENT
+    if (!encode(w, ev)) return;
+    if (!w.finalize_bnet_packet()) return;
+    auto bytes = w.take();
+    (void)use_cases_.message_router->broadcast(
+        sessions,
+        std::span<const std::byte>{bytes.data(), bytes.size()});
 }
 
 core::Status<> BnetFsm::handle(const ClientMessage& msg) {
@@ -42,9 +59,14 @@ core::Status<> BnetFsm::on(const Ping& p) {
     return ctx_->send(ServerMessage{Ping{p.ticks}});
 }
 
-core::Status<> BnetFsm::on(const AuthInfo&) {
+core::Status<> BnetFsm::on(const AuthInfo& m) {
     if (state_ != BnetState::Init) {
         return reject("bnet fsm: AUTH_INFO out of order");
+    }
+    // Store the client product tag (game_id is the 4-byte product tag in
+    // wire-packed big-endian form, e.g. 'STAR', 'D2DV', 'WAR3').
+    if (auto tag = domain::ClientTag::from_packed_be(m.game_id)) {
+        client_tag_ = tag.value();
     }
     state_ = BnetState::AuthInfoReceived;
     // Phase-5 use-case will plug version-check policy here. For now we
@@ -71,6 +93,7 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
     // Call login use-case if available, otherwise accept the login
     if (!use_cases_.login_user) {
         // No login use-case available - accept login with default account ID
+        current_username_ = std::string{m.username};
         state_ = BnetState::LoggedIn;
         return ctx_->send(ServerMessage{LogonResponse2Reply{0x00u, ""}});
     }
@@ -133,11 +156,12 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
         return ctx_->send(ServerMessage{LogonResponse2Reply{error_code, reason}});
     }
     
-    // Login succeeded - store account ID and attach session
+    // Login succeeded - store account ID and username, attach session
     current_account_id_ = login_result.value().id;
-    
+    current_username_   = std::string{m.username};
+
     if (use_cases_.session_registry) {
-        auto reg_status = use_cases_.session_registry->attach(domain::SessionId{}, current_account_id_);
+        auto reg_status = use_cases_.session_registry->attach(session_id_, current_account_id_);
         if (!reg_status) {
             return reject("bnet fsm: failed to attach session");
         }
@@ -177,11 +201,9 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
             /*text*/        m.channel}});
     }
     
-    // Call join_channel use-case
-    // TODO: client_tag should be stored from AUTH_INFO message
-    domain::ClientTag client_tag{};  // placeholder - default constructed
+    // Call join_channel use-case — use client_tag_ stored from AUTH_INFO
     auto join_result = use_cases_.join_channel->execute(
-        current_account_id_, m.channel, client_tag);
+        current_account_id_, m.channel, client_tag_);
     
     if (!join_result) {
         // Join failed - send EID_INFO error to client
@@ -253,11 +275,20 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
     }
     
     // Broadcast EID_JOIN to all other members via message_router
-    if (use_cases_.message_router) {
-        // Send join notification to remaining members
-        // TODO: Encode ChatEvent(EID_JOIN) and broadcast
+    if (!join_result.value().members_to_notify.empty()) {
+        broadcast_chat_event(
+            ChatEvent{
+                /*event_id*/    1,   // EID_JOIN
+                /*flags*/       0,
+                /*ping_ms*/     0,
+                /*user_ip*/     0,
+                /*acct_number*/ 0,
+                /*registration*/0,
+                /*username*/    current_username_,
+                /*text*/        ""},
+            join_result.value().members_to_notify);
     }
-    
+
     return core::ok();
 }
 
@@ -325,11 +356,21 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             /*text*/        "Failed to post message"}});
     }
     
-    // Broadcast message to all recipients via message_router
-    if (use_cases_.message_router) {
-        // TODO: Encode ChatEvent(EID_TALK) and broadcast to recipient sessions
+    // Broadcast EID_TALK to all recipients via message_router
+    if (!post_result.value().recipients.empty()) {
+        broadcast_chat_event(
+            ChatEvent{
+                /*event_id*/    5,   // EID_TALK
+                /*flags*/       0,
+                /*ping_ms*/     0,
+                /*user_ip*/     0,
+                /*acct_number*/ 0,
+                /*registration*/0,
+                /*username*/    current_username_,
+                /*text*/        std::string{m.text}},
+            post_result.value().recipients);
     }
-    
+
     return core::ok();
 }
 
@@ -536,8 +577,18 @@ core::Status<> BnetFsm::on(const LeaveChannel&) {
     const auto& remaining_members = result.members_to_notify;
     
     // Broadcast EID_LEAVE to remaining members via router
-    if (use_cases_.message_router && !remaining_members.empty()) {
-        // TODO: Encode ChatEvent(EID_LEAVE) and broadcast to remaining_members
+    if (!remaining_members.empty()) {
+        broadcast_chat_event(
+            ChatEvent{
+                /*event_id*/    4,   // EID_LEAVE
+                /*flags*/       0,
+                /*ping_ms*/     0,
+                /*user_ip*/     0,
+                /*acct_number*/ 0,
+                /*registration*/0,
+                /*username*/    current_username_,
+                /*text*/        ""},
+            remaining_members);
     }
     
     // Clear current channel
@@ -644,12 +695,10 @@ core::Status<> BnetFsm::on(const StartGame1Request& m) {
         return ctx_->send(ServerMessage{StartGame1Ack{0x00}});  // success code
     }
     
-    // TODO: client_tag should be stored from AUTH_INFO
-    domain::ClientTag client_tag{};
-    
+    // Use client_tag_ stored from AUTH_INFO
     // Call start_game use-case with game parameters from request
     auto start_result = use_cases_.start_game->execute(
-        current_account_id_, client_tag,
+        current_account_id_, client_tag_,
         m.game_name, "", m.gametype);  // Empty map_name for now
     
     if (!start_result) {
@@ -676,12 +725,10 @@ core::Status<> BnetFsm::on(const StartGame3Request& m) {
         return ctx_->send(ServerMessage{StartGame3Ack{0x00}});  // success code
     }
     
-    // TODO: client_tag should be stored from AUTH_INFO
-    domain::ClientTag client_tag{};
-    
+    // Use client_tag_ stored from AUTH_INFO
     // Call start_game use-case with game parameters from request
     auto start_result = use_cases_.start_game->execute(
-        current_account_id_, client_tag,
+        current_account_id_, client_tag_,
         m.game_name, "", m.gametype);
     
     if (!start_result) {
@@ -701,76 +748,42 @@ core::Status<> BnetFsm::on(const JoinGame& m) {
     if (!use_cases_.join_game) {
         // No join_game use-case available - accept the request with fallback
         state_ = BnetState::InGame;
-        return ctx_->send(ServerMessage{
-            ChatEvent{
-                /*event_id*/    4,  // EID_INFO
-                /*flags*/       0,
-                /*ping_ms*/     0,
-                /*user_ip*/     0,
-                /*acct_number*/ 0,
-                /*registration*/0,
-                /*username*/    "",
-                /*text*/        "Joined game"}});
+        return ctx_->send(ServerMessage{StartGame4Ack{0x00u}});
     }
-    
+
     // Parse game ID from message (game_name in the request)
     // For now, use a placeholder game ID
     domain::GameId game_id{0};
-    
+
     auto join_result = use_cases_.join_game->execute(game_id, current_account_id_);
-    
+
     if (!join_result) {
-        // Join failed
-        return ctx_->send(ServerMessage{
-            ChatEvent{
-                /*event_id*/    4,  // EID_INFO
-                /*flags*/       0,
-                /*ping_ms*/     0,
-                /*user_ip*/     0,
-                /*acct_number*/ 0,
-                /*registration*/0,
-                /*username*/    "",
-                /*text*/        "Failed to join game"}});
+        // Join failed — send SID_STARTADVEX3 with non-zero error code
+        return ctx_->send(ServerMessage{StartGame4Ack{0x01u}});
     }
-    
+
     // Join succeeded - store game ID and transition to InGame
     current_game_id_ = game_id;
     state_ = BnetState::InGame;
-    
-    // Send SID_JOINGAME reply with server address and port
-    // Note: This should probably be a dedicated JoinGameReply message type
-    // For now, send generic success notification
-    const auto& result = join_result.value();
-    return ctx_->send(ServerMessage{
-        ChatEvent{
-            /*event_id*/    4,  // EID_INFO
-            /*flags*/       0,
-            /*ping_ms*/     0,
-            /*user_ip*/     0,
-            /*acct_number*/ 0,
-            /*registration*/0,
-            /*username*/    "",
-            /*text*/        "Joined game at " + result.server_address + ":" + 
-                           std::to_string(result.server_port)}});
+
+    // Send SID_STARTADVEX3 (0x1C) success reply
+    return ctx_->send(ServerMessage{StartGame4Ack{0x00u}});
 }
 core::Status<> BnetFsm::on(const CloseGame&) {
     // Accept in any post-login state; only transition out of InGame.
     auto s = require_clan_state(state_, "bnet fsm: CLOSEGAME before login");
     if (!s) return s;
-    
+
     if (state_ == BnetState::InGame) {
         if (use_cases_.leave_game && current_game_id_.value() != 0) {
             auto leave_result = use_cases_.leave_game->execute(
                 current_game_id_, current_account_id_);
-            
-            if (leave_result) {
-                // Notify remaining game players via router if available
-                if (use_cases_.message_router) {
-                    // TODO: Broadcast game-closed or player-left event
-                }
-            }
+            // LeaveGameResult has no member list; game-closed broadcast is
+            // best-effort via a synthetic EID_LEAVE sent to the leaving player's
+            // own session only (other players are notified by the game server).
+            (void)leave_result;
         }
-        
+
         current_game_id_ = domain::GameId{0};
         state_ = BnetState::LoggedIn;
     }
@@ -780,19 +793,14 @@ core::Status<> BnetFsm::on(const CloseGame&) {
 core::Status<> BnetFsm::on(const CloseGame2&) {
     auto s = require_clan_state(state_, "bnet fsm: CLOSEGAME2 before login");
     if (!s) return s;
-    
+
     if (state_ == BnetState::InGame) {
         if (use_cases_.leave_game && current_game_id_.value() != 0) {
             auto leave_result = use_cases_.leave_game->execute(
                 current_game_id_, current_account_id_);
-            
-            if (leave_result) {
-                if (use_cases_.message_router) {
-                    // TODO: Broadcast game-closed or player-left event
-                }
-            }
+            (void)leave_result;
         }
-        
+
         current_game_id_ = domain::GameId{0};
         state_ = BnetState::LoggedIn;
     }

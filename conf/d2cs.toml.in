@@ -1,0 +1,201 @@
+##############################################################################
+# d2cs.toml  -  TOML configuration file for the Diablo II Character Server  #
+#----------------------------------------------------------------------------#
+#                                                                            #
+# This is the TOML equivalent of d2cs.conf.in, used by the v3 code path.   #
+# The legacy d2cs.conf is still read by the legacy (non-v3) build.         #
+#                                                                            #
+# Blank lines and lines beginning with "#" are ignored.                     #
+# String values that contain spaces must be quoted.                         #
+#                                                                            #
+##############################################################################
+
+##############################################################################
+# [server]  — Core server identity                                           #
+##############################################################################
+
+[server]
+# Your realm server name.
+# Must match the first column of the realm line in realm.conf.
+# Example: if realm.conf has  "MyRealm" "My Super Realm" <someIP>:6113
+# then set  realmname = "MyRealm"
+realmname = "D2CS"
+
+##############################################################################
+# [network]  — Listening addresses and connections                           #
+##############################################################################
+
+[network]
+# Comma-delimited list of addresses to listen on.
+# Default port for d2cs is 6113.
+# WARNING: DO NOT USE "127.0.0.1" or "localhost"!
+servaddrs = "0.0.0.0:6113"
+
+# Comma-delimited list of Diablo II game server IPs (without ports).
+# YOU MUST CHANGE THIS OR D2CS WON'T WORK PROPERLY.
+# WARNING: DO NOT USE "127.0.0.1" or "localhost"!
+gameservlist = "<d2gs-IP>,<another-d2gs-IP>"
+
+# Address and port of the bnetd (PvPGN) server.
+# Default bnetd port is 6112.
+# YOU MUST CHANGE THIS OR D2CS WON'T WORK PROPERLY.
+# WARNING: DO NOT USE "127.0.0.1" or "localhost"!
+bnetdaddr = "<bnetd-IP>:6112"
+
+# Maximum number of concurrent connections.
+max_connections = 1000
+
+##############################################################################
+# [realm]  — Realm type and character rules                                  #
+##############################################################################
+
+[realm]
+# Realm type: 0 = Classic, 1 = LoD, 2 = Both (default)
+lod_realm = 2
+
+# Allow converting a Classic character to an Expansion character?
+allow_convert = false
+
+# Additional symbols allowed in account names (beyond alphanumerics).
+# Must match the setting in bnetd.toml [account].account_allowed_symbols.
+account_allowed_symbols = "-_[]"
+
+##############################################################################
+# [log]  — Event logging                                                     #
+##############################################################################
+
+[log]
+# Multiple levels separated by commas.
+# Available: none, trace, debug, info, warn, error, fatal
+levels = "fatal,error,warn,info,debug,trace"
+#levels = "fatal,error,warn,info"
+
+##############################################################################
+# [files]  — Paths to data files and directories                             #
+# Use absolute paths to avoid problems.                                      #
+##############################################################################
+
+[files]
+logfile          = "${LOCALSTATEDIR}/d2cs.log"
+charsavedir      = "${LOCALSTATEDIR}/charsave"
+charinfodir      = "${LOCALSTATEDIR}/charinfo"
+bak_charsavedir  = "${LOCALSTATEDIR}/bak/charsave"
+bak_charinfodir  = "${LOCALSTATEDIR}/bak/charinfo"
+ladderdir        = "${LOCALSTATEDIR}/ladders"
+transfile        = "${SYSCONFDIR}/address_translation.conf"
+d2gsconffile     = "${SYSCONFDIR}/d2server.ini"
+#pidfile         = "${LOCALSTATEDIR}/d2cs.pid"
+
+# D2 save templates for newly created characters (one per class).
+newbiefile_amazon      = "${LOCALSTATEDIR}/files/newbie.save"
+newbiefile_sorceress   = "${LOCALSTATEDIR}/files/newbie.save"
+newbiefile_necromancer = "${LOCALSTATEDIR}/files/newbie.save"
+newbiefile_paladin     = "${LOCALSTATEDIR}/files/newbie.save"
+newbiefile_barbarian   = "${LOCALSTATEDIR}/files/newbie.save"
+newbiefile_druid       = "${LOCALSTATEDIR}/files/newbie.save"
+newbiefile_assasin     = "${LOCALSTATEDIR}/files/newbie.save"
+
+##############################################################################
+# [misc]  — Miscellaneous server behaviour                                   #
+##############################################################################
+
+[misc]
+# Message of the Day shown to connecting clients.
+motd = "No Message Of The Day Set"
+
+# Allow creation of new realm characters?
+allow_newchar = true
+
+# Check clients for multi-login (security)?
+check_multilogin = false
+
+# Maximum characters per account (server enforces max 18).
+maxchar = 8
+
+# Character list sort order: level, ctime, mtime, name, none.
+#charlist_sort = "none"
+
+# Ascending or descending sort order for character list?
+#charlist_sort_order = "ASC"
+
+# Maximum games shown in the join-game list (0 = unlimited).
+maxgamelist = 20
+
+# Show games with difficulty < character difficulty?
+# false = only show games matching character difficulty.
+gamelist_showall = false
+
+# Maximum idle time in seconds (0 = unlimited).
+idletime = 3600
+
+# Graceful-shutdown delay in seconds.
+shutdown_delay = 300
+
+# Amount the shutdown countdown is decremented per SIGTERM/SIGINT.
+shutdown_decr = 60
+
+##############################################################################
+# [internal]  — Internal system timers (safe to leave at defaults)           #
+##############################################################################
+
+[internal]
+# How often to purge all lists to clean unused data (seconds).
+listpurgeinterval = 300
+
+# How often to check game queues (seconds).
+gqcheckinterval = 60
+
+# How often to retry connecting to bnetd after connection loss (seconds).
+s2s_retryinterval = 10
+
+# S2S connection timeout (seconds).
+s2s_timeout = 10
+
+# How often to check server queues for expired data (seconds).
+sq_checkinterval = 300
+
+# How long server queue data lives before expiry (seconds).
+sq_timeout = 300
+
+# Game server binary checksum (0 = skip check).
+d2gs_checksum = 0
+
+# Game server version (0 = skip check).
+d2gs_version = 0
+
+# Game server password.
+d2gs_password = ""
+
+# Maximum lifetime of a game entry in the list (seconds; 0 = unlimited).
+game_maxlifetime = 0
+
+# Maximum character level allowed in this realm (255 = no limit).
+# game_maxlevel = 255
+
+# Automatically destroy a game after this many seconds idle (0 = never).
+max_game_idletime = 0
+
+# Allow games with password, player-count, or level restrictions?
+allow_gamelimit = true
+
+# Ladder refresh interval (seconds).
+ladder_refresh_interval = 3600
+
+# S2S connection max idle time (seconds).
+s2s_idletime = 300
+
+# S2S keepalive interval (seconds).
+s2s_keepalive_interval = 60
+
+# All-connection timeout check interval (seconds).
+timeout_checkinterval = 60
+
+# Game server restart delay after SIGUSR2 (seconds).
+d2gs_restart_delay = 300
+
+# Ladder start time — characters created before this date revert to non-ladder.
+# Format: "yyyy-mm-dd hh:mm:ss"  (empty = no cutoff)
+ladder_start_time = ""
+
+# Number of days before a character expires (0 = unlimited).
+char_expire_day = 0

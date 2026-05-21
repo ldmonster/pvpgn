@@ -19,6 +19,8 @@
 #ifndef INCLUDED_ACCOUNT_TYPES
 #define INCLUDED_ACCOUNT_TYPES
 
+#include <vector>
+
 #ifndef JUST_NEED_TYPES
 #define JUST_NEED_TYPES
 #include "common/list.h"
@@ -46,6 +48,8 @@ namespace pvpgn
 		struct _clanmember;
 		struct clan;
 
+		struct friend_struct;
+
 		typedef struct account_struct
 #ifdef ACCOUNT_INTERNAL_ACCESS
 		{
@@ -56,7 +60,7 @@ namespace pvpgn
 			unsigned int  flags;
 			struct connection * conn;
 			struct _clanmember   * clanmember;
-			t_list * friends;
+			std::vector<struct friend_struct*> friends;
 			t_list * teams;
 		}
 #endif
@@ -116,7 +120,7 @@ namespace pvpgn
 
 
 		extern int account_check_mutual(t_account * account, int myuserid);
-		extern t_list * account_get_friends(t_account * account);
+		extern std::vector<struct friend_struct*>& account_get_friends(t_account * account);
 
 		extern int account_set_clanmember(t_account * account, _clanmember * clanmember);
 		extern _clanmember * account_get_clanmember(t_account * account);

@@ -21,7 +21,6 @@
 
 #include <cassert>
 
-#include "common/xalloc.h"
 #include "common/elist.h"
 #include "common/setup_after.h"
 

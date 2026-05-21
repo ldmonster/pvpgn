@@ -21,17 +21,18 @@
 #include "common/setup_before.h"
 #include "channel.h"
 
+#include <algorithm>
 #include <cstring>
 #include <cerrno>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 #include <strings.h>
 #include "common/eventlog.h"
-#include "common/list.h"
 #include "common/util.h"
 #include "common/token.h"
 #include "common/tag.h"
-#include "common/xalloc.h"
 
 #include "connection.h"
 #include "message.h"
@@ -62,7 +63,7 @@ namespace pvpgn
 			std::memcpy(r, s, n);
 			return r;
 		}
-		static t_list * channellist_head = NULL;
+		static std::vector<t_channel*> channellist_head;
 
 		static t_channelmember * memberlist_curr = NULL;
 		static int totalcount = 0;
@@ -74,7 +75,7 @@ namespace pvpgn
 
 		extern int channel_set_userflags(t_connection * c);
 
-		extern t_channel * channel_create(char const * fullname, char const * shortname, t_clienttag clienttag, int permflag, int botflag, int operflag, int logflag, char const * country, char const * realmname, int maxmembers, int moderated, int clanflag, int autoname, t_list * channellist)
+		static t_channel * channel_create_impl(char const * fullname, char const * shortname, t_clienttag clienttag, int permflag, int botflag, int operflag, int logflag, char const * country, char const * realmname, int maxmembers, int moderated, int clanflag, int autoname, std::vector<t_channel*>* channellist)
 		{
 			t_channel * channel;
 
@@ -168,7 +169,7 @@ namespace pvpgn
 			else
 				channel->realmname = NULL;
 
-			channel->banlist = list_create();
+			/* banlist is default-constructed as empty std::vector<std::string> */
 
 			totalcount++;
 			if (totalcount == 0) /* if we wrap (yeah right), don't use id 0 */
@@ -242,7 +243,7 @@ namespace pvpgn
 			channel->gameExtension = NULL;
 
 			if (channellist)
-				list_append_data(channellist, channel);
+				channellist->push_back(channel);
 			else
 				DEBUG0("channel was not added into any channellist");
 
@@ -252,13 +253,11 @@ namespace pvpgn
 
 		extern t_channel * channel_create(char const * fullname, char const * shortname, t_clienttag clienttag, int permflag, int botflag, int operflag, int logflag, char const * country, char const * realmname, int maxmembers, int moderated, int clanflag, int autoname)
 		{
-			return channel_create(fullname, shortname, clienttag, permflag, botflag, operflag, logflag, country, realmname, maxmembers, moderated, clanflag, autoname, channellist_head);
+			return channel_create_impl(fullname, shortname, clienttag, permflag, botflag, operflag, logflag, country, realmname, maxmembers, moderated, clanflag, autoname, &channellist_head);
 		}
 
-		extern int channel_destroy(t_channel * channel, t_elem ** curr)
+		extern int channel_destroy(t_channel * channel)
 		{
-			t_elem * ban;
-
 			if (!channel)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL channel");
@@ -272,11 +271,12 @@ namespace pvpgn
 				return -1;
 			}
 
-			if (list_remove_data(channellist_head, channel, curr) < 0)
 			{
-				//        eventlog(eventlog_level_error,__FUNCTION__,"could not remove item from list");
-				eventlog(eventlog_level_info, __FUNCTION__, "channel was not removed from any list");
-				//        return -1;
+				auto it = std::find(channellist_head.begin(), channellist_head.end(), channel);
+				if (it != channellist_head.end())
+					channellist_head.erase(it);
+				else
+					eventlog(eventlog_level_info, __FUNCTION__, "channel was not removed from any list");
 			}
 
 			eventlog(eventlog_level_info, __FUNCTION__, "destroying channel \"{}\"", channel->name);
@@ -284,18 +284,8 @@ namespace pvpgn
 			if (channel->gameExtension)
 				delete[] channel->gameExtension;
 
-			LIST_TRAVERSE(channel->banlist, ban)
-			{
-				char const * banned;
-
-				if (!(banned = (char*)elem_get_data(ban)))
-					eventlog(eventlog_level_error, __FUNCTION__, "found NULL name in banlist");
-				else
-					delete[] const_cast<char*>(banned); /* avoid warning */
-				if (list_remove_elem(channel->banlist, &ban) < 0)
-					eventlog(eventlog_level_error, __FUNCTION__, "unable to remove item from list");
-			}
-			list_destroy(channel->banlist);
+			/* banlist is std::vector<std::string> — destructor cleans up automatically */
+			channel->banlist.clear();
 
 			if (channel->log)
 			{
@@ -566,7 +556,7 @@ namespace pvpgn
 
 			if (!channel->memberlist && !(channel->flags & channel_flags_permanent)) /* if channel is empty, delete it unless it's a permanent channel */
 			{
-				channel_destroy(channel, &curr2);
+				channel_destroy(channel);
 			}
 
 			return 0;
@@ -781,9 +771,6 @@ namespace pvpgn
 
 		extern int channel_ban_user(t_channel * channel, char const * user)
 		{
-			t_elem const * curr;
-			char *         temp;
-
 			if (!channel)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL channel");
@@ -804,12 +791,11 @@ namespace pvpgn
 				strcasecmp(channel->name, CHANNEL_NAME_KICKED) == 0)
 				return -1;
 
-			LIST_TRAVERSE_CONST(channel->banlist, curr)
-			if (strcasecmp((char*)elem_get_data(curr), user) == 0)
-				return 0;
+			for (const auto& banned : channel->banlist)
+				if (strcasecmp(banned.c_str(), user) == 0)
+					return 0;
 
-			temp = ch_strdup(user);
-			list_append_data(channel->banlist, temp);
+			channel->banlist.emplace_back(user);
 
 			return 0;
 		}
@@ -817,8 +803,6 @@ namespace pvpgn
 
 		extern int channel_unban_user(t_channel * channel, char const * user)
 		{
-			t_elem * curr;
-
 			if (!channel)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL channel");
@@ -830,23 +814,11 @@ namespace pvpgn
 				return -1;
 			}
 
-			LIST_TRAVERSE(channel->banlist, curr)
+			for (auto it = channel->banlist.begin(); it != channel->banlist.end(); ++it)
 			{
-				char const * banned;
-
-				if (!(banned = (char*)elem_get_data(curr)))
+				if (strcasecmp(it->c_str(), user) == 0)
 				{
-					eventlog(eventlog_level_error, __FUNCTION__, "found NULL name in banlist");
-					continue;
-				}
-				if (strcasecmp(banned, user) == 0)
-				{
-					if (list_remove_elem(channel->banlist, &curr) < 0)
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "unable to remove item from list");
-						return -1;
-					}
-					delete[] const_cast<char*>(banned); /* avoid warning */
+					channel->banlist.erase(it);
 					return 0;
 				}
 			}
@@ -857,8 +829,6 @@ namespace pvpgn
 
 		extern int channel_check_banning(t_channel const * channel, t_connection const * user)
 		{
-			t_elem const * curr;
-
 			if (!channel)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL channel");
@@ -873,9 +843,9 @@ namespace pvpgn
 			if (!(channel->flags & channel_flags_allowbots) && conn_get_class(user) == conn_class_bot)
 				return 1;
 
-			LIST_TRAVERSE_CONST(channel->banlist, curr)
-			if (conn_match(user, (char*)elem_get_data(curr)) == 1)
-				return 1;
+			for (const auto& banned : channel->banlist)
+				if (conn_match(user, banned.c_str()) == 1)
+					return 1;
 
 			return 0;
 		}
@@ -921,12 +891,14 @@ namespace pvpgn
 		}
 
 
-		extern t_list * channel_get_banlist(t_channel const * channel)
+		static const std::vector<std::string> s_empty_banlist;
+
+		extern const std::vector<std::string>& channel_get_banlist(t_channel const * channel)
 		{
 			if (!channel)
 			{
 				eventlog(eventlog_level_warn, __FUNCTION__, "got NULL channel");
-				return NULL;
+				return s_empty_banlist;
 			}
 
 			return channel->banlist;
@@ -1163,24 +1135,18 @@ namespace pvpgn
 
 		extern int channellist_reload(void)
 		{
-			t_elem * curr;
 			t_channel * channel, *old_channel;
 			t_channelmember * memberlist, *member, *old_member;
-			t_list * channellist_old;
+			std::vector<t_channel*> channellist_old;
 
-			if (channellist_head)
+			if (!channellist_head.empty())
 			{
-
-				channellist_old = list_create();
-
 				/* First pass - get members */
-				LIST_TRAVERSE(channellist_head, curr)
+				/* Iterate over a copy since channel_destroy modifies channellist_head */
+				std::vector<t_channel*> snapshot = channellist_head;
+				for (t_channel* ch : snapshot)
 				{
-					if (!(channel = (t_channel*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "channel list contains NULL item");
-						continue;
-					}
+					channel = ch;
 					/* Trick to avoid automatic channel destruction */
 					channel->flags |= channel_flags_permanent;
 					if (channel->memberlist)
@@ -1216,55 +1182,35 @@ namespace pvpgn
 							member = member->next;
 						}
 
-						list_prepend_data(channellist_old, old_channel);
+						channellist_old.push_back(old_channel);
 					}
 
 					/* Channel is empty - Destroying it */
 					channel->flags &= ~channel_flags_permanent;
-					if (channel_destroy(channel, &curr) < 0)
+					if (channel_destroy(channel) < 0)
 						eventlog(eventlog_level_error, __FUNCTION__, "could not destroy channel");
-
 				}
 
 				/* Cleanup and reload */
-
-				if (list_destroy(channellist_head) < 0)
-					return -1;
-
-				channellist_head = NULL;
+				channellist_head.clear();
 				channellist_create();
 
 				/* Now put all users on their previous channel */
-
-				LIST_TRAVERSE(channellist_old, curr)
+				for (t_channel* old_ch : channellist_old)
 				{
-					if (!(channel = (t_channel*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "old channel list contains NULL item");
-						continue;
-					}
-
-					memberlist = channel->memberlist;
+					memberlist = old_ch->memberlist;
 					while (memberlist)
 					{
 						member = memberlist;
 						memberlist = memberlist->next;
-						conn_set_channel(member->connection, channel->shortname);
+						conn_set_channel(member->connection, old_ch->shortname);
 					}
 				}
 
-
 				/* Ross don't blame me for this but this way the code is cleaner */
-
-				LIST_TRAVERSE(channellist_old, curr)
+				for (t_channel* old_ch : channellist_old)
 				{
-					if (!(channel = (t_channel*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "old channel list contains NULL item");
-						continue;
-					}
-
-					memberlist = channel->memberlist;
+					memberlist = old_ch->memberlist;
 					while (memberlist)
 					{
 						member = memberlist;
@@ -1272,58 +1218,42 @@ namespace pvpgn
 						delete member;
 					}
 
-					if (channel->shortname)
-						delete[] const_cast<char*>(channel->shortname);
+					if (old_ch->shortname)
+						delete[] const_cast<char*>(old_ch->shortname);
 
-					if (list_remove_data(channellist_old, channel, &curr) < 0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
-					delete channel;
-
+					delete old_ch;
 				}
-
-				if (list_destroy(channellist_old) < 0)
-					return -1;
+				channellist_old.clear();
 			}
 			return 0;
-
 		}
 
 		extern int channellist_create(void)
 		{
-			channellist_head = list_create();
-
+			/* channellist_head is already a default-constructed empty vector */
 			return channellist_load_permanent(prefs_get_channelfile());
 		}
 
 
 		extern int channellist_destroy(void)
 		{
-			t_channel *    channel;
-			t_elem * curr;
-
-			if (channellist_head)
+			/* Iterate over a copy since channel_destroy modifies channellist_head */
+			std::vector<t_channel*> snapshot = channellist_head;
+			for (t_channel* channel : snapshot)
 			{
-				LIST_TRAVERSE(channellist_head, curr)
+				if (!channel)
 				{
-					if (!(channel = (t_channel*)elem_get_data(curr))) /* should not happen */
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "channel list contains NULL item");
-						continue;
-					}
-
-					channel_destroy(channel, &curr);
+					eventlog(eventlog_level_error, __FUNCTION__, "channel list contains NULL item");
+					continue;
 				}
-
-				if (list_destroy(channellist_head) < 0)
-					return -1;
-				channellist_head = NULL;
+				channel_destroy(channel);
 			}
-
+			channellist_head.clear();
 			return 0;
 		}
 
 
-		extern t_list * channellist(void)
+		extern const std::vector<t_channel*>& channellist(void)
 		{
 			return channellist_head;
 		}
@@ -1331,7 +1261,7 @@ namespace pvpgn
 
 		extern int channellist_get_length(void)
 		{
-			return list_get_length(channellist_head);
+			return static_cast<int>(channellist_head.size());
 		}
 
 		extern int channel_get_max(t_channel const * channel)
@@ -1414,25 +1344,16 @@ namespace pvpgn
 
 		static t_channel * channellist_find_channel_by_fullname(char const * name)
 		{
-			t_channel *    channel;
-			t_elem const * curr;
-
-			if (channellist_head)
+			for (t_channel* channel : channellist_head)
 			{
-				LIST_TRAVERSE(channellist_head, curr)
+				if (!channel->name)
 				{
-					channel = (t_channel*)elem_get_data(curr);
-					if (!channel->name)
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found channel with NULL name");
-						continue;
-					}
-
-					if (strcasecmp(channel->name, name) == 0)
-						return channel;
+					eventlog(eventlog_level_error, __FUNCTION__, "found channel with NULL name");
+					continue;
 				}
+				if (strcasecmp(channel->name, name) == 0)
+					return channel;
 			}
-
 			return NULL;
 		}
 
@@ -1444,7 +1365,6 @@ namespace pvpgn
 		extern t_channel * channellist_find_channel_by_name(char const * name, char const * country, char const * realmname)
 		{
 			t_channel *    channel;
-			t_elem const * curr;
 			int            foundperm;
 			int            foundlang;
 			int            maxchannel; /* the number of "rollover" channels that exist */
@@ -1467,11 +1387,11 @@ namespace pvpgn
 			maxchannel = 0;
 			foundperm = 0;
 			foundlang = 0;
-			if (channellist_head)
+			if (!channellist_head.empty())
 			{
-				LIST_TRAVERSE(channellist_head, curr)
+				for (t_channel* ch : channellist_head)
 				{
-					channel = (t_channel*)elem_get_data(curr);
+					channel = ch;
 					if (!channel->name)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "found channel with NULL name");
@@ -1573,24 +1493,16 @@ namespace pvpgn
 
 		extern t_channel * channellist_find_channel_bychannelid(unsigned int channelid)
 		{
-			t_channel *    channel;
-			t_elem const * curr;
-
-			if (channellist_head)
+			for (t_channel* channel : channellist_head)
 			{
-				LIST_TRAVERSE(channellist_head, curr)
+				if (!channel->name)
 				{
-					channel = (t_channel*)elem_get_data(curr);
-					if (!channel->name)
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found channel with NULL name");
-						continue;
-					}
-					if (channel->id == channelid)
-						return channel;
+					eventlog(eventlog_level_error, __FUNCTION__, "found channel with NULL name");
+					continue;
 				}
+				if (channel->id == channelid)
+					return channel;
 			}
-
 			return NULL;
 		}
 

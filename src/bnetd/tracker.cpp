@@ -24,7 +24,16 @@
 #include <cstring>
 #include <cerrno>
 
-#include "compat/psock.h"
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <winsock2.h>
+#else
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <arpa/inet.h>
+#endif
 #include "compat/strerror.h"
 #include "common/eventlog.h"
 #include "common/list.h"
@@ -150,7 +159,7 @@ namespace pvpgn
 						addrt = (t_addr*)elem_get_data(currt);
 
 						std::memset(&tempaddr, 0, sizeof(tempaddr));
-						tempaddr.sin_family = PSOCK_AF_INET;
+						tempaddr.sin_family = AF_INET;
 						tempaddr.sin_port = htons(addr_get_port(addrt));
 						tempaddr.sin_addr.s_addr = htonl(addr_get_ip(addrt));
 
@@ -160,8 +169,8 @@ namespace pvpgn
 							std::strcpy(tempa, "x.x.x.x:x");
 						/* eventlog(eventlog_level_debug,__FUNCTION__,"sending tracking info from {} to {}",tempa,tempb); */
 
-						if (psock_sendto(laddr_info->usocket, &packet, sizeof(packet), 0, (struct sockaddr *)&tempaddr, (psock_t_socklen)sizeof(tempaddr)) < 0)
-							eventlog(eventlog_level_warn, __FUNCTION__, "could not send tracking information from {} to {} (psock_sendto: {})", tempa, tempb, pstrerror(errno));
+						if (sendto(laddr_info->usocket, &packet, sizeof(packet), 0, (struct sockaddr *)&tempaddr, (socklen_t)sizeof(tempaddr)) < 0)
+							eventlog(eventlog_level_warn, __FUNCTION__, "could not send tracking information from {} to {} (sendto: {})", tempa, tempb, pstrerror(errno));
 					}
 				}
 			}

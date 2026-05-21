@@ -1,3 +1,7 @@
+pvpgn_v3_add_test(test_infra_net_socket
+    SOURCES test_socket.cpp
+    DEPS    infra_net)
+
 pvpgn_v3_add_test(test_infra_net_echo
     SOURCES echo_test.cpp
     DEPS    infra_net)

@@ -33,6 +33,10 @@
 # include <unistd.h>
 #endif
 #ifdef WIN32
+# ifndef WIN32_LEAN_AND_MEAN
+#  define WIN32_LEAN_AND_MEAN
+# endif
+# include <winsock2.h>
 # include "win32/service.h"
 #endif
 #ifdef WIN32_GUI
@@ -40,14 +44,12 @@
 #endif
 
 #include "compat/stdfileno.h"
-#include "compat/psock.h"
 #include "compat/pgetpid.h"
 
 #ifdef HAVE_SYS_UTSNAME_H
 # include <sys/utsname.h>
 #endif
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/fdwatch.h"
 #include "common/trans.h"
 #include "common/give_up_root_privileges.h"
@@ -104,6 +106,7 @@
 # include "infra/net/io_runtime.hpp"
 # include "integration/legacy_bnetd/udp_bridge.hpp"
 # include "integration/legacy_bnetd/tcp_bridge.hpp"
+# include "integration/legacy_bnetd/prefs_bridge.hpp"
 /* Lifetime-bridge between the captureless C-style hooks installed
  * on the legacy server and the bridge instances scoped to main().
  * Both bridges share `g_v3_io_runtime` so we only spend one io
@@ -114,58 +117,18 @@ pvpgn::integration::legacy_bnetd::TcpBridge* g_v3_tcp_bridge_ptr = nullptr;
 #endif
 
 
-/* out of memory safety */
-#define OOM_SAFE_MEM	1000000		/* 1 Mbyte of safety memory */
-
 using namespace pvpgn::bnetd;
 using namespace pvpgn;
 
+/* C++ new-handler OOM safety: reserve 1 MiB; on first OOM release it and abort. */
 static int * emergency_mem = new int[1048576]; // 1 MiB
 void new_oom_handler()
 {
 	delete[] emergency_mem;
+	emergency_mem = nullptr;
 	eventlog(eventlog_level_fatal, __FUNCTION__, "out of memory, forcing immediate shutdown");
 
 	std::abort();
-}
-
-// FIXME: Use new instead of malloc everywhere
-
-void *oom_buffer = NULL;
-
-static int bnetd_oom_handler(void)
-{
-	/* no safety buffer, sorry :( */
-	if (!oom_buffer) return 0;
-
-	/* free the safety buffer hoping next allocs will succeed */
-	free(oom_buffer);
-	oom_buffer = NULL;
-
-	eventlog(eventlog_level_fatal, __FUNCTION__, "out of memory, forcing immediate shutdown");
-
-	/* shutdown immediatly */
-	server_quit_delay(-1);
-
-	return 1;	/* ask xalloc codes to retry the allocation request */
-}
-
-static int oom_setup(void)
-{
-	/* use calloc so it initilizez the memory so it will make some lazy
-	 * allocators really alocate it (ex. the linux kernel)
-	 */
-	oom_buffer = calloc(1, OOM_SAFE_MEM);
-	if (!oom_buffer) return -1;
-
-	xalloc_setcb(bnetd_oom_handler);
-	return 0;
-}
-
-static void oom_free(void)
-{
-	free(oom_buffer);
-	oom_buffer = NULL;
 }
 
 FILE	*hexstrm = NULL;
@@ -184,7 +147,6 @@ char serviceDescription[] = "Player vs. Player Gaming Network - Server";
 int g_ServiceStatus = -1;
 
 /* added some more std::exit status --> put in "compat/exitstatus.h" ??? */
-#define STATUS_OOM_FAILURE		20
 #define STATUS_STORAGE_FAILURE		30
 #define STATUS_PSOCK_FAILURE		35
 #define STATUS_MAPLISTS_FAILURE		40
@@ -336,21 +298,21 @@ char * write_to_pidfile(void)
 int pre_server_startup(void)
 {
 	pvpgn_greeting();
-	if (oom_setup() < 0) {
-		eventlog(eventlog_level_error, __FUNCTION__, "OOM init failed");
-		return STATUS_OOM_FAILURE;
-	}
-
 	std::set_new_handler(new_oom_handler);
 
 	if (storage_init(prefs_get_storage_path()) < 0) {
 		eventlog(eventlog_level_error, "pre_server_startup", "storage init failed");
 		return STATUS_STORAGE_FAILURE;
 	}
-	if (psock_init() < 0) {
-		eventlog(eventlog_level_error, __FUNCTION__, "could not initialize socket functions");
-		return STATUS_PSOCK_FAILURE;
+#ifdef _WIN32
+	{
+		WSADATA wsaData;
+		if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+			eventlog(eventlog_level_error, __FUNCTION__, "could not initialize socket functions");
+			return STATUS_PSOCK_FAILURE;
+		}
 	}
+#endif
 	if (support_check_files(prefs_get_supportfile()) < 0) {
 		eventlog(eventlog_level_error, "pre_server_startup", "some needed files are missing");
 		eventlog(eventlog_level_error, "pre_server_startup", "please make sure you installed the supportfiles in {}", prefs_get_filedir());
@@ -490,14 +452,14 @@ void post_server_shutdown(int status)
 		anongame_maplists_destroy();
 	case STATUS_MAPLISTS_FAILURE:
 	case STATUS_SUPPORT_FAILURE:
-		if (psock_deinit())
-			eventlog(eventlog_level_error, __FUNCTION__, "got error from psock_deinit()");
+#ifdef _WIN32
+		WSACleanup();
+#endif
 	case STATUS_PSOCK_FAILURE:
 		storage_close();
 	case STATUS_STORAGE_FAILURE:
-		oom_free();
 		delete[] emergency_mem;
-	case STATUS_OOM_FAILURE:
+		emergency_mem = nullptr;
 	case -1:
 		break;
 	default:
@@ -575,6 +537,26 @@ extern int main(int argc, char ** argv)
 			eventlog(eventlog_level_fatal, __FUNCTION__, "could not parse configuration file (exiting)");
 			return -1;
 		}
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+		{
+			/* Derive the TOML config path from the legacy .conf path:
+			 * replace the last extension with ".toml", or append ".toml"
+			 * if no extension is present.  A failure here is non-fatal:
+			 * the legacy prefs_get_* accessors remain active as fallback. */
+			std::string toml_path = cmdline_get_preffile();
+			auto dot = toml_path.rfind('.');
+			auto sep = toml_path.find_last_of("/\\");
+			if (dot != std::string::npos && (sep == std::string::npos || dot > sep))
+				toml_path.replace(dot, std::string::npos, ".toml");
+			else
+				toml_path += ".toml";
+			if (pvpgn_v3_prefs_load_toml(toml_path.c_str()) == 0)
+				eventlog(eventlog_level_info, __FUNCTION__, "v3 TOML config loaded from '{}'", toml_path);
+			else
+				eventlog(eventlog_level_warn, __FUNCTION__, "v3 TOML config not found at '{}', using legacy .conf values", toml_path);
+		}
+#endif
 
 		/* Start logging to std::log file */
 		if (eventlog_startup() == -1)

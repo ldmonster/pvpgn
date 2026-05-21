@@ -402,3 +402,35 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_encode_clanmemberupdate_bridge
 pvpgn_v3_add_test(test_integration_legacy_bnetd_clan_bridges
     SOURCES clan_bridges_test.cpp
     DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_raw_text_bridge
+    SOURCES send_raw_text_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_anongame_search_reply_bridge
+    SOURCES send_anongame_search_reply_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_anongame_found_bridge
+    SOURCES send_anongame_found_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_w3route_bridge
+    SOURCES send_w3route_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_d2cs_bnetd_bridges
+    SOURCES send_d2cs_bnetd_bridges_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_anongame_cancel_bridge
+    SOURCES send_anongame_cancel_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_udptest_bridge
+    SOURCES send_udptest_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_send_file_bridge
+    SOURCES send_file_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)

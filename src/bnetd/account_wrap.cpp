@@ -1919,9 +1919,7 @@ namespace pvpgn
 			if (nf >= prefs_get_max_friends())
 				return -3;
 
-			t_list *flist = account_get_friends(my_acc);
-			if (flist == nullptr)
-				return -1;
+			auto& flist = account_get_friends(my_acc);
 			if (friendlist_find_account(flist, facc) != nullptr)
 				return -4;
 
@@ -1973,10 +1971,7 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL friend username");
 				return -1;
 			}
-			t_list *flist = account_get_friends(account);
-			if (flist == nullptr)
-				return -1;
-
+			auto& flist = account_get_friends(account);
 			t_friend *fr = friendlist_find_username(flist, frienduid);
 			if (fr == nullptr)
 				return -2;
@@ -1988,11 +1983,11 @@ namespace pvpgn
 				if (account_get_friend(account, i) == uid)
 				{
 					t_account * facc = friend_get_account(fr);
-					t_list * fflist = account_get_friends(facc);
+					auto& fflist = account_get_friends(facc);
 					t_friend * ffr = friendlist_find_account(fflist, account);
-
+	
 					account_remove_friend(account, i);
-					if (facc && fflist && ffr)
+					if (facc && ffr)
 						friend_set_mutual(ffr, FRIEND_NOTMUTUAL);
 
 					friendlist_remove_friend(flist, fr);

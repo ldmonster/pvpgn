@@ -21,7 +21,17 @@
 #include <cstring>
 #include <cstdio>
 
-#include "compat/psock.h"
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <winsock2.h>
+#else
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <arpa/inet.h>
+#  include <cerrno>
+#endif
 #include "compat/strerror.h"
 #include "common/packet.h"
 #include "common/eventlog.h"
@@ -30,6 +40,10 @@
 #include "common/addr.h"
 #include "common/tag.h"
 #include "common/setup_after.h"
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+#include "integration/legacy_bnetd/send_udptest_bridge.hpp"
+#endif
 
 
 extern std::FILE * hexstrm; /* from main.c */
@@ -47,12 +61,15 @@ namespace pvpgn
 			unsigned int       tries, successes;
 
 			std::memset(&caddr, 0, sizeof(caddr));
-			caddr.sin_family = PSOCK_AF_INET;
+			caddr.sin_family = AF_INET;
 			caddr.sin_port = htons(conn_get_game_port(c));
 			caddr.sin_addr.s_addr = htonl(conn_get_game_addr(c));
 
 			for (tries = successes = 0; successes != 2 && tries < 5; tries++)
 			{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+				pvpgn_v3_observe_udptest(const_cast<t_connection *>(c));
+#endif
 				if (!(upacket = packet_create(packet_class_udp)))
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not allocate memory for packet", conn_get_socket(c));
@@ -77,10 +94,10 @@ namespace pvpgn
 					hexdump(hexstrm, packet_get_raw_data(upacket, 0), packet_get_size(upacket));
 				}
 
-				if (psock_sendto(conn_get_game_socket(c),
+				if (sendto(conn_get_game_socket(c),
 					packet_get_raw_data_const(upacket, 0), packet_get_size(upacket),
-					0, (struct sockaddr *)&caddr, (psock_t_socklen)sizeof(caddr)) != (int)packet_get_size(upacket))
-					eventlog(eventlog_level_error, __FUNCTION__, "[{}] failed to send UDPTEST to {} (attempt {}) (psock_sendto: {})", conn_get_socket(c), addr_num_to_addr_str(ntohl(caddr.sin_addr.s_addr), conn_get_game_port(c)), tries + 1, pstrerror(psock_errno()));
+					0, (struct sockaddr *)&caddr, (socklen_t)sizeof(caddr)) != (int)packet_get_size(upacket))
+					eventlog(eventlog_level_error, __FUNCTION__, "[{}] failed to send UDPTEST to {} (attempt {}) (sendto: {})", conn_get_socket(c), addr_num_to_addr_str(ntohl(caddr.sin_addr.s_addr), conn_get_game_port(c)), tries + 1, pstrerror(errno));
 				else
 					successes++;
 

@@ -27,14 +27,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 #include <vector>
 
 #include <strings.h>
 
-#include "common/list.h"
 #include "common/util.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/field_sizes.h"
 #include "common/xstring.h"
 
@@ -77,40 +76,21 @@ namespace pvpgn
 		static int ipban_could_be_ip_str(char const * ipstr);
 		static void ipban_usage(t_connection * c);
 
-		static t_list * ipbanlist_head = NULL;
+		static std::vector<t_ipban_entry*> ipbanlist;
 		static std::time_t lastchecktime = 0;
 
 		extern int ipbanlist_create(void)
 		{
-			ipbanlist_head = list_create();
+			ipbanlist.clear();
 			return 0;
 		}
 
 
 		extern int ipbanlist_destroy(void)
 		{
-			t_elem *		curr;
-			t_ipban_entry *	entry;
-
-			if (ipbanlist_head)
-			{
-				LIST_TRAVERSE(ipbanlist_head, curr)
-				{
-					entry = (t_ipban_entry*)elem_get_data(curr);
-					if (!entry) /* should not happen */
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "ipbanlist contains NULL item");
-						continue;
-					}
-					if (list_remove_elem(ipbanlist_head, &curr) < 0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
-					ipban_unload_entry(entry);
-				}
-				if (list_destroy(ipbanlist_head) < 0)
-					return -1;
-				ipbanlist_head = NULL;
-			}
-
+			for (t_ipban_entry* entry : ipbanlist)
+				ipban_unload_entry(entry);
+			ipbanlist.clear();
 			return 0;
 		}
 
@@ -189,7 +169,6 @@ namespace pvpgn
 
 		extern int ipbanlist_save(char const * filename)
 		{
-			t_elem const *	curr;
 			t_ipban_entry *	entry;
 			std::FILE *		fp;
 			char *		ipstr;
@@ -212,9 +191,9 @@ namespace pvpgn
 				return -1;
 				}*/
 
-			LIST_TRAVERSE_CONST(ipbanlist_head, curr)
+			for (t_ipban_entry* entry2 : ipbanlist)
 			{
-				entry = (t_ipban_entry*)elem_get_data(curr);
+				entry = entry2;
 				if (!entry)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "ipbanlist contains NULL element");
@@ -287,15 +266,9 @@ namespace pvpgn
 			eventlog(eventlog_level_debug, __FUNCTION__, "checking {}.{}.{}.{}", ip1, ip2, ip3, ip4);
 
 			counter = 0;
-			LIST_TRAVERSE_CONST(ipbanlist_head, curr)
+			for (t_ipban_entry* entry_ptr : ipbanlist)
 			{
-				entry = (t_ipban_entry*)elem_get_data(curr);
-				if (!entry)
-				{
-					eventlog(eventlog_level_error, __FUNCTION__, "ipbanlist contains NULL item");
-					delete[] whole;
-					return -1;
-				}
+				entry = entry_ptr;
 				counter++;
 				switch (entry->type)
 				{
@@ -438,7 +411,7 @@ namespace pvpgn
 			}
 
 			entry->endtime = endtime;
-			list_append_data(ipbanlist_head, entry);
+			ipbanlist.push_back(entry);
 
 			if (c)
 			{
@@ -467,30 +440,24 @@ namespace pvpgn
 
 		extern int ipbanlist_unload_expired(void)
 		{
-			t_elem *		curr;
-			t_ipban_entry * 	entry;
-			char removed;
-
-			removed = 0;
-			LIST_TRAVERSE(ipbanlist_head, curr)
+			bool removed = false;
+			auto it = ipbanlist.begin();
+			while (it != ipbanlist.end())
 			{
-				entry = (t_ipban_entry*)elem_get_data(curr);
-				if (!entry)
-				{
-					eventlog(eventlog_level_error, __FUNCTION__, "ipbanlist_contains NULL element");
-					return -1;
-				}
+				t_ipban_entry * entry = *it;
 				if ((entry->endtime - now <= 0) && (entry->endtime != 0))
 				{
 					eventlog(eventlog_level_debug, __FUNCTION__, "removing item: {}", entry->info1);
-					removed = 1;
-					if (list_remove_elem(ipbanlist_head, &curr) < 0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item");
-					else
-						ipban_unload_entry(entry);
+					removed = true;
+					ipban_unload_entry(entry);
+					it = ipbanlist.erase(it);
+				}
+				else
+				{
+					++it;
 				}
 			}
-			if (removed == 1) ipbanlist_save(prefs_get_ipbanfile());
+			if (removed) ipbanlist_save(prefs_get_ipbanfile());
 			return 0;
 		}
 
@@ -594,8 +561,6 @@ namespace pvpgn
 		{
 			t_ipban_entry *	to_delete;
 			unsigned int	to_delete_nmbr;
-			t_ipban_entry *	entry;
-			t_elem *		curr;
 			unsigned int	counter;
 			char		tstr[MAX_MESSAGE_LEN];
 
@@ -607,22 +572,19 @@ namespace pvpgn
 					message_send_text(c, message_type_error, c, localize(c, "Illegal IP entry."));
 					return -1;
 				}
-				LIST_TRAVERSE(ipbanlist_head, curr)
+				auto it = ipbanlist.begin();
+				while (it != ipbanlist.end())
 				{
-					entry = (t_ipban_entry*)elem_get_data(curr);
-					if (!entry)
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "ipbanlist contains NULL item");
-						ipban_unload_entry(to_delete);
-						return -1;
-					}
+					t_ipban_entry * entry = *it;
 					if (ipban_identical_entry(to_delete, entry))
 					{
 						counter++;
-						if (list_remove_elem(ipbanlist_head, &curr) < 0)
-							eventlog(eventlog_level_error, __FUNCTION__, "could not remove item");
-						else
-							ipban_unload_entry(entry);
+						ipban_unload_entry(entry);
+						it = ipbanlist.erase(it);
+					}
+					else
+					{
+						++it;
 					}
 				}
 
@@ -649,23 +611,15 @@ namespace pvpgn
 				message_send_text(c, message_type_error, c, localize(c, "Wrong entry number."));
 				return -1;
 			}
-			LIST_TRAVERSE(ipbanlist_head, curr)
+			for (auto it = ipbanlist.begin(); it != ipbanlist.end(); ++it)
 			{
 				if (to_delete_nmbr == ++counter)
 				{
-					entry = (t_ipban_entry*)elem_get_data(curr);
-					if (!entry)
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "ipbanlist contains NULL item");
-						return -1;
-					}
-					if (list_remove_elem(ipbanlist_head, &curr)<0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item");
-					else
-					{
-						ipban_unload_entry(entry);
-						message_send_text(c, message_type_info, c, localize(c, "Entry deleted."));
-					}
+					t_ipban_entry * entry = *it;
+					ipban_unload_entry(entry);
+					ipbanlist.erase(it);
+					message_send_text(c, message_type_info, c, localize(c, "Entry deleted."));
+					return 0;
 				}
 			}
 
@@ -682,8 +636,6 @@ namespace pvpgn
 
 		static int ipban_func_list(t_connection * c)
 		{
-			t_elem const *	curr;
-			t_ipban_entry * 	entry;
 			char		tstr[MAX_MESSAGE_LEN];
 			unsigned int	counter;
 			char	 	timestr[50];
@@ -691,14 +643,8 @@ namespace pvpgn
 
 			counter = 0;
 			message_send_text(c, message_type_info, c, localize(c, "Banned IPs:"));
-			LIST_TRAVERSE_CONST(ipbanlist_head, curr)
+			for (t_ipban_entry * entry : ipbanlist)
 			{
-				entry = (t_ipban_entry*)elem_get_data(curr);
-				if (!entry)
-				{
-					eventlog(eventlog_level_error, __FUNCTION__, "ipbanlist contains NULL item");
-					return -1;
-				}
 				counter++;
 				if (entry->endtime == 0)
 					std::snprintf(timestr, sizeof(timestr), "%s", localize(c, "(perm)").c_str());

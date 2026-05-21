@@ -22,9 +22,9 @@
 #include <ctime>
 #include <cstdlib>
 
-#include "common/list.h"
+#include <vector>
+#include <algorithm>
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/util.h"
 #include "common/tag.h"
 /*
@@ -52,7 +52,7 @@ namespace pvpgn
 			return r;
 		}
 		static t_tournament_info * tournament_info = NULL;
-		static t_list * tournament_head = NULL;
+		static std::vector<t_tournament_user*> tournament_list;
 
 		static int tournamentlist_create(void);
 		static int _gamelist_destroy(void);
@@ -62,37 +62,19 @@ namespace pvpgn
 		/*****/
 		static int tournamentlist_create(void)
 		{
-			tournament_head = list_create();
+			tournament_list.clear();
 			return 0;
 		}
 
 		static int _gamelist_destroy(void)
 		{
-			t_elem *		curr;
-			t_tournament_user * user;
-
-			if (tournament_head) {
-				LIST_TRAVERSE(tournament_head, curr)
-				{
-					if (!(user = (t_tournament_user*)elem_get_data(curr))) {
-						eventlog(eventlog_level_error, __FUNCTION__, "tournament list contains NULL item");
-						continue;
-					}
-
-					if (list_remove_elem(tournament_head, &curr) < 0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
-
-					if (user->name)
-						delete[] user->name; /* avoid warning */
-
-					delete user;
-
-				}
-
-				if (list_destroy(tournament_head) < 0)
-					return -1;
-				tournament_head = NULL;
+			for (t_tournament_user * user : tournament_list)
+			{
+				if (user->name)
+					delete[] user->name;
+				delete user;
 			}
+			tournament_list.clear();
 			return 0;
 		}
 
@@ -127,7 +109,7 @@ namespace pvpgn
 			user->in_game = 0;
 			user->in_finals = 0;
 
-			list_prepend_data(tournament_head, user);
+			tournament_list.push_back(user);
 
 			eventlog(eventlog_level_info, __FUNCTION__, "added user \"{}\" to tournament", account_get_name(account));
 			return 0;
@@ -135,17 +117,11 @@ namespace pvpgn
 
 		static t_tournament_user * tournament_get_user(t_account * account)
 		{
-			t_elem const * curr;
-			t_tournament_user * user;
-
-			if (tournament_head)
-				LIST_TRAVERSE(tournament_head, curr)
+			for (t_tournament_user * user : tournament_list)
 			{
-					user = (t_tournament_user*)elem_get_data(curr);
-					if (std::strcmp(user->name, account_get_name(account)) == 0)
-						return user;
-				}
-
+				if (std::strcmp(user->name, account_get_name(account)) == 0)
+					return user;
+			}
 			return NULL;
 		}
 
@@ -242,17 +218,11 @@ namespace pvpgn
 
 		extern int tournament_get_game_in_progress(void)
 		{
-			t_elem const * curr;
-			t_tournament_user * user;
-
-			if (tournament_head)
-				LIST_TRAVERSE_CONST(tournament_head, curr)
+			for (t_tournament_user const * user : tournament_list)
 			{
-					user = (t_tournament_user*)elem_get_data(curr);
-					if (user->in_game == 1)
-						return 1;
-				}
-
+				if (user->in_game == 1)
+					return 1;
+			}
 			return 0;
 		}
 

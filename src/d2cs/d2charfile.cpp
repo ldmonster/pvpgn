@@ -29,7 +29,6 @@
 #include <vector>
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/d2char_checksum.h"
 #include "common/xstring.h"
 #include "prefs.h"

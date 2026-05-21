@@ -45,7 +45,6 @@
 #include "compat/stdfileno.h"
 #include "compat/pgetpid.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "cmdline.h"
 #include "prefs.h"
 #include "version.h"

@@ -25,7 +25,6 @@
 #include <string>
 
 #include "compat/gethostname.h"
-#include "common/xalloc.h"
 #include "common/eventlog.h"
 #include "common/addr.h"
 #include "common/tag.h"
@@ -1706,9 +1705,7 @@ namespace pvpgn
 
 		extern int message_send_all(t_message * message)
 		{
-			t_connection * c;
-			t_elem const * curr;
-			int            rez;
+			int rez;
 
 			if (!message)
 			{
@@ -1717,9 +1714,8 @@ namespace pvpgn
 			}
 
 			rez = -1;
-			LIST_TRAVERSE_CONST(connlist(), curr)
+			for (t_connection * c : connlist())
 			{
-				c = (t_connection*)elem_get_data(curr);
 				if (message_send(message, c) == 0)
 					rez = 0;
 			}
@@ -1757,13 +1753,10 @@ namespace pvpgn
 
 		extern int message_send_admins(t_connection * src, t_message_type type, char const * text)
 		{
-			t_elem	const * curr;
-			t_connection *	tc;
-			int			counter = 0;
+			int counter = 0;
 
-			LIST_TRAVERSE_CONST(connlist(), curr)
+			for (t_connection * tc : connlist())
 			{
-				tc = (t_connection*)elem_get_data(curr);
 				if (!tc)
 					continue;
 				if (account_get_auth_admin(conn_get_account(tc), NULL) == 1 && tc != src)

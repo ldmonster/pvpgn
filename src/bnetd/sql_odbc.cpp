@@ -23,7 +23,6 @@
 #include <sqlext.h>
 #include <cctype>
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/xstring.h"
 #include "storage_sql.h"
 #include "sql_odbc.h"

@@ -26,8 +26,14 @@
 # include <conio.h>
 #endif
 
-#include "compat/psock.h"
 #include "compat/strerror.h"
+#ifndef _WIN32
+#  include <sys/socket.h>
+#  include <unistd.h>
+#  include <fcntl.h>
+#  include <errno.h>
+#  include <netinet/in.h>
+#endif
 #include "common/addr.h"
 #include "common/eventlog.h"
 #include "common/list.h"
@@ -83,13 +89,13 @@ static int server_listen(void)
 	}
 	BEGIN_LIST_TRAVERSE_DATA(server_listen_addrs,curr_laddr,t_addr)
 	{
-		sock=net_listen(addr_get_ip(curr_laddr),addr_get_port(curr_laddr),PSOCK_SOCK_STREAM);
+		sock=net_listen(addr_get_ip(curr_laddr),addr_get_port(curr_laddr),SOCK_STREAM);
 		if (sock<0) {
 			eventlog(eventlog_level_error,__FUNCTION__,"error listen socket");
 			return -1;
 		}
 
-		if (psock_ctl(sock,PSOCK_NONBLOCK)<0) {
+		if (fcntl(sock,F_SETFL,O_NONBLOCK)<0) {
 			eventlog(eventlog_level_error,__FUNCTION__,"error set listen socket in non-blocking mode");
 		}
 
@@ -98,7 +104,7 @@ static int server_listen(void)
 
 		if (fdwatch_add_fd(sock, fdwatch_type_read, d2cs_server_handle_accept, curr_laddr)<0) {
 		    eventlog(eventlog_level_error,__FUNCTION__,"error adding socket {} to fdwatch pool (max sockets?)",sock);
-		    psock_close(sock);
+		    close(sock);
 		    return -1;
 		}
 
@@ -112,7 +118,7 @@ static int server_accept(int sock)
 {
 	int			csock;
 	struct sockaddr_in	caddr, raddr;
-	psock_t_socklen		caddr_len, raddr_len;
+	socklen_t		caddr_len, raddr_len;
 	int			val;
 	unsigned int		ip;
 	unsigned short		port;
@@ -120,7 +126,7 @@ static int server_accept(int sock)
 
 	caddr_len=sizeof(caddr);
 	std::memset(&caddr,0,sizeof(caddr));
-	csock=psock_accept(sock,(struct sockaddr *)&caddr,&caddr_len);
+	csock=accept(sock,(struct sockaddr *)&caddr,&caddr_len);
 	if (csock<0) {
 		eventlog(eventlog_level_error,__FUNCTION__,"error accept new connection");
 		return -1;
@@ -133,22 +139,22 @@ static int server_accept(int sock)
 	}
 
 	val=1;
-	if (psock_setsockopt(csock, PSOCK_SOL_SOCKET, PSOCK_SO_KEEPALIVE, &val,sizeof(val))<0) {
+	if (setsockopt(csock, SOL_SOCKET, SO_KEEPALIVE, &val,sizeof(val))<0) {
 		eventlog(eventlog_level_warn,__FUNCTION__,"error set sock option keep alive");
 	}
-	if (psock_ctl(csock, PSOCK_NONBLOCK)<0) {
+	if (fcntl(csock, F_SETFL, O_NONBLOCK)<0) {
 		eventlog(eventlog_level_error,__FUNCTION__,"error set socket to non-blocking mode");
-		psock_close(csock);
+		close(csock);
 		return -1;
 	}
 
 	raddr_len=sizeof(raddr);
 	std::memset(&raddr,0,sizeof(raddr));
 	ip=port=0;
-	if (psock_getsockname(csock,(struct sockaddr *)&raddr,&raddr_len)<0) {
+	if (getsockname(csock,(struct sockaddr *)&raddr,&raddr_len)<0) {
 		eventlog(eventlog_level_warn,__FUNCTION__,"unable to get local socket info");
 	} else {
-		if (raddr.sin_family!=PSOCK_AF_INET) {
+		if (raddr.sin_family!=AF_INET) {
 			eventlog(eventlog_level_warn,__FUNCTION__,"got bad socket family {}",raddr.sin_family);
 		} else {
 			ip=ntohl(raddr.sin_addr.s_addr);
@@ -157,7 +163,7 @@ static int server_accept(int sock)
 	}
 	if (!(cc = d2cs_conn_create(csock,ip,port,ntohl(caddr.sin_addr.s_addr),ntohs(caddr.sin_port)))) {
 		eventlog(eventlog_level_error,__FUNCTION__,"error create new connection");
-		psock_close(csock);
+		close(csock);
 		return -1;
 	}
 	if (conn_add_fd(cc, fdwatch_type_read, d2cs_server_handle_tcp)<0) {
@@ -239,11 +245,11 @@ static int server_handle_socket(void)
 	switch (fdwatch(BNETD_POLL_INTERVAL)) {
 		case -1:
 			if (
-#ifdef PSOCK_EINTR
-			    psock_errno()!=PSOCK_EINTR &&
+#ifdef EINTR
+			    errno!=EINTR &&
 #endif
 			    1) {
-				eventlog(eventlog_level_error,__FUNCTION__,"select failed (select: {})",pstrerror(psock_errno()));
+				eventlog(eventlog_level_error,__FUNCTION__,"select failed (select: {})",pstrerror(errno));
 				return -1;
 			}
 			/* fall through */
@@ -292,7 +298,7 @@ static int server_cleanup(void)
 	BEGIN_LIST_TRAVERSE_DATA(server_listen_addrs,curr_laddr,t_addr)
 	{
 		sock=addr_get_data(curr_laddr).i;
-		psock_close(sock);
+		close(sock);
 	}
 	END_LIST_TRAVERSE_DATA()
 	addrlist_destroy(server_listen_addrs);
@@ -304,10 +310,7 @@ extern int d2cs_server_process(void)
 #ifndef WIN32
 	handle_signal_init();
 #endif
-	if (psock_init()<0) {
-		eventlog(eventlog_level_error,__FUNCTION__,"failed to init network");
-		return -1;
-	}
+	/* psock_init() is a no-op on POSIX; nothing to do */
 	eventlog(eventlog_level_info,__FUNCTION__,"network initialized");
 	if (s2s_init()<0) {
 		eventlog(eventlog_level_error,__FUNCTION__,"failed to init s2s connection");

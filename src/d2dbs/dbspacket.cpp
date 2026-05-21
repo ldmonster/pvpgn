@@ -39,12 +39,10 @@
 
 #include "compat/mkdir.h"
 #include "compat/rename.h"
-#include "compat/psock.h"
 #include "common/xstring.h"
 #include "common/eventlog.h"
 #include "common/d2cs_d2gs_character.h"
 #include "common/d2char_checksum.h"
-#include "common/xalloc.h"
 #include "common/addr.h"
 #include "prefs.h"
 #include "charlock.h"

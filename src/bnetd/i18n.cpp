@@ -39,17 +39,16 @@
 #include <fmt/format.h>
 
 #include <strings.h>
-#include "compat/pdir.h"
+#include "infra/compat/directory.hpp"
 
 #include "common/token.h"
 
 #include "common/list.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/xstring.h"
 #include "common/util.h"
 #include "common/tag.h"
-#include "common/pugixml.h"
+#include "infra/xml/xml_document.hpp"
 
 #include "account.h"
 #include "connection.h"
@@ -115,49 +114,59 @@ namespace pvpgn
 
 		extern int i18n_load(void)
 		{
-			std::string lang_filename;
-			pugi::xml_document doc;
+			namespace xml = pvpgn::v3::infra::xml;
 			std::string original, translate;
 
 	
-			std::vector<std::string> files = dir_getfiles(prefs_get_i18ndir(), ".xml", true);
-
+			namespace dir = pvpgn::v3::infra::compat;
+			auto raw_files = dir::list_files(prefs_get_i18ndir(), ".xml", true);
+			std::vector<std::string> files;
+			files.reserve(raw_files.size());
+			for (const auto& p : raw_files) files.push_back(p.string());
+	
 			// load common.xml from each directory
-			for (int i = 0; i < files.size(); ++i)
+			for (int i = 0; i < (int)files.size(); ++i)
 			{
-				lang_filename = files[i]; //i18n_filename(prefs_get_localizefile(), languages[i]);
-				if (FILE *f = fopen(lang_filename.c_str(), "r"))
-				{
-					fclose(f);
+				const std::string& lang_filename = files[i];
 
-					if (!doc.load_file(lang_filename.c_str()))
-					{
-						ERROR1("could not parse localization file \"{}\"", lang_filename);
-						continue;
-					}
-				}
+				// Try to open the file first; skip silently if it doesn't exist
+				if (FILE *f = fopen(lang_filename.c_str(), "r"))
+					fclose(f);
 				else
+					continue;
+
+				auto doc = xml::load_file(lang_filename);
+				if (!doc)
 				{
-					// file not exists, ignore it
+					ERROR1("could not parse localization file \"{}\"", lang_filename);
 					continue;
 				}
 
 				// root node
-				pugi::xml_node root_node = doc.child("root");
-				pugi::xml_node meta_node = root_node.child("meta");
-				
+				auto root_node_opt = doc->root().child("root");
+				if (!root_node_opt) continue;
+				auto root_node = *root_node_opt;
+
+				auto meta_node_opt = root_node.child("meta");
+				if (!meta_node_opt) continue;
+				auto meta_node = *meta_node_opt;
+
 				// read language tag
-				std::string lang_name = meta_node.child("language").child_value();
-				std::string lang_tag = meta_node.child("language").attribute("tag").as_string();
+				std::string lang_name;
+				std::string lang_tag;
+				if (auto lang_node = meta_node.child("language"))
+				{
+					lang_name = std::string(lang_node->text());
+					lang_tag  = std::string(lang_node->attribute("tag").value_or(""));
+				}
 				t_gamelang lang_tag_uint = tag_str_to_uint(lang_tag.c_str());
 
 				std::vector<std::string> countries;
 				// read all country codes for the current language
-				pugi::xml_node country_nodes = root_node.child("meta").child("countries");
-				for (pugi::xml_node node = country_nodes.child("country"); node; node = node.next_sibling("country"))
-				{
-					countries.push_back( node.child_value() );
-				}
+				if (auto meta2 = root_node.child("meta"))
+					if (auto country_nodes = meta2->child("countries"))
+						for (auto node : country_nodes->children("country"))
+							countries.push_back(std::string(node.text()));
 
 				// if the tag not found in languages then add it
 				bool found;
@@ -167,13 +176,17 @@ namespace pvpgn
 					languages.push_back({ lang_tag_uint, i18n_strdup(lang_name.c_str()), countries });
 				}
 
-				
 				// read xml strings to map
-				pugi::xml_node item_nodes = root_node.child("items");
-				for (pugi::xml_node node = item_nodes.child("item"); node; node = node.next_sibling("item"))
+				auto item_nodes_opt = root_node.child("items");
+				if (!item_nodes_opt) continue;
+				auto item_nodes = *item_nodes_opt;
+
+				for (auto node : item_nodes.children("item"))
 				{
-					original = node.child_value("original");
-					if (original[0] == '\0')
+					original = std::string(node.child("original")
+						? std::string_view(node.child("original")->text())
+						: std::string_view{});
+					if (original.empty())
 						continue;
 
 					//std::map<const char *, std::map<t_gamelang, const char *> >::iterator it = translations.find(original);
@@ -181,22 +194,40 @@ namespace pvpgn
 					//if (it == translations.end())
 					//	translations[original] = std::map<t_gamelang, const char *>();
 
-
 					// check if translate string has a reference to another translation
-					if (pugi::xml_attribute attr = node.child("translate").attribute("refid"))
+					auto translate_node_opt = node.child("translate");
+					auto refid_opt = translate_node_opt
+						? translate_node_opt->attribute("refid")
+						: std::optional<std::string_view>{};
+
+					if (refid_opt)
 					{
-						if (pugi::xml_node n = item_nodes.find_child_by_attribute("id", attr.value()))
-							translate = n.child_value("translate");
-						else
+						// find_child_by_attribute("id", refid) — manual search
+						std::string_view refid = *refid_opt;
+						bool ref_found = false;
+						for (auto n : item_nodes.children("item"))
+						{
+							if (n.attribute("id").value_or("") == refid)
+							{
+								translate = std::string(n.child("translate")
+									? std::string_view(n.child("translate")->text())
+									: std::string_view{});
+								ref_found = true;
+								break;
+							}
+						}
+						if (!ref_found)
 						{
 							translate = original;
-							//WARN2("could not find translate reference refid=\"{}\", use original string ({})", attr.value(), lang_filename.c_str());
+							//WARN2("could not find translate reference refid=\"{}\", use original string ({})", refid, lang_filename.c_str());
 						}
 					}
 					else
 					{
-						translate = node.child_value("translate");
-						if (translate[0] == '\0')
+						translate = translate_node_opt
+							? std::string(translate_node_opt->text())
+							: std::string{};
+						if (translate.empty())
 						{
 							translate = original;
 							//WARN2("empty translate for \"{}\", use original string ({})", original.c_str(), lang_filename.c_str());

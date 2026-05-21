@@ -148,11 +148,126 @@ values (so changes break the build, not the runtime).
 
 ## Step 4 — Packet/Queue audit
 
-- [ ] not started
+- [x] COMPLETE — see R100 in progress-master.md. All actionable OUTPUT
+  `packet_create()` sites in `src/bnetd/` are guarded. 62 remaining
+  sites are non-bridgeable (INPUT read-buffer allocations, utility
+  definitions, zlib scratch buffers).
 
-## Step 5 — Type utilities into `core/`
+## Step 5 — Type utilities into `core/`  ✅
 
-- [ ] not started
+### Audit (R101)
+
+| Legacy file | v3 target | Status |
+|---|---|---|
+| `src/common/bn_type.h` | `core/endian.hpp` | ✅ already existed (R-early) |
+| `src/common/proginfo/version.h` | `core/version.hpp` | ✅ already existed (R-early) |
+| `src/common/bnettime.{h,cpp}` | `core/bnettime.hpp` | ✅ R101 |
+| `src/common/hexdump.{h,cpp}` | `core/hexdump.hpp` | ✅ R101 |
+| `src/common/tag.h` | `domain/shared/client_tag.hpp` | ✅ R102 |
+| `src/common/util.{h,cpp}` | `core/string_utils.hpp` | ✅ R103 |
+
+### R101 deliverables
+
+- [x] `src/v3/core/include/core/bnettime.hpp` — pure C++20 Windows FILETIME
+  epoch conversion. `BnetTime` struct (`upper`/`lower` uint32), `to_bnettime()`,
+  `from_bnettime()`, `bnettime_now()`, `bnettime_to_string()`,
+  `bnettime_from_string()`, `local_tzbias_minutes()`, `bnettime_add_tzbias()`.
+  Constants: `kBnetTimeUnitsPerSec = 10'000'000`, `kUnixEpochOffsetUnits =
+  116'444'736'000'000'000`.
+- [x] `src/v3/core/include/core/hexdump.hpp` — pure C++20 hex dump.
+  `hexdump_line()` (single 16-byte row), `hexdump()` (full buffer).
+  Format: `OOOO:   XX XX XX XX XX XX XX XX   XX XX XX XX XX XX XX XX   ................`
+  Span overloads for both functions.
+- [x] `tests/unit/core/bnettime_test.cpp` — 17 Catch2 cases: BnetTime
+  round-trip, zero/max, epoch constant sanity, to/from_bnettime at Unix
+  epoch and 2000-01-01, pre-Unix timestamps, string serialization/parsing,
+  `bnettime_add_tzbias` (zero/positive/negative/underflow), `bnettime_now`.
+- [x] `tests/unit/core/hexdump_test.cpp` — 14 Catch2 cases: `hexdump_line`
+  full row, printable ASCII, short row, offset display; `hexdump` empty/null,
+  single byte, 16/17/32 bytes, second-line offset, span overload, known
+  byte sequence.
+- [x] `tests/unit/core/CMakeLists.txt` — added `test_core_bnettime` and
+  `test_core_hexdump` via `pvpgn_v3_add_test()`.
+- [x] `Dockerfile.v3` — `test_core_bnettime test_core_hexdump` added to
+  cmake `--build` target list (line 46) and RUN test lines (lines 207-208).
+
+### R102 deliverables
+
+- [x] `src/v3/domain/shared/include/domain/shared/client_tag.hpp` — extended the
+  existing stub `ClientTag` class with:
+  - `from_packed_be(uint32_t)` — construct from big-endian packed uint32
+  - `is_valid_client()` — mirrors legacy `tag_check_client()`
+  - `is_valid_arch()` — mirrors legacy `tag_check_arch()`
+  - `is_wol_v1()` / `is_wol_v2()` — mirrors legacy `tag_check_wolv1/2()`
+  - `title()` — mirrors legacy `clienttag_get_title()`
+  - `pvpgn::domain::tags::k*` constants: 14 Blizzard client tags (`kStarcraft`,
+    `kBroodWar`, `kWarcraftII`, `kDiablo2`, `kDiablo2Xp`, `kWarcraft3`, `kWar3Xp`,
+    `kBnChatBot`, `kShareware`, `kDiabloRtl`, `kDiabloShr`, `kStarcraftJp`,
+    `kDiablo2St`, `kIIrc`), 14 Westwood Online tags (`kWChat`, `kTiberianSun`,
+    `kTibSunXp`, `kRedAlert`, `kRedAlert2`, `kDune2000`, `kNox`, `kNoxQuest`,
+    `kRenegade`, `kRenegadeFds`, `kYurisRev`, `kEmperorBd`, `kLofLore3`, `kWwol`),
+    `kUnknown`, 3 arch tags (`kArchWinX86`, `kArchMacPpc`, `kArchOsxPpc`),
+    12 language tags (`kLangEnUs` … `kLangZhTW`). All `inline constexpr`.
+  - All new methods are `constexpr`; header-only, no `.cpp` needed.
+- [x] `tests/unit/domain/shared/client_tag_test.cpp` — 22 Catch2 test cases:
+  parse/reject (wrong length, non-printable, boundary chars), from_packed_be
+  round-trip, constexpr array ctor, all 28 Blizzard + WOL constant `packed_be()`
+  values pinned to legacy `CLIENTTAG_*_UINT` macros, all 3 arch tags, all 12 lang
+  tags, `text()` string checks, `is_valid_client()` true/false, `is_valid_arch()`
+  true/false, `is_wol_v1()` / `is_wol_v2()`, `title()` for all 26 known clients +
+  "Unknown" fallback, comparison operators (`==`, `!=`, `<=>`), `std::hash` in
+  `unordered_set`.
+- [x] `tests/unit/domain/shared/CMakeLists.txt` — added `test_domain_shared_client_tag`
+  via `pvpgn_v3_add_test()`.
+- [x] `Dockerfile.v3` — `test_domain_shared_client_tag` added to cmake `--build`
+  target list and RUN test line.
+- [x] `plans/progress-master.md` — R102 session log entry added.
+- [x] `plans/progress-phase1-common.md` — Step 5 `tag.h` row updated to ✅ R102.
+- **No changes** to `src/v3/CMakeLists.txt` — `domain_shared` is already an
+  INTERFACE library; the header-only addition requires no new sources.
+- **Legacy `src/common/tag.h`** left in place — still used by legacy bnetd/d2cs/d2dbs.
+- **Deferred** (Step 5 remainder): `util.{h,cpp}` → `core/` (misc string/path helpers).
+
+### R103 deliverables
+
+- [x] `src/v3/core/include/core/string_utils.hpp` — pure C++20 header-only migration of
+  `src/common/util.{h,cpp}`. Functions migrated (no legacy dependencies):
+  - `str_starts_with_word(full, part)` — case-insensitive word-boundary prefix check
+    (mirrors `strstart()`)
+  - `str_reverse(sv)` — returns reversed copy (mirrors `strreverse()`)
+  - `str_to_uint(sv)` / `str_to_ushort(sv)` — parse unsigned integers via
+    `std::from_chars`, return `std::optional` (mirrors `str_to_uint/str_to_ushort`)
+  - `str_get_bool(sv)` — parse "true/yes/on/1" / "false/no/off/0", return
+    `std::optional<bool>` (mirrors `str_get_bool()`)
+  - `seconds_to_timestr(n)` — format duration as human-readable string, returns
+    `std::string` (mirrors `seconds_to_timestr()`)
+  - `clockstr_to_seconds(sv)` — parse "HH:MM:SS" / "MM:SS" clock string, return
+    `std::optional<unsigned int>` (mirrors `clockstr_to_seconds()`)
+  - `escape_fs_chars(sv)` — percent-encode NUL/`%`/`/`/`\`/`:` (mirrors
+    `escape_fs_chars()`)
+  - `escape_chars(sv)` / `unescape_chars(sv)` — C-style backslash escaping for
+    config strings (mirrors `escape_chars()` / `unescape_chars()`)
+  - `bytes_to_hex_str(data)` / `hex_str_to_bytes(source, n)` — space-separated
+    uppercase hex encoding (mirrors `str_to_hex()` / `hex_to_str()`)
+  - `timestr_to_time(sv)` — parse "yyyy/mm/dd hh:mm:ss" into `std::time_t`, return
+    `std::optional<std::time_t>` (mirrors `timestr_to_time()`)
+  - `str_skip_space(sv)` / `str_skip_word(sv)` — `constexpr string_view` trimmers
+    (mirrors the legacy inline helpers)
+  - Functions deferred (I/O concerns, not pure utilities): `file_get_line()`,
+    `str_print_term()`
+- [x] `tests/unit/core/string_utils_test.cpp` — 57 Catch2 test cases covering all
+  migrated functions: word-boundary matching, case-insensitivity, reversal, uint/ushort
+  parsing (overflow, whitespace, plus-sign), bool parsing, duration formatting (seconds/
+  minutes/hours/days with pluralisation), clock string parsing, filesystem char escaping,
+  backslash escape/unescape round-trip, hex encoding round-trip, datetime parsing, and
+  `str_skip_space`/`str_skip_word` tokenisation.
+- [x] `tests/unit/core/CMakeLists.txt` — added `test_core_string_utils` via
+  `pvpgn_v3_add_test()`.
+- [x] `Dockerfile.v3` — `test_core_string_utils` added to cmake `--build` target list
+  (line 46) and RUN test line added (line 209).
+- **No changes** to `src/v3/CMakeLists.txt` — `string_utils.hpp` is header-only;
+  the `core` INTERFACE library already exposes the include directory.
+- **Legacy `src/common/util.h`** left in place — still used by legacy bnetd/d2cs/d2dbs.
 
 ## Step 6 — Eliminate `xalloc`
 

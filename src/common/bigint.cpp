@@ -28,7 +28,6 @@
 #include <stdexcept>
 #include <sstream>
 
-#include "common/xalloc.h"
 
 #include "common/setup_after.h"
  

@@ -28,9 +28,8 @@
 #include "common/tag.h"
 #include "common/queue.h"
 #include "common/bn_type.h"
-#include "common/list.h"
+#include <vector>
 #include "common/addr.h"
-#include "common/xalloc.h"
 #include "common/trans.h"
 
 #include "team.h"
@@ -51,6 +50,19 @@
 // Observation bridge for handle_anongame_search / handle_anongame_join.
 extern "C" int pvpgn_v3_anongame_entry_try(void* conn_ptr,
                                            char const* kind) noexcept;
+// Round 91: anongame send bridges.
+extern "C" int pvpgn_v3_send_anongame_search_reply(void*          conn_ptr,
+                                                    unsigned int   count,
+                                                    unsigned int   reply,
+                                                    unsigned short search_time) noexcept;
+extern "C" int pvpgn_v3_observe_anongame_found(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_observe_w3route_ack(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_observe_w3route_loadingack(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_observe_w3route_ready(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_observe_w3route_playerinfo(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_observe_w3route_levelinfo(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_observe_w3route_startgame1(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_observe_w3route_startgame2(void* conn_ptr) noexcept;
 #endif
 
 #define MAX_LEVEL 100
@@ -70,7 +82,7 @@ namespace pvpgn
 		static t_connection *player[ANONGAME_TYPES][ANONGAME_MAX_GAMECOUNT];
 
 		/* [quetzal] 20020815 - queue to hold matching players */
-		static t_list *matchlists[ANONGAME_TYPES][MAX_LEVEL];
+		static std::vector<t_matchdata*> matchlists[ANONGAME_TYPES][MAX_LEVEL];
 
 		long average_anongame_search_time = 30;
 		unsigned int anongame_search_count = 0;
@@ -438,6 +450,12 @@ namespace pvpgn
 			account_set_w3pgrace(conn_get_account(c), conn_get_clienttag(c), a->race);
 
 			/* send search reply to client */
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_send_anongame_search_reply(c,
+			        a->count, 0u,
+			        static_cast<unsigned short>(average_anongame_search_time)) == 1)
+				goto skip_anongame_search_reply;
+#endif
 			if (!(rpacket = packet_create(packet_class_bnet)))
 				return -1;
 			packet_set_size(rpacket, sizeof(t_server_anongame_search_reply));
@@ -449,6 +467,9 @@ namespace pvpgn
 			packet_append_data(rpacket, &temp, 2);
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			skip_anongame_search_reply:;
+#endif
 			/* end search reply */
 
 			switch (option) {
@@ -520,9 +541,6 @@ namespace pvpgn
 
 		static int _anongame_queue(t_connection * c, int queue, std::uint32_t map_prefs)
 		{
-			int level;
-			t_matchdata *md;
-
 			if (!c) {
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
 			}
@@ -532,17 +550,14 @@ namespace pvpgn
 				return -1;
 			}
 
-			level = _anongame_level_by_queue(c, queue);
+			int level = _anongame_level_by_queue(c, queue);
 
-			if (!matchlists[queue][level])
-				matchlists[queue][level] = list_create();
-
-			md = new t_matchdata{};
+			t_matchdata * md = new t_matchdata{};
 			md->c = c;
 			md->map_prefs = map_prefs;
 			md->versiontag = conn_get_versioncheck(c) ? conn_get_versioncheck(c)->get_version_tag().c_str() : nullptr;
 
-			list_append_data(matchlists[queue][level], md);
+			matchlists[queue][level].push_back(md);
 
 			return 0;
 		}
@@ -812,7 +827,6 @@ namespace pvpgn
 			int delta = 0;
 			int i;
 			t_matchdata *md;
-			t_elem *curr;
 			int diff;
 			t_anongame *a = conn_get_anongame(c);
 			std::uint32_t cur_prefs = a->map_prefs;
@@ -831,9 +845,9 @@ namespace pvpgn
 				if ((level + delta <= maxlevel) && (level + delta >= minlevel)) {
 					eventlog(eventlog_level_trace, __FUNCTION__, "Traversing level {} players", level + delta);
 
-					LIST_TRAVERSE(matchlists[queue][level + delta], curr) {
-						md = (t_matchdata*)elem_get_data(curr);
-						if (md->versiontag 
+					for (t_matchdata * md_iter : matchlists[queue][level + delta]) {
+						md = md_iter;
+						if (md->versiontag
 							&& conn_get_versioncheck(c) 
 							&& !std::strcmp(md->versiontag, conn_get_versioncheck(c)->get_version_tag().c_str()) 
 							&& (cur_prefs & md->map_prefs))
@@ -976,12 +990,15 @@ namespace pvpgn
 					a->info->account[j] = conn_get_account(player[queue][j]);
 				}
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_observe_anongame_found(player[queue][i]);
+	#endif
 				if (!(rpacket = packet_create(packet_class_bnet))) {
 					delete pt2;
 					anongameinfo_destroy(info);
 					return -1;
 				}
-
+	
 				packet_set_size(rpacket, sizeof(t_server_anongame_found));
 				packet_set_type(rpacket, SERVER_ANONGAME_FOUND);
 				bn_byte_set(&rpacket->u.server_anongame_found.option, 1);
@@ -1027,24 +1044,19 @@ namespace pvpgn
 		/**********************************************************************************/
 		extern int anongame_matchlists_create()
 		{
-			int i, j;
-
-			for (i = 0; i < ANONGAME_TYPES; i++) {
-				for (j = 0; j < MAX_LEVEL; j++) {
-					matchlists[i][j] = NULL;
-				}
-			}
+			for (int i = 0; i < ANONGAME_TYPES; i++)
+				for (int j = 0; j < MAX_LEVEL; j++)
+					matchlists[i][j].clear();
 			return 0;
 		}
 
 		extern int anongame_matchlists_destroy()
 		{
-			int i, j;
-			for (i = 0; i < ANONGAME_TYPES; i++) {
-				for (j = 0; j < MAX_LEVEL; j++) {
-					if (matchlists[i][j]) {
-						list_destroy(matchlists[i][j]);
-					}
+			for (int i = 0; i < ANONGAME_TYPES; i++) {
+				for (int j = 0; j < MAX_LEVEL; j++) {
+					for (t_matchdata * md : matchlists[i][j])
+						delete md;
+					matchlists[i][j].clear();
 				}
 			}
 			return 0;
@@ -1061,10 +1073,6 @@ namespace pvpgn
 
 		extern int anongame_unqueue(t_connection * c, int queue)
 		{
-			int i;
-			t_elem *curr;
-			t_matchdata *md;
-
 			if (queue < 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "got negative queue id ({})", queue);
 				return -1;
@@ -1085,16 +1093,14 @@ namespace pvpgn
 				conn_set_anongame_search_starttime(c, ((std::time_t) 0));
 			}
 
-			for (i = 0; i < MAX_LEVEL; i++) {
-				if (matchlists[queue][i] == NULL)
-					continue;
-
-				LIST_TRAVERSE(matchlists[queue][i], curr) {
-					md = (t_matchdata*)elem_get_data(curr);
+			for (int i = 0; i < MAX_LEVEL; i++) {
+				auto & ml = matchlists[queue][i];
+				for (auto it = ml.begin(); it != ml.end(); ++it) {
+					t_matchdata * md = *it;
 					if (md->c == c) {
 						eventlog(eventlog_level_trace, __FUNCTION__, "unqueued player [{}] level {}", conn_get_socket(c), i);
-						list_remove_elem(matchlists[queue][i], &curr);
 						delete md;
+						ml.erase(it);
 						return 0;
 					}
 				}
@@ -1697,17 +1703,20 @@ namespace pvpgn
 
 				anongame_set_handle(a, bn_int_get(packet->u.client_w3route_req.handle));
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_observe_w3route_ack(c);
+	#endif
 				if (!(rpacket = packet_create(packet_class_w3route))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] packet_create failed", conn_get_socket(c));
 					return -1;
 				}
-
+	
 				packet_set_size(rpacket, sizeof(t_server_w3route_ack));
 				packet_set_type(rpacket, SERVER_W3ROUTE_ACK);
 				bn_byte_set(&rpacket->u.server_w3route_ack.unknown1, 7);
 				bn_short_set(&rpacket->u.server_w3route_ack.unknown2, 0);
 				bn_int_set(&rpacket->u.server_w3route_ack.unknown3, SERVER_W3ROUTE_ACK_UNKNOWN3);
-
+	
 				bn_short_set(&rpacket->u.server_w3route_ack.unknown4, 0xcccc);
 				bn_byte_set(&rpacket->u.server_w3route_ack.playernum, anongame_get_playernum(a));
 				bn_short_set(&rpacket->u.server_w3route_ack.unknown5, 0x0002);
@@ -1813,6 +1822,9 @@ namespace pvpgn
 				for (i = 0; i < tp; i++) {
 					if (!anongame_get_player(a, i))	/* ignore disconnected players */
 						continue;
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					(void)pvpgn_v3_observe_w3route_loadingack(conn_get_routeconn(anongame_get_player(a, i)));
+	#endif
 					if (!(rpacket = packet_create(packet_class_w3route))) {
 						eventlog(eventlog_level_error, __FUNCTION__, "[{}] packet_create failed", conn_get_socket(c));
 						return -1;
@@ -1833,11 +1845,14 @@ namespace pvpgn
 					if (!anongame_get_player(a, i))
 						continue;
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+					(void)pvpgn_v3_observe_w3route_ready(conn_get_routeconn(anongame_get_player(a, i)));
+	#endif
 					if (!(rpacket = packet_create(packet_class_w3route))) {
 						eventlog(eventlog_level_error, __FUNCTION__, "[{}] packet_create failed", conn_get_socket(c));
 						return -1;
 					}
-
+	
 					packet_set_size(rpacket, sizeof(t_server_w3route_ready));
 					packet_set_type(rpacket, SERVER_W3ROUTE_READY);
 					bn_byte_set(&rpacket->u.server_w3route_host.unknown1, 0);
@@ -1918,11 +1933,14 @@ namespace pvpgn
 							continue;
 						}
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+						(void)pvpgn_v3_observe_w3route_playerinfo(conn_get_routeconn(jc));
+	#endif
 						if (!(rpacket = packet_create(packet_class_w3route))) {
 							eventlog(eventlog_level_error, __FUNCTION__, "[{}] packet_create failed", conn_get_socket(c));
 							return -1;
 						}
-
+	
 						packet_set_size(rpacket, sizeof(t_server_w3route_playerinfo));
 						packet_set_type(rpacket, SERVER_W3ROUTE_PLAYERINFO);
 
@@ -1973,11 +1991,14 @@ namespace pvpgn
 				}
 
 				/* levelinfo */
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_observe_w3route_levelinfo(conn_get_routeconn(jc));
+	#endif
 				if (!(rpacket = packet_create(packet_class_w3route))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] packet_create failed", conn_get_socket(c));
 					return -1;
 				}
-
+	
 				packet_set_size(rpacket, sizeof(t_server_w3route_levelinfo));
 				packet_set_type(rpacket, SERVER_W3ROUTE_LEVELINFO);
 				bn_byte_set(&rpacket->u.server_w3route_levelinfo.numplayers, anongame_get_currentplayers(a));
@@ -2023,6 +2044,9 @@ namespace pvpgn
 				packet_del_ref(rpacket);
 
 				/* startgame1 */
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_observe_w3route_startgame1(conn_get_routeconn(jc));
+	#endif
 				if (!(rpacket = packet_create(packet_class_w3route))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] packet_create failed", conn_get_socket(c));
 					return -1;
@@ -2031,8 +2055,11 @@ namespace pvpgn
 				packet_set_type(rpacket, SERVER_W3ROUTE_STARTGAME1);
 				conn_push_outqueue(conn_get_routeconn(jc), rpacket);
 				packet_del_ref(rpacket);
-
+	
 				/* startgame2 */
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_observe_w3route_startgame2(conn_get_routeconn(jc));
+	#endif
 				if (!(rpacket = packet_create(packet_class_w3route))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] packet_create failed", conn_get_socket(c));
 					return -1;

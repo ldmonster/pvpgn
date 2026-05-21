@@ -21,16 +21,22 @@
 #include "common/setup_before.h"
 #include "connection.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <cassert>
+#include <deque>
+#include <vector>
 
 #ifdef WIN32_GUI
 #include <win32/winmain.h>
 #endif
 #include <strings.h>
 #include "compat/socket.h"
-#include "compat/psock.h"
+#ifndef _WIN32
+#  include <sys/socket.h>
+#  include <unistd.h>
+#endif
 #include "common/eventlog.h"
 #include "common/addr.h"
 #include "common/queue.h"
@@ -39,13 +45,11 @@
 #include "common/bn_type.h"
 #include "common/version.h"
 #include "common/util.h"
-#include "common/list.h"
 #include "common/bnet_protocol.h"
 #include "common/field_sizes.h"
 #include "common/rcm.h"
 #include "common/fdwatch.h"
 #include "common/elist.h"
-#include "common/xalloc.h"
 
 #include "account.h"
 #include "account_wrap.h"
@@ -87,6 +91,10 @@ extern "C" int pvpgn_v3_connection_dispatch_try(void* conn_ptr, char const* op) 
 // latency-probe timer for pre-game bnet clients (conn_test_latency).
 extern "C" int pvpgn_v3_send_echoreq(void* conn_ptr,
                                       unsigned int ticks) noexcept;
+// Strangler-fig hook for SERVER_W3ROUTE_ECHOREQ emitted by the latency-probe
+// timer for w3route connections (conn_test_latency).
+extern "C" int pvpgn_v3_observe_w3route_echoreq(void* conn_ptr,
+                                                  unsigned int ticks) noexcept;
 // Strangler-fig hooks for SERVER_READMEMORY (0x17) and
 // SERVER_REQUIREDWORK (0x4C) anti-cheat probes.
 extern "C" int pvpgn_v3_send_readmemory(void* conn_ptr,
@@ -95,6 +103,9 @@ extern "C" int pvpgn_v3_send_readmemory(void* conn_ptr,
                                          unsigned int length) noexcept;
 extern "C" int pvpgn_v3_send_requiredwork(void* conn_ptr,
                                            char const* filename) noexcept;
+// Strangler-fig hook for raw-text sends (bot/telnet "Username: " prompt).
+extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr,
+                                       char const* text) noexcept;
 #endif
 
 namespace pvpgn
@@ -123,8 +134,8 @@ namespace pvpgn
 		t_elist arrayflist;
 
 		static int      totalcount = 0;
-		static t_list * conn_head = NULL;
-		static t_list * conn_dead = NULL;
+		static std::vector<t_connection*> conn_head;
+		static std::vector<t_connection*> conn_dead;
 
 		static void conn_send_welcome(t_connection * c);
 		static void conn_send_issue(t_connection * c);
@@ -252,6 +263,9 @@ namespace pvpgn
 				irc_send_ping(c);
 			}
 			else if (conn_get_class(c) == conn_class_w3route) {
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				(void)pvpgn_v3_observe_w3route_echoreq(c, static_cast<unsigned int>(get_ticks()));
+	#endif
 				if (!(packet = packet_create(packet_class_w3route))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] packet_create failed", conn_get_socket(c));
 				}
@@ -418,7 +432,7 @@ namespace pvpgn
 			temp->protocol.chat.ignore_list = NULL;
 			temp->protocol.chat.ignore_count = 0;
 			temp->protocol.chat.quota.totcount = 0;
-			temp->protocol.chat.quota.list = list_create();
+			/* quota.list is a std::deque — default-constructed, no init needed */
 			temp->protocol.client.versionid = 0;
 			temp->protocol.client.gameversion = 0;
 			temp->protocol.client.checksum = 0;
@@ -479,7 +493,7 @@ namespace pvpgn
 			temp->protocol.v3_router = NULL;
 			temp->protocol.v3_owns_socket = 0;
 
-			list_prepend_data(conn_head, temp);
+			conn_head.push_back(temp);
 
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}][{}] sessionkey=0x{:08} sessionnum=0x{:08}", temp->socket.tcp_sock, temp->socket.udp_sock, temp->protocol.sessionkey, temp->protocol.sessionnum);
 
@@ -567,11 +581,9 @@ namespace pvpgn
 			c->protocol.w3.anongame = NULL;
 		}
 
-		extern void conn_destroy(t_connection * c, t_elem ** elem, int conn_or_dead_list)
+		extern void conn_destroy(t_connection * c, int conn_or_dead_list)
 		{
 			char const * classstr;
-			t_elem * curr;
-
 
 			if (c == NULL) {
 				eventlog(eventlog_level_error, "conn_destroy", "got NULL connection");
@@ -580,10 +592,14 @@ namespace pvpgn
 
 			classstr = conn_class_get_str(c->protocol.cclass);
 
-			if (list_remove_data(conn_head, c, (conn_or_dead_list) ? &curr : elem) < 0)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
-				return;
+				auto it = std::find(conn_head.begin(), conn_head.end(), c);
+				if (it == conn_head.end())
+				{
+					eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
+					return;
+				}
+				conn_head.erase(it);
 			}
 
 			if (c->protocol.cclass == conn_class_d2cs_bnetd)
@@ -611,17 +627,7 @@ namespace pvpgn
 
 
 			/* free the memory with user quota */
-			{
-				t_qline * qline;
-
-				LIST_TRAVERSE(c->protocol.chat.quota.list, curr)
-				{
-					qline = (t_qline*)elem_get_data(curr);
-					delete qline;
-					list_remove_elem(c->protocol.chat.quota.list, &curr);
-				}
-				list_destroy(c->protocol.chat.quota.list);
-			}
+			c->protocol.chat.quota.list.clear();
 
 			/* if this user in a channel, notify everyone that the user has left */
 			if (c->protocol.chat.channel)
@@ -740,8 +746,8 @@ namespace pvpgn
 				 * code here -- doing so would double-close. */
 			} else if (c->socket.tcp_sock != -1) { /* -1 means that the socket was already closed by conn_close() */
 				fdwatch_del_fd(c->socket.fdw_idx);
-				psock_shutdown(c->socket.tcp_sock, PSOCK_SHUT_RDWR);
-				psock_close(c->socket.tcp_sock);
+				shutdown(c->socket.tcp_sock, SHUT_RDWR);
+				close(c->socket.tcp_sock);
 			}
 			/* clear out the packet queues */
 			if (c->protocol.queues.inqueue) packet_del_ref(c->protocol.queues.inqueue);
@@ -759,7 +765,11 @@ namespace pvpgn
 
 			/* delete the conn from the dead list if its there, we dont check for error
 			 * because connections may be destroyed without first setting state to destroy */
-			if (conn_dead) list_remove_data(conn_dead, c, (conn_or_dead_list) ? elem : &curr);
+			{
+				auto dit = std::find(conn_dead.begin(), conn_dead.end(), c);
+				if (dit != conn_dead.end())
+					conn_dead.erase(dit);
+			}
 			connarray_del_conn(c->protocol.sessionnum);
 
 			eventlog(eventlog_level_info, __FUNCTION__, "[{}] closed {} connection", c->socket.tcp_sock, classstr);
@@ -857,12 +867,17 @@ namespace pvpgn
 									  if (oldclass == conn_class_init) timerlist_del_all_timers(c);
 									  conn_send_issue(c);
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+									  if (pvpgn_v3_send_raw_text(c, "Username: ") <= 0)
+	#endif
+									  {
 									  if (!(rpacket = packet_create(packet_class_raw)))
-										  eventlog(eventlog_level_error, __FUNCTION__, "could not create rpacket");
+									   eventlog(eventlog_level_error, __FUNCTION__, "could not create rpacket");
 									  else {
-										  packet_append_ntstring(rpacket, "Username: ");
-										  conn_push_outqueue(c, rpacket);
-										  packet_del_ref(rpacket);
+									   packet_append_ntstring(rpacket, "Username: ");
+									   conn_push_outqueue(c, rpacket);
+									   packet_del_ref(rpacket);
+									  }
 									  }
 
 									  break;
@@ -895,8 +910,6 @@ namespace pvpgn
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_connection_dispatch_try(c, conn_state_get_str(state));
 #endif
-			t_elem * elem;
-
 			if (!c)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
@@ -905,14 +918,15 @@ namespace pvpgn
 
 			/* special case for destroying connections, add them to conn_dead list */
 			if (state == conn_state_destroy && c->protocol.state != conn_state_destroy) {
-				if (!conn_dead)
-					conn_dead = list_create();
-				list_append_data(conn_dead, c);
+				conn_dead.push_back(c);
 			}
-			else if (state != conn_state_destroy && c->protocol.state == conn_state_destroy)
-			if (list_remove_data(conn_dead, c, &elem)) {
-				eventlog(eventlog_level_error, __FUNCTION__, "could not remove dead connection");
-				return;
+			else if (state != conn_state_destroy && c->protocol.state == conn_state_destroy) {
+				auto it = std::find(conn_dead.begin(), conn_dead.end(), c);
+				if (it == conn_dead.end()) {
+					eventlog(eventlog_level_error, __FUNCTION__, "could not remove dead connection");
+					return;
+				}
+				conn_dead.erase(it);
 			}
 
 			c->protocol.state = state;
@@ -1900,7 +1914,6 @@ namespace pvpgn
 			t_channel * channel;
 			t_channel * oldchannel;
 			t_account * acc;
-			t_elem * curr;
 			int clantag = 0;
 			t_clan * clan = NULL;
 			t_clanmember * member = NULL;
@@ -2035,7 +2048,7 @@ namespace pvpgn
 			if (channel_add_connection(channel, c) < 0)
 			{
 				if (created)
-					channel_destroy(channel, &curr);
+					channel_destroy(channel);
 				c->protocol.chat.channel = NULL;
 				return -1;
 			}
@@ -3187,14 +3200,11 @@ namespace pvpgn
 
 		extern int conn_quota_exceeded(t_connection * con, char const * text)
 		{
-			t_qline * qline;
-			t_elem *  curr;
-
 			if (!prefs_get_quota() ||
 				!conn_get_account(con)
 				// FIXME: (HarpyWar) do not allow flood for admins due to possible abuse with quick command sending that high load a server processor
 				//                   If we really need to ignore flood protection, it can be allowed in Lua config for special users
-				/* || (account_get_command_groups(conn_get_account(con)) & command_get_group("/admin-con"))*/ 
+				/* || (account_get_command_groups(conn_get_account(con)) & command_get_group("/admin-con"))*/
 				) return 0;
 
 			if (std::strlen(text) > prefs_get_quota_maxline())
@@ -3203,32 +3213,32 @@ namespace pvpgn
 				return 1;
 			}
 
-			LIST_TRAVERSE(con->protocol.chat.quota.list, curr)
+			/* Expire old quota entries from the front (oldest first) */
+			while (!con->protocol.chat.quota.list.empty())
 			{
-				qline = (t_qline*)elem_get_data(curr);
-				if (now >= qline->inf + (std::time_t)prefs_get_quota_time())
+				t_qline & front = con->protocol.chat.quota.list.front();
+				if (now >= front.inf + (std::time_t)prefs_get_quota_time())
 				{
 					/* these lines are at least quota_time old */
-					list_remove_elem(con->protocol.chat.quota.list, &curr);
-					if (qline->count > con->protocol.chat.quota.totcount)
-						eventlog(eventlog_level_error, __FUNCTION__, "qline->count={} but con->protocol.chat.quota.totcount={}", qline->count, con->protocol.chat.quota.totcount);
-					con->protocol.chat.quota.totcount -= qline->count;
-					delete qline;
+					if (front.count > con->protocol.chat.quota.totcount)
+						eventlog(eventlog_level_error, __FUNCTION__, "qline->count={} but con->protocol.chat.quota.totcount={}", front.count, con->protocol.chat.quota.totcount);
+					con->protocol.chat.quota.totcount -= front.count;
+					con->protocol.chat.quota.list.pop_front();
 				}
 				else
 					break; /* old items are first, so we know nothing else will match */
 			}
 
-			qline = new t_qline{};
-			qline->inf = now; /* set the moment */
+			t_qline qline{};
+			qline.inf = now; /* set the moment */
 			if (std::strlen(text) > prefs_get_quota_wrapline()) /* round up on the divide */
-				qline->count = (std::strlen(text) + prefs_get_quota_wrapline() - 1) / prefs_get_quota_wrapline();
+				qline.count = (std::strlen(text) + prefs_get_quota_wrapline() - 1) / prefs_get_quota_wrapline();
 			else
-				qline->count = 1;
+				qline.count = 1;
 
-			list_append_data(con->protocol.chat.quota.list, qline);
+			con->protocol.chat.quota.list.push_back(qline);
 
-			con->protocol.chat.quota.totcount += qline->count;
+			con->protocol.chat.quota.totcount += qline.count;
 
 			if (con->protocol.chat.quota.totcount >= prefs_get_quota_lines())
 			{
@@ -3483,14 +3493,11 @@ namespace pvpgn
 
 		extern int conn_get_user_count_by_clienttag(t_clienttag ct)
 		{
-			t_connection * conn;
-			t_elem const * curr;
 			int clienttagusers = 0;
 
 			/* Get Number of Users for client tag specific */
-			LIST_TRAVERSE_CONST(connlist(), curr)
+			for (t_connection * conn : connlist())
 			{
-				conn = (t_connection*)elem_get_data(curr);
 				if ((ct == conn->protocol.client.clienttag)
 					&& (conn->protocol.state == conn_state_loggedin)) clienttagusers++;
 			}
@@ -3500,43 +3507,37 @@ namespace pvpgn
 
 		extern int connlist_create(void)
 		{
-			conn_head = list_create();
+			conn_head.clear();
 			connarray_create();
 			return 0;
 		}
 
 		extern int connlist_destroy(void)
 		{
-			if (conn_dead) list_destroy(conn_dead);
-			conn_dead = NULL;
+			conn_dead.clear();
 			connarray_destroy();
 			/* FIXME: if called with active connection, connection are not freed */
-			if (list_destroy(conn_head) < 0)
-				return -1;
-			conn_head = NULL;
+			conn_head.clear();
 			return 0;
 		}
 
 		extern void connlist_reap(void)
 		{
-			t_elem		*curr;
-			t_connection	*c;
+			if (conn_dead.empty()) return;
 
-			if (!conn_dead || !conn_head) return;
-
-			LIST_TRAVERSE(conn_dead, curr)
+			/* Snapshot the dead list — conn_destroy modifies conn_dead */
+			std::vector<t_connection*> to_reap(conn_dead);
+			for (t_connection * c : to_reap)
 			{
-				c = (t_connection *)elem_get_data(curr);
-
 				if (!c)
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in conn_dead list");
 				else if (!conn_peek_outqueue(c)) {
-					conn_destroy(c, &curr, DESTROY_FROM_DEADLIST); /* also removes from conn_dead list and fdwatch */
+					conn_destroy(c, DESTROY_FROM_DEADLIST); /* also removes from conn_dead list and fdwatch */
 				}
 			}
 		}
 
-		extern t_list * connlist(void)
+		extern const std::vector<t_connection*>& connlist(void)
 		{
 			return conn_head;
 		}
@@ -3570,12 +3571,8 @@ namespace pvpgn
 
 		extern t_connection * connlist_find_connection_by_sessionkey(unsigned int sessionkey)
 		{
-			t_connection * c;
-			t_elem const * curr;
-
-			LIST_TRAVERSE_CONST(conn_head, curr)
+			for (t_connection * c : conn_head)
 			{
-				c = (t_connection*)elem_get_data(curr);
 				if (c->protocol.sessionkey == sessionkey)
 					return c;
 			}
@@ -3592,12 +3589,8 @@ namespace pvpgn
 
 		extern t_connection * connlist_find_connection_by_socket(int socket)
 		{
-			t_connection * c;
-			t_elem const * curr;
-
-			LIST_TRAVERSE_CONST(conn_head, curr)
+			for (t_connection * c : conn_head)
 			{
-				c = (t_connection*)elem_get_data(curr);
 				if (c->socket.tcp_sock == socket)
 					return c;
 			}
@@ -3672,16 +3665,12 @@ namespace pvpgn
 
 		extern t_connection * connlist_find_connection_by_charname(char const * charname, char const * realmname)
 		{
-			t_connection    * c;
-			t_elem const    * curr;
-
 			if (!realmname) {
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL realmname");
 				return NULL;
 			}
-			LIST_TRAVERSE_CONST(conn_head, curr)
+			for (t_connection * c : conn_head)
 			{
-				c = (t_connection*)elem_get_data(curr);
 				if (!c)
 					continue;
 				if (!c->protocol.d2.charname)
@@ -3708,20 +3697,15 @@ namespace pvpgn
 
 		extern int connlist_get_length(void)
 		{
-			return list_get_length(conn_head);
+			return static_cast<int>(conn_head.size());
 		}
 
 
 		extern unsigned int connlist_login_get_length(void)
 		{
-			t_connection const * c;
-			unsigned int         count;
-			t_elem const *       curr;
-
-			count = 0;
-			LIST_TRAVERSE_CONST(conn_head, curr)
+			unsigned int count = 0;
+			for (t_connection const * c : conn_head)
 			{
-				c = (const t_connection*)elem_get_data(curr);
 				if ((c->protocol.state == conn_state_loggedin) &&
 					((c->protocol.cclass == conn_class_bnet) || (c->protocol.cclass == conn_class_bot) || (c->protocol.cclass == conn_class_telnet)
 					|| (c->protocol.cclass == conn_class_irc) || (c->protocol.cclass == conn_class_wol)))
@@ -3740,15 +3724,10 @@ namespace pvpgn
 
 		extern unsigned int connlist_count_connections(unsigned int addr)
 		{
-			t_connection * c;
-			t_elem const * curr;
-			unsigned int count;
+			unsigned int count = 0;
 
-			count = 0;
-
-			LIST_TRAVERSE_CONST(conn_head, curr)
+			for (t_connection * c : conn_head)
 			{
-				c = (t_connection *)elem_get_data(curr);
 				if (c->socket.tcp_addr == addr)
 					count++;
 			}

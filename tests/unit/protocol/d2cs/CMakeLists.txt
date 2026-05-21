@@ -18,7 +18,6 @@ pvpgn_v3_add_test(test_protocol_d2cs_wire_types
     SOURCES wire_types_test.cpp
     DEPS    protocol_d2cs)
 
-# TODO: Fix d2cs_fsm test - D2CSSessionFsm not fully implemented
-# pvpgn_v3_add_test(test_protocol_d2cs_fsm
-#     SOURCES fsm_test.cpp
-#     DEPS    protocol_d2cs)
+pvpgn_v3_add_test(test_protocol_d2cs_fsm
+    SOURCES fsm_test.cpp
+    DEPS    protocol_d2cs)

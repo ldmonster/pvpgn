@@ -28,7 +28,6 @@
 #include <cstdlib>
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "storage_sql.h"
 
 #include "common/setup_after.h"

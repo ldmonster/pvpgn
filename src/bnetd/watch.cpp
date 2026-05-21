@@ -20,7 +20,6 @@
 #include "watch.h"
 #include "common/field_sizes.h"
 #include "common/eventlog.h"
-#include "common/list.h"
 #include "message.h"
 #include "friends.h"
 #include "prefs.h"
@@ -125,28 +124,25 @@ namespace pvpgn
 		int
 			WatchComponent::dispatch_whisper(t_account *account, char const *gamename, t_clienttag clienttag, Watch::EventType event) const
 		{
-				t_elem const * curr;
 				char msg[512];
 				int cnt = 0;
 				char const *myusername;
-				t_list * flist;
 				t_connection * dest_c, *my_c;
-				t_friend * fr;
 				char const * game_title;
-
+	
 				if (!(myusername = account_get_name(account)))
 				{
 					ERROR0("got NULL account name");
 					return -1;
 				}
-
+	
 				my_c = account_get_conn(account);
-
+	
 				game_title = clienttag_get_title(clienttag);
-
+	
 				/* mutual friends handling */
-				flist = account_get_friends(account);
-				if (flist)
+				auto& flist = account_get_friends(account);
+				if (!flist.empty())
 				{
 					switch (event)
 					{
@@ -166,16 +162,10 @@ namespace pvpgn
 						std::snprintf(msg, sizeof(msg), "Your friend %s has left %s.", myusername, prefs_get_servername());
 						break;
 					}
-					LIST_TRAVERSE(flist, curr)
+					for (t_friend* fr : flist)
 					{
-						if (!(fr = (t_friend*)elem_get_data(curr)))
-						{
-							ERROR0("found NULL entry in list");
-							continue;
-						}
-
 						dest_c = connlist_find_connection_by_account(fr->friendacc);
-
+	
 						if (dest_c == NULL) /* If friend is offline, go on to next */
 							continue;
 						else {

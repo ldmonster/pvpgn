@@ -3215,7 +3215,6 @@ namespace pvpgn
 			}
 			{
 				int frienduid;
-				t_list *flist;
 				t_friend *fr;
 				t_account *account = conn_get_account(c);
 				int i;
@@ -3226,18 +3225,14 @@ namespace pvpgn
 				t_game *game;
 				t_channel *channel;
 				char stat;
-
+	
 				if (!(rpacket = packet_create(packet_class_bnet)))
 					return -1;
-
+	
 				packet_set_size(rpacket, sizeof(t_server_friendslistreply));
 				packet_set_type(rpacket, SERVER_FRIENDSLISTREPLY);
-
-				if ((flist = account_get_friends(account)) == NULL)
-				{
-					packet_del_ref(rpacket);
-					return -1;
-				}
+	
+				auto& flist = account_get_friends(account);
 
 				for (i = 0; i < n; i++) {
 					frienduid = account_get_friend(account, i);
@@ -3302,7 +3297,7 @@ namespace pvpgn
 	
 						// Re-walk the friend list in the same order to rebuild the
 						// C-ABI entry array.
-						if (flist) {
+						if (!flist.empty()) {
 							for (int v3i = 0; v3i < n; v3i++) {
 								int v3uid = account_get_friend(account, v3i);
 								t_friend *v3fr = friendlist_find_uid(flist, v3uid);
@@ -3379,7 +3374,6 @@ namespace pvpgn
 				t_account *account = conn_get_account(c);
 				int frienduid;
 				t_friend *fr;
-				t_list *flist;
 				int n = account_get_friendcount(account);
 				char type;
 
@@ -3405,8 +3399,8 @@ namespace pvpgn
 
 				bn_byte_set(&rpacket->u.server_friendinforeply.friendnum, bn_byte_get(packet->u.client_friendinforeq.friendnum));
 
-				flist = account_get_friends(account);
-				fr = friendlist_find_uid(flist, frienduid);
+				auto& flist2 = account_get_friends(account);
+				fr = friendlist_find_uid(flist2, frienduid);
 
 				if (fr == NULL || (dest_c = connlist_find_connection_by_account(friend_get_account(fr))) == NULL) {
 					bn_byte_set(&rpacket->u.server_friendinforeply.type, FRIEND_TYPE_NON_MUTUAL);
@@ -3525,17 +3519,9 @@ namespace pvpgn
 			std::uint8_t available_players = 0;
 
 			// begin search for mutual and available friends
-			t_list *my_friend_list = account_get_friends(conn_get_account(c));
-			t_elem *entry;
-			LIST_TRAVERSE(my_friend_list, entry)
+			auto& my_friend_list = account_get_friends(conn_get_account(c));
+			for (t_friend* _friend : my_friend_list)
 			{
-				t_friend *_friend = static_cast<t_friend *>(elem_get_data(entry));
-				if (!_friend)
-				{
-					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-					continue;
-				}
-
 				if (available_players == std::numeric_limits<decltype(available_players)>::max())
 				{
 					eventlog(eventlog_level_info, __FUNCTION__, "Reached maximum amount of available players to send in packet");
@@ -4091,9 +4077,7 @@ namespace pvpgn
 				// Build entry array from active realms for the v3 bridge.
 				std::vector<pvpgn_v3_realm_legacy_entry> v3entries;
 				{
-					t_elem const *curr;
-					LIST_TRAVERSE_CONST(realmlist(), curr) {
-						t_realm const *realm = (t_realm*)elem_get_data(curr);
+					for (t_realm const *realm : realmlist()) {
 						if (!realm_get_active(realm))
 							continue;
 						pvpgn_v3_realm_legacy_entry e;
@@ -4119,8 +4103,6 @@ namespace pvpgn
 			}
 #endif
 			if ((rpacket = packet_create(packet_class_bnet))) {
-				t_elem const *curr;
-				t_realm const *realm;
 				t_server_realmlistreply_data realmdata;
 				unsigned int count;
 
@@ -4128,8 +4110,7 @@ namespace pvpgn
 				packet_set_type(rpacket, SERVER_REALMLISTREPLY);
 				bn_int_set(&rpacket->u.server_realmlistreply.unknown1, SERVER_REALMLISTREPLY_UNKNOWN1);
 				count = 0;
-				LIST_TRAVERSE_CONST(realmlist(), curr) {
-					realm = (t_realm*)elem_get_data(curr);
+				for (t_realm const *realm : realmlist()) {
 					if (!realm_get_active(realm))
 						continue;
 					bn_int_set(&realmdata.unknown3, SERVER_REALMLISTREPLY_DATA_UNKNOWN3);
@@ -4169,9 +4150,7 @@ namespace pvpgn
 				// Build entry array from active realms for the v3 bridge.
 				std::vector<pvpgn_v3_realm_entry> v3entries;
 				{
-					t_elem const *curr;
-					LIST_TRAVERSE_CONST(realmlist(), curr) {
-						t_realm const *realm = (t_realm*)elem_get_data(curr);
+					for (t_realm const *realm : realmlist()) {
 						if (!realm_get_active(realm))
 							continue;
 						pvpgn_v3_realm_entry e;
@@ -4191,8 +4170,6 @@ namespace pvpgn
 			}
 #endif
 			if ((rpacket = packet_create(packet_class_bnet))) {
-				t_elem const *curr;
-				t_realm const *realm;
 				t_server_realmlistreply_110_data realmdata;
 				unsigned int count;
 
@@ -4200,8 +4177,7 @@ namespace pvpgn
 				packet_set_type(rpacket, SERVER_REALMLISTREPLY_110);
 				bn_int_set(&rpacket->u.server_realmlistreply_110.unknown1, SERVER_REALMLISTREPLY_110_UNKNOWN1);
 				count = 0;
-				LIST_TRAVERSE_CONST(realmlist(), curr) {
-					realm = (t_realm*)elem_get_data(curr);
+				for (t_realm const *realm : realmlist()) {
 					if (!realm_get_active(realm))
 						continue;
 					bn_int_set(&realmdata.unknown1, SERVER_REALMLISTREPLY_110_DATA_UNKNOWN1);
@@ -4988,11 +4964,7 @@ namespace pvpgn
 				packet_set_size(rpacket, sizeof(t_server_channellist));
 				packet_set_type(rpacket, SERVER_CHANNELLIST);
 				{
-					t_channel *ch;
-					t_elem const *curr;
-
-					LIST_TRAVERSE_CONST(channellist(), curr) {
-						ch = (t_channel*)elem_get_data(curr);
+					for (t_channel const* ch : channellist()) {
 						if ((!(channel_get_flags(ch) & channel_flags_clan)) && (!prefs_get_hide_temp_channels() || channel_get_permanent(ch)) && (!channel_get_clienttag(ch) || channel_get_clienttag(ch) == conn_get_clienttag(c)) && (!(channel_get_flags(ch) & channel_flags_thevoid)) &&	// don't display theVoid in channel list
 							((channel_get_max(ch) != 0) || ((channel_get_max(ch) == 0) && (account_is_operator_or_admin(conn_get_account(c), channel_get_name(ch)) == 1))))	// don't display restricted channel for no admins/ops
 							packet_append_string(rpacket, channel_get_name(ch));

@@ -20,11 +20,10 @@
 #include <cstdio>
 #include <cerrno>
 #include <cstring>
+#include <vector>
 
 #include "common/eventlog.h"
-#include "common/list.h"
 #include "common/util.h"
-#include "common/xalloc.h"
 
 #include "common/setup_after.h"
 
@@ -46,7 +45,7 @@ namespace pvpgn
 			std::memcpy(r, s, n);
 			return r;
 		}
-		static t_list * command_groups_head = NULL;
+		static std::vector<t_command_groups*> command_groups_list;
 		static std::FILE * fp = NULL;
 
 		extern int command_groups_load(char const * filename)
@@ -67,8 +66,6 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
 				return -1;
 			}
-
-			command_groups_head = list_create();
 
 			for (line = 1; (buff = file_get_line(fp)); line++) {
 				for (pos = 0; buff[pos] == '\t' || buff[pos] == ' '; pos++);
@@ -100,7 +97,7 @@ namespace pvpgn
 					entry = new t_command_groups{};
 					entry->group = 1 << (group - 1);
 					entry->command = cg_strdup(command);
-					list_append_data(command_groups_head, entry);
+					command_groups_list.push_back(entry);
 #ifdef COMMANDGROUPSDEBUG
 					eventlog(eventlog_level_info, __FUNCTION__, "Added command: {} - with group {}", entry->command, entry->group);
 #endif
@@ -113,37 +110,19 @@ namespace pvpgn
 
 		extern int command_groups_unload(void)
 		{
-			t_elem *		curr;
-			t_command_groups *	entry;
-
-			if (command_groups_head) {
-				LIST_TRAVERSE(command_groups_head, curr) {
-					if (!(entry = (t_command_groups*)elem_get_data(curr)))
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-					else {
-						delete[] entry->command;
-						delete entry;
-					}
-					list_remove_elem(command_groups_head, &curr);
-				}
-				list_destroy(command_groups_head);
-				command_groups_head = NULL;
+			for (t_command_groups* entry : command_groups_list) {
+				delete[] entry->command;
+				delete entry;
 			}
+			command_groups_list.clear();
 			return 0;
 		}
 
 		extern unsigned int command_get_group(char const * command)
 		{
-			t_elem const *	curr;
-			t_command_groups *	entry;
-
-			if (command_groups_head) {
-				LIST_TRAVERSE(command_groups_head, curr) {
-					if (!(entry = (t_command_groups*)elem_get_data(curr)))
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-					else if (!(std::strcmp(entry->command, command)))
-						return entry->group;
-				}
+			for (t_command_groups const* entry : command_groups_list) {
+				if (!(std::strcmp(entry->command, command)))
+					return entry->group;
 			}
 			return 0;
 		}

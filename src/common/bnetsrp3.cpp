@@ -34,7 +34,6 @@
 #include "common/bnethash.h"
 #include "common/eventlog.h"
 #include "common/util.h"
-#include "common/xalloc.h"
 #include "common/xstring.h"
 
 #include "common/setup_after.h"

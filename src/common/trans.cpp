@@ -21,13 +21,12 @@
 #include <cerrno>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include "common/setup_before.h"
 #include "common/eventlog.h"
-#include "common/list.h"
 #include "common/addr.h"
 #include "common/util.h"
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 #define DEBUG_TRANS
@@ -35,7 +34,7 @@
 namespace pvpgn
 {
 
-	static t_list * trans_head = NULL;
+	static std::vector<t_trans*> trans_list;
 
 	extern int trans_load(char const * filename, int program)
 	{
@@ -65,7 +64,7 @@ namespace pvpgn
 			eventlog(eventlog_level_error, __FUNCTION__, "could not open file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
 			return -1;
 		}
-		trans_head = list_create();
+		trans_list.clear();
 		for (line = 1; (buff = file_get_line(fp)); line++) {
 			for (pos = 0; buff[pos] == '\t' || buff[pos] == ' '; pos++);
 			if (buff[pos] == '\0' || buff[pos] == '#') {
@@ -171,7 +170,7 @@ namespace pvpgn
 					addr_get_addr_str(entry->output, tmp2, sizeof(tmp2)),
 					netaddr_get_addr_str(entry->network, tmp3, sizeof(tmp3)));
 #endif
-				list_append_data(trans_head, entry);
+				trans_list.push_back(entry);
 				npos++;
 			}
 						/* add include networks */
@@ -229,10 +228,10 @@ namespace pvpgn
 					addr_get_addr_str(entry->output, tmp2, sizeof(tmp2)),
 					netaddr_get_addr_str(entry->network, tmp3, sizeof(tmp3)));
 #endif
-				list_append_data(trans_head, entry);
+				trans_list.push_back(entry);
 				npos++;
 			}
-					}
+				}
 		file_get_line(NULL); // clear file_get_line buffer
 		std::fclose(fp);
 		eventlog(eventlog_level_info, __FUNCTION__, "trans file loaded");
@@ -241,26 +240,14 @@ namespace pvpgn
 
 	extern int trans_unload(void)
 	{
-		t_elem	*curr;
-		t_trans	*entry;
-
-		if (trans_head) {
-			LIST_TRAVERSE(trans_head, curr)
-			{
-				if (!(entry = (t_trans*)elem_get_data(curr))) {
-					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-				}
-				else {
-					netaddr_destroy(entry->network);
-					addr_destroy(entry->output);
-					addr_destroy(entry->input);
-					delete entry;
-				}
-				list_remove_elem(trans_head, &curr);
-			}
-			list_destroy(trans_head);
-			trans_head = NULL;
+		for (t_trans * entry : trans_list)
+		{
+			netaddr_destroy(entry->network);
+			addr_destroy(entry->output);
+			addr_destroy(entry->input);
+			delete entry;
 		}
+		trans_list.clear();
 		return 0;
 	}
 
@@ -273,8 +260,6 @@ namespace pvpgn
 
 	extern int trans_net(unsigned int clientaddr, unsigned int *addr, unsigned short *port)
 	{
-		t_elem const *curr;
-		t_trans	 *entry;
 		char	 temp1[32];
 		char         temp2[32];
 		char         temp3[32];
@@ -286,41 +271,34 @@ namespace pvpgn
 			addr_num_to_ip_str(clientaddr));
 #endif
 
-		if (trans_head) {
-			LIST_TRAVERSE_CONST(trans_head, curr)
-			{
-				if (!(entry = (t_trans*)elem_get_data(curr))) {
-					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-					continue;
-				}
-
+		for (t_trans * entry : trans_list)
+		{
 #ifdef DEBUG_TRANS
-				eventlog(eventlog_level_debug, __FUNCTION__, "against entry -> {} output {} network {}",
-					addr_get_addr_str(entry->input, temp1, sizeof(temp1)),
-					addr_get_addr_str(entry->output, temp2, sizeof(temp2)),
-					netaddr_get_addr_str(entry->network, temp3, sizeof(temp3)));
+			eventlog(eventlog_level_debug, __FUNCTION__, "against entry -> {} output {} network {}",
+				addr_get_addr_str(entry->input, temp1, sizeof(temp1)),
+				addr_get_addr_str(entry->output, temp2, sizeof(temp2)),
+				netaddr_get_addr_str(entry->network, temp3, sizeof(temp3)));
 #endif
-				if (addr_get_ip(entry->input) != *addr || addr_get_port(entry->input) != *port) {
+			if (addr_get_ip(entry->input) != *addr || addr_get_port(entry->input) != *port) {
 #ifdef DEBUG_TRANS
-					eventlog(eventlog_level_debug, __FUNCTION__, "entry does match input address");
+				eventlog(eventlog_level_debug, __FUNCTION__, "entry does match input address");
 #endif
-					continue;
-				}
-				if (netaddr_contains_addr_num(entry->network, clientaddr) == 0) {
-#ifdef DEBUG_TRANS
-					eventlog(eventlog_level_debug, __FUNCTION__, "client is not in the correct network");
-#endif
-					continue;
-				}
-#ifdef DEBUG_TRANS
-				eventlog(eventlog_level_debug, __FUNCTION__, "{} translated to {}",
-					addr_num_to_addr_str(*addr, *port),
-					addr_get_addr_str(entry->output, temp4, sizeof(temp4)));
-#endif
-				*addr = addr_get_ip(entry->output);
-				*port = addr_get_port(entry->output);
-				return 1; /* match found in list */
+				continue;
 			}
+			if (netaddr_contains_addr_num(entry->network, clientaddr) == 0) {
+#ifdef DEBUG_TRANS
+				eventlog(eventlog_level_debug, __FUNCTION__, "client is not in the correct network");
+#endif
+				continue;
+			}
+#ifdef DEBUG_TRANS
+			eventlog(eventlog_level_debug, __FUNCTION__, "{} translated to {}",
+				addr_num_to_addr_str(*addr, *port),
+				addr_get_addr_str(entry->output, temp4, sizeof(temp4)));
+#endif
+			*addr = addr_get_ip(entry->output);
+			*port = addr_get_port(entry->output);
+			return 1; /* match found in list */
 		}
 #ifdef DEBUG_TRANS
 		eventlog(eventlog_level_debug, __FUNCTION__, "no match found for {} (not translated)",

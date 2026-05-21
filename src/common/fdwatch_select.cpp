@@ -26,6 +26,9 @@
 #include "fdwatch_select.h"
 
 #include <cstring>
+#ifndef _WIN32
+#  include <sys/select.h>
+#endif
 
 #include "common/eventlog.h"
 #include "common/setup_after.h"
@@ -42,12 +45,12 @@ namespace pvpgn
 		if (nfds > FD_SETSIZE)
 			throw InitError("nfds over FD_SETSIZE");
 
-		rfds.reset(new t_psock_fd_set);
-		wfds.reset(new t_psock_fd_set);
-		trfds.reset(new t_psock_fd_set);
-		twfds.reset(new t_psock_fd_set);
+		rfds.reset(new fd_set);
+		wfds.reset(new fd_set);
+		trfds.reset(new fd_set);
+		twfds.reset(new fd_set);
 
-		PSOCK_FD_ZERO(trfds.get()); PSOCK_FD_ZERO(twfds.get());
+		FD_ZERO(trfds.get()); FD_ZERO(twfds.get());
 
 		INFO1("fdwatch select() based layer initialized (max {} sockets)", nfds);
 	}
@@ -64,10 +67,10 @@ namespace pvpgn
 			/* select() interface is limited by FD_SETSIZE max socket value */
 			if (fd >= FD_SETSIZE) return -1;
 
-			if (rw & fdwatch_type_read) PSOCK_FD_SET(fd, trfds.get());
-			else PSOCK_FD_CLR(fd, trfds.get());
-			if (rw & fdwatch_type_write) PSOCK_FD_SET(fd, twfds.get());
-			else PSOCK_FD_CLR(fd, twfds.get());
+			if (rw & fdwatch_type_read) FD_SET(fd, trfds.get());
+			else FD_CLR(fd, trfds.get());
+			if (rw & fdwatch_type_write) FD_SET(fd, twfds.get());
+			else FD_CLR(fd, twfds.get());
 			if (smaxfd < fd) smaxfd = fd;
 
 			return 0;
@@ -80,8 +83,8 @@ namespace pvpgn
 			//    eventlog(eventlog_level_trace, __FUNCTION__, "called fd: {}", fd);
 			if (sr > 0)
 				ERROR0("BUG: called while still handling sockets");
-			PSOCK_FD_CLR(fd, trfds.get());
-			PSOCK_FD_CLR(fd, twfds.get());
+			FD_CLR(fd, trfds.get());
+			FD_CLR(fd, twfds.get());
 
 			return 0;
 		}
@@ -95,10 +98,10 @@ namespace pvpgn
 			tv.tv_usec = timeout_msec % 1000;
 
 			/* set the working sets based on the templates */
-			std::memcpy(rfds.get(), trfds.get(), sizeof(t_psock_fd_set));
-			std::memcpy(wfds.get(), twfds.get(), sizeof(t_psock_fd_set));
+			std::memcpy(rfds.get(), trfds.get(), sizeof(fd_set));
+			std::memcpy(wfds.get(), twfds.get(), sizeof(fd_set));
 
-			return (sr = psock_select(smaxfd + 1, rfds.get(), wfds.get(), NULL, &tv));
+			return (sr = select(smaxfd + 1, rfds.get(), wfds.get(), NULL, &tv));
 		}
 
 	namespace
@@ -117,9 +120,9 @@ namespace pvpgn
 		FDWSelectBackend::cb(t_fdwatch_fd* cfd)
 	{
 			//    eventlog(eventlog_level_trace, __FUNCTION__, "idx: {} fd: {}", idx, fdw_fd->fd);
-			if (fdw_rw(cfd) & fdwatch_type_read && PSOCK_FD_ISSET(fdw_fd(cfd), rfds.get())
+			if (fdw_rw(cfd) & fdwatch_type_read && FD_ISSET(fdw_fd(cfd), rfds.get())
 				&& fdw_hnd(cfd)(fdw_data(cfd), fdwatch_type_read) == -2) return 0;
-			if (fdw_rw(cfd) & fdwatch_type_write && PSOCK_FD_ISSET(fdw_fd(cfd), wfds.get()))
+			if (fdw_rw(cfd) & fdwatch_type_write && FD_ISSET(fdw_fd(cfd), wfds.get()))
 				fdw_hnd(cfd)(fdw_data(cfd), fdwatch_type_write);
 
 			return 0;

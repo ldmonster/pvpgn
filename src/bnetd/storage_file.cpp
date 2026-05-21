@@ -33,7 +33,7 @@
 #endif
 
 #include <strings.h>
-#include "compat/pdir.h"
+#include "infra/compat/directory.hpp"
 #include "compat/rename.h"
 #include "common/eventlog.h"
 #include "common/list.h"
@@ -391,20 +391,18 @@ namespace pvpgn
 				return -1;
 			}
 
-			try {
-				Directory accdir(accountsdir);
-
-				char const *dentry;
-				while ((dentry = accdir.read())) {
+			{
+				namespace dir = pvpgn::v3::infra::compat;
+				auto accdir = dir::open_directory(accountsdir);
+				if (!accdir) {
+					ERROR1("unable to open user directory \"{}\" for reading", accountsdir);
+					return -1;
+				}
+				while (auto entry = dir::read_directory(*accdir)) {
 					std::ostringstream ostr;
-					ostr << accountsdir << '/' << dentry;
-
+					ostr << accountsdir << '/' << entry->name.string();
 					cb(sf_strdup(ostr.str().c_str()), data);
 				}
-			}
-			catch (const Directory::OpenError& ex) {
-				ERROR2("unable to open user directory \"{}\" for reading (error: {})", accountsdir, ex.what());
-				return -1;
 			}
 
 			return 0;
@@ -467,15 +465,22 @@ namespace pvpgn
 				return -1;
 			}
 
-			try {
-				Directory clandir(clansdir);
-
+			{
+				namespace dir = pvpgn::v3::infra::compat;
+				auto clandir = dir::open_directory(clansdir);
+				if (!clandir) {
+					ERROR1("unable to open clan directory \"{}\" for reading", clansdir);
+					return -1;
+				}
+	
 				eventlog(eventlog_level_trace, __FUNCTION__, "start reading clans");
-
+	
 				pathname = new char[std::strlen(clansdir) + 1 + 4 + 1];
-				while ((dentry = clandir.read()))
-				{
-					if (std::strlen(dentry) > 4)
+				while (auto clan_entry = dir::read_directory(*clandir))
+					{
+						const std::string dentry_str = clan_entry->name.string();
+						const char* dentry = dentry_str.c_str();
+						if (std::strlen(dentry) > 4)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "found too long clan filename in clandir \"{}\"", dentry);
 						continue;
@@ -564,8 +569,8 @@ namespace pvpgn
 
 					eventlog(eventlog_level_trace, __FUNCTION__, "name: {} motd: {} clanid: {} time: {}", clanname, motd, cid, creation_time);
 
-					clan->members = list_create();
-
+					/* clan->members is std::vector, default-initialized to empty */
+	
 					while (std::fscanf(fp, "%i,%c,%i\n", &member_uid, &member_status, &member_join_time) == 3)
 					{
 						member = new t_clanmember{};
@@ -579,34 +584,30 @@ namespace pvpgn
 						member->join_time = member_join_time;
 						member->clan = clan;
 						member->fullmember = 1; /* In files we have only fullmembers */
-
+	
 						if ((member->status == CLAN_NEW) && (std::time(NULL) - member->join_time > prefs_get_clan_newer_time() * 3600))
 						{
 							member->status = CLAN_PEON;
 							clan->modified = 1;
 						}
-
-						list_append_data(clan->members, member);
+	
+						clan->members.push_back(member);
 
 						account_set_clanmember((t_account*)member->memberacc, member);
 						eventlog(eventlog_level_trace, __FUNCTION__, "added member: uid: {} status: {} join_time: {}", member_uid, member_status + '0', member_join_time);
 					}
 
 					std::fclose(fp);
-
+	
 					cb(clan);
-
-				}
-
+	
+					} // while clan_entry
+	
 				delete[] const_cast<char*>(pathname);
-
-			}
-			catch (const Directory::OpenError& ex) {
-				ERROR2("unable to open clan directory \"{}\" for reading (error: {})", clansdir, ex.what());
-				return -1;
-			}
-
-			eventlog(eventlog_level_trace, __FUNCTION__, "finished reading clans");
+	
+				} // namespace dir scope
+	
+				eventlog(eventlog_level_trace, __FUNCTION__, "finished reading clans");
 
 			return 0;
 		}
@@ -614,7 +615,6 @@ namespace pvpgn
 		static int file_write_clan(void *data)
 		{
 			std::FILE *fp;
-			t_elem *curr;
 			t_clanmember *member;
 			char *clanfile;
 			t_clan *clan = (t_clan *)data;
@@ -631,17 +631,12 @@ namespace pvpgn
 
 			std::fprintf(fp, "\"%s\",\"%s\",%i,%i\n", clan->clanname, clan->clan_motd, clan->clanid, (int)clan->creation_time);
 
-			LIST_TRAVERSE(clan->members, curr)
+			for (t_clanmember* member2 : clan->members)
 			{
-				if (!(member = (t_clanmember*)elem_get_data(curr)))
-				{
-					eventlog(eventlog_level_error, __FUNCTION__, "got NULL elem in list");
-					continue;
-				}
-				if ((member->status == CLAN_NEW) && (std::time(NULL) - member->join_time > prefs_get_clan_newer_time() * 3600))
-					member->status = CLAN_PEON;
-				if (member->fullmember == 1) /* only fullmembers are stored */
-					std::fprintf(fp, "%i,%c,%u\n", account_get_uid((t_account*)member->memberacc), member->status + '0', (unsigned)member->join_time);
+				if ((member2->status == CLAN_NEW) && (std::time(NULL) - member2->join_time > prefs_get_clan_newer_time() * 3600))
+					member2->status = CLAN_PEON;
+				if (member2->fullmember == 1) /* only fullmembers are stored */
+					std::fprintf(fp, "%i,%c,%u\n", account_get_uid((t_account*)member2->memberacc), member2->status + '0', (unsigned)member2->join_time);
 			}
 
 			std::fclose(fp);
@@ -682,6 +677,7 @@ namespace pvpgn
 			unsigned char size;
 			char clienttag[5];
 			int i;
+			std::string dentry_str; // hoisted to avoid goto-over-init
 
 			if (cb == NULL)
 			{
@@ -689,22 +685,29 @@ namespace pvpgn
 				return -1;
 			}
 
-			try {
-				Directory teamdir(teamsdir);
-
+			{
+				namespace dir = pvpgn::v3::infra::compat;
+				auto teamdir = dir::open_directory(teamsdir);
+				if (!teamdir) {
+					ERROR1("unable to open team directory \"{}\" for reading", teamsdir);
+					return -1;
+				}
+	
 				eventlog(eventlog_level_trace, __FUNCTION__, "start reading teams");
-
+	
 				pathname = new char[std::strlen(teamsdir) + 1 + 8 + 1];
-				while ((dentry = teamdir.read()))
-				{
+				while (auto team_entry = dir::read_directory(*teamdir))
+					{
+						dentry_str = team_entry->name.string();
+						dentry = dentry_str.c_str();
 					if (std::strlen(dentry) != 8)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "found invalid team filename in teamdir \"{}\"", dentry);
 						continue;
 					}
-
+	
 					std::sprintf(pathname, "%s/%s", teamsdir, dentry);
-
+	
 					teamid = (unsigned int)std::strtoul(dentry, NULL, 16); // we use hexadecimal teamid as filename
 
 					if ((fp = std::fopen(pathname, "r")) == NULL)
@@ -797,29 +800,24 @@ namespace pvpgn
 
 					eventlog(eventlog_level_trace, __FUNCTION__, "succesfully loaded team {}", dentry);
 					cb(team);
-
+	
 					goto load_team_success;
 				load_team_failure:
 					delete team;
 					eventlog(eventlog_level_error, __FUNCTION__, "error while reading file \"{}\"", dentry);
-
+	
 				load_team_success:
-
+	
 					file_get_line(NULL); // clear file_get_line buffer
 					std::fclose(fp);
-
-
-				}
-
+	
+				} // while team_entry
+	
 				delete[] const_cast<char*>(pathname);
-
-			}
-			catch (const Directory::OpenError& ex) {
-				ERROR2("unable to open team directory \"{}\" for reading (error: {})", teamsdir, ex.what());
-				return -1;
-			}
-
-			eventlog(eventlog_level_trace, __FUNCTION__, "finished reading teams");
+	
+				} // namespace dir scope
+	
+				eventlog(eventlog_level_trace, __FUNCTION__, "finished reading teams");
 
 			return 0;
 		}

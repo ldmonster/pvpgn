@@ -37,11 +37,18 @@
 # include <sys/time.h>
 #endif
 #include "compat/strerror.h"
-#include "compat/psock.h"
+#ifndef _WIN32
+#  include <sys/socket.h>
+#  include <sys/select.h>
+#  include <unistd.h>
+#  include <fcntl.h>
+#  include <errno.h>
+#  include <netinet/in.h>
+#  include <netdb.h>
+#endif
 #include "common/fdwatch.h"
 #include "common/addr.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/packet.h"
 #include "common/hexdump.h"
 #include "common/network.h"
@@ -60,13 +67,11 @@
 #include "handle_bnet.h"
 #include "handle_bot.h"
 #include "handle_telnet.h"
-#include "handle_file.h"
 #include "handle_init.h"
 #include "handle_d2cs.h"
-#include "handle_irc_common.h"
+#include "irc.h"
 #include "handle_udp.h"
 #include "handle_apireg.h"
-#include "handle_wol_gameres.h"
 #include "anongame.h"
 #include "clan.h"
 #include "attrlayer.h"
@@ -284,20 +289,20 @@ namespace pvpgn
 		{
 			if (listener_index >= bnet_tcp_listeners.size()) {
 				eventlog(eventlog_level_error, __FUNCTION__, "v3 accept callback: listener index {} out of range ({} listeners)", listener_index, bnet_tcp_listeners.size());
-				psock_close(csocket);
+				close(csocket);
 				return -1;
 			}
 			if (!caddr) {
 				eventlog(eventlog_level_error, __FUNCTION__, "v3 accept callback: null peer address");
-				psock_close(csocket);
+				close(csocket);
 				return -1;
 			}
-
+	
 			auto * curr_laddr  = static_cast<t_addr *>(bnet_tcp_listeners[listener_index].opaque_laddr);
 			auto * laddr_info  = static_cast<t_laddr_info *>(addr_get_data(curr_laddr).p);
 			if (!laddr_info) {
 				eventlog(eventlog_level_error, __FUNCTION__, "v3 accept callback: null laddr_info for index {}", listener_index);
-				psock_close(csocket);
+				close(csocket);
 				return -1;
 			}
 
@@ -346,19 +351,19 @@ namespace pvpgn
 			if (prefs_get_use_keepalive())
 			{
 				int val = 1;
-				if (psock_setsockopt(csocket, PSOCK_SOL_SOCKET, PSOCK_SO_KEEPALIVE, &val, (psock_t_socklen)sizeof(val)) < 0)
-					eventlog(eventlog_level_error, __FUNCTION__, "[{}] v3-owned: could not set socket option SO_KEEPALIVE (psock_setsockopt: {})", csocket, pstrerror(psock_errno()));
+				if (setsockopt(csocket, SOL_SOCKET, SO_KEEPALIVE, &val, (socklen_t)sizeof(val)) < 0)
+					eventlog(eventlog_level_error, __FUNCTION__, "[{}] v3-owned: could not set socket option SO_KEEPALIVE (setsockopt: {})", csocket, pstrerror(errno));
 			}
-
+	
 			unsigned int   raddr;
 			unsigned short rport;
 			{
 				struct sockaddr_in rsaddr;
-				psock_t_socklen    rlen;
+				socklen_t          rlen;
 				std::memset(&rsaddr, 0, sizeof(rsaddr));
 				rlen = sizeof(rsaddr);
-				if (psock_getsockname(csocket, (struct sockaddr *)&rsaddr, &rlen) < 0
-				    || rsaddr.sin_family != PSOCK_AF_INET)
+				if (getsockname(csocket, (struct sockaddr *)&rsaddr, &rlen) < 0
+				    || rsaddr.sin_family != AF_INET)
 				{
 					raddr = addr_get_ip(curr_laddr);
 					rport = addr_get_port(curr_laddr);
@@ -372,7 +377,7 @@ namespace pvpgn
 
 			/* Asio drives reads/writes for this fd, so legacy MUST
 			 * keep it in blocking mode-from-our-side -- we do NOT
-			 * flip PSOCK_NONBLOCK here. Asio sets its own mode on
+			 * set O_NONBLOCK here. Asio sets its own mode on
 			 * the underlying socket. */
 
 			t_connection * c = conn_create(csocket, laddr_info->usocket,
@@ -534,16 +539,16 @@ namespace pvpgn
 
 			/* dont accept new connections while shutting down */
 			if (curr_exittime) {
-				psock_shutdown(csocket, PSOCK_SHUT_RDWR);
-				psock_close(csocket);
+				shutdown(csocket, SHUT_RDWR);
+				close(csocket);
 				return 0;
 			}
-
+	
 			char addrstr[INET_ADDRSTRLEN] = { 0 };
 			if (ipbanlist_check(inet_ntop(AF_INET, &(caddr.sin_addr), addrstr, sizeof(addrstr))) != 0)
 			{
 				eventlog(eventlog_level_info, __FUNCTION__, "[{}] connection from banned address {} denied (closing connection)", csocket, addrstr);
-				psock_close(csocket);
+				close(csocket);
 				return -1;
 			}
 
@@ -553,26 +558,26 @@ namespace pvpgn
 			{
 				int val = 1;
 
-				if (psock_setsockopt(csocket, PSOCK_SOL_SOCKET, PSOCK_SO_KEEPALIVE, &val, (psock_t_socklen)sizeof(val)) < 0)
-					eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not set socket option SO_KEEPALIVE (psock_setsockopt: {})", csocket, pstrerror(psock_errno()));
+				if (setsockopt(csocket, SOL_SOCKET, SO_KEEPALIVE, &val, (socklen_t)sizeof(val)) < 0)
+					eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not set socket option SO_KEEPALIVE (setsockopt: {})", csocket, pstrerror(errno));
 				/* not a fatal error */
 			}
 
 			{
 				struct sockaddr_in rsaddr;
-				psock_t_socklen    rlen;
-
+				socklen_t          rlen;
+	
 				std::memset(&rsaddr, 0, sizeof(rsaddr));
 				rlen = sizeof(rsaddr);
-				if (psock_getsockname(csocket, (struct sockaddr *)&rsaddr, &rlen) < 0)
+				if (getsockname(csocket, (struct sockaddr *)&rsaddr, &rlen) < 0)
 				{
-					eventlog(eventlog_level_error, __FUNCTION__, "[{}] unable to determine real local port (psock_getsockname: {})", csocket, pstrerror(psock_errno()));
+					eventlog(eventlog_level_error, __FUNCTION__, "[{}] unable to determine real local port (getsockname: {})", csocket, pstrerror(errno));
 					raddr = addr_get_ip(curr_laddr);
 					rport = addr_get_port(curr_laddr);
 				}
 				else
 				{
-					if (rsaddr.sin_family != PSOCK_AF_INET)
+					if (rsaddr.sin_family != AF_INET)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "local address returned with bad address family {}", (int)rsaddr.sin_family);
 						raddr = addr_get_ip(curr_laddr);
@@ -586,10 +591,10 @@ namespace pvpgn
 				}
 			}
 
-			if (psock_ctl(csocket, PSOCK_NONBLOCK) < 0)
+			if (fcntl(csocket, F_SETFL, O_NONBLOCK) < 0)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not set TCP socket to non-blocking mode (closing connection) (psock_ctl: {})", csocket, pstrerror(psock_errno()));
-				psock_close(csocket);
+				eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not set TCP socket to non-blocking mode (closing connection) (fcntl: {})", csocket, pstrerror(errno));
+				close(csocket);
 				return -1;
 			}
 
@@ -599,7 +604,7 @@ namespace pvpgn
 				if (!(c = conn_create(csocket, laddr_info->usocket, raddr, rport, addr_get_ip(curr_laddr), addr_get_port(curr_laddr), ntohl(caddr.sin_addr.s_addr), ntohs(caddr.sin_port))))
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] unable to create new connection (closing connection)", csocket);
-					psock_close(csocket);
+					close(csocket);
 					return -1;
 				}
 
@@ -660,7 +665,7 @@ namespace pvpgn
 			char               tempa[32];
 			int                csocket;
 			struct sockaddr_in caddr;
-			psock_t_socklen    caddr_len;
+			socklen_t          caddr_len;
 
 			if (!addr_get_addr_str(curr_laddr, tempa, sizeof(tempa)))
 				std::strcpy(tempa, "x.x.x.x:x");
@@ -668,28 +673,28 @@ namespace pvpgn
 			/* accept the connection */
 			std::memset(&caddr, 0, sizeof(caddr));
 			caddr_len = sizeof(caddr);
-			if ((csocket = psock_accept(ssocket, (struct sockaddr *)&caddr, &caddr_len)) < 0)
+			if ((csocket = accept(ssocket, (struct sockaddr *)&caddr, &caddr_len)) < 0)
 			{
 				/* BSD, POSIX error for aborted connections, SYSV often uses EAGAIN or EPROTO */
 				if (
-#ifdef PSOCK_EWOULDBLOCK
-					psock_errno() == PSOCK_EWOULDBLOCK ||
-#endif
-#ifdef PSOCK_ECONNABORTED
-					psock_errno() == PSOCK_ECONNABORTED ||
-#endif
-#ifdef PSOCK_EPROTO
-					psock_errno() == PSOCK_EPROTO ||
-#endif
+	#ifdef EWOULDBLOCK
+					errno == EWOULDBLOCK ||
+	#endif
+	#ifdef ECONNABORTED
+					errno == ECONNABORTED ||
+	#endif
+	#ifdef EPROTO
+					errno == EPROTO ||
+	#endif
 					0)
-					eventlog(eventlog_level_error, __FUNCTION__, "client aborted connection on {} (psock_accept: {})", tempa, pstrerror(psock_errno()));
+					eventlog(eventlog_level_error, __FUNCTION__, "client aborted connection on {} (accept: {})", tempa, pstrerror(errno));
 				else /* EAGAIN can mean out of resources _or_ connection aborted :( */
 				if (
-#ifdef PSOCK_EINTR
-					psock_errno() != PSOCK_EINTR &&
-#endif
+	#ifdef EINTR
+					errno != EINTR &&
+	#endif
 					1)
-					eventlog(eventlog_level_error, __FUNCTION__, "could not accept new connection on {} (psock_accept: {})", tempa, pstrerror(psock_errno()));
+					eventlog(eventlog_level_error, __FUNCTION__, "could not accept new connection on {} (accept: {})", tempa, pstrerror(errno));
 				return -1;
 			}
 
@@ -700,14 +705,14 @@ namespace pvpgn
 		static int sd_udpinput(t_addr * const curr_laddr, t_laddr_info const * laddr_info, int ssocket, int usocket)
 		{
 			int             err;
-			psock_t_socklen errlen;
+			socklen_t       errlen;
 			t_packet *      upacket;
-
+	
 			err = 0;
 			errlen = sizeof(err);
-			if (psock_getsockopt(usocket, PSOCK_SOL_SOCKET, PSOCK_SO_ERROR, &err, &errlen) < 0)
+			if (getsockopt(usocket, SOL_SOCKET, SO_ERROR, &err, &errlen) < 0)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "[{}] unable to read socket error (psock_getsockopt: {})", usocket, pstrerror(psock_errno()));
+				eventlog(eventlog_level_error, __FUNCTION__, "[{}] unable to read socket error (getsockopt: {})", usocket, pstrerror(errno));
 				return -1;
 			}
 			if (errlen && err) /* if it was an error, there is no packet to read */
@@ -723,35 +728,35 @@ namespace pvpgn
 
 			{
 				struct sockaddr_in fromaddr;
-				psock_t_socklen    fromlen;
+				socklen_t          fromlen;
 				int                len;
-
+	
 				fromlen = sizeof(fromaddr);
-				if ((len = psock_recvfrom(usocket, packet_get_raw_data_build(upacket, 0), MAX_PACKET_SIZE, 0, (struct sockaddr *)&fromaddr, &fromlen)) < 0)
+				if ((len = recvfrom(usocket, packet_get_raw_data_build(upacket, 0), MAX_PACKET_SIZE, 0, (struct sockaddr *)&fromaddr, &fromlen)) < 0)
 				{
 					if (
-#ifdef PSOCK_EINTR
-						psock_errno() != PSOCK_EINTR &&
-#endif
-#ifdef PSOCK_EAGAIN
-						psock_errno() != PSOCK_EAGAIN &&
-#endif
-#ifdef PSOCK_EWOULDBLOCK
-						psock_errno() != PSOCK_EWOULDBLOCK &&
-#endif
-#ifdef PSOCK_ECONNRESET
-						psock_errno() != PSOCK_ECONNRESET &&	/* this is a win2k/winxp issue
-											 * their socket implementation returns this value
-											 * although it shouldn't
-											 */
-#endif
-											 1)
-											 eventlog(eventlog_level_error, __FUNCTION__, "could not recv UDP datagram (psock_recvfrom: {})", pstrerror(psock_errno()));
+	#ifdef EINTR
+						errno != EINTR &&
+	#endif
+	#ifdef EAGAIN
+						errno != EAGAIN &&
+	#endif
+	#ifdef EWOULDBLOCK
+						errno != EWOULDBLOCK &&
+	#endif
+	#ifdef ECONNRESET
+						errno != ECONNRESET &&	/* this is a win2k/winxp issue
+									 * their socket implementation returns this value
+									 * although it shouldn't
+									 */
+	#endif
+									 1)
+									 eventlog(eventlog_level_error, __FUNCTION__, "could not recv UDP datagram (recvfrom: {})", pstrerror(errno));
 					packet_del_ref(upacket);
 					return -1;
 				}
 
-				if (fromaddr.sin_family != PSOCK_AF_INET)
+				if (fromaddr.sin_family != AF_INET)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "got UDP datagram with bad address family {}", (int)fromaddr.sin_family);
 					packet_del_ref(upacket);
@@ -995,7 +1000,8 @@ namespace pvpgn
 							ret = handle_telnet_packet(c, packet);
 							break;
 						case conn_class_file:
-							ret = handle_file_packet(c, packet);
+							// TODO(Phase3): handled by BnftpFsm — remove this call
+							ret = 0;
 							break;
 						case conn_class_ircinit:
 						case conn_class_irc:
@@ -1011,7 +1017,8 @@ namespace pvpgn
 							ret = handle_w3route_packet(c, packet);
 							break;
 						case conn_class_wgameres:
-							ret = handle_wol_gameres_packet(c, packet);
+							// TODO(Phase3): handled by WolFsm — remove this call
+							ret = 0;
 							break;
 						default:
 							eventlog(eventlog_level_error, __FUNCTION__, "[{}] bad packet class {} (closing connection)", conn_get_socket(c), (int)packet_get_class(packet));
@@ -1245,12 +1252,12 @@ namespace pvpgn
 					eventlog(eventlog_level_error, __FUNCTION__, "could not set address data");
 					if (laddr_info->usocket != -1)
 					{
-						psock_close(laddr_info->usocket);
+						close(laddr_info->usocket);
 						laddr_info->usocket = -1;
 					}
 					if (laddr_info->ssocket != -1)
 					{
-						psock_close(laddr_info->ssocket);
+						close(laddr_info->ssocket);
 						laddr_info->ssocket = -1;
 					}
 					return -1;
@@ -1264,7 +1271,7 @@ namespace pvpgn
 		{
 			int val = 1;
 
-			return psock_setsockopt(sock, PSOCK_SOL_SOCKET, PSOCK_SO_REUSEADDR, &val, (psock_t_socklen)sizeof(int));
+			return setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &val, (socklen_t)sizeof(int));
 		}
 
 		static int _bind_socket(int sock, unsigned addr, short port)
@@ -1272,10 +1279,10 @@ namespace pvpgn
 			struct sockaddr_in saddr;
 
 			std::memset(&saddr, 0, sizeof(saddr));
-			saddr.sin_family = PSOCK_AF_INET;
+			saddr.sin_family = AF_INET;
 			saddr.sin_port = htons(port);
 			saddr.sin_addr.s_addr = htonl(addr);
-			return psock_bind(sock, (struct sockaddr *)&saddr, (psock_t_socklen)sizeof(saddr));
+			return bind(sock, (struct sockaddr *)&saddr, (socklen_t)sizeof(saddr));
 		}
 
 		static int _setup_listensock(t_addrlist *laddrs)
@@ -1298,30 +1305,30 @@ namespace pvpgn
 				if (!addr_get_addr_str(curr_laddr, tempa, sizeof(tempa)))
 					std::strcpy(tempa, "x.x.x.x:x");
 
-				laddr_info->ssocket = psock_socket(PSOCK_PF_INET, PSOCK_SOCK_STREAM, PSOCK_IPPROTO_TCP);
+				laddr_info->ssocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 				if (laddr_info->ssocket < 0)
 				{
-					eventlog(eventlog_level_error, __FUNCTION__, "could not create a {} listening socket (psock_socket: {})", laddr_type_get_str(laddr_info->type), pstrerror(psock_errno()));
+					eventlog(eventlog_level_error, __FUNCTION__, "could not create a {} listening socket (socket: {})", laddr_type_get_str(laddr_info->type), pstrerror(errno));
 					goto err;
 				}
-
+	
 				if (_set_reuseaddr(laddr_info->ssocket) < 0)
-					eventlog(eventlog_level_error, __FUNCTION__, "could not set option SO_REUSEADDR on {} socket {} (psock_setsockopt: {})", laddr_type_get_str(laddr_info->type), laddr_info->ssocket, pstrerror(psock_errno()));
+					eventlog(eventlog_level_error, __FUNCTION__, "could not set option SO_REUSEADDR on {} socket {} (setsockopt: {})", laddr_type_get_str(laddr_info->type), laddr_info->ssocket, pstrerror(errno));
 				/* not a fatal error... */
-
+	
 				if (_bind_socket(laddr_info->ssocket, addr_get_ip(curr_laddr), addr_get_port(curr_laddr)) < 0) {
-					eventlog(eventlog_level_error, __FUNCTION__, "could not bind {} socket to address {} TCP (psock_bind: {})", laddr_type_get_str(laddr_info->type), tempa, pstrerror(psock_errno()));
+					eventlog(eventlog_level_error, __FUNCTION__, "could not bind {} socket to address {} TCP (bind: {})", laddr_type_get_str(laddr_info->type), tempa, pstrerror(errno));
 					goto errsock;
 				}
-
+	
 				/* tell socket to listen for connections */
-				if (psock_listen(laddr_info->ssocket, LISTEN_QUEUE) < 0) {
-					eventlog(eventlog_level_error, __FUNCTION__, "could not set {} socket {} to listen (psock_listen: {})", laddr_type_get_str(laddr_info->type), laddr_info->ssocket, pstrerror(psock_errno()));
+				if (listen(laddr_info->ssocket, LISTEN_QUEUE) < 0) {
+					eventlog(eventlog_level_error, __FUNCTION__, "could not set {} socket {} to listen (listen: {})", laddr_type_get_str(laddr_info->type), laddr_info->ssocket, pstrerror(errno));
 					goto errsock;
 				}
-
-				if (psock_ctl(laddr_info->ssocket, PSOCK_NONBLOCK) < 0)
-					eventlog(eventlog_level_error, __FUNCTION__, "could not set {} TCP listen socket to non-blocking mode (psock_ctl: {})", laddr_type_get_str(laddr_info->type), pstrerror(psock_errno()));
+	
+				if (fcntl(laddr_info->ssocket, F_SETFL, O_NONBLOCK) < 0)
+					eventlog(eventlog_level_error, __FUNCTION__, "could not set {} TCP listen socket to non-blocking mode (fcntl: {})", laddr_type_get_str(laddr_info->type), pstrerror(errno));
 
 				/* v3 strangler-fig: for bnet TCP listeners, optionally
 				 * skip the legacy fdwatch registration so the v3
@@ -1345,24 +1352,24 @@ namespace pvpgn
 
 				if (laddr_info->type == laddr_type_bnet)
 				{
-					laddr_info->usocket = psock_socket(PSOCK_PF_INET, PSOCK_SOCK_DGRAM, PSOCK_IPPROTO_UDP);
+					laddr_info->usocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 					if (laddr_info->usocket < 0)
 					{
-						eventlog(eventlog_level_error, __FUNCTION__, "could not create UDP socket (psock_socket: {})", pstrerror(psock_errno()));
+						eventlog(eventlog_level_error, __FUNCTION__, "could not create UDP socket (socket: {})", pstrerror(errno));
 						goto errfdw;
 					}
-
+	
 					if (_set_reuseaddr(laddr_info->usocket) < 0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not set option SO_REUSEADDR on {} socket {} (psock_setsockopt: {})", laddr_type_get_str(laddr_info->type), laddr_info->usocket, pstrerror(psock_errno()));
+						eventlog(eventlog_level_error, __FUNCTION__, "could not set option SO_REUSEADDR on {} socket {} (setsockopt: {})", laddr_type_get_str(laddr_info->type), laddr_info->usocket, pstrerror(errno));
 					/* not a fatal error... */
-
+	
 					if (_bind_socket(laddr_info->usocket, addr_get_ip(curr_laddr), addr_get_port(curr_laddr)) < 0) {
-						eventlog(eventlog_level_error, __FUNCTION__, "could not bind {} socket to address {} UDP (psock_bind: {})", laddr_type_get_str(laddr_info->type), tempa, pstrerror(psock_errno()));
+						eventlog(eventlog_level_error, __FUNCTION__, "could not bind {} socket to address {} UDP (bind: {})", laddr_type_get_str(laddr_info->type), tempa, pstrerror(errno));
 						goto errusock;
 					}
-
-					if (psock_ctl(laddr_info->usocket, PSOCK_NONBLOCK) < 0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not set {} UDP socket to non-blocking mode (psock_ctl: {})", laddr_type_get_str(laddr_info->type), pstrerror(psock_errno()));
+	
+					if (fcntl(laddr_info->usocket, F_SETFL, O_NONBLOCK) < 0)
+						eventlog(eventlog_level_error, __FUNCTION__, "could not set {} UDP socket to non-blocking mode (fcntl: {})", laddr_type_get_str(laddr_info->type), pstrerror(errno));
 
 					if (skip_legacy_udp_fdwatch) {
 						/* v3 strangler-fig: hand the fd to the v3
@@ -1397,14 +1404,14 @@ namespace pvpgn
 			return 0;
 
 		errusock:
-			psock_close(laddr_info->usocket);
+			close(laddr_info->usocket);
 			laddr_info->usocket = -1;
 
 		errfdw:
 			if (fidx >= 0) fdwatch_del_fd(fidx);
 
 		errsock:
-			psock_close(laddr_info->ssocket);
+			close(laddr_info->ssocket);
 			laddr_info->ssocket = -1;
 
 		err:
@@ -1873,11 +1880,11 @@ namespace pvpgn
 				{
 				case -1: /* error */
 					if (
-#ifdef PSOCK_EINTR
-						psock_errno() != PSOCK_EINTR &&
-#endif
+	#ifdef EINTR
+						errno != EINTR &&
+	#endif
 						1)
-						eventlog(eventlog_level_error, __FUNCTION__, "fdwatch() failed (errno: {})", pstrerror(psock_errno()));
+						eventlog(eventlog_level_error, __FUNCTION__, "fdwatch() failed (errno: {})", pstrerror(errno));
 				case 0: /* timeout... no sockets need checking */
 					continue;
 				}
@@ -1904,14 +1911,10 @@ namespace pvpgn
 
 		static void _shutdown_conns(void)
 		{
-			t_elem *ccurr;
-			t_connection *c;
-
-			LIST_TRAVERSE(connlist(), ccurr)
-			{
-				c = (t_connection *)elem_get_data(ccurr);
-				conn_destroy(c, &ccurr, DESTROY_FROM_CONNLIST);
-			}
+			/* Snapshot the list — conn_destroy modifies conn_head */
+			std::vector<t_connection*> to_destroy(connlist());
+			for (t_connection * c : to_destroy)
+				conn_destroy(c, DESTROY_FROM_CONNLIST);
 		}
 
 
@@ -1927,9 +1930,9 @@ namespace pvpgn
 				if ((laddr_info = (t_laddr_info*)addr_get_data(curr_laddr).p))
 				{
 					if (laddr_info->usocket != -1)
-						psock_close(laddr_info->usocket);
+						close(laddr_info->usocket);
 					if (laddr_info->ssocket != -1)
-						psock_close(laddr_info->ssocket);
+						close(laddr_info->ssocket);
 					delete laddr_info;
 				}
 			}

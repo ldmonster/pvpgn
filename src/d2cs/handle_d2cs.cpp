@@ -26,10 +26,8 @@
 #include <vector>
 
 #include "compat/mkdir.h"
-#include "compat/pdir.h"
-#include "compat/psock.h"
+#include "infra/compat/directory.hpp"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/d2cs_d2dbs_ladder.h"
 #include "game.h"
 #include "bnetd.h"
@@ -93,6 +91,14 @@ extern "C" int pvpgn_v3_d2cs_send_gameinforeply(void*           conn_ptr,
                                                  unsigned char const* level_array,
                                                  char const*     game_desc,
                                                  char const* const* char_names) noexcept;
+// Observation hooks for outbound packets to bnetd / d2gs
+extern "C" int pvpgn_v3_d2cs_obs_accountloginreq_bnetd(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_d2cs_obs_charloginreq_bnetd(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_d2cs_obs_creategamereq_d2gs(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_d2cs_obs_joingamereq_d2gs(void* conn_ptr) noexcept;
+// Observation hooks for complex client-bound packets not yet fully wired
+extern "C" int pvpgn_v3_d2cs_obs_ladderreply(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_d2cs_obs_charlistreply(void* conn_ptr) noexcept;
 #endif
 
 
@@ -179,6 +185,9 @@ static int on_client_loginreq(t_connection * c, t_packet * packet)
 	sessionnum=bn_int_get(packet->u.client_d2cs_loginreq.sessionnum);
 	conn_set_bnetd_sessionnum(c,sessionnum);
 	eventlog(eventlog_level_info,__FUNCTION__,"got client (*{}) login request sessionnum=0x{:X}",account,sessionnum);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	pvpgn_v3_d2cs_obs_accountloginreq_bnetd(bnetd_conn());
+#endif
 	if ((bnpacket=packet_create(packet_class_d2cs_bnetd))) {
 		if ((sq=sq_create(d2cs_conn_get_sessionnum(c),packet,0))) {
 			packet_set_size(bnpacket,sizeof(t_d2cs_bnetd_accountloginreq));
@@ -225,11 +234,12 @@ static int on_client_createcharreq(t_connection * c, t_packet * packet)
 	std::vector<char> path_buf(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
 	path = path_buf.data();
 	d2char_get_infodir_name(path,account);
-	try {
-		Directory dir(path);
-	} catch (const Directory::OpenError&) {
-		INFO1("(*{}) charinfo directory do not exist, building it",account);
-		p_mkdir(path);
+	{
+		namespace dir = pvpgn::v3::infra::compat;
+		if (!dir::open_directory(path)) {
+			INFO1("(*{}) charinfo directory do not exist, building it",account);
+			p_mkdir(path);
+		}
 	}
 
 	if (d2char_create(account,charname,chclass,status)<0) {
@@ -242,6 +252,9 @@ static int on_client_createcharreq(t_connection * c, t_packet * packet)
 		eventlog(eventlog_level_info,__FUNCTION__,"character {}(*{}) created",charname,account);
 		reply=D2CS_CLIENT_CREATECHARREPLY_SUCCEED;
 		conn_set_charinfo(c,&data.summary);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		pvpgn_v3_d2cs_obs_charloginreq_bnetd(bnetd_conn());
+#endif
 		if ((bnpacket=packet_create(packet_class_d2cs_bnetd))) {
 			if ((sq=sq_create(d2cs_conn_get_sessionnum(c),packet,0))) {
 				packet_set_size(bnpacket,sizeof(t_d2cs_bnetd_charloginreq));
@@ -384,6 +397,9 @@ static int on_client_creategamereq(t_connection * c, t_packet * packet)
 		t_sq		* sq;
 		struct in_addr	addr;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		pvpgn_v3_d2cs_obs_creategamereq_d2gs(d2gs_get_connection(gs));
+#endif
 		if ((gspacket=packet_create(packet_class_d2gs))) {
 			if ((sq=sq_create(d2cs_conn_get_sessionnum(c),packet,d2cs_game_get_id(game)))) {
 				packet_set_size(gspacket,sizeof(t_d2cs_d2gs_creategamereq));
@@ -487,6 +503,9 @@ static int on_client_joingamereq(t_connection * c, t_packet * packet)
 		t_sq		* sq;
 		struct in_addr	addr;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		pvpgn_v3_d2cs_obs_joingamereq_d2gs(d2gs_get_connection(gs));
+#endif
 		if ((gspacket=packet_create(packet_class_d2gs))) {
 			if ((sq=sq_create(d2cs_conn_get_sessionnum(c),packet,d2cs_game_get_id(game)))) {
 				packet_set_size(gspacket,sizeof(t_d2cs_d2gs_joingamereq));
@@ -749,6 +768,9 @@ static int on_client_charloginreq(t_connection * c, t_packet * packet)
 
 	conn_set_charinfo(c,&data.summary);
 	eventlog(eventlog_level_info,__FUNCTION__,"got character {}(*{}) login request",charname,account);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	pvpgn_v3_d2cs_obs_charloginreq_bnetd(bnetd_conn());
+#endif
 	if ((bnpacket=packet_create(packet_class_d2cs_bnetd))) {
 		if ((sq=sq_create(d2cs_conn_get_sessionnum(c),packet,0))) {
 			packet_set_size(bnpacket,sizeof(t_d2cs_bnetd_charloginreq));
@@ -848,6 +870,9 @@ static int d2cs_send_client_ladder(t_connection * c, unsigned char type, unsigne
 
 	for (i=0; i< npacket; i++) {
 		curr_len=0;
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		pvpgn_v3_d2cs_obs_ladderreply(c);
+#endif
 		if ((rpacket=packet_create(packet_class_d2cs))) {
 			packet_set_size(rpacket,sizeof(t_d2cs_client_ladderreply));
 			packet_set_type(rpacket,D2CS_CLIENT_LADDERREPLY);
@@ -953,6 +978,9 @@ static int on_client_charladderreq(t_connection * c, t_packet * packet)
 		type=D2LADDER_STD_OVERALL;
 	}
 	if ((pos=d2ladder_find_character_pos(type,charname))<0) {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		pvpgn_v3_d2cs_obs_ladderreply(c);
+#endif
 		if ((rpacket=packet_create(packet_class_d2cs))) {
 			packet_set_size(rpacket,sizeof(t_d2cs_client_ladderreply));
 			packet_set_type(rpacket,D2CS_CLIENT_LADDERREPLY);
@@ -997,6 +1025,9 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 
 	d2char_get_infodir_name(path,account);
 	maxchar=prefs_get_maxchar();
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	pvpgn_v3_d2cs_obs_charlistreply(c);
+#endif
 	if ((rpacket=packet_create(packet_class_d2cs))) {
 		packet_set_size(rpacket,sizeof(t_d2cs_client_charlistreply));
 		packet_set_type(rpacket,D2CS_CLIENT_CHARLISTREPLY);
@@ -1005,69 +1036,71 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 		bool retry = true;
 		while (retry)
 		{
-			try {
-				Directory dir(path);
-				while ((charname = dir.read())) {
-					charinfo = new t_d2charinfo_file{};
-					if (d2charinfo_load(account, charname, charinfo) < 0) {
-						eventlog(eventlog_level_error, __FUNCTION__, "error loading charinfo for {}(*{})", charname, account);
-						delete charinfo;
-						continue;
-					}
-					eventlog(eventlog_level_debug, __FUNCTION__, "adding char {} (*{})", charname, account);
-					d2charlist_add_char(&charlist_head, charinfo, 0);
-					n++;
-					if (n >= maxchar) break;
-				}
-				if (prefs_allow_newchar() && (n < maxchar)) {
-					bn_short_set(&rpacket->u.d2cs_client_charlistreply.maxchar, maxchar);
-				}
-				else {
-					bn_short_set(&rpacket->u.d2cs_client_charlistreply.maxchar, 0);
-				}
-				if (!std::strcmp(charlist_sort_order, "ASC"))
-				{
-					t_elist* curr, * safe;
-					t_d2charlist* ccharlist;
-
-					elist_for_each_safe(curr, &charlist_head, safe)
+			{
+				namespace dir = pvpgn::v3::infra::compat;
+				auto diropt = dir::open_directory(path);
+				if (!diropt) {
+					ERROR1("(*{}) charinfo directory do not exist, building it", account);
+					if (p_mkdir(path) == 0)
 					{
-						ccharlist = elist_entry(curr, t_d2charlist, list);
-						packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
-						packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
-						delete ccharlist->charinfo;
-						delete ccharlist;
+						INFO1("Successfully created charinfo directory ({})", path);
 					}
-				}
-				else
-				{
-					t_elist* curr, * safe;
-					t_d2charlist* ccharlist;
-
-					elist_for_each_safe_rev(curr, &charlist_head, safe)
+					else
 					{
-						ccharlist = elist_entry(curr, t_d2charlist, list);
-						packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
-						packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
-						delete ccharlist->charinfo;
-						delete ccharlist;
-
+						ERROR2("Failed to create charinfo directory ({}), errno = {}", path, errno);
+						retry = false;
+						bn_short_set(&rpacket->u.d2cs_client_charlistreply.maxchar, 0);
 					}
-				}
+				} else {
+					while (auto entry = dir::read_directory(*diropt)) {
+						std::string charname_str = entry->name.string();
+						charname = charname_str.c_str();
+						charinfo = new t_d2charinfo_file{};
+						if (d2charinfo_load(account, charname, charinfo) < 0) {
+							eventlog(eventlog_level_error, __FUNCTION__, "error loading charinfo for {}(*{})", charname, account);
+							delete charinfo;
+							continue;
+						}
+						eventlog(eventlog_level_debug, __FUNCTION__, "adding char {} (*{})", charname, account);
+						d2charlist_add_char(&charlist_head, charinfo, 0);
+						n++;
+						if (n >= maxchar) break;
+					}
+					if (prefs_allow_newchar() && (n < maxchar)) {
+						bn_short_set(&rpacket->u.d2cs_client_charlistreply.maxchar, maxchar);
+					}
+					else {
+						bn_short_set(&rpacket->u.d2cs_client_charlistreply.maxchar, 0);
+					}
+					if (!std::strcmp(charlist_sort_order, "ASC"))
+					{
+						t_elist* curr, * safe;
+						t_d2charlist* ccharlist;
 
-				retry = false;
-			}
-			catch (const Directory::OpenError&) {
-				ERROR1("(*{}) charinfo directory do not exist, building it", account);
-				if (p_mkdir(path) == 0)
-				{
-					INFO1("Successfully created charinfo directory ({})", path);
-				}
-				else
-				{
-					ERROR2("Failed to create charinfo directory ({}), errno = {}", path, errno);
+						elist_for_each_safe(curr, &charlist_head, safe)
+						{
+							ccharlist = elist_entry(curr, t_d2charlist, list);
+							packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
+							packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
+							delete ccharlist->charinfo;
+							delete ccharlist;
+						}
+					}
+					else
+					{
+						t_elist* curr, * safe;
+						t_d2charlist* ccharlist;
+
+						elist_for_each_safe_rev(curr, &charlist_head, safe)
+						{
+							ccharlist = elist_entry(curr, t_d2charlist, list);
+							packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
+							packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
+							delete ccharlist->charinfo;
+							delete ccharlist;
+						}
+					}
 					retry = false;
-					bn_short_set(&rpacket->u.d2cs_client_charlistreply.maxchar, 0);
 				}
 			}
 		}
@@ -1113,6 +1146,9 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 	else
 		maxchar=0;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	pvpgn_v3_d2cs_obs_charlistreply(c);
+#endif
 	if ((rpacket=packet_create(packet_class_d2cs))) {
 		packet_set_size(rpacket,sizeof(t_d2cs_client_charlistreply_110));
 		packet_set_type(rpacket,D2CS_CLIENT_CHARLISTREPLY_110);
@@ -1121,79 +1157,81 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 		bool retry = true;
 		while (retry)
 		{
-			try {
-				Directory dir(path);
-
-				exp_time = prefs_get_char_expire_time();
-				while ((charname = dir.read())) {
-					charinfo = new t_d2charinfo_file{};
-					if (d2charinfo_load(account, charname, charinfo) < 0) {
-						eventlog(eventlog_level_error, __FUNCTION__, "error loading charinfo for {}(*{})", charname, account);
-						delete charinfo;
-						continue;
-					}
-					if (exp_time) {
-						curr_exp_time = bn_int_get(charinfo->header.last_time) + exp_time;
-					}
-					else {
-						curr_exp_time = 0x7FFFFFFF;
-					}
-					eventlog(eventlog_level_debug, __FUNCTION__, "adding char {} (*{})", charname, account);
-					d2charlist_add_char(&charlist_head, charinfo, curr_exp_time);
-					n++;
-					if (n >= maxchar) break;
-				}
-				if (n >= maxchar)
-					maxchar = 0;
-
-				if (!std::strcmp(charlist_sort_order, "ASC"))
-				{
-					t_elist* curr, * safe;
-					t_d2charlist* ccharlist;
-
-					elist_for_each_safe(curr, &charlist_head, safe)
+			{
+				namespace dir = pvpgn::v3::infra::compat;
+				auto diropt = dir::open_directory(path);
+				if (!diropt) {
+					ERROR1("(*{}) charinfo directory do not exist, building it", account);
+					if (p_mkdir(path) == 0)
 					{
-						bn_int bn_exp_time;
-
-						ccharlist = elist_entry(curr, t_d2charlist, list);
-						bn_int_set(&bn_exp_time, ccharlist->expiration_time);
-						packet_append_data(rpacket, bn_exp_time, sizeof(bn_exp_time));
-						packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
-						packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
-						delete ccharlist->charinfo;
-						delete ccharlist;
+						INFO1("Successfully created charinfo directory ({})", path);
 					}
-				}
-				else
-				{
-					t_elist* curr, * safe;
-					t_d2charlist* ccharlist;
-
-					elist_for_each_safe_rev(curr, &charlist_head, safe)
+					else
 					{
-						bn_int bn_exp_time;
-
-						ccharlist = elist_entry(curr, t_d2charlist, list);
-						bn_int_set(&bn_exp_time, ccharlist->expiration_time);
-						packet_append_data(rpacket, bn_exp_time, sizeof(bn_exp_time));
-						packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
-						packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
-						delete ccharlist->charinfo;
-						delete ccharlist;
+						ERROR2("Failed to create charinfo directory ({}), errno = {}", path, errno);
+						retry = false;
 					}
-				}
+				} else {
+					exp_time = prefs_get_char_expire_time();
+					while (auto entry = dir::read_directory(*diropt)) {
+						std::string charname_str = entry->name.string();
+						charname = charname_str.c_str();
+						charinfo = new t_d2charinfo_file{};
+						if (d2charinfo_load(account, charname, charinfo) < 0) {
+							eventlog(eventlog_level_error, __FUNCTION__, "error loading charinfo for {}(*{})", charname, account);
+							delete charinfo;
+							continue;
+						}
+						if (exp_time) {
+							curr_exp_time = bn_int_get(charinfo->header.last_time) + exp_time;
+						}
+						else {
+							curr_exp_time = 0x7FFFFFFF;
+						}
+						eventlog(eventlog_level_debug, __FUNCTION__, "adding char {} (*{})", charname, account);
+						d2charlist_add_char(&charlist_head, charinfo, curr_exp_time);
+						n++;
+						if (n >= maxchar) break;
+					}
+					if (n >= maxchar)
+						maxchar = 0;
 
-				retry = false;
-			}
-			catch (const Directory::OpenError&) {
-				ERROR1("(*{}) charinfo directory do not exist, building it", account);
-				if (p_mkdir(path) == 0)
-				{
-					INFO1("Successfully created charinfo directory ({})", path);
-				}
-				else
-				{
-					ERROR2("Failed to create charinfo directory ({}), errno = {}", path, errno);
+					if (!std::strcmp(charlist_sort_order, "ASC"))
+					{
+						t_elist* curr, * safe;
+						t_d2charlist* ccharlist;
+
+						elist_for_each_safe(curr, &charlist_head, safe)
+						{
+							bn_int bn_exp_time;
+
+							ccharlist = elist_entry(curr, t_d2charlist, list);
+							bn_int_set(&bn_exp_time, ccharlist->expiration_time);
+							packet_append_data(rpacket, bn_exp_time, sizeof(bn_exp_time));
+							packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
+							packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
+							delete ccharlist->charinfo;
+							delete ccharlist;
+						}
+					}
+					else
+					{
+						t_elist* curr, * safe;
+						t_d2charlist* ccharlist;
+
+						elist_for_each_safe_rev(curr, &charlist_head, safe)
+						{
+							bn_int bn_exp_time;
+
+							ccharlist = elist_entry(curr, t_d2charlist, list);
+							bn_int_set(&bn_exp_time, ccharlist->expiration_time);
+							packet_append_data(rpacket, bn_exp_time, sizeof(bn_exp_time));
+							packet_append_string(rpacket, (char*)ccharlist->charinfo->header.charname);
+							packet_append_string(rpacket, (char*)&ccharlist->charinfo->portrait);
+							delete ccharlist->charinfo;
+							delete ccharlist;
+						}
+					}
 					retry = false;
 				}
 			}

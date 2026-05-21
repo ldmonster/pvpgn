@@ -27,7 +27,6 @@
 #include <string>
 
 #include <strings.h>
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 

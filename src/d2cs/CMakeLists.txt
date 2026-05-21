@@ -34,6 +34,12 @@ target_link_libraries(d2cs_legacy
     PUBLIC
         common compat fmt win32 ${NETWORK_LIBRARIES})
 
+# When the v3 tree is present, expose infra/compat/include so that
+# migrated files can #include "infra/compat/directory.hpp" etc.
+if(TARGET infra_compat)
+    target_link_libraries(d2cs_legacy PUBLIC infra_compat)
+endif()
+
 # ---- d2cs: the original executable, now a thin wrapper -----------------
 if(WITH_WIN32_GUI)
   add_executable(d2cs WIN32 ${D2CS_EXE_SOURCES})

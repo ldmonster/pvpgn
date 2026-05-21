@@ -35,8 +35,9 @@
 #include <stdexcept>
 #include <deque>
 #include <ctime>
+#include <optional>
 
-#include "compat/pdir.h"
+#include "infra/compat/directory.hpp"
 #include "connection.h"
 
 namespace pvpgn
@@ -93,7 +94,7 @@ namespace pvpgn
 		private:
 			unsigned uid;
 			const std::string path;
-			mutable Directory mdir;
+			mutable std::optional<pvpgn::v3::infra::compat::DirectoryIterator> mdir_;
 
 			std::string buildPath(const std::string& root) const;
 			void createOpenDir();

@@ -1,0 +1,104 @@
+##############################################################################
+# d2dbs.toml  -  TOML configuration file for the Diablo II Database Server  #
+#----------------------------------------------------------------------------#
+#                                                                            #
+# This is the TOML equivalent of d2dbs.conf.in, used by the v3 code path.  #
+# The legacy d2dbs.conf is still read by the legacy (non-v3) build.        #
+#                                                                            #
+# Blank lines and lines beginning with "#" are ignored.                     #
+# String values that contain spaces must be quoted.                         #
+#                                                                            #
+##############################################################################
+
+##############################################################################
+# [network]  — Listening addresses                                           #
+##############################################################################
+
+[network]
+# Comma-delimited list of addresses to listen on.
+# Default port for d2dbs is 6114.
+# WARNING: DO NOT USE "127.0.0.1" or "localhost"!
+servaddrs = "0.0.0.0:6114"
+
+# Comma-delimited list of Diablo II game server IPs.
+# Must match the gameservlist setting in d2cs.toml exactly.
+# YOU MUST CHANGE THIS OR D2DBS WON'T WORK PROPERLY.
+# WARNING: DO NOT USE "127.0.0.1" or "localhost"!
+gameservlist = "<d2gs-IP>,<another-d2gs-IP>"
+
+##############################################################################
+# [log]  — Event logging                                                     #
+##############################################################################
+
+[log]
+# Multiple levels separated by commas.
+# Available: none, trace, debug, info, warn, error, fatal
+levels = "fatal,error,warn,info,debug,trace"
+#levels = "fatal,error,warn,info"
+
+##############################################################################
+# [files]  — Paths to data files and directories                             #
+# Use absolute paths to avoid problems.                                      #
+##############################################################################
+
+[files]
+logfile         = "${LOCALSTATEDIR}/d2dbs.log"
+logfile_gs      = "${LOCALSTATEDIR}/d2dbs-gs.log"
+charsavedir     = "${LOCALSTATEDIR}/charsave"
+charinfodir     = "${LOCALSTATEDIR}/charinfo"
+ladderdir       = "${LOCALSTATEDIR}/ladders"
+bak_charsavedir = "${LOCALSTATEDIR}/bak/charsave"
+bak_charinfodir = "${LOCALSTATEDIR}/bak/charinfo"
+#pidfile        = "${LOCALSTATEDIR}/d2dbs.pid"
+
+##############################################################################
+# [ladder]  — Ladder management                                              #
+##############################################################################
+
+[ladder]
+# How often to save the ladder to disk (seconds).
+laddersave_interval = 3600
+
+# Minimum time after character creation before it is added to the ladder.
+# (These should be rewritten to support string-formatted time.)
+ladderinit_time = 0
+
+# Create an extra XML ladder file for easier parsing?
+# false = off (default), true = on
+XML_ladder_output = false
+
+# What characters are added to the ladder?
+# false = ladder and non-ladder chars, true = only ladder chars
+ladder_chars_only = true
+
+# Minimum experience required to register on the ladder.
+ladderupdate_threshold = 0
+
+# Ladder start time — characters created before this date revert to non-ladder.
+# Format: "yyyy-mm-dd hh:mm:ss"  (empty = no cutoff)
+#ladder_start_time = ""
+
+##############################################################################
+# [misc]  — Miscellaneous server behaviour                                   #
+##############################################################################
+
+[misc]
+# Graceful-shutdown delay in seconds.
+shutdown_delay = 360
+
+# Amount the shutdown countdown is decremented per SIGTERM/SIGINT.
+shutdown_decr = 60
+
+# Connection max idle time in seconds.
+idletime = 300
+
+# Connection keepalive interval in seconds.
+keepalive_interval = 60
+
+# Connection timeout check interval in seconds.
+timeout_checkinterval = 60
+
+# Activate the "Lvl 100" bug workaround for mods with max level > 99?
+# If level > 255 it will be clamped to 255.
+# false = deactivated (default), true = activated
+difficulty_hack = false

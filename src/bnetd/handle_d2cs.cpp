@@ -39,6 +39,18 @@
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 extern "C" int pvpgn_v3_d2cs_link_dispatch_try(void* conn_ptr,
                                                 char const* op) noexcept;
+extern "C" int pvpgn_v3_observe_d2cs_bnetd_authreq(void* conn_ptr,
+                                                     unsigned int sessionnum) noexcept;
+extern "C" int pvpgn_v3_observe_d2cs_bnetd_authreply(void* conn_ptr,
+                                                       unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_observe_d2cs_bnetd_accountloginreply(void*        conn_ptr,
+                                                               unsigned int seqno,
+                                                               unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_observe_d2cs_bnetd_charloginreply(void*        conn_ptr,
+                                                            unsigned int seqno,
+                                                            unsigned int reply) noexcept;
+extern "C" int pvpgn_v3_observe_d2cs_bnetd_gameinforeq(void*       conn_ptr,
+                                                         const char* gamename) noexcept;
 #endif
 
 namespace pvpgn
@@ -158,6 +170,9 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "failed to auth d2cs {}",
 					addr_num_to_ip_str(conn_get_addr(c)));
 			}
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_observe_d2cs_bnetd_authreply(c, static_cast<unsigned int>(reply));
+	#endif
 			if ((rpacket = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(rpacket, sizeof(t_bnetd_d2cs_authreply));
 				packet_set_type(rpacket, BNETD_D2CS_AUTHREPLY);
@@ -247,6 +262,12 @@ namespace pvpgn
 					}
 				}
 			}
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_observe_d2cs_bnetd_accountloginreply(
+				c,
+				static_cast<unsigned int>(bn_int_get(packet->u.d2cs_bnetd_accountloginreq.h.seqno)),
+				static_cast<unsigned int>(reply));
+	#endif
 			if ((rpacket = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(rpacket, sizeof(t_bnetd_d2cs_accountloginreply));
 				packet_set_type(rpacket, BNETD_D2CS_ACCOUNTLOGINREPLY);
@@ -319,6 +340,12 @@ namespace pvpgn
 				eventlog(eventlog_level_debug, __FUNCTION__,
 					"loaded portrait for character {}", charname);
 			}
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_observe_d2cs_bnetd_charloginreply(
+				c,
+				static_cast<unsigned int>(bn_int_get(packet->u.d2cs_bnetd_charloginreq.h.seqno)),
+				static_cast<unsigned int>(reply));
+	#endif
 			if ((rpacket = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(rpacket, sizeof(t_bnetd_d2cs_charloginreply));
 				packet_set_type(rpacket, BNETD_D2CS_CHARLOGINREPLY);
@@ -335,6 +362,10 @@ namespace pvpgn
 		{
 			t_packet	* packet;
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_observe_d2cs_bnetd_authreq(c,
+				static_cast<unsigned int>(conn_get_sessionnum(c)));
+#endif
 			if ((packet = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(packet, sizeof(t_bnetd_d2cs_authreq));
 				packet_set_type(packet, BNETD_D2CS_AUTHREQ);
@@ -373,6 +404,10 @@ namespace pvpgn
 			}
 
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_observe_d2cs_bnetd_gameinforeq(realm_get_conn(realm),
+				game_get_name(game));
+	#endif
 			if ((packet = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(packet, sizeof(t_bnetd_d2cs_gameinforeq));
 				packet_set_type(packet, BNETD_D2CS_GAMEINFOREQ);

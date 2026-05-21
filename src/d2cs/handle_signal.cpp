@@ -26,7 +26,6 @@
 
 #include "common/eventlog.h"
 #include "common/trans.h"
-#include "common/xalloc.h"
 #include "prefs.h"
 #include "cmdline.h"
 #include "d2gs.h"

@@ -20,7 +20,6 @@
 #include "common/hashtable.h"
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 

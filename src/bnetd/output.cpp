@@ -23,7 +23,6 @@
 #include <string>
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/tag.h"
 #include "common/list.h"
 #include "common/util.h"
@@ -93,9 +92,7 @@ namespace pvpgn
 
 		int output_standard_writer(std::FILE * fp)
 		{
-			t_elem const	*curr;
 			t_connection	*conn;
-			t_channel const	*channel;
 			t_game *game;
 
 			char const		*channel_name;
@@ -127,10 +124,10 @@ namespace pvpgn
 				std::fprintf(fp, "\t\t<Users>\n");
 				std::fprintf(fp, "\t\t<Number>%d</Number>\n", connlist_login_get_length());
 
-				LIST_TRAVERSE_CONST(connlist(), curr)
-				{
-					conn = (t_connection*)elem_get_data(curr);
-					if (conn_get_account(conn))
+				for (t_connection * conn_it : connlist())
+					{
+						conn = conn_it;
+						if (conn_get_account(conn))
 					{
 						std::fprintf(fp, "\t\t<user><name>%s</name><clienttag>%s</clienttag><version>%s</version>", conn_get_username(conn), tag_uint_to_str(clienttag_str, conn_get_clienttag(conn)), conn_get_clientver(conn));
 						
@@ -154,9 +151,8 @@ namespace pvpgn
 				std::fprintf(fp, "\t\t<Channels>\n");
 				std::fprintf(fp, "\t\t<Number>%d</Number>\n", channellist_get_length());
 
-				LIST_TRAVERSE_CONST(channellist(), curr)
+				for (t_channel const* channel : channellist())
 				{
-					channel = (t_channel*)elem_get_data(curr);
 					channel_name = channel_get_name(channel);
 					std::fprintf(fp, "\t\t<channel>%s</channel>\n", channel_name);
 				}
@@ -170,9 +166,8 @@ namespace pvpgn
 				std::fprintf(fp, "[STATUS]\nVersion=%s\nUptime=%s\nGames=%d\nUsers=%d\nChannels=%d\nUserAccounts=%d\n", PVPGN_VERSION, seconds_to_timestr(uptime), gamelist_get_length(), connlist_login_get_length(), channellist_get_length(), accountlist_get_length()); // Status
 				std::fprintf(fp, "[CHANNELS]\n");
 				number = 1;
-				LIST_TRAVERSE_CONST(channellist(), curr)
+				for (t_channel const* channel : channellist())
 				{
-					channel = (t_channel*)elem_get_data(curr);
 					channel_name = channel_get_name(channel);
 					std::fprintf(fp, "channel%d=%s\n", number, channel_name);
 					number++;
@@ -184,10 +179,10 @@ namespace pvpgn
 
 				std::fprintf(fp, "[USERS]\n");
 				number = 1;
-				LIST_TRAVERSE_CONST(connlist(), curr)
-				{
-					conn = (t_connection*)elem_get_data(curr);
-					if (conn_get_account(conn))
+				for (t_connection * conn_it : connlist())
+					{
+						conn = conn_it;
+						if (conn_get_account(conn))
 					{
 						std::fprintf(fp, "user%d=%s,%s,%s", number, tag_uint_to_str(clienttag_str, conn_get_clienttag(conn)), conn_get_username(conn), conn_get_clientver(conn));
 

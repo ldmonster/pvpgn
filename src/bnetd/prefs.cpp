@@ -28,6 +28,10 @@
 #include "common/eventlog.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+# include "integration/legacy_bnetd/prefs_bridge.hpp"
+#endif
+
 #define NONE 0
 
 namespace pvpgn
@@ -904,6 +908,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_storage_path(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_storage_path();
+#endif
 			return prefs_runtime_config.storage_path;
 		}
 
@@ -925,6 +932,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_filedir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_filedir();
+#endif
 			return prefs_runtime_config.filedir;
 		}
 
@@ -946,6 +956,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_i18ndir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_i18ndir();
+#endif
 			return prefs_runtime_config.i18ndir;
 		}
 
@@ -967,6 +980,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_logfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_logfile();
+#endif
 			return prefs_runtime_config.logfile;
 		}
 
@@ -988,6 +1004,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_loglevels(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_loglevels();
+#endif
 			return prefs_runtime_config.loglevels;
 		}
 
@@ -1009,6 +1028,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_localizefile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_localizefile();
+#endif
 			return prefs_runtime_config.localizefile;
 		}
 
@@ -1030,6 +1052,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_motdfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_motdfile();
+#endif
 			return prefs_runtime_config.motdfile;
 		}
 
@@ -1051,6 +1076,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_motdw3file(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_motdw3file();
+#endif
 			return prefs_runtime_config.motdw3file;
 		}
 
@@ -1072,6 +1100,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_newsfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_newsfile();
+#endif
 			return prefs_runtime_config.newsfile;
 		}
 
@@ -1093,6 +1124,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_adfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_adfile();
+#endif
 			return prefs_runtime_config.adfile;
 		}
 
@@ -1114,6 +1148,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_topicfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_topicfile();
+#endif
 			return prefs_runtime_config.topicfile;
 		}
 
@@ -1135,6 +1172,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_DBlayoutfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_DBlayoutfile();
+#endif
 			return prefs_runtime_config.DBlayoutfile;
 		}
 
@@ -1156,6 +1196,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_user_sync_timer(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_user_sync_timer();
+#endif
 			return prefs_runtime_config.usersync;
 		}
 
@@ -1177,6 +1220,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_user_flush_timer(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_user_flush_timer();
+#endif
 			return prefs_runtime_config.userflush;
 		}
 
@@ -1198,6 +1244,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_user_flush_connected(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_user_flush_connected();
+#endif
 			return prefs_runtime_config.userflush_connected;
 		}
 
@@ -1219,6 +1268,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_user_step(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_user_step();
+#endif
 			return prefs_runtime_config.userstep;
 		}
 
@@ -1240,6 +1292,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_servername(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_servername();
+#endif
 			return prefs_runtime_config.servername;
 		}
 
@@ -1261,6 +1316,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_hostname(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_hostname();
+#endif
 			return prefs_runtime_config.hostname;
 		}
 
@@ -1282,6 +1340,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_track(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_track();
+#endif
 			return prefs_runtime_config.track;
 		}
 
@@ -1308,6 +1369,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_location(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_location();
+#endif
 			return prefs_runtime_config.location;
 		}
 
@@ -1329,6 +1393,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_description(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_description();
+#endif
 			return prefs_runtime_config.description;
 		}
 
@@ -1350,6 +1417,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_url(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_url();
+#endif
 			return prefs_runtime_config.url;
 		}
 
@@ -1371,6 +1441,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_contact_name(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_contact_name();
+#endif
 			return prefs_runtime_config.contact_name;
 		}
 
@@ -1392,6 +1465,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_contact_email(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_contact_email();
+#endif
 			return prefs_runtime_config.contact_email;
 		}
 
@@ -1413,6 +1489,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_latency(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_latency();
+#endif
 			return prefs_runtime_config.latency;
 		}
 
@@ -1434,6 +1513,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_irc_latency(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_irc_latency();
+#endif
 			return prefs_runtime_config.irc_latency;
 		}
 
@@ -1455,6 +1537,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_shutdown_delay(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_shutdown_delay();
+#endif
 			return prefs_runtime_config.shutdown_delay;
 		}
 
@@ -1476,6 +1561,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_shutdown_decr(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_shutdown_decr();
+#endif
 			return prefs_runtime_config.shutdown_decr;
 		}
 
@@ -1497,6 +1585,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_allow_new_accounts(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_allow_new_accounts();
+#endif
 			return prefs_runtime_config.new_accounts;
 		}
 
@@ -1518,6 +1609,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_max_accounts(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_max_accounts();
+#endif
 			return prefs_runtime_config.max_accounts;
 		}
 
@@ -1539,6 +1633,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_kick_old_login(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_kick_old_login();
+#endif
 			return prefs_runtime_config.kick_old_login;
 		}
 
@@ -1560,6 +1657,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_channelfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_channelfile();
+#endif
 			return prefs_runtime_config.channelfile;
 		}
 
@@ -1581,6 +1681,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_ask_new_channel(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_ask_new_channel();
+#endif
 			return prefs_runtime_config.ask_new_channel;
 		}
 
@@ -1602,6 +1705,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_hide_pass_games(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_hide_pass_games();
+#endif
 			return prefs_runtime_config.hide_pass_games;
 		}
 
@@ -1623,6 +1729,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_hide_started_games(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_hide_started_games();
+#endif
 			return prefs_runtime_config.hide_started_games;
 		}
 
@@ -1644,6 +1753,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_hide_temp_channels(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_hide_temp_channels();
+#endif
 			return prefs_runtime_config.hide_temp_channels;
 		}
 
@@ -1664,6 +1776,9 @@ namespace pvpgn
 
 		extern unsigned prefs_get_hide_addr(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_hide_addr();
+#endif
 			return prefs_runtime_config.hide_addr;
 		}
 
@@ -1685,6 +1800,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_enable_conn_all(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_enable_conn_all();
+#endif
 			return prefs_runtime_config.enable_conn_all;
 		}
 
@@ -1706,6 +1824,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_reportdir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_reportdir();
+#endif
 			return prefs_runtime_config.reportdir;
 		}
 
@@ -1727,6 +1848,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_report_all_games(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_report_all_games();
+#endif
 			return prefs_runtime_config.report_all_games;
 		}
 
@@ -1748,6 +1872,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_report_diablo_games(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_report_diablo_games();
+#endif
 			return prefs_runtime_config.report_diablo_games;
 		}
 
@@ -1769,6 +1896,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_pidfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_pidfile();
+#endif
 			return prefs_runtime_config.pidfile;
 		}
 
@@ -1790,6 +1920,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_iconfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_iconfile();
+#endif
 			return prefs_runtime_config.iconfile;
 		}
 
@@ -1811,6 +1944,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_war3_iconfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_war3_iconfile();
+#endif
 			return prefs_runtime_config.war3_iconfile;
 		}
 
@@ -1832,6 +1968,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_star_iconfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_star_iconfile();
+#endif
 			return prefs_runtime_config.star_iconfile;
 		}
 
@@ -1853,6 +1992,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_tosfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_tosfile();
+#endif
 			return prefs_runtime_config.tosfile;
 		}
 
@@ -1874,6 +2016,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_mpqfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_mpqfile();
+#endif
 			return prefs_runtime_config.mpqfile;
 		}
 
@@ -1895,6 +2040,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_trackserv_addrs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_trackserv_addrs();
+#endif
 			return prefs_runtime_config.trackaddrs;
 		}
 
@@ -1916,6 +2064,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_bnetdserv_addrs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_bnetdserv_addrs();
+#endif
 			return prefs_runtime_config.servaddrs;
 		}
 
@@ -1937,6 +2088,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_w3route_addr(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_w3route_addr();
+#endif
 			return prefs_runtime_config.w3routeaddr;
 		}
 
@@ -1958,6 +2112,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_irc_addrs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_irc_addrs();
+#endif
 			return prefs_runtime_config.ircaddrs;
 		}
 
@@ -1979,6 +2136,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_use_keepalive(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_use_keepalive();
+#endif
 			return prefs_runtime_config.use_keepalive;
 		}
 
@@ -2000,6 +2160,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_udptest_port(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_udptest_port();
+#endif
 			return prefs_runtime_config.udptest_port;
 		}
 
@@ -2021,6 +2184,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_ipbanfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_ipbanfile();
+#endif
 			return prefs_runtime_config.ipbanfile;
 		}
 
@@ -2042,6 +2208,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_discisloss(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_discisloss();
+#endif
 			return prefs_runtime_config.disc_is_loss;
 		}
 
@@ -2063,6 +2232,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_helpfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_helpfile();
+#endif
 			return prefs_runtime_config.helpfile;
 		}
 
@@ -2084,6 +2256,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_transfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_transfile();
+#endif
 			return prefs_runtime_config.transfile;
 		}
 
@@ -2105,6 +2280,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_chanlog(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_chanlog();
+#endif
 			return prefs_runtime_config.chanlog;
 		}
 
@@ -2126,6 +2304,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_chanlogdir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_chanlogdir();
+#endif
 			return prefs_runtime_config.chanlogdir;
 		}
 
@@ -2147,6 +2328,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_userlogdir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_userlogdir();
+#endif
 			return prefs_runtime_config.userlogdir;
 		}
 
@@ -2168,6 +2352,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_quota(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_quota();
+#endif
 			return prefs_runtime_config.quota;
 		}
 
@@ -2189,6 +2376,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_quota_lines(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_quota_lines();
+#endif
 			unsigned int rez;
 
 			rez = prefs_runtime_config.quota_lines;
@@ -2215,6 +2405,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_quota_time(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_quota_time();
+#endif
 			unsigned int rez;
 
 			rez = prefs_runtime_config.quota_time;
@@ -2241,6 +2434,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_quota_wrapline(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_quota_wrapline();
+#endif
 			unsigned int rez;
 
 			rez = prefs_runtime_config.quota_wrapline;
@@ -2267,6 +2463,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_quota_maxline(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_quota_maxline();
+#endif
 			unsigned int rez;
 
 			rez = prefs_runtime_config.quota_maxline;
@@ -2293,6 +2492,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_ladder_init_rating(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_ladder_init_rating();
+#endif
 			return prefs_runtime_config.ladder_init_rating;
 		}
 
@@ -2314,6 +2516,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_quota_dobae(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_quota_dobae();
+#endif
 			unsigned int rez;
 
 			rez = prefs_runtime_config.quota_dobae;
@@ -2340,6 +2545,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_realmfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_realmfile();
+#endif
 			return prefs_runtime_config.realmfile;
 		}
 
@@ -2361,6 +2569,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_issuefile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_issuefile();
+#endif
 			return prefs_runtime_config.issuefile;
 		}
 
@@ -2382,6 +2593,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_effective_user(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_effective_user();
+#endif
 			return prefs_runtime_config.effective_user;
 		}
 
@@ -2403,6 +2617,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_effective_group(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_effective_group();
+#endif
 			return prefs_runtime_config.effective_group;
 		}
 
@@ -2424,6 +2641,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_nullmsg(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_nullmsg();
+#endif
 			return prefs_runtime_config.nullmsg;
 		}
 
@@ -2445,6 +2665,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_mail_support(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_mail_support();
+#endif
 			return prefs_runtime_config.mail_support;
 		}
 
@@ -2466,6 +2689,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_mail_quota(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_mail_quota();
+#endif
 			unsigned int rez;
 
 			rez = prefs_runtime_config.mail_quota;
@@ -2492,6 +2718,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_maildir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_maildir();
+#endif
 			return prefs_runtime_config.maildir;
 		}
 
@@ -2513,6 +2742,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_log_notice(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_log_notice();
+#endif
 			return prefs_runtime_config.log_notice;
 		}
 
@@ -2534,6 +2766,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_savebyname(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_savebyname();
+#endif
 			return prefs_runtime_config.savebyname;
 		}
 
@@ -2555,6 +2790,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_allow_bad_version(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_allow_bad_version();
+#endif
 			return prefs_runtime_config.allow_bad_version;
 		}
 
@@ -2576,6 +2814,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_allow_unknown_version(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_allow_unknown_version();
+#endif
 			return prefs_runtime_config.allow_unknown_version;
 		}
 
@@ -2597,6 +2838,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_versioncheck_file(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_versioncheck_file();
+#endif
 			return prefs_runtime_config.versioncheck_file;
 		}
 
@@ -2618,6 +2862,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_allow_d2cs_setname(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_allow_d2cs_setname();
+#endif
 			return prefs_runtime_config.allow_d2cs_setname;
 		}
 
@@ -2639,6 +2886,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_d2cs_version(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_d2cs_version();
+#endif
 			return prefs_runtime_config.d2cs_version;
 		}
 
@@ -2660,6 +2910,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_hashtable_size(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_hashtable_size();
+#endif
 			return prefs_runtime_config.hashtable_size;
 		}
 
@@ -2681,6 +2934,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_telnet_addrs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_telnet_addrs();
+#endif
 			return prefs_runtime_config.telnetaddrs;
 		}
 
@@ -2702,6 +2958,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_ipban_check_int(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_ipban_check_int();
+#endif
 			return prefs_runtime_config.ipban_check_int;
 		}
 
@@ -2723,6 +2982,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_max_concurrent_logins(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_max_concurrent_logins();
+#endif
 			return prefs_runtime_config.max_concurrent_logins;
 		}
 
@@ -2744,6 +3006,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_mapsfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_mapsfile();
+#endif
 			return prefs_runtime_config.mapsfile;
 		}
 
@@ -2765,6 +3030,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_xplevel_file(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_xplevel_file();
+#endif
 			return prefs_runtime_config.xplevelfile;
 		}
 
@@ -2786,6 +3054,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_xpcalc_file(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_xpcalc_file();
+#endif
 			return prefs_runtime_config.xpcalcfile;
 		}
 
@@ -2807,6 +3078,9 @@ namespace pvpgn
 
 		extern int prefs_get_initkill_timer(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_initkill_timer();
+#endif
 			return prefs_runtime_config.initkill_timer;
 		}
 
@@ -2828,6 +3102,9 @@ namespace pvpgn
 
 		extern int prefs_get_war3_ladder_update_secs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_war3_ladder_update_secs();
+#endif
 			return prefs_runtime_config.war3_ladder_update_secs;
 		}
 
@@ -2849,6 +3126,9 @@ namespace pvpgn
 
 		extern int prefs_get_output_update_secs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_output_update_secs();
+#endif
 			return prefs_runtime_config.output_update_secs;
 		}
 
@@ -2870,6 +3150,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_ladderdir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_ladderdir();
+#endif
 			return prefs_runtime_config.ladderdir;
 		}
 
@@ -2891,6 +3174,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_outputdir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_outputdir();
+#endif
 			return prefs_runtime_config.statusdir;
 		}
 
@@ -2912,6 +3198,9 @@ namespace pvpgn
 
 		extern int prefs_get_XML_output_ladder(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_XML_output_ladder();
+#endif
 			return prefs_runtime_config.XML_output_ladder;
 		}
 
@@ -2933,6 +3222,9 @@ namespace pvpgn
 
 		extern int prefs_get_XML_status_output(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_XML_status_output();
+#endif
 			return prefs_runtime_config.XML_status_output;
 		}
 
@@ -2954,6 +3246,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_account_allowed_symbols(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_account_allowed_symbols();
+#endif
 			return prefs_runtime_config.account_allowed_symbols;
 		}
 
@@ -2975,6 +3270,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_account_force_username(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_account_force_username();
+#endif
 			return prefs_runtime_config.account_force_username;
 		}
 
@@ -2995,6 +3293,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_command_groups_file(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_command_groups_file();
+#endif
 			return prefs_runtime_config.command_groups_file;
 		}
 
@@ -3016,6 +3317,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_tournament_file(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_tournament_file();
+#endif
 			return prefs_runtime_config.tournament_file;
 		}
 
@@ -3037,6 +3341,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_customicons_file(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_customicons_file();
+#endif
 			return prefs_runtime_config.customicons_file;
 		}
 
@@ -3057,6 +3364,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_scriptdir(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_scriptdir();
+#endif
 			return prefs_runtime_config.scriptdir;
 		}
 
@@ -3077,6 +3387,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_aliasfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_aliasfile();
+#endif
 			return prefs_runtime_config.aliasfile;
 		}
 
@@ -3098,6 +3411,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_anongame_infos_file(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_anongame_infos_file();
+#endif
 			return prefs_runtime_config.anongame_infos_file;
 		}
 
@@ -3119,6 +3435,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_max_conns_per_IP(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_max_conns_per_IP();
+#endif
 			return prefs_runtime_config.max_conns_per_IP;
 		}
 
@@ -3140,6 +3459,9 @@ namespace pvpgn
 
 		extern int prefs_get_max_friends(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_max_friends();
+#endif
 			return prefs_runtime_config.max_friends;
 		}
 
@@ -3161,6 +3483,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_clan_newer_time(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_clan_newer_time();
+#endif
 			return prefs_runtime_config.clan_newer_time;
 		}
 
@@ -3182,6 +3507,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_clan_max_members(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_clan_max_members();
+#endif
 			return prefs_runtime_config.clan_max_members;
 		}
 
@@ -3216,6 +3544,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_clan_channel_default_private(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_clan_channel_default_private();
+#endif
 			return prefs_runtime_config.clan_channel_default_private;
 		}
 
@@ -3236,6 +3567,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_clan_min_invites(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_clan_min_invites();
+#endif
 			return prefs_runtime_config.clan_min_invites;
 		}
 
@@ -3256,6 +3590,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_passfail_count(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_passfail_count();
+#endif
 			return prefs_runtime_config.passfail_count;
 		}
 
@@ -3277,6 +3614,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_passfail_bantime(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_passfail_bantime();
+#endif
 			return prefs_runtime_config.passfail_bantime;
 		}
 
@@ -3298,6 +3638,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_maxusers_per_channel(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_maxusers_per_channel();
+#endif
 			return prefs_runtime_config.maxusers_per_channel;
 		}
 
@@ -3319,6 +3662,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_supportfile(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_supportfile();
+#endif
 			return prefs_runtime_config.supportfile;
 		}
 
@@ -3340,6 +3686,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_allowed_clients(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_allowed_clients();
+#endif
 			return prefs_runtime_config.allowed_clients;
 		}
 
@@ -3361,6 +3710,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_ladder_games(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_ladder_games();
+#endif
 			return prefs_runtime_config.ladder_games;
 		}
 
@@ -3382,6 +3734,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_ladder_prefix(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_ladder_prefix();
+#endif
 			return prefs_runtime_config.ladder_prefix;
 		}
 
@@ -3403,6 +3758,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_max_connections(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_max_connections();
+#endif
 			return prefs_runtime_config.max_connections;
 		}
 
@@ -3424,6 +3782,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_packet_limit(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_packet_limit();
+#endif
 			return prefs_runtime_config.packet_limit;
 		}
 
@@ -3444,6 +3805,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_v3_tcp_session_mode(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_v3_tcp_session_mode();
+#endif
 			return prefs_runtime_config.v3_tcp_session_mode;
 		}
 
@@ -3465,6 +3829,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_sync_on_logoff(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_sync_on_logoff();
+#endif
 			return prefs_runtime_config.sync_on_logoff;
 		}
 
@@ -3485,6 +3852,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_irc_network_name(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_irc_network_name();
+#endif
 			return prefs_runtime_config.irc_network_name;
 		}
 
@@ -3506,6 +3876,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_localize_by_country(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_localize_by_country();
+#endif
 			return prefs_runtime_config.localize_by_country;
 		}
 
@@ -3527,6 +3900,9 @@ namespace pvpgn
 
 		extern unsigned int prefs_get_log_commands(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_log_commands();
+#endif
 			return prefs_runtime_config.log_commands;
 		}
 
@@ -3548,6 +3924,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_log_command_groups(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_log_command_groups();
+#endif
 			return prefs_runtime_config.log_command_groups;
 		}
 
@@ -3569,6 +3948,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_log_command_list(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_log_command_list();
+#endif
 			return prefs_runtime_config.log_command_list;
 		}
 
@@ -3594,6 +3976,9 @@ namespace pvpgn
 		*/
 		extern char const * prefs_get_apireg_addrs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_apireg_addrs();
+#endif
 			return prefs_runtime_config.apiregaddrs;
 		}
 
@@ -3614,6 +3999,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wgameres_addrs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wgameres_addrs();
+#endif
 			return prefs_runtime_config.wgameresaddrs;
 		}
 
@@ -3634,6 +4022,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wolv1_addrs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wolv1_addrs();
+#endif
 			return prefs_runtime_config.wolv1addrs;
 		}
 
@@ -3654,6 +4045,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wolv2_addrs(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wolv2_addrs();
+#endif
 			return prefs_runtime_config.wolv2addrs;
 		}
 
@@ -3679,6 +4073,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wol_timezone(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wol_timezone();
+#endif
 			return prefs_runtime_config.woltimezone;
 		}
 
@@ -3699,6 +4096,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wol_longitude(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wol_longitude();
+#endif
 			return prefs_runtime_config.wollongitude;
 		}
 
@@ -3719,6 +4119,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wol_latitude(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wol_latitude();
+#endif
 			return prefs_runtime_config.wollatitude;
 		}
 
@@ -3739,6 +4142,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wol_autoupdate_serverhost(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wol_autoupdate_serverhost();
+#endif
 			return prefs_runtime_config.wol_autoupdate_serverhost;
 		}
 
@@ -3759,6 +4165,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wol_autoupdate_username(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wol_autoupdate_username();
+#endif
 			return prefs_runtime_config.wol_autoupdate_username;
 		}
 
@@ -3779,6 +4188,9 @@ namespace pvpgn
 
 		extern char const * prefs_get_wol_autoupdate_password(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			if (pvpgn_v3_prefs_loaded()) return pvpgn_v3_prefs_get_wol_autoupdate_password();
+#endif
 			return prefs_runtime_config.wol_autoupdate_password;
 		}
 

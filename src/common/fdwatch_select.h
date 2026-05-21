@@ -25,7 +25,14 @@
 
 #ifdef HAVE_SELECT
 
-#include "compat/psock.h"
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <winsock2.h>
+#else
+#  include <sys/select.h>
+#endif
 #include "common/scoped_ptr.h"
 #include "fdwatch.h"
 #include "fdwbackend.h"
@@ -48,7 +55,7 @@ namespace pvpgn
 
 	private:
 		int sr, smaxfd;
-		scoped_ptr<t_psock_fd_set> rfds, wfds, /* working sets (updated often) */
+		scoped_ptr<fd_set> rfds, wfds, /* working sets (updated often) */
 			trfds, twfds; /* templates (updated rare) */
 	};
 

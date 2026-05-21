@@ -24,7 +24,6 @@
 #include "common/eventlog.h"
 #include "common/packet.h"
 #include "common/bnethash.h"
-#include "common/xalloc.h"
 #include "common/tag.h"
 #include "common/xstring.h"
 
@@ -44,6 +43,10 @@
 // Observation-only: logs each call to handle_telnet_packet keyed by the
 // connection state name. Returns 0; legacy path always runs.
 extern "C" int pvpgn_v3_telnet_dispatch_try(void* conn_ptr, char const* op) noexcept;
+// Send-bridge: encodes a raw-text packet and dispatches via send_packet handler.
+// Returns 1 (handled), 0 (fall through), -1 (error).
+extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
+extern "C" int pvpgn_v3_send_raw_text2(void* conn_ptr, char const* prefix, char const* suffix) noexcept;
 #endif
 
 
@@ -123,15 +126,22 @@ namespace pvpgn
 
 						{
 							char const * const msg = "\r\nPassword: ";
-
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+							{
+								int const _rc = pvpgn_v3_send_raw_text(c, msg);
+								if (_rc == 1) break;
+								if (_rc == -1) return -1;
+							}
+	#endif
 							if (!(rpacket = packet_create(packet_class_raw)))
 							{
 								eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
 								break;
 							}
-#if 0 /* don't echo */
+	#if 0 /* don't echo */
 							packet_append_ntstring(rpacket, conn_get_loggeduser(c));
-#endif
+	#endif
 							packet_append_ntstring(rpacket, msg);
 							conn_push_outqueue(c, rpacket);
 							packet_del_ref(rpacket);
@@ -148,6 +158,13 @@ namespace pvpgn
 					{
 						char const * const temp = "\r\nPassword: ";
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+						{
+							int const _rc = pvpgn_v3_send_raw_text(c, temp);
+							if (_rc == 1) break;
+							if (_rc == -1) return -1;
+						}
+#endif
 						if (!(rpacket = packet_create(packet_class_raw)))
 						{
 							eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
@@ -178,6 +195,13 @@ namespace pvpgn
 													/* no std::log message... */
 													conn_set_state(c, conn_state_bot_username);
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+													{
+														int const _rc = pvpgn_v3_send_raw_text(c, tempa);
+														if (_rc == 1) break;
+														if (_rc == -1) return -1;
+													}
+#endif
 													if (!(rpacket = packet_create(packet_class_raw)))
 													{
 														eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
@@ -194,6 +218,13 @@ namespace pvpgn
 													eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (already logged in)", conn_get_socket(c), loggeduser);
 													conn_set_state(c, conn_state_bot_username);
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+													{
+														int const _rc = pvpgn_v3_send_raw_text(c, tempa);
+														if (_rc == 1) break;
+														if (_rc == -1) return -1;
+													}
+#endif
 													if (!(rpacket = packet_create(packet_class_raw)))
 													{
 														eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
@@ -210,6 +241,13 @@ namespace pvpgn
 													eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (bad account)", conn_get_socket(c), loggeduser);
 													conn_set_state(c, conn_state_bot_username);
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+													{
+														int const _rc = pvpgn_v3_send_raw_text(c, tempa);
+														if (_rc == 1) break;
+														if (_rc == -1) return -1;
+													}
+#endif
 													if (!(rpacket = packet_create(packet_class_raw)))
 													{
 														eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
@@ -228,6 +266,13 @@ namespace pvpgn
 														eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (corrupted passhash1?)", conn_get_socket(c), account_get_name(account));
 														conn_set_state(c, conn_state_bot_username);
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+														{
+															int const _rc = pvpgn_v3_send_raw_text(c, tempa);
+															if (_rc == 1) break;
+															if (_rc == -1) return -1;
+														}
+#endif
 														if (!(rpacket = packet_create(packet_class_raw)))
 														{
 															eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
@@ -248,15 +293,22 @@ namespace pvpgn
 													{
 														eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (unable to hash password)", conn_get_socket(c), account_get_name(account));
 														delete[] testpass;
-
+	
 														conn_set_state(c, conn_state_bot_username);
-
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+														{
+															int const _rc = pvpgn_v3_send_raw_text(c, tempa);
+															if (_rc == 1) break;
+															if (_rc == -1) return -1;
+														}
+	#endif
 														if (!(rpacket = packet_create(packet_class_raw)))
 														{
 															eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
 															break;
 														}
-
+	
 														packet_append_ntstring(rpacket, tempa);
 														conn_push_outqueue(c, rpacket);
 														packet_del_ref(rpacket);
@@ -267,13 +319,20 @@ namespace pvpgn
 													{
 														eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (wrong password)", conn_get_socket(c), account_get_name(account));
 														conn_set_state(c, conn_state_bot_username);
-
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+														{
+															int const _rc = pvpgn_v3_send_raw_text(c, tempa);
+															if (_rc == 1) break;
+															if (_rc == -1) return -1;
+														}
+	#endif
 														if (!(rpacket = packet_create(packet_class_raw)))
 														{
 															eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
 															break;
 														}
-
+	
 														packet_append_ntstring(rpacket, tempa);
 														conn_push_outqueue(c, rpacket);
 														packet_del_ref(rpacket);
@@ -285,13 +344,20 @@ namespace pvpgn
 													{
 														eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (no bot access)", conn_get_socket(c), account_get_name(account));
 														conn_set_state(c, conn_state_bot_username);
-
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+														{
+															int const _rc = pvpgn_v3_send_raw_text(c, tempb);
+															if (_rc == 1) break;
+															if (_rc == -1) return -1;
+														}
+	#endif
 														if (!(rpacket = packet_create(packet_class_raw)))
 														{
 															eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
 															break;
 														}
-
+	
 														packet_append_ntstring(rpacket, tempb);
 														conn_push_outqueue(c, rpacket);
 														packet_del_ref(rpacket);
@@ -301,13 +367,20 @@ namespace pvpgn
 													{
 														eventlog(eventlog_level_info, __FUNCTION__, "[{}] bot login for \"{}\" refused (this account is locked)", conn_get_socket(c), account_get_name(account));
 														conn_set_state(c, conn_state_bot_username);
-
+	
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+														{
+															int const _rc = pvpgn_v3_send_raw_text(c, tempb);
+															if (_rc == 1) break;
+															if (_rc == -1) return -1;
+														}
+	#endif
 														if (!(rpacket = packet_create(packet_class_raw)))
 														{
 															eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
 															break;
 														}
-
+	
 														packet_append_ntstring(rpacket, tempb);
 														conn_push_outqueue(c, rpacket);
 														packet_del_ref(rpacket);
@@ -327,6 +400,11 @@ namespace pvpgn
 												else
 													eventlog(eventlog_level_info, __FUNCTION__, "[{}] \"{}\" bot logged in (no password)", conn_get_socket(c), account_get_name(account));
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+												{
+													int const _rc = pvpgn_v3_send_raw_text(c, "\r\n");
+													if (_rc != 1) {
+#endif
 												if (!(rpacket = packet_create(packet_class_raw))) /* if we got this far, let them std::log in even if this fails */
 													eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create rpacket", conn_get_socket(c));
 												else
@@ -335,6 +413,10 @@ namespace pvpgn
 													conn_push_outqueue(c, rpacket);
 													packet_del_ref(rpacket);
 												}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+													}
+												}
+#endif
 												message_send_text(c, message_type_uniqueid, c, loggeduser);
 
 												conn_login(c, account, loggeduser);

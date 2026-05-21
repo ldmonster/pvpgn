@@ -21,7 +21,6 @@
 #include <libpq-fe.h>
 #include <cstdlib>
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "storage_sql.h"
 #include "sql_pgsql.h"
 #include "common/setup_after.h"

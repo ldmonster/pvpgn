@@ -29,7 +29,6 @@
 #include "common/util.h"
 #include "common/eventlog.h"
 #include "common/list.h"
-#include "common/xalloc.h"
 #include "message.h"
 #include "connection.h"
 #include "i18n.h"

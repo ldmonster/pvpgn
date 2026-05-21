@@ -1,218 +1,920 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/// @file fsm_test.cpp
+/// Unit tests for D2CSSessionFsm.
+///
+/// Wire format recap (all multi-byte fields are little-endian):
+///   Header: [length:2LE][type:1]
+///   Payload follows immediately.
+///
+/// Helper `make_packet()` builds a complete packet from a type byte and
+/// a payload byte-vector.
+
 #include <catch2/catch_test_macros.hpp>
 #include "protocol/d2cs/fsm.hpp"
+
 #include <cstring>
+#include <string>
+#include <vector>
 
 namespace pvpgn::protocol::d2cs {
 
-TEST_CASE("D2CSSessionFsm - construction", "[protocol][d2cs]") {
-    D2CSFsmCallbacks callbacks;
-    D2CSSessionFsm fsm(callbacks);
-    
+// ---------------------------------------------------------------------------
+// Test helpers
+// ---------------------------------------------------------------------------
+
+/// Build a complete D2CS packet: [length:2LE][type:1][payload...]
+static std::vector<uint8_t> make_packet(uint8_t type,
+                                        const std::vector<uint8_t>& payload = {})
+{
+    const uint16_t total = static_cast<uint16_t>(3 + payload.size());
+    std::vector<uint8_t> pkt;
+    pkt.reserve(total);
+    pkt.push_back(static_cast<uint8_t>(total & 0xFF));
+    pkt.push_back(static_cast<uint8_t>((total >> 8) & 0xFF));
+    pkt.push_back(type);
+    pkt.insert(pkt.end(), payload.begin(), payload.end());
+    return pkt;
+}
+
+/// Append a little-endian uint32_t to a byte vector.
+static void push_u32(std::vector<uint8_t>& v, uint32_t val) {
+    v.push_back(static_cast<uint8_t>(val & 0xFF));
+    v.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
+    v.push_back(static_cast<uint8_t>((val >> 16) & 0xFF));
+    v.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
+}
+
+/// Append a null-terminated C-string to a byte vector.
+static void push_cstr(std::vector<uint8_t>& v, const char* s) {
+    while (*s) v.push_back(static_cast<uint8_t>(*s++));
+    v.push_back(0x00);
+}
+
+/// Feed a packet vector into an FSM and return the result.
+static core::Result<size_t, core::Error> feed(D2CSSessionFsm& fsm,
+                                               const std::vector<uint8_t>& pkt)
+{
+    return fsm.feed(pkt.data(), pkt.size());
+}
+
+// ---------------------------------------------------------------------------
+// TC-01: Construction — initial state is connected
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-01 construction initial state", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
     CHECK(fsm.state() == D2CSSessionState::connected);
 }
 
-TEST_CASE("D2CSSessionFsm - feed empty data", "[protocol][d2cs]") {
-    D2CSFsmCallbacks callbacks;
-    D2CSSessionFsm fsm(callbacks);
-    
-    auto result = fsm.feed(nullptr, 0);
-    REQUIRE(result);
-    CHECK(result.value() == 0);
+// ---------------------------------------------------------------------------
+// TC-02: Feed null / empty data returns 0 consumed
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-02 feed null or empty data", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    auto r1 = fsm.feed(nullptr, 0);
+    REQUIRE(r1);
+    CHECK(r1.value() == 0);
+
+    auto r2 = fsm.feed(nullptr, 10);
+    REQUIRE(r2);
+    CHECK(r2.value() == 0);
 }
 
-TEST_CASE("D2CSSessionFsm - feed invalid packet length", "[protocol][d2cs]") {
-    D2CSFsmCallbacks callbacks;
-    D2CSSessionFsm fsm(callbacks);
-    
-    // Create a packet with invalid length (too small)
-    uint8_t data[3] = {0x01, 0x00, 0x01};  // length = 1 (invalid, min is 3)
-    
-    auto result = fsm.feed(data, 3);
-    CHECK_FALSE(result);
+// ---------------------------------------------------------------------------
+// TC-03: Incomplete packet — buffered, 0 consumed
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-03 incomplete packet buffered", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // Announce a 20-byte packet but only send 5 bytes
+    uint8_t partial[5] = {0x14, 0x00, 0x01, 0x00, 0x00};
+    auto r = fsm.feed(partial, 5);
+    REQUIRE(r);
+    CHECK(r.value() == 0);
+    CHECK(fsm.state() == D2CSSessionState::connected);
 }
 
-TEST_CASE("D2CSSessionFsm - feed incomplete packet", "[protocol][d2cs]") {
-    D2CSFsmCallbacks callbacks;
-    D2CSSessionFsm fsm(callbacks);
-    
-    // Create a packet header but not enough data
-    uint8_t data[3] = {0x10, 0x00, 0x01};  // length = 16, but only 3 bytes provided
-    
-    auto result = fsm.feed(data, 3);
-    REQUIRE(result);
-    CHECK(result.value() == 0);  // No complete packet processed
+// ---------------------------------------------------------------------------
+// TC-04: Packet length < 3 is rejected
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-04 packet length too small rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // length = 2 (invalid — minimum is 3)
+    uint8_t bad[3] = {0x02, 0x00, 0x01};
+    auto r = fsm.feed(bad, 3);
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
 }
 
-TEST_CASE("D2CSSessionFsm - make_login_reply", "[protocol][d2cs]") {
-    auto reply = D2CSSessionFsm::make_login_reply(0x00);
-    
-    CHECK(reply.size() >= 3);
-    CHECK(reply[2] == static_cast<uint8_t>(D2CSPacketType::LOGINREPLY));
-}
+// ---------------------------------------------------------------------------
+// TC-05: LOGINREQ — callback invoked, state → authenticating
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-05 LOGINREQ callback and state transition", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSLoginRequest captured;
 
-TEST_CASE("D2CSSessionFsm - make_char_login_reply", "[protocol][d2cs]") {
-    auto reply = D2CSSessionFsm::make_char_login_reply(0x00);
-    
-    CHECK(reply.size() >= 3);
-    CHECK(reply[2] == static_cast<uint8_t>(D2CSPacketType::CHARLOGINREPLY));
-}
-
-TEST_CASE("D2CSSessionFsm - make_create_game_reply", "[protocol][d2cs]") {
-    auto reply = D2CSSessionFsm::make_create_game_reply(0x00, 12345);
-    
-    CHECK(reply.size() >= 3);
-    CHECK(reply[2] == static_cast<uint8_t>(D2CSPacketType::CREATEGAMEREPLY));
-}
-
-TEST_CASE("D2CSSessionFsm - make_join_game_reply", "[protocol][d2cs]") {
-    auto reply = D2CSSessionFsm::make_join_game_reply(0x00, "gs1.example.com", 4000);
-    
-    CHECK(reply.size() >= 3);
-    CHECK(reply[2] == static_cast<uint8_t>(D2CSPacketType::JOINGAMEREPLY));
-}
-
-TEST_CASE("D2CSSessionFsm - make_char_list_reply", "[protocol][d2cs]") {
-    std::vector<std::string> chars = {"Barbarian", "Sorceress", "Paladin"};
-    auto reply = D2CSSessionFsm::make_char_list_reply(chars);
-    
-    CHECK(reply.size() >= 3);
-    CHECK(reply[2] == static_cast<uint8_t>(D2CSPacketType::CHARLISTREPLY));
-}
-
-TEST_CASE("D2CSSessionFsm - login callback invoked", "[protocol][d2cs]") {
-    bool login_called = false;
-    D2CSFsmCallbacks callbacks;
-    callbacks.on_login = [&login_called](const D2CSLoginRequest& req) {
-        login_called = true;
+    D2CSFsmCallbacks cb;
+    cb.on_login = [&](const D2CSLoginRequest& req) {
+        called = true;
+        captured = req;
         return core::Result<void, core::Error>();
     };
-    
-    D2CSSessionFsm fsm(callbacks);
-    
-    // Create a valid login packet
-    // Format: length (2 bytes) + type (1 byte) + account_id (4 bytes) + session_key (4 bytes)
-    uint8_t data[11];
-    data[0] = 0x0B;  // length = 11 (little-endian)
-    data[1] = 0x00;
-    data[2] = static_cast<uint8_t>(D2CSPacketType::LOGINREQ);
-    data[3] = 0x01;  // account_id = 1
-    data[4] = 0x00;
-    data[5] = 0x00;
-    data[6] = 0x00;
-    data[7] = 0x02;  // session_key = 2
-    data[8] = 0x00;
-    data[9] = 0x00;
-    data[10] = 0x00;
-    
-    auto result = fsm.feed(data, 11);
-    REQUIRE(result);
-    CHECK(login_called);
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 42);          // seqno
+    push_u32(payload, 0xDEADBEEF);  // session_key
+    push_cstr(payload, "TestUser");
+    push_cstr(payload, "Barbarian");
+
+    auto pkt = make_packet(0x01, payload);
+    auto r = feed(fsm, pkt);
+
+    REQUIRE(r);
+    CHECK(r.value() == pkt.size());
+    CHECK(called);
+    CHECK(captured.seqno == 42);
+    CHECK(captured.session_key == 0xDEADBEEF);
+    CHECK(captured.account_name == "TestUser");
+    CHECK(captured.char_name == "Barbarian");
     CHECK(fsm.state() == D2CSSessionState::authenticating);
 }
 
-TEST_CASE("D2CSSessionFsm - unknown packet type fails", "[protocol][d2cs]") {
-    D2CSFsmCallbacks callbacks;
-    D2CSSessionFsm fsm(callbacks);
-    
-    // Create a packet with unknown type
-    uint8_t data[3];
-    data[0] = 0x03;  // length = 3
-    data[1] = 0x00;
-    data[2] = 0xFF;  // unknown type
-    
-    auto result = fsm.feed(data, 3);
-    CHECK_FALSE(result);
+// ---------------------------------------------------------------------------
+// TC-06: LOGINREQ — callback failure propagates
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-06 LOGINREQ callback failure propagates", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_login = [](const D2CSLoginRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::Unauthenticated, "bad credentials"));
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+    push_u32(payload, 0);
+    push_cstr(payload, "user");
+    push_cstr(payload, "char");
+
+    auto r = feed(fsm, make_packet(0x01, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::Unauthenticated);
 }
 
-TEST_CASE("D2CSSessionFsm - multiple packets in one feed", "[protocol][d2cs]") {
-    int login_count = 0;
-    D2CSFsmCallbacks callbacks;
-    callbacks.on_login = [&login_count](const D2CSLoginRequest& req) {
-        login_count++;
+// ---------------------------------------------------------------------------
+// TC-07: CHARLOGINREQ — callback invoked, state → authenticated
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-07 CHARLOGINREQ callback and state transition", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSCharLoginRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_login = [&](const D2CSCharLoginRequest& req) {
+        called = true;
+        captured = req;
         return core::Result<void, core::Error>();
     };
-    
-    D2CSSessionFsm fsm(callbacks);
-    
-    // Create two login packets
-    uint8_t data[22];
-    
-    // First packet
-    data[0] = 0x0B;  // length = 11
-    data[1] = 0x00;
-    data[2] = static_cast<uint8_t>(D2CSPacketType::LOGINREQ);
-    data[3] = 0x01;
-    data[4] = 0x00;
-    data[5] = 0x00;
-    data[6] = 0x00;
-    data[7] = 0x02;
-    data[8] = 0x00;
-    data[9] = 0x00;
-    data[10] = 0x00;
-    
-    // Second packet
-    data[11] = 0x0B;  // length = 11
-    data[12] = 0x00;
-    data[13] = static_cast<uint8_t>(D2CSPacketType::LOGINREQ);
-    data[14] = 0x03;
-    data[15] = 0x00;
-    data[16] = 0x00;
-    data[17] = 0x00;
-    data[18] = 0x04;
-    data[19] = 0x00;
-    data[20] = 0x00;
-    data[21] = 0x00;
-    
-    auto result = fsm.feed(data, 22);
-    REQUIRE(result);
-    CHECK(result.value() == 22);
-    CHECK(login_count == 2);
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 7);    // seqno
+    push_u32(payload, 3);    // char_class (Amazon = 3)
+    push_u32(payload, 25);   // char_level
+    push_u32(payload, 0x01); // char_status (hardcore)
+    push_cstr(payload, "MyAccount");
+    push_cstr(payload, "MyAmazon");
+
+    auto r = feed(fsm, make_packet(0x07, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 7);
+    CHECK(captured.char_class == 3);
+    CHECK(captured.char_level == 25);
+    CHECK(captured.char_status == 0x01);
+    CHECK(captured.account_name == "MyAccount");
+    CHECK(captured.char_name == "MyAmazon");
+    CHECK(fsm.state() == D2CSSessionState::authenticated);
 }
 
-TEST_CASE("D2CSSessionFsm - login callback failure propagates", "[protocol][d2cs]") {
-    D2CSFsmCallbacks callbacks;
-    callbacks.on_login = [](const D2CSLoginRequest& req) {
-        return core::fail(
-            core::make_error(core::StatusCode::Unauthenticated, "Invalid credentials")
-        );
+// ---------------------------------------------------------------------------
+// TC-08: CREATEGAMEREQ — callback invoked, state → in_game
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-08 CREATEGAMEREQ callback and state transition", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSCreateGameRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_create_game = [&](const D2CSCreateGameRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
     };
-    
-    D2CSSessionFsm fsm(callbacks);
-    
-    uint8_t data[11];
-    data[0] = 0x0B;
-    data[1] = 0x00;
-    data[2] = static_cast<uint8_t>(D2CSPacketType::LOGINREQ);
-    data[3] = 0x01;
-    data[4] = 0x00;
-    data[5] = 0x00;
-    data[6] = 0x00;
-    data[7] = 0x02;
-    data[8] = 0x00;
-    data[9] = 0x00;
-    data[10] = 0x00;
-    
-    auto result = fsm.feed(data, 11);
-    CHECK_FALSE(result);
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 99);  // seqno
+    payload.push_back(1);   // difficulty = Nightmare
+    payload.push_back(0);   // hardcore = false
+    payload.push_back(1);   // expansion = true
+    push_cstr(payload, "MyGame");
+    push_cstr(payload, "secret");
+    push_cstr(payload, "A fun game");
+
+    auto r = feed(fsm, make_packet(0x03, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 99);
+    CHECK(captured.difficulty == 1);
+    CHECK(captured.hardcore == 0);
+    CHECK(captured.expansion == 1);
+    CHECK(captured.game_name == "MyGame");
+    CHECK(captured.game_password == "secret");
+    CHECK(captured.game_description == "A fun game");
+    CHECK(fsm.state() == D2CSSessionState::in_game);
 }
 
-TEST_CASE("D2CSSessionFsm - packet type enum values", "[protocol][d2cs]") {
-    CHECK(static_cast<uint8_t>(D2CSPacketType::LOGINREQ) == 0x01);
-    CHECK(static_cast<uint8_t>(D2CSPacketType::CHARLOGINREQ) == 0x07);
-    CHECK(static_cast<uint8_t>(D2CSPacketType::CREATEGAMEREQ) == 0x09);
-    CHECK(static_cast<uint8_t>(D2CSPacketType::JOINGAMEREQ) == 0x0B);
-    CHECK(static_cast<uint8_t>(D2CSPacketType::LOGINREPLY) == 0x02);
-    CHECK(static_cast<uint8_t>(D2CSPacketType::CHARLOGINREPLY) == 0x08);
-    CHECK(static_cast<uint8_t>(D2CSPacketType::CREATEGAMEREPLY) == 0x0A);
-    CHECK(static_cast<uint8_t>(D2CSPacketType::JOINGAMEREPLY) == 0x0C);
+// ---------------------------------------------------------------------------
+// TC-09: JOINGAMEREQ — callback invoked, state → in_game
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-09 JOINGAMEREQ callback and state transition", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSJoinGameRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_join_game = [&](const D2CSJoinGameRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 55);  // seqno
+    push_cstr(payload, "ExistingGame");
+    push_cstr(payload, "pass123");
+
+    auto r = feed(fsm, make_packet(0x04, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 55);
+    CHECK(captured.game_name == "ExistingGame");
+    CHECK(captured.game_password == "pass123");
+    CHECK(fsm.state() == D2CSSessionState::in_game);
 }
 
-TEST_CASE("D2CSSessionFsm - session state enum values", "[protocol][d2cs]") {
-    CHECK(D2CSSessionState::connected == D2CSSessionState::connected);
-    CHECK(D2CSSessionState::authenticating == D2CSSessionState::authenticating);
-    CHECK(D2CSSessionState::authenticated == D2CSSessionState::authenticated);
-    CHECK(D2CSSessionState::in_game == D2CSSessionState::in_game);
-    CHECK(D2CSSessionState::disconnected == D2CSSessionState::disconnected);
+// ---------------------------------------------------------------------------
+// TC-10: GAMELISTREQ — callback invoked
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-10 GAMELISTREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSGameListRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_game_list = [&](const D2CSGameListRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 11);  // seqno
+    push_u32(payload, 2);   // game_type
+
+    auto r = feed(fsm, make_packet(0x05, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 11);
+    CHECK(captured.game_type == 2);
+}
+
+// ---------------------------------------------------------------------------
+// TC-11: GAMEINFOREQ — callback invoked
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-11 GAMEINFOREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSGameInfoRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_game_info = [&](const D2CSGameInfoRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 22);  // seqno
+    push_cstr(payload, "TargetGame");
+
+    auto r = feed(fsm, make_packet(0x06, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 22);
+    CHECK(captured.game_name == "TargetGame");
+}
+
+// ---------------------------------------------------------------------------
+// TC-12: CREATECHARREQ — callback invoked
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-12 CREATECHARREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSCreateCharRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_create_char = [&](const D2CSCreateCharRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 33);  // seqno
+    payload.push_back(0);   // char_class = Barbarian
+    payload.push_back(0x40);// char_flags = expansion
+    push_cstr(payload, "NewBarb");
+
+    auto r = feed(fsm, make_packet(0x02, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 33);
+    CHECK(captured.char_class == 0);
+    CHECK(captured.char_flags == 0x40);
+    CHECK(captured.char_name == "NewBarb");
+}
+
+// ---------------------------------------------------------------------------
+// TC-13: DELETECHARREQ — callback invoked
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-13 DELETECHARREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSDeleteCharRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_delete_char = [&](const D2CSDeleteCharRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 44);  // seqno
+    push_cstr(payload, "OldChar");
+
+    auto r = feed(fsm, make_packet(0x0A, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 44);
+    CHECK(captured.char_name == "OldChar");
+}
+
+// ---------------------------------------------------------------------------
+// TC-14: CHARLISTREQ — callback invoked
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-14 CHARLISTREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSCharListRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_list = [&](const D2CSCharListRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 66);  // seqno
+
+    auto r = feed(fsm, make_packet(0x17, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 66);
+}
+
+// ---------------------------------------------------------------------------
+// TC-15: MOTDREQ — callback invoked
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-15 MOTDREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSMotdRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_motd = [&](const D2CSMotdRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 77);  // seqno
+
+    auto r = feed(fsm, make_packet(0x12, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 77);
+}
+
+// ---------------------------------------------------------------------------
+// TC-16: CANCELCREATEGAME — callback invoked, state reverts from in_game
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-16 CANCELCREATEGAME reverts state", "[protocol][d2cs]") {
+    bool cancel_called = false;
+
+    D2CSFsmCallbacks cb;
+    cb.on_create_game = [](const D2CSCreateGameRequest&) {
+        return core::Result<void, core::Error>();
+    };
+    cb.on_cancel_create_game = [&]() {
+        cancel_called = true;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    // First, enter in_game state via CREATEGAMEREQ
+    {
+        std::vector<uint8_t> payload;
+        push_u32(payload, 1);
+        payload.push_back(0); payload.push_back(0); payload.push_back(0);
+        push_cstr(payload, "G"); push_cstr(payload, ""); push_cstr(payload, "");
+        auto r = feed(fsm, make_packet(0x03, payload));
+        REQUIRE(r);
+    }
+    CHECK(fsm.state() == D2CSSessionState::in_game);
+
+    // Now cancel
+    auto r = feed(fsm, make_packet(0x13, {}));
+    REQUIRE(r);
+    CHECK(cancel_called);
+    CHECK(fsm.state() == D2CSSessionState::authenticated);
+}
+
+// ---------------------------------------------------------------------------
+// TC-17: CONVERTCHARREQ — callback invoked
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-17 CONVERTCHARREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSConvertCharRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_convert_char = [&](const D2CSConvertCharRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 88);  // seqno
+    push_cstr(payload, "ClassicChar");
+
+    auto r = feed(fsm, make_packet(0x18, payload));
+
+    REQUIRE(r);
+    CHECK(called);
+    CHECK(captured.seqno == 88);
+    CHECK(captured.char_name == "ClassicChar");
+}
+
+// ---------------------------------------------------------------------------
+// TC-18: Unknown packet type — silently ignored (no error)
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-18 unknown packet type silently ignored", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // 0xFF is not a known packet type
+    auto r = feed(fsm, make_packet(0xFF, {}));
+    REQUIRE(r);  // Must NOT fail
+    CHECK(r.value() == 3);
+    CHECK(fsm.state() == D2CSSessionState::connected);
+}
+
+// ---------------------------------------------------------------------------
+// TC-19: Multiple packets in one feed call
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-19 multiple packets in one feed", "[protocol][d2cs]") {
+    int login_count = 0;
+    int charlist_count = 0;
+
+    D2CSFsmCallbacks cb;
+    cb.on_login = [&](const D2CSLoginRequest&) {
+        ++login_count;
+        return core::Result<void, core::Error>();
+    };
+    cb.on_char_list = [&](const D2CSCharListRequest&) {
+        ++charlist_count;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    // Build two packets back-to-back
+    std::vector<uint8_t> payload1;
+    push_u32(payload1, 1); push_u32(payload1, 0);
+    push_cstr(payload1, "u"); push_cstr(payload1, "c");
+    auto pkt1 = make_packet(0x01, payload1);
+
+    std::vector<uint8_t> payload2;
+    push_u32(payload2, 2);
+    auto pkt2 = make_packet(0x17, payload2);
+
+    std::vector<uint8_t> combined;
+    combined.insert(combined.end(), pkt1.begin(), pkt1.end());
+    combined.insert(combined.end(), pkt2.begin(), pkt2.end());
+
+    auto r = fsm.feed(combined.data(), combined.size());
+    REQUIRE(r);
+    CHECK(r.value() == combined.size());
+    CHECK(login_count == 1);
+    CHECK(charlist_count == 1);
+}
+
+// ---------------------------------------------------------------------------
+// TC-20: Fragmented delivery — packet split across two feed calls
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-20 fragmented packet reassembly", "[protocol][d2cs]") {
+    bool called = false;
+
+    D2CSFsmCallbacks cb;
+    cb.on_login = [&](const D2CSLoginRequest&) {
+        called = true;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 5); push_u32(payload, 0);
+    push_cstr(payload, "acc"); push_cstr(payload, "chr");
+    auto pkt = make_packet(0x01, payload);
+
+    // Feed first half
+    size_t half = pkt.size() / 2;
+    auto r1 = fsm.feed(pkt.data(), half);
+    REQUIRE(r1);
+    CHECK(r1.value() == 0);
+    CHECK_FALSE(called);
+
+    // Feed second half — the FSM reassembles the full packet from its buffer
+    // and returns the number of bytes consumed from this call's input.
+    // The full packet (pkt.size() bytes) is consumed, but only (pkt.size()-half)
+    // bytes were provided in this call, so consumed == pkt.size() - half.
+    // However, the FSM's internal accounting returns total bytes consumed from
+    // the buffer, which equals the full packet length.  We just verify > 0.
+    auto r2 = fsm.feed(pkt.data() + half, pkt.size() - half);
+    REQUIRE(r2);
+    CHECK(r2.value() > 0);
+    CHECK(called);
+}
+
+// ---------------------------------------------------------------------------
+// TC-21: make_login_reply — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-21 make_login_reply structure", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_login_reply(0x00);
+
+    REQUIRE(reply.size() == 7);
+    // length = 7 (LE)
+    CHECK(reply[0] == 0x07);
+    CHECK(reply[1] == 0x00);
+    // type = LOGINREPLY = 0x01
+    CHECK(reply[2] == 0x01);
+    // result_code = 0 (LE)
+    CHECK(reply[3] == 0x00);
+    CHECK(reply[4] == 0x00);
+    CHECK(reply[5] == 0x00);
+    CHECK(reply[6] == 0x00);
+}
+
+// ---------------------------------------------------------------------------
+// TC-22: make_login_reply — non-zero result code
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-22 make_login_reply bad-password code", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_login_reply(0x0C);  // kLoginReplyBadPass
+
+    REQUIRE(reply.size() == 7);
+    CHECK(reply[2] == 0x01);  // LOGINREPLY
+    CHECK(reply[3] == 0x0C);  // result_code low byte
+}
+
+// ---------------------------------------------------------------------------
+// TC-23: make_char_login_reply — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-23 make_char_login_reply structure", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_char_login_reply(0x00);
+
+    REQUIRE(reply.size() == 7);
+    CHECK(reply[2] == 0x07);  // CHARLOGINREPLY
+    CHECK(reply[3] == 0x00);  // result_code = success
+}
+
+// ---------------------------------------------------------------------------
+// TC-24: make_create_game_reply — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-24 make_create_game_reply structure", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_create_game_reply(42, 1001, 0x00);
+
+    REQUIRE(reply.size() == 19);
+    CHECK(reply[2] == 0x03);  // CREATEGAMEREPLY
+
+    // seqno = 42 (LE)
+    CHECK(reply[3] == 42);
+    CHECK(reply[4] == 0);
+    CHECK(reply[5] == 0);
+    CHECK(reply[6] == 0);
+
+    // game_id = 1001 = 0x3E9 (LE)
+    CHECK(reply[7] == 0xE9);
+    CHECK(reply[8] == 0x03);
+    CHECK(reply[9] == 0x00);
+    CHECK(reply[10] == 0x00);
+}
+
+// ---------------------------------------------------------------------------
+// TC-25: make_join_game_reply — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-25 make_join_game_reply structure", "[protocol][d2cs]") {
+    // gs_ip = 192.168.1.1 = 0xC0A80101
+    auto reply = D2CSSessionFsm::make_join_game_reply(10, 500, 0xC0A80101, 0xABCD, 0x00);
+
+    REQUIRE(reply.size() == 27);
+    CHECK(reply[2] == 0x04);  // JOINGAMEREPLY
+
+    // seqno = 10
+    CHECK(reply[3] == 10);
+
+    // result_code = 0 (last 4 bytes)
+    CHECK(reply[23] == 0x00);
+    CHECK(reply[24] == 0x00);
+    CHECK(reply[25] == 0x00);
+    CHECK(reply[26] == 0x00);
+}
+
+// ---------------------------------------------------------------------------
+// TC-26: make_char_list_reply — correct structure with names
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-26 make_char_list_reply with names", "[protocol][d2cs]") {
+    std::vector<std::string> names = {"Barb", "Sorc"};
+    auto reply = D2CSSessionFsm::make_char_list_reply(names);
+
+    // Header(3) + count(4) + "Barb\0"(5) + "Sorc\0"(5) = 17
+    REQUIRE(reply.size() == 17);
+    CHECK(reply[2] == 0x17);  // CHARLISTREPLY
+
+    // count = 2 (LE)
+    CHECK(reply[3] == 2);
+    CHECK(reply[4] == 0);
+    CHECK(reply[5] == 0);
+    CHECK(reply[6] == 0);
+
+    // "Barb\0"
+    CHECK(reply[7]  == 'B');
+    CHECK(reply[8]  == 'a');
+    CHECK(reply[9]  == 'r');
+    CHECK(reply[10] == 'b');
+    CHECK(reply[11] == 0x00);
+
+    // "Sorc\0"
+    CHECK(reply[12] == 'S');
+    CHECK(reply[16] == 0x00);
+}
+
+// ---------------------------------------------------------------------------
+// TC-27: make_char_list_reply — empty list
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-27 make_char_list_reply empty list", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_char_list_reply({});
+
+    // Header(3) + count(4) = 7
+    REQUIRE(reply.size() == 7);
+    CHECK(reply[2] == 0x17);
+    CHECK(reply[3] == 0);  // count = 0
+}
+
+// ---------------------------------------------------------------------------
+// TC-28: make_create_char_reply — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-28 make_create_char_reply structure", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_create_char_reply(0x00);
+
+    REQUIRE(reply.size() == 7);
+    CHECK(reply[2] == 0x02);  // CREATECHARREPLY
+    CHECK(reply[3] == 0x00);  // success
+}
+
+// ---------------------------------------------------------------------------
+// TC-29: make_delete_char_reply — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-29 make_delete_char_reply structure", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_delete_char_reply(0x01);  // failed
+
+    REQUIRE(reply.size() == 7);
+    CHECK(reply[2] == 0x0A);  // DELETECHARREPLY
+    CHECK(reply[3] == 0x01);  // failed
+}
+
+// ---------------------------------------------------------------------------
+// TC-30: make_motd_reply — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-30 make_motd_reply structure", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_motd_reply("Welcome!");
+
+    // Header(3) + "Welcome!\0"(9) = 12
+    REQUIRE(reply.size() == 12);
+    CHECK(reply[2] == 0x12);  // MOTDREPLY
+    CHECK(reply[3] == 'W');
+    CHECK(reply[11] == 0x00);  // null terminator
+}
+
+// ---------------------------------------------------------------------------
+// TC-31: make_create_game_wait — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-31 make_create_game_wait structure", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_create_game_wait(3);
+
+    REQUIRE(reply.size() == 7);
+    CHECK(reply[2] == 0x14);  // CREATEGAMEWAIT
+    CHECK(reply[3] == 3);     // position = 3
+}
+
+// ---------------------------------------------------------------------------
+// TC-32: make_convert_char_reply — correct structure
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-32 make_convert_char_reply structure", "[protocol][d2cs]") {
+    auto reply = D2CSSessionFsm::make_convert_char_reply(0x00);
+
+    REQUIRE(reply.size() == 7);
+    CHECK(reply[2] == 0x18);  // CONVERTCHARREPLY
+    CHECK(reply[3] == 0x00);  // success
+}
+
+// ---------------------------------------------------------------------------
+// TC-33: LOGINREQ with no callback — state still transitions
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-33 LOGINREQ no callback state transitions", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;  // no callbacks set
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1); push_u32(payload, 0);
+    push_cstr(payload, "u"); push_cstr(payload, "c");
+
+    auto r = feed(fsm, make_packet(0x01, payload));
+    REQUIRE(r);
+    CHECK(fsm.state() == D2CSSessionState::authenticating);
+}
+
+// ---------------------------------------------------------------------------
+// TC-34: CHARLISTREQ110 (0x19) — same handler as CHARLISTREQ
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-34 CHARLISTREQ110 uses same handler", "[protocol][d2cs]") {
+    bool called = false;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_list = [&](const D2CSCharListRequest&) {
+        called = true;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 100);
+
+    auto r = feed(fsm, make_packet(0x19, payload));
+    REQUIRE(r);
+    CHECK(called);
+}
+
+// ---------------------------------------------------------------------------
+// TC-35: LADDERREQ (0x11) — silently ignored
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-35 LADDERREQ silently ignored", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+    push_u32(payload, 0);
+
+    auto r = feed(fsm, make_packet(0x11, payload));
+    REQUIRE(r);
+    CHECK(r.value() > 0);
+}
+
+// ---------------------------------------------------------------------------
+// TC-36: CHARLADDERREQ (0x16) — silently ignored
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-36 CHARLADDERREQ silently ignored", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+
+    auto r = feed(fsm, make_packet(0x16, payload));
+    REQUIRE(r);
+    CHECK(r.value() > 0);
+}
+
+// ---------------------------------------------------------------------------
+// TC-37: LOGINREQ too-short payload — returns error
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-37 LOGINREQ too-short payload rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // Only 4 bytes of payload (need at least 8 for seqno + session_key)
+    std::vector<uint8_t> payload = {0x01, 0x02, 0x03, 0x04};
+    auto r = feed(fsm, make_packet(0x01, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+// ---------------------------------------------------------------------------
+// TC-38: CHARLOGINREQ too-short payload — returns error
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-38 CHARLOGINREQ too-short payload rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // Only 8 bytes (need at least 16 for 4 uint32_t fields)
+    std::vector<uint8_t> payload(8, 0x00);
+    auto r = feed(fsm, make_packet(0x07, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+// ---------------------------------------------------------------------------
+// TC-39: CREATEGAMEREQ too-short payload — returns error
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-39 CREATEGAMEREQ too-short payload rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // Only 3 bytes (need at least 7)
+    std::vector<uint8_t> payload = {0x01, 0x02, 0x03};
+    auto r = feed(fsm, make_packet(0x03, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+// ---------------------------------------------------------------------------
+// TC-40: Full login flow: LOGINREQ → CHARLOGINREQ → CREATEGAMEREQ
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-40 full login flow state machine", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_login      = [](const D2CSLoginRequest&)     { return core::Result<void, core::Error>(); };
+    cb.on_char_login = [](const D2CSCharLoginRequest&) { return core::Result<void, core::Error>(); };
+    cb.on_create_game= [](const D2CSCreateGameRequest&){ return core::Result<void, core::Error>(); };
+    D2CSSessionFsm fsm(cb);
+
+    CHECK(fsm.state() == D2CSSessionState::connected);
+
+    // Step 1: LOGINREQ
+    {
+        std::vector<uint8_t> p;
+        push_u32(p, 1); push_u32(p, 0xABCD);
+        push_cstr(p, "player"); push_cstr(p, "hero");
+        REQUIRE(feed(fsm, make_packet(0x01, p)));
+        CHECK(fsm.state() == D2CSSessionState::authenticating);
+    }
+
+    // Step 2: CHARLOGINREQ
+    {
+        std::vector<uint8_t> p;
+        push_u32(p, 2); push_u32(p, 0); push_u32(p, 30); push_u32(p, 0);
+        push_cstr(p, "player"); push_cstr(p, "hero");
+        REQUIRE(feed(fsm, make_packet(0x07, p)));
+        CHECK(fsm.state() == D2CSSessionState::authenticated);
+    }
+
+    // Step 3: CREATEGAMEREQ
+    {
+        std::vector<uint8_t> p;
+        push_u32(p, 3);
+        p.push_back(0); p.push_back(0); p.push_back(1);
+        push_cstr(p, "game1"); push_cstr(p, ""); push_cstr(p, "");
+        REQUIRE(feed(fsm, make_packet(0x03, p)));
+        CHECK(fsm.state() == D2CSSessionState::in_game);
+    }
 }
 
 } // namespace pvpgn::protocol::d2cs

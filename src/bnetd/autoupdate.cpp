@@ -24,13 +24,12 @@
 
 #include <cerrno>
 #include <cstring>
+#include <vector>
 
 #include "common/eventlog.h"
-#include "common/list.h"
 #include "common/util.h"
 #include "common/proginfo.h"
 #include "common/tag.h"
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -49,7 +48,7 @@ namespace pvpgn
 			std::memcpy(r, s, n);
 			return r;
 		}
-		static t_list * autoupdate_head = NULL;
+		static std::vector<t_autoupdate*> autoupdate_list;
 		static std::FILE * fp = NULL;
 
 
@@ -87,8 +86,6 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
 				return -1;
 			}
-
-			autoupdate_head = list_create();
 
 			for (line = 1; (buff = file_get_line(fp)); line++) {
 				for (pos = 0; buff[pos] == '\t' || buff[pos] == ' '; pos++);
@@ -149,7 +146,7 @@ namespace pvpgn
 
 				eventlog(eventlog_level_debug, __FUNCTION__, "update '{}' version '{}' with file {}", clienttag, versiontag, updatefile);
 
-				list_append_data(autoupdate_head, entry);
+				autoupdate_list.push_back(entry);
 			}
 			file_get_line(NULL); // clear file_get_line buffer
 			std::fclose(fp);
@@ -162,26 +159,14 @@ namespace pvpgn
 
 		extern int autoupdate_unload(void)
 		{
-			if (autoupdate_head) {
-				t_elem *       curr;
-				t_autoupdate * entry;
-				LIST_TRAVERSE(autoupdate_head, curr)
-				{
-					if (!(entry = (t_autoupdate*)elem_get_data(curr)))
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-					else {
-						delete[] const_cast<char*>(entry->versiontag);	/* avoid warning */
-						delete[] const_cast<char*>(entry->updatefile);	/* avoid warning */
-						if (entry->path)
-							delete[] const_cast<char*>(entry->path);		/* avoid warning */
-						delete entry;
-					}
-					list_remove_elem(autoupdate_head, &curr);
-				}
-
-				if (list_destroy(autoupdate_head) < 0) return -1;
-				autoupdate_head = NULL;
+			for (t_autoupdate* entry : autoupdate_list) {
+				delete[] const_cast<char*>(entry->versiontag);	/* avoid warning */
+				delete[] const_cast<char*>(entry->updatefile);	/* avoid warning */
+				if (entry->path)
+					delete[] const_cast<char*>(entry->path);	/* avoid warning */
+				delete entry;
 			}
+			autoupdate_list.clear();
 			return 0;
 		}
 
@@ -193,57 +178,45 @@ namespace pvpgn
 
 		extern char * autoupdate_check(t_tag archtag, t_tag clienttag, t_tag gamelang, char const * versiontag, char const * sku)
 		{
-			if (autoupdate_head) {
-				t_elem const * curr;
-				t_autoupdate * entry;
-				char * temp;
+			for (t_autoupdate const* entry : autoupdate_list) {
+				if (entry->archtag != archtag)
+					continue;
+				if (entry->clienttag != clienttag)
+					continue;
+				if (std::strcmp(entry->versiontag, versiontag) != 0)
+					continue;
 
-				LIST_TRAVERSE_CONST(autoupdate_head, curr)
-				{
-					if (!(entry = (t_autoupdate*)elem_get_data(curr))) {
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-						continue;
+				/* if we have a gamelang or SKU then add it to the update file name */
+				// so far only WAR3 uses gamelang specific MPQs!
+				if (((gamelang) && ((clienttag == CLIENTTAG_WARCRAFT3_UINT) || (clienttag == CLIENTTAG_WAR3XP_UINT)))
+					|| ((sku) && (tag_check_wolv2(clienttag)))) {
+					char gltag[5];
+					char * tempmpq;
+					char * extention;
+					char const * path = entry->path;
+
+					tempmpq = au_strdup(entry->updatefile);
+
+					extention = std::strrchr(tempmpq, '.');
+					*extention = '\0';
+					extention++;
+
+					char * temp;
+					if ((clienttag == CLIENTTAG_WARCRAFT3_UINT) || (clienttag == CLIENTTAG_WAR3XP_UINT)) {
+						tag_uint_to_str(gltag, gamelang);
+
+						temp = new char[std::strlen(entry->updatefile) + 6];
+						std::sprintf(temp, "%s_%s.%s", tempmpq, gltag, extention);
+					}
+					else {
+						temp = new char[std::strlen(path) + std::strlen(entry->updatefile) + std::strlen(sku) + 3];
+						std::sprintf(temp, "%s %s_%s.%s", path, tempmpq, sku, extention);
 					}
 
-					if (entry->archtag != archtag)
-						continue;
-					if (entry->clienttag != clienttag)
-						continue;
-					if (std::strcmp(entry->versiontag, versiontag) != 0)
-						continue;
-
-					/* if we have a gamelang or SKU then add it to the update file name */
-					// so far only WAR3 uses gamelang specific MPQs!
-					if (((gamelang) && ((clienttag == CLIENTTAG_WARCRAFT3_UINT) || (clienttag == CLIENTTAG_WAR3XP_UINT)))
-						|| ((sku) && (tag_check_wolv2(clienttag)))) {
-						char gltag[5];
-						char * tempmpq;
-						char * extention;
-						char const * path = entry->path;
-
-						tempmpq = au_strdup(entry->updatefile);
-
-						extention = std::strrchr(tempmpq, '.');
-						*extention = '\0';
-						extention++;
-
-						if ((clienttag == CLIENTTAG_WARCRAFT3_UINT) || (clienttag == CLIENTTAG_WAR3XP_UINT)) {
-							tag_uint_to_str(gltag, gamelang);
-
-							temp = new char[std::strlen(entry->updatefile) + 6];
-							std::sprintf(temp, "%s_%s.%s", tempmpq, gltag, extention);
-						}
-						else {
-							temp = new char[std::strlen(path) + std::strlen(entry->updatefile) + std::strlen(sku) + 3];
-							std::sprintf(temp, "%s %s_%s.%s", path, tempmpq, sku, extention);
-						}
-
-						delete[] const_cast<char*>(tempmpq);
-						return temp;
-					}
-					temp = au_strdup(entry->updatefile);
+					delete[] const_cast<char*>(tempmpq);
 					return temp;
 				}
+				return au_strdup(entry->updatefile);
 			}
 			return NULL;
 		}

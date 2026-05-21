@@ -26,7 +26,6 @@
 #include <csignal>
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "prefs.h"
 #include "d2ladder.h"
 #include "cmdline.h"

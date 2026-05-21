@@ -21,11 +21,9 @@ set(BNETD_LIB_SOURCES
 	game_conv.h game.cpp game.h handle_anongame.cpp handle_anongame.h 
 	handle_apireg.cpp handle_apireg.h handle_bnet.cpp handle_bnet.h 
 	handle_bot.cpp handle_bot.h handle_d2cs.cpp handle_d2cs.h 
-	handle_file.cpp handle_file.h handle_init.cpp handle_init.h 
-	handle_irc_common.cpp handle_irc_common.h handle_irc.cpp handle_irc.h 
-	handlers.h handle_telnet.cpp handle_telnet.h handle_udp.cpp 
-	handle_udp.h handle_wol.cpp handle_wol.h handle_wol_gameres.cpp
-    handle_wol_gameres.h helpfile.cpp helpfile.h
+	handle_init.cpp handle_init.h
+	handlers.h handle_telnet.cpp handle_telnet.h handle_udp.cpp
+	handle_udp.h handle_wol.cpp handle_wol.h helpfile.cpp helpfile.h
 	ipban.cpp ipban.h irc.cpp irc.h ladder_calc.cpp ladder_calc.h ladder.cpp 
 	ladder.h mail.cpp mail.h message.cpp message.h news.cpp news.h
 	output.cpp output.h prefs.cpp prefs.h quota.h realm.cpp realm.h 
@@ -76,6 +74,18 @@ target_link_libraries(bnetd_legacy
 		${SQLITE3_LIBRARIES} ${PGSQL_LIBRARIES} ${ODBC_LIBRARIES}
 		${LUA_LIBRARIES}
 )
+
+# When the v3 tree is present, expose infra/compat/include so that
+# migrated files can #include "infra/compat/directory.hpp" etc.
+if(TARGET infra_compat)
+    target_link_libraries(bnetd_legacy PUBLIC infra_compat)
+endif()
+
+# When the v3 XML wrapper is present, link it so that i18n.cpp can
+# #include "infra/xml/xml_document.hpp" instead of "common/pugixml.h".
+if(TARGET infra_xml)
+    target_link_libraries(bnetd_legacy PUBLIC infra_xml)
+endif()
 
 # ---- bnetd: the original executable, now a thin wrapper ----------------
 if(WITH_WIN32_GUI)

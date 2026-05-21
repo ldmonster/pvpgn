@@ -35,11 +35,11 @@
 #include "common/eventlog.h"
 #include "common/field_sizes.h"
 #include "common/bnethash.h"
-#include "common/xalloc.h"
 #include "common/addr.h"
 #include "common/tag.h"
 #include "common/list.h"
 #include "common/util.h"
+#include "common/xstring.h"
 
 #include "message.h"
 #include "channel.h"
@@ -50,14 +50,20 @@
 #include "account_wrap.h"
 #include "prefs.h"
 #include "tick.h"
-#include "handle_irc.h"
 #include "handle_wol.h"
+#include "handle_wserv.h"
 #include "command_groups.h"
 #include "topic.h"
 #include "clan.h"
 #include "command.h"
 #include "anongame_wol.h"
 #include "common/setup_after.h"
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Send-bridge: encodes a raw-text packet and dispatches via send_packet handler.
+// Returns 1 (handled), 0 (fall through), -1 (error).
+extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
+#endif
 
 namespace pvpgn
 {
@@ -101,11 +107,6 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL command");
 				return -1;
 			}
-			if (!(p = packet_create(packet_class_raw))) {
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
-				return -1;
-			}
-
 			nick = conn_get_loggeduser(conn);
 			if (!nick)
 				nick = "UserName";
@@ -117,10 +118,25 @@ namespace pvpgn
 
 			DEBUG2("[{}] sent \"{}\"", conn_get_socket(conn), data);
 			std::strcat(data, "\r\n");
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				int const _rc = pvpgn_v3_send_raw_text(conn, data);
+				if (_rc == 1) goto irc_send_cmd_skip_legacy;
+				if (_rc == -1) return -1;
+			}
+#endif
+			if (!(p = packet_create(packet_class_raw))) {
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
+				return -1;
+			}
 			packet_set_size(p, 0);
 			packet_append_data(p, data, std::strlen(data));
 			conn_push_outqueue(conn, p);
 			packet_del_ref(p);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			irc_send_cmd_skip_legacy:;
+#endif
 			return 0;
 		}
 
@@ -155,11 +171,6 @@ namespace pvpgn
 				(conn_get_class(conn) == conn_class_wladder))
 				return 0;
 
-			if (!(p = packet_create(packet_class_raw))) {
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
-				return -1;
-			}
-
 			conn_set_ircping(conn, get_ticks());
 			if (conn_get_state(conn) == conn_state_bot_username)
 				std::sprintf(data, "PING :%u", conn_get_ircping(conn)); /* Undernet doesn't reveal the servername yet ... neither do we */
@@ -169,10 +180,25 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "maximum message length exceeded");
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] sent \"{}\"", conn_get_socket(conn), data);
 			std::strcat(data, "\r\n");
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				int const _rc = pvpgn_v3_send_raw_text(conn, data);
+				if (_rc == 1) goto irc_send_ping_skip_legacy;
+				if (_rc == -1) return -1;
+			}
+#endif
+			if (!(p = packet_create(packet_class_raw))) {
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
+				return -1;
+			}
 			packet_set_size(p, 0);
 			packet_append_data(p, data, std::strlen(data));
 			conn_push_outqueue(conn, p);
 			packet_del_ref(p);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			irc_send_ping_skip_legacy:;
+#endif
 			return 0;
 		}
 
@@ -189,21 +215,31 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "max message length exceeded");
 				return -1;
 			}
-			if (!(p = packet_create(packet_class_raw))) {
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
-				return -1;
-			}
-
 			if (params)
 				std::sprintf(data, ":%s PONG %s :%s", server_get_hostname(), server_get_hostname(), params);
 			else
 				std::sprintf(data, ":%s PONG %s", server_get_hostname(), server_get_hostname());
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] sent \"{}\"", conn_get_socket(conn), data);
 			std::strcat(data, "\r\n");
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				int const _rc = pvpgn_v3_send_raw_text(conn, data);
+				if (_rc == 1) goto irc_send_pong_skip_legacy;
+				if (_rc == -1) return -1;
+			}
+#endif
+			if (!(p = packet_create(packet_class_raw))) {
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
+				return -1;
+			}
 			packet_set_size(p, 0);
 			packet_append_data(p, data, std::strlen(data));
 			conn_push_outqueue(conn, p);
 			packet_del_ref(p);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			irc_send_pong_skip_legacy:;
+#endif
 			return 0;
 		}
 
@@ -1086,11 +1122,9 @@ namespace pvpgn
 				std::sprintf(temp, "%.32s :End of NAMES list", ircname);
 			}
 			else {
-				t_elem const * curr;
-				LIST_TRAVERSE_CONST(channellist(), curr)
+				for (t_channel const* ch : channellist())
 				{
-					channel = (t_channel*)elem_get_data(curr);
-					irc_send_rpl_namreply_internal(c, channel);
+					irc_send_rpl_namreply_internal(c, ch);
 				}
 				std::sprintf(temp, "* :End of NAMES list");
 			}
@@ -1253,11 +1287,69 @@ namespace pvpgn
 		}
 
 		int irc_welcome(t_connection * conn){
-			if (conn_get_wol(conn))
+			if (conn_get_wol(conn)) {
 				handle_wol_welcome(conn);
-			else
-				handle_irc_welcome(conn);
+				return 0;
+			}
 
+			// TODO(Phase3): handled by v3 IrcFsm — legacy welcome inlined from handle_irc.cpp
+			char temp[MAX_IRC_MESSAGE_LEN];
+			std::time_t temptime;
+			char const * tempname;
+			char const * temptimestr;
+
+			if (!conn) {
+				eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
+				return -1;
+			}
+
+			tempname = conn_get_loggeduser(conn);
+
+			if ((34 + std::strlen(tempname) + 1) <= MAX_IRC_MESSAGE_LEN)
+				std::sprintf(temp, ":Welcome to the %s IRC Network %s", prefs_get_irc_network_name(), tempname);
+			else
+				std::sprintf(temp, ":Maximum length exceeded");
+			irc_send(conn, RPL_WELCOME, temp);
+
+			if ((14 + std::strlen(server_get_hostname()) + 10 + std::strlen(PVPGN_SOFTWARE " " PVPGN_VERSION) + 1) <= MAX_IRC_MESSAGE_LEN)
+				std::sprintf(temp, ":Your host is %s, running " PVPGN_SOFTWARE " " PVPGN_VERSION, server_get_hostname());
+			else
+				std::sprintf(temp, ":Maximum length exceeded");
+			irc_send(conn, RPL_YOURHOST, temp);
+
+			temptime = server_get_starttime(); /* FIXME: This should be build time */
+			temptimestr = std::ctime(&temptime);
+			if ((25 + std::strlen(temptimestr) + 1) <= MAX_IRC_MESSAGE_LEN)
+				std::sprintf(temp, ":This server was created %s", temptimestr); /* FIXME: is ctime() portable? */
+			else
+				std::sprintf(temp, ":Maximum length exceeded");
+			irc_send(conn, RPL_CREATED, temp);
+
+			/* we don't give mode information on MYINFO we give it on ISUPPORT */
+			if ((std::strlen(server_get_hostname()) + 7 + std::strlen(PVPGN_SOFTWARE " " PVPGN_VERSION) + 9 + 1) <= MAX_IRC_MESSAGE_LEN)
+				std::sprintf(temp, "%s " PVPGN_SOFTWARE " " PVPGN_VERSION " - -", server_get_hostname());
+			else
+				std::sprintf(temp, ":Maximum length exceeded");
+			irc_send(conn, RPL_MYINFO, temp);
+
+			std::sprintf(temp, "NICKLEN=%d TOPICLEN=%d CHANNELLEN=%d PREFIX=%s CHANTYPES=" CHANNEL_TYPE " NETWORK=%s IRCD=" PVPGN_SOFTWARE,
+				MAX_CHARNAME_LEN, MAX_TOPIC_LEN, MAX_CHANNELNAME_LEN, CHANNEL_PREFIX, prefs_get_irc_network_name());
+
+			irc_send(conn, RPL_ISUPPORT, temp);
+
+			irc_send_motd(conn);
+
+			message_send_text(conn, message_type_notice, NULL, "This is an experimental service");
+
+			conn_set_state(conn, conn_state_bot_password);
+
+			if (conn_get_ircpass(conn)) {
+				message_send_text(conn, message_type_notice, NULL, "Trying to authenticate with PASS ...");
+				irc_authenticate(conn, conn_get_ircpass(conn));
+			}
+			else {
+				message_send_text(conn, message_type_notice, NULL, "No PASS command received. Please identify yourself by /msg NICKSERV identify <password>.");
+			}
 			return 0;
 		}
 
@@ -1502,8 +1594,6 @@ namespace pvpgn
 
 		static int irc_send_banlist(t_connection * conn, t_channel * channel)
 		{
-			t_elem const * curr;
-			char const *   banned;
 			char const * ircname = server_get_hostname();
 			char temp[MAX_IRC_MESSAGE_LEN];
 
@@ -1517,11 +1607,9 @@ namespace pvpgn
 				return -1;
 			}
 
-			LIST_TRAVERSE_CONST(channel_get_banlist(channel), curr) {
-				banned = (char*)elem_get_data(curr);
-
+			for (const auto& banned : channel_get_banlist(channel)) {
 				//FIXME: right now we lie about who have gives ban and also about bantime
-				std::snprintf(temp, sizeof(temp), "%s %s!*@* %s 1208297879", irc_convert_channel(channel, conn), banned, ircname);
+				std::snprintf(temp, sizeof(temp), "%s %s!*@* %s 1208297879", irc_convert_channel(channel, conn), banned.c_str(), ircname);
 				irc_send(conn, RPL_BANLIST, temp);
 			}
 			return 0;
@@ -1668,8 +1756,769 @@ namespace pvpgn
 				irc_send(conn, RPL_TIME, temp);
 			}
 			return 0;
+			}
+	
+			// ---------------------------------------------------------------------------
+			// IRC command handlers — moved from handle_irc.cpp (Round 134)
+			// TODO(Phase3): handled by v3 IrcFsm — legacy IRC command handlers inlined here
+			// ---------------------------------------------------------------------------
+	
+			static int _handle_user_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				char * user = NULL;
+				char * realname = NULL;
+	
+				if ((numparams >= 3) && (params[0]) && (text)) {
+					user = params[0];
+					realname = text;
+	
+					if (conn_get_user(conn)) {
+						irc_send(conn, ERR_ALREADYREGISTRED, ":You are already registred");
+					}
+					else {
+						eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got USER: user=\"{}\" realname=\"{}\"", conn_get_socket(conn), user, realname);
+						conn_set_user(conn, user);
+						conn_set_owner(conn, realname);
+						if (conn_get_loggeduser(conn))
+							irc_welcome(conn); /* only send the welcome if we have USER and NICK */
+					}
+				}
+				else {
+					irc_send(conn, ERR_NEEDMOREPARAMS, "USER :Not enough parameters");
+				}
+				return 0;
+			}
+	
+			static int _handle_pass_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				if ((!conn_get_ircpass(conn)) && (conn_get_state(conn) == conn_state_bot_username)) {
+					t_hash h;
+	
+					if (numparams >= 1) {
+						bnet_hash(&h, std::strlen(params[0]), params[0]);
+						conn_set_ircpass(conn, hash_get_str(h));
+					}
+					else
+						irc_send(conn, ERR_NEEDMOREPARAMS, "PASS :Not enough parameters");
+				}
+				else {
+					irc_send(conn, ERR_ALREADYREGISTRED, ":Unauthorized command (already registered)");
+				}
+				return 0;
+			}
+	
+			static int _handle_privmsg_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				if ((numparams >= 1) && (text))
+				{
+					int i;
+					char ** e;
+	
+					e = irc_get_listelems(params[0]);
+	
+					for (i = 0; ((e) && (e[i])); i++) {
+						if (strcasecmp(e[i], "NICKSERV") == 0) {
+							char * pass;
+	
+							pass = std::strchr(text, ' ');
+							if (pass)
+								*pass++ = '\0';
+	
+							if (strcasecmp(text, "identify") == 0) {
+								switch (conn_get_state(conn)) {
+								case conn_state_bot_password:
+								{
+									if (pass) {
+										t_hash h;
+	
+										strtolower(pass);
+										bnet_hash(&h, std::strlen(pass), pass);
+										irc_authenticate(conn, hash_get_str(h));
+									}
+									else {
+										message_send_text(conn, message_type_notice, NULL, "Syntax: IDENTIFY <password> (max 16 characters)");
+									}
+									break;
+								}
+								case conn_state_loggedin:
+								{
+									message_send_text(conn, message_type_notice, NULL, "You don't need to IDENTIFY");
+									break;
+								}
+								default:;
+									eventlog(eventlog_level_trace, __FUNCTION__, "got /msg in unexpected connection state ({})", conn_state_get_str(conn_get_state(conn)));
+								}
+							}
+							else if (strcasecmp(text, "register") == 0) {
+								t_hash       passhash;
+								t_account  * temp;
+								char       * username = (char *)conn_get_loggeduser(conn);
+	
+								if (account_check_name(username)<0) {
+									message_send_text(conn, message_type_error, conn, "Account name contains invalid symbol!");
+									break;
+								}
+	
+								if (!prefs_get_allow_new_accounts()){
+									message_send_text(conn, message_type_error, conn, "Account creation is not allowed");
+									break;
+								}
+	
+								if (!pass || pass[0] == '\0' || (std::strlen(pass)>16)) {
+									message_send_text(conn, message_type_error, conn, "Syntax: REGISTER <password> (max 16 characters)");
+									break;
+								}
+	
+								strtolower(pass);
+	
+								bnet_hash(&passhash, std::strlen(pass), pass);
+	
+								message_send_text(conn, message_type_info, conn, std::string("Trying to create account \"" + std::string(username) + "\" with password \"" + std::string(pass) + "\"").c_str());
+	
+								temp = accountlist_create_account(username, hash_get_str(passhash));
+								if (!temp) {
+									message_send_text(conn, message_type_error, conn, "Failed to create account!");
+									eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account \"{}\" not created (failed)", conn_get_socket(conn), username);
+									conn_unget_chatname(conn, username);
+									break;
+								}
+	
+								message_send_text(conn, message_type_info, conn, std::string("Account #" + std::to_string(account_get_uid(temp)) + " created."));
+								eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account \"{}\" created", conn_get_socket(conn), username);
+								conn_unget_chatname(conn, username);
+							}
+							else {
+								message_send_text(conn, message_type_notice, nullptr, "Invalid arguments for NICKSERV");
+								message_send_text(conn, message_type_notice, nullptr, std::string(":Unrecognized command \"" + std::string(text) + "\"").c_str());
+							}
+						}
+						else if (conn_get_state(conn) == conn_state_loggedin) {
+							if (e[i][0] == '#') {
+								t_channel * channel;
+	
+								if ((channel = channellist_find_channel_by_name(irc_convert_ircname(e[i]), NULL, NULL))) {
+									if ((std::strlen(text) >= 9) && (std::strncmp(text, "\001ACTION ", 8) == 0) && (text[std::strlen(text) - 1] == '\001')) {
+										text = text + 8;
+										text[std::strlen(text) - 1] = '\0';
+										channel_message_send(channel, message_type_emote, conn, text);
+									}
+									else {
+										channel_message_log(channel, conn, 1, text);
+										channel_message_send(channel, message_type_talk, conn, text);
+									}
+								}
+								else {
+									irc_send(conn, ERR_NOSUCHCHANNEL, ":No such channel");
+								}
+							}
+							else {
+								t_connection * user;
+	
+								if ((user = connlist_find_connection_by_accountname(e[i])))
+								{
+									message_send_text(user, message_type_whisper, conn, text);
+								}
+								else
+								{
+									irc_send(conn, ERR_NOSUCHNICK, ":No such user");
+								}
+							}
+						}
+					}
+					if (e)
+						irc_unget_listelems(e);
+				}
+				else
+					irc_send(conn, ERR_NEEDMOREPARAMS, "PRIVMSG :Not enough parameters");
+				return 0;
+			}
+	
+			static int _handle_notice_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				if ((numparams >= 1) && (text)) {
+					int i;
+					char ** e;
+	
+					e = irc_get_listelems(params[0]);
+	
+					for (i = 0; ((e) && (e[i])); i++) {
+						if (conn_get_state(conn) == conn_state_loggedin) {
+							t_connection * user;
+	
+							if ((user = connlist_find_connection_by_accountname(e[i]))) {
+								message_send_text(user, message_type_notice, conn, text);
+							}
+							else {
+								irc_send(conn, ERR_NOSUCHNICK, ":No such user");
+							}
+						}
+					}
+					if (e)
+						irc_unget_listelems(e);
+				}
+				else
+					irc_send(conn, ERR_NEEDMOREPARAMS, "NOTICE :Not enough parameters");
+				return 0;
+			}
+	
+			static int _handle_quit_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				conn_quit_channel(conn, text);
+				conn_set_state(conn, conn_state_destroy);
+				return 0;
+			}
+	
+			static int _handle_who_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				if (numparams >= 1) {
+					int i;
+					char ** e;
+	
+					e = irc_get_listelems(params[0]);
+					for (i = 0; ((e) && (e[i])); i++) {
+						irc_who(conn, e[i]);
+					}
+					irc_send(conn, RPL_ENDOFWHO, ":End of WHO list");
+					if (e)
+						irc_unget_listelems(e);
+				}
+				else
+					irc_send(conn, ERR_NEEDMOREPARAMS, "WHO :Not enough parameters");
+				return 0;
+			}
+	
+			static int _handle_list_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				std::string tmp;
+				irc_send(conn, RPL_LISTSTART, "Channel :Users Names");
+	
+				if (numparams == 0)
+				{
+					class_topic Topic;
+					for (t_channel const* channel : channellist())
+					{
+						char const * tempname = irc_convert_channel(channel, conn);
+						std::string topicstr = Topic.get(channel_get_name(channel));
+	
+						tmp = std::string(tempname) + " " + std::to_string(channel_get_length(channel)) + " :" + topicstr;
+	
+						if (tmp.length() > MAX_IRC_MESSAGE_LEN)
+							eventlog(eventlog_level_warn, __FUNCTION__, "LISTREPLY length exceeded");
+	
+						irc_send(conn, RPL_LIST, tmp.c_str());
+					}
+				}
+				else if (numparams >= 1)
+				{
+					int i;
+					char ** e;
+					class_topic Topic;
+	
+					e = irc_get_listelems(params[0]);
+	
+					for (i = 0; ((e) && (e[i])); i++)
+					{
+						char const * verytemp = irc_convert_ircname(e[i]);
+						if (!verytemp)
+							continue;
+	
+						t_channel const * channel = channellist_find_channel_by_name(verytemp, NULL, NULL);
+						if (!channel)
+							continue;
+	
+						std::string topicstr = Topic.get(channel_get_name(channel));
+						char const * tempname = irc_convert_channel(channel, conn);
+	
+						tmp = std::string(tempname) + " " + std::to_string(channel_get_length(channel)) + " :" + topicstr;
+	
+						if (tmp.length() > MAX_IRC_MESSAGE_LEN)
+							eventlog(eventlog_level_warn, __FUNCTION__, "LISTREPLY length exceeded");
+	
+						irc_send(conn, RPL_LIST, tmp.c_str());
+					}
+	
+					if (e)
+						irc_unget_listelems(e);
+				}
+	
+				irc_send(conn, RPL_LISTEND, ":End of LIST command");
+	
+				return 0;
+			}
+	
+			static int _handle_names_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				t_channel * channel;
+	
+				if (numparams >= 1) {
+					char ** e;
+					char const * verytemp;
+					int i;
+	
+					e = irc_get_listelems(params[0]);
+					for (i = 0; ((e) && (e[i])); i++) {
+						verytemp = irc_convert_ircname(e[i]);
+	
+						if (!verytemp)
+							continue;
+						channel = channellist_find_channel_by_name(verytemp, NULL, NULL);
+						if (!channel)
+							continue;
+						irc_send_rpl_namreply(conn, channel);
+					}
+					if (e)
+						irc_unget_listelems(e);
+				}
+				else if (numparams == 0) {
+					irc_send_rpl_namreply(conn, NULL);
+				}
+				return 0;
+			}
+	
+			static int _handle_userhost_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				/* FIXME: Send RPL_USERHOST */
+				return 0;
+			}
+	
+			static int _handle_ison_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				char temp[MAX_IRC_MESSAGE_LEN];
+				char first = 1;
+	
+				if (numparams >= 1)
+				{
+					int i;
+	
+					temp[0] = '\0';
+					for (i = 0; (i < numparams && (params) && (params[i])); i++)
+					{
+						if (connlist_find_connection_by_accountname(params[i]))
+						{
+							std::snprintf(temp, sizeof temp, "%s%s", first ? ":" : " ", params[i]);
+							first = 0;
+						}
+					}
+					irc_send(conn, RPL_ISON, temp);
+				}
+				else
+					irc_send(conn, ERR_NEEDMOREPARAMS, "ISON :Not enough parameters");
+				return 0;
+			}
+	
+			static int _handle_whois_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				std::string tmp;
+	
+				if (numparams >= 1)
+				{
+					int i;
+					char ** e = irc_get_listelems(params[0]);
+					t_connection * c;
+					t_channel * chan;
+	
+					for (i = 0; ((e) && (e[i])); i++)
+					{
+						if ((c = connlist_find_connection_by_accountname(e[i])))
+						{
+							if (prefs_get_hide_addr() && !(account_get_command_groups(conn_get_account(conn)) & command_get_group("/admin-addr")))
+								tmp = std::string(e[i]) + " " + std::string(clienttag_uint_to_str(conn_get_clienttag(c))) + " hidden * :PvPGN user";
+							else
+								tmp = std::string(e[i]) + " " + std::string(clienttag_uint_to_str(conn_get_clienttag(c))) + " " + std::string(addr_num_to_ip_str(conn_get_addr(c))) + " * :PvPGN user";
+							irc_send(conn, RPL_WHOISUSER, tmp.c_str());
+	
+							if ((chan = conn_get_channel(conn)))
+							{
+								std::string flg;
+								auto flags = conn_get_flags(c);
+	
+								if (flags & MF_BLIZZARD)
+									flg = '@';
+								else if ((flags & MF_BNET) || (flags & MF_GAVEL))
+									flg = '%';
+								else if (flags & MF_VOICE)
+									flg = '+';
+								else
+									flg = ' ';
+	
+								tmp = std::string(e[i]) + " :" + flg + std::string(irc_convert_channel(chan, conn));
+								irc_send(conn, RPL_WHOISCHANNELS, tmp.c_str());
+							}
+	
+						}
+						else
+							irc_send(conn, ERR_NOSUCHNICK, ":No such nick/channel");
+	
+					}
+					irc_send(conn, RPL_ENDOFWHOIS, ":End of /WHOIS list");
+					if (e)
+						irc_unget_listelems(e);
+				}
+				else
+					irc_send(conn, ERR_NEEDMOREPARAMS, "WHOIS :Not enough parameters");
+				return 0;
+			}
+	
+			static int _handle_part_command(t_connection * conn, int numparams, char ** params, char * text)
+			{
+				conn_part_channel(conn);
+				return 0;
+			}
+	
+			// ---------------------------------------------------------------------------
+			// IRC dispatch tables + handle_irc_common_packet
+			// moved from handle_irc_common.cpp (Round 134)
+			// ---------------------------------------------------------------------------
+	
+			typedef int(*t_irc_command)(t_connection * conn, int numparams, char ** params, char * text);
+	
+			typedef struct {
+				const char     * irc_command_string;
+				t_irc_command    irc_command_handler;
+			} t_irc_command_table_row;
+	
+			/* state "connected" handlers */
+			static const t_irc_command_table_row irc_con_command_table[] =
+			{
+				{ "NICK",    _handle_nick_command    },
+				{ "USER",    _handle_user_command    },
+				{ "PING",    _handle_ping_command    },
+				{ "PONG",    _handle_pong_command    },
+				{ "PASS",    _handle_pass_command    },
+				{ "PRIVMSG", _handle_privmsg_command },
+				{ "NOTICE",  _handle_notice_command  },
+				{ "QUIT",    _handle_quit_command    },
+				{ NULL, NULL }
+			};
+	
+			/* state "logged in" handlers */
+			static const t_irc_command_table_row irc_log_command_table[] =
+			{
+				{ "WHO",      _handle_who_command      },
+				{ "LIST",     _handle_list_command     },
+				{ "TOPIC",    _handle_topic_command    },
+				{ "JOIN",     _handle_join_command     },
+				{ "NAMES",    _handle_names_command    },
+				{ "MODE",     _handle_mode_command     },
+				{ "USERHOST", _handle_userhost_command },
+				{ "ISON",     _handle_ison_command     },
+				{ "WHOIS",    _handle_whois_command    },
+				{ "PART",     _handle_part_command     },
+				{ "KICK",     _handle_kick_command     },
+				{ "TIME",     _handle_time_command     },
+				{ NULL, NULL }
+			};
+	
+			static int irc_dispatch_con_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
+			{
+				t_irc_command_table_row const *p;
+				for (p = irc_con_command_table; p->irc_command_string != NULL; p++) {
+					if (strcasecmp(command, p->irc_command_string) == 0) {
+						if (p->irc_command_handler != NULL)
+							return ((p->irc_command_handler)(conn, numparams, params, text));
+					}
+				}
+				return -1;
+			}
+	
+			static int irc_dispatch_log_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
+			{
+				t_irc_command_table_row const *p;
+				for (p = irc_log_command_table; p->irc_command_string != NULL; p++) {
+					if (strcasecmp(command, p->irc_command_string) == 0) {
+						if (p->irc_command_handler != NULL)
+							return ((p->irc_command_handler)(conn, numparams, params, text));
+					}
+				}
+				return -1;
+			}
+	
+			static int irc_common_con_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
+			{
+				if (!conn) {
+					eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
+					return -1;
+				}
+				switch (conn_get_class(conn)) {
+				case conn_class_irc:
+					return irc_dispatch_con_command(conn, command, numparams, params, text);
+				case conn_class_wserv:
+					return handle_wserv_con_command(conn, command, numparams, params, text);
+				case conn_class_wol:
+				case conn_class_wladder:
+				case conn_class_wgameres:
+					return handle_wol_con_command(conn, command, numparams, params, text);
+				default:
+					return irc_dispatch_con_command(conn, command, numparams, params, text);
+				}
+			}
+	
+			static int irc_common_log_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
+			{
+				if (!conn) {
+					eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
+					return -1;
+				}
+				switch (conn_get_class(conn)) {
+				case conn_class_irc:
+					return irc_dispatch_log_command(conn, command, numparams, params, text);
+				case conn_class_wol:
+				case conn_class_wgameres:
+					return handle_wol_log_command(conn, command, numparams, params, text);
+				default:
+					return irc_dispatch_log_command(conn, command, numparams, params, text);
+				}
+			}
+	
+			static int irc_common_set_class(t_connection * conn, char const * command, int numparams, char ** params, char * text)
+			{
+				if (!conn) {
+					eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
+					return -1;
+				}
+				if (conn_get_class(conn) != conn_class_ircinit) {
+					DEBUG0("FIXME: conn_get_class(conn) != conn_class_ircinit");
+					return -1;
+				}
+				else {
+					if (strcasecmp(command, "VERCHK") == 0) {
+						DEBUG0("Got WSERV packet");
+						if (std::strcmp(prefs_get_wolv2_addrs(), "") != 0)
+							conn_set_class(conn, conn_class_wserv);
+						else
+							conn_set_state(conn, conn_state_destroy);
+						return 0;
+					}
+					else if (strcasecmp(command, "CVERS") == 0) {
+						DEBUG0("Got WOL packet");
+						if ((std::strcmp(prefs_get_wolv1_addrs(), "") != 0) || (std::strcmp(prefs_get_wolv2_addrs(), "") != 0))
+							conn_set_class(conn, conn_class_wol);
+						else
+							conn_set_state(conn, conn_state_destroy);
+						return 0;
+					}
+					else if ((strcasecmp(command, "LISTSEARCH") == 0) ||
+						(strcasecmp(command, "RUNGSEARCH") == 0) ||
+						(strcasecmp(command, "HIGHSCORE") == 0)) {
+						DEBUG0("Got WOL Ladder packet");
+						if (std::strcmp(prefs_get_wolv2_addrs(), "") != 0)
+							conn_set_class(conn, conn_class_wladder);
+						else
+							conn_set_state(conn, conn_state_destroy);
+						return 0;
+					}
+					else if ((strcasecmp(command, "CRYPT") == 0) ||
+						(strcasecmp(command, "LOGIN") == 0)) {
+						DEBUG0("Got GameSpy packet");
+						if (std::strcmp(prefs_get_irc_addrs(), "") != 0)
+							conn_set_class(conn, conn_class_irc);
+						else
+							conn_set_state(conn, conn_state_destroy);
+						return 0;
+					}
+					else {
+						DEBUG0("Got IRC packet");
+						if (std::strcmp(prefs_get_irc_addrs(), "") != 0)
+							conn_set_class(conn, conn_class_irc);
+						else
+							conn_set_state(conn, conn_state_destroy);
+						return 0;
+					}
+				}
+			}
+	
+			/* xstrdup-equivalent using new char[] for paired delete[] cleanup. */
+			static char* irc_common_strdup(char const* s)
+			{
+				if (!s) return nullptr;
+				std::size_t n = std::strlen(s) + 1;
+				char* r = new char[n];
+				std::memcpy(r, s, n);
+				return r;
+			}
+	
+			static int irc_common_line(t_connection * conn, char const * ircline)
+			{
+				/* [:prefix] <command> [[param1] [param2] ... [paramN]] [:<text>] */
+				char * line;
+				char * prefix = NULL;
+				char * command;
+				char ** params = NULL;
+				char * text = NULL;
+				char * bnet_command = NULL;
+				int unrecognized_before = 0;
+				int linelen;
+				int numparams = 0;
+				char * tempparams;
+				int i;
+	
+				if (!conn) {
+					eventlog(eventlog_level_error, __FUNCTION__, "got NULL connection");
+					return -1;
+				}
+				if (!ircline) {
+					eventlog(eventlog_level_error, __FUNCTION__, "got NULL ircline");
+					return -1;
+				}
+				if (ircline[0] == '\0') {
+					return -1;
+				}
+	
+				if (std::strlen(ircline) > MAX_IRC_MESSAGE_LEN) {
+					char * tmp = (char *)ircline;
+					eventlog(eventlog_level_warn, __FUNCTION__, "line too long, truncation...");
+					tmp[MAX_IRC_MESSAGE_LEN] = '\0';
+				}
+	
+				line = irc_common_strdup(ircline);
+	
+				if (line[0] == ':') {
+					prefix = line;
+					if (!(command = std::strchr(line, ' '))) {
+						eventlog(eventlog_level_warn, __FUNCTION__, "got malformed line (missing command)");
+						delete[] line;
+						return -1;
+					}
+					*command++ = '\0';
+				}
+				else {
+					command = line;
+				}
+	
+				tempparams = std::strchr(command, ' ');
+				if (tempparams) {
+					*tempparams++ = '\0';
+					if (tempparams[0] == ':') {
+						text = tempparams + 1;
+					}
+					else {
+						for (i = 0; tempparams[i] != '\0'; i++) {
+							if ((tempparams[i] == ' ') && (tempparams[i + 1] == ':')) {
+								text = tempparams + i;
+								*text++ = '\0';
+								text++;
+								break;
+							}
+						}
+						params = irc_get_paramelems(tempparams);
+					}
+				}
+	
+				if (params) {
+					for (numparams = 0; params[numparams]; numparams++);
+				}
+	
+				{
+					std::string paramtemp;
+					bool first = true;
+					for (i = 0; ((numparams > 0) && (params[i])); i++)
+					{
+						if (first)
+							first = false;
+						else
+							paramtemp.append(" ");
+						paramtemp.append("\"" + std::string(params[i]) + "\"");
+					}
+					eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got \"{}\" \"{}\" [{}] \"{}\"", conn_get_socket(conn), ((prefix) ? (prefix) : ("")), command, paramtemp, ((text) ? (text) : ("")));
+				}
+	
+				if (conn_get_class(conn) == conn_class_ircinit) {
+					irc_common_set_class(conn, command, numparams, params, text);
+				}
+	
+				if (conn_get_state(conn) == conn_state_connected) {
+					conn_set_state(conn, conn_state_bot_username);
+	
+					if ((conn_get_class(conn) != conn_class_wserv) &&
+						(conn_get_class(conn) != conn_class_wladder)) {
+	
+						t_timer_data temp;
+						temp.n = prefs_get_irc_latency();
+						conn_test_latency(conn, std::time(NULL), temp);
+					}
+				}
+	
+				if (irc_common_con_command(conn, command, numparams, params, text) != -1) {}
+				else if (conn_get_state(conn) != conn_state_loggedin)
+				{
+					std::string tmp(":Unrecognized command \"" + std::string(command) + "\" (before login)");
+					if (tmp.length() > MAX_IRC_MESSAGE_LEN)
+						irc_send(conn, ERR_UNKNOWNCOMMAND, tmp.c_str());
+					else
+						irc_send(conn, ERR_UNKNOWNCOMMAND, ":Unrecognized command (before login)");
+				}
+				else
+				{
+					unrecognized_before = 1;
+				}
+	
+				if ((conn_get_state(conn) == conn_state_loggedin) && (unrecognized_before)) {
+					if (irc_common_log_command(conn, command, numparams, params, text) != -1) {}
+					else if ((strstart(command, "LAG") != 0) && (strstart(command, "JOIN") != 0)){
+						linelen = std::strlen(ircline);
+						bnet_command = new char[linelen + 2];
+						bnet_command[0] = '/';
+						std::strcpy(bnet_command + 1, ircline);
+						handle_command(conn, bnet_command);
+						delete[] bnet_command;
+					}
+				}
+	
+				if (params)
+					irc_unget_paramelems(params);
+				delete[] line;
+				return 0;
+			}
+	
+			extern int handle_irc_common_packet(t_connection * conn, t_packet const * const packet)
+			{
+				unsigned int i;
+				char ircline[MAX_IRC_MESSAGE_LEN];
+				char const * data;
+	
+				if (!packet) {
+					eventlog(eventlog_level_error, __FUNCTION__, "got NULL packet");
+					return -1;
+				}
+				if ((conn_get_class(conn) != conn_class_ircinit) &&
+					(conn_get_class(conn) != conn_class_irc) &&
+					(conn_get_class(conn) != conn_class_wol) &&
+					(conn_get_class(conn) != conn_class_wserv) &&
+					(conn_get_class(conn) != conn_class_wladder)) {
+					eventlog(eventlog_level_error, __FUNCTION__, "FIXME: handle_irc_packet without any reason (conn->class != conn_class_irc/ircinit/wol/wserv...)");
+					return -1;
+				}
+	
+				std::memset(ircline, 0, sizeof(ircline));
+				data = conn_get_ircline(conn);
+				if (data)
+					std::snprintf(ircline, sizeof ircline, "%s", data);
+				unsigned ircpos = std::strlen(ircline);
+				data = (const char *)packet_get_raw_data_const(packet, 0);
+	
+				for (i = 0; i < packet_get_size(packet); i++) {
+					if (data[i] == '\n') {
+						irc_common_line(conn, ircline);
+						std::memset(ircline, 0, sizeof(ircline));
+						ircpos = 0;
+					}
+					else {
+						if (ircpos < MAX_IRC_MESSAGE_LEN - 1)
+							ircline[ircpos++] = data[i];
+						else {
+							ircpos++;
+							eventlog(eventlog_level_warn, __FUNCTION__, "[{}] client exceeded maximum allowed message length by {} characters", conn_get_socket(conn), ircpos - MAX_IRC_MESSAGE_LEN);
+							if (ircpos > 100 + MAX_IRC_MESSAGE_LEN) {
+								eventlog(eventlog_level_error, __FUNCTION__, "[{}] excess flood", conn_get_socket(conn));
+								return -1;
+							}
+						}
+					}
+				}
+				conn_set_ircline(conn, ircline);
+				return 0;
+			}
+	
 		}
-
+	
 	}
-
-}

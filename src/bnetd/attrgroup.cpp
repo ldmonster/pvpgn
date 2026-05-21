@@ -27,7 +27,6 @@
 
 #include "common/eventlog.h"
 #include "common/flags.h"
-#include "common/xalloc.h"
 #include <strings.h>
 #include "attr.h"
 #include "attrlayer.h"

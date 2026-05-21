@@ -24,7 +24,6 @@
 #include "common/eventlog.h"
 #include "common/bn_type.h"
 #include "common/field_sizes.h"
-#include "common/xalloc.h"
 #include "common/lstr.h"
 #include "common/setup_after.h"
 

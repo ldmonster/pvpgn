@@ -17,11 +17,12 @@
 #include "common/setup_before.h"
 #include "friends.h"
 
+#include <algorithm>
 #include <new>
+#include <vector>
 
 #include <cstring>
 #include <strings.h>
-#include "common/list.h"
 #include "common/eventlog.h"
 
 #include "common/setup_after.h"
@@ -90,19 +91,10 @@ namespace pvpgn
 			return 0;
 		}
 
-		extern int friendlist_unload(t_list * flist)
+		extern int friendlist_unload(std::vector<t_friend*>& flist)
 		{
-			if (flist == nullptr)
+			for (t_friend* fr : flist)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return -1;
-			}
-
-			t_friend * fr = nullptr;
-			t_elem  * curr = nullptr;
-			LIST_TRAVERSE(flist, curr)
-			{
-				fr = (t_friend*)elem_get_data(curr);
 				if (fr == nullptr)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
@@ -114,70 +106,49 @@ namespace pvpgn
 			return 0;
 		}
 
-		extern int friendlist_close(t_list * flist)
+		extern int friendlist_close(std::vector<t_friend*>& flist)
 		{
-			if (flist == nullptr)
+			for (t_friend* fr : flist)
 			{
-				eventlog(eventlog_level_trace, __FUNCTION__, "got NULL flist");
-				return -1;
-			}
-
-			t_friend * fr = nullptr;
-			t_elem * curr = nullptr;
-			LIST_TRAVERSE(flist, curr)
-			{
-				fr = (t_friend*)elem_get_data(curr);
 				if (fr == nullptr)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
 					continue;
 				}
-
-				if (list_remove_elem(flist, &curr) != 0)
-					eventlog(eventlog_level_error, __FUNCTION__, "could not remove elem from flist");
-				delete(fr);
+				delete fr;
 			}
-
-			list_destroy(flist);
+			flist.clear();
 
 			return 0;
 		}
 
-		extern int friendlist_purge(t_list * flist)
+		extern int friendlist_purge(std::vector<t_friend*>& flist)
 		{
-			if (flist == nullptr)
+			auto it = flist.begin();
+			while (it != flist.end())
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return -1;
-			}
-
-			t_friend * fr = nullptr;
-			t_elem  * curr = nullptr;
-			LIST_TRAVERSE(flist, curr)
-			{
-				fr = (t_friend*)elem_get_data(curr);
+				t_friend* fr = *it;
 				if (fr == nullptr)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
+					++it;
 					continue;
 				}
 				if (fr->mutual == FRIEND_UNLOADEDMUTUAL)
 				{
-					if (list_remove_elem(flist, &curr) != 0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
+					delete fr;
+					it = flist.erase(it);
+				}
+				else
+				{
+					++it;
 				}
 			}
 			return 0;
 		}
 
-		extern int friendlist_add_account(t_list * flist, t_account * acc, int mutual)
+		extern int friendlist_add_account(std::vector<t_friend*>& flist, t_account * acc, int mutual)
 		{
-			if (flist == nullptr)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return -1;
-			}
-
 			if (acc == nullptr)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL account");
@@ -190,47 +161,36 @@ namespace pvpgn
 				return -1;
 			}
 
-			t_friend * fr = new t_friend; //(t_friend*)xmalloc(sizeof(t_friend));
+			t_friend * fr = new t_friend;
 			fr->friendacc = acc;
 			fr->mutual = mutual;
-			list_append_data(flist, fr);
+			flist.push_back(fr);
 
 			return 0;
 		}
 
-		extern int friendlist_remove_friend(t_list * flist, t_friend * fr)
+		extern int friendlist_remove_friend(std::vector<t_friend*>& flist, t_friend * fr)
 		{
-			if (flist == nullptr)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return -1;
-			}
-
 			if (fr == nullptr)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL friend");
 				return -1;
 			}
 
-			t_elem * elem = nullptr;
-			if (list_remove_data(flist, fr, &elem) != 0)
+			auto it = std::find(flist.begin(), flist.end(), fr);
+			if (it == flist.end())
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
 				return -1;
 			}
 
-			delete(fr);
+			flist.erase(it);
+			delete fr;
 			return 0;
 		}
 
-		extern int friendlist_remove_account(t_list * flist, t_account * acc)
+		extern int friendlist_remove_account(std::vector<t_friend*>& flist, t_account * acc)
 		{
-			if (flist == nullptr)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return -1;
-			}
-
 			if (acc == nullptr)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL account");
@@ -244,25 +204,20 @@ namespace pvpgn
 				return -1;
 			}
 
-			t_elem * elem = nullptr;
-			if (list_remove_data(flist, fr, &elem) != 0)
+			auto it = std::find(flist.begin(), flist.end(), fr);
+			if (it == flist.end())
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
 				return -1;
 			}
 
-			delete(fr);
+			flist.erase(it);
+			delete fr;
 			return 0;
 		}
 
-		extern int friendlist_remove_username(t_list * flist, const char * accname)
+		extern int friendlist_remove_username(std::vector<t_friend*>& flist, const char * accname)
 		{
-			if (flist == nullptr)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return -1;
-			}
-
 			if (accname == nullptr)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL account name");
@@ -276,36 +231,28 @@ namespace pvpgn
 				return -1;
 			}
 
-			t_elem * elem = nullptr;
-			if (list_remove_data(flist, fr, &elem) != 0)
+			auto it = std::find(flist.begin(), flist.end(), fr);
+			if (it == flist.end())
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
 				return -1;
 			}
 
-			delete(fr);
+			flist.erase(it);
+			delete fr;
 			return 0;
 		}
 
-		extern t_friend * friendlist_find_account(t_list * flist, t_account * acc)
+		extern t_friend * friendlist_find_account(std::vector<t_friend*>& flist, t_account * acc)
 		{
-			if (flist == nullptr)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return nullptr;
-			}
-
 			if (acc == nullptr)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL account");
 				return nullptr;
 			}
 
-			t_friend * fr = nullptr;
-			t_elem * curr = nullptr;
-			LIST_TRAVERSE(flist, curr)
+			for (t_friend* fr : flist)
 			{
-				fr = (t_friend*)elem_get_data(curr);
 				if (fr == nullptr)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
@@ -319,25 +266,16 @@ namespace pvpgn
 			return nullptr;
 		}
 
-		extern t_friend * friendlist_find_username(t_list * flist, const char * accname)
+		extern t_friend * friendlist_find_username(std::vector<t_friend*>& flist, const char * accname)
 		{
-			if (flist == nullptr)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return nullptr;
-			}
-
 			if (accname == nullptr)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL account name");
 				return nullptr;
 			}
 
-			t_friend * fr = nullptr;
-			t_elem * curr = nullptr;
-			LIST_TRAVERSE(flist, curr)
+			for (t_friend* fr : flist)
 			{
-				fr = (t_friend*)elem_get_data(curr);
 				if (fr == nullptr)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
@@ -351,19 +289,10 @@ namespace pvpgn
 			return nullptr;
 		}
 
-		extern t_friend * friendlist_find_uid(t_list * flist, unsigned int uid)
+		extern t_friend * friendlist_find_uid(std::vector<t_friend*>& flist, unsigned int uid)
 		{
-			if (flist == nullptr)
+			for (t_friend* fr : flist)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "got NULL flist");
-				return nullptr;
-			}
-
-			t_friend * fr = nullptr;
-			t_elem * curr = nullptr;
-			LIST_TRAVERSE(flist, curr)
-			{
-				fr = (t_friend*)elem_get_data(curr);
 				if (fr == nullptr)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");

@@ -48,6 +48,7 @@ extern "C" int pvpgn_v3_anongame_dispatch_try(void* conn_ptr,
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 #include "integration/legacy_bnetd/strangler_macros.h"
+#include "integration/legacy_bnetd/send_anongame_cancel_bridge.hpp"
 #endif
 
 namespace pvpgn
@@ -467,9 +468,18 @@ namespace pvpgn
 				conn_destroy_anongame(tc[i]);
 			}
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// v3 strangler-fig: try the typed pipeline first.
+			// `pvpgn_v3_send_anongame_cancel` encodes the 5-byte body
+			// (cancel=0x03, count LE) and pushes it via the registered
+			// send_packet handler.  Returns 1 on success -> skip legacy path.
+			if (pvpgn_v3_send_anongame_cancel(c, static_cast<unsigned int>(a_count)) > 0)
+				return 0;
+	#endif
+	
 			if (!(rpacket = packet_create(packet_class_bnet)))
 				return -1;
-
+	
 			packet_set_size(rpacket, sizeof(t_server_findanongame_playgame_cancel));
 			packet_set_type(rpacket, SERVER_FINDANONGAME_PLAYGAME_CANCEL);
 			bn_byte_set(&rpacket->u.server_findanongame_playgame_cancel.cancel, SERVER_FINDANONGAME_CANCEL);

@@ -28,7 +28,7 @@
 #include <string>
 
 #include <strings.h>
-#include "compat/pdir.h"
+#include "infra/compat/directory.hpp"
 #include "compat/mkdir.h"
 #include "common/util.h"
 #include "common/eventlog.h"

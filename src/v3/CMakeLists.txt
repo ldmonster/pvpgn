@@ -11,6 +11,7 @@ option(PVPGN_V3_WITH_TOMLPP  "Fetch & build toml++ for the v3 tree"      ON)
 option(PVPGN_V3_WITH_BOOST   "Use system Boost (Asio + optional Fiber)"  ON)
 option(PVPGN_V3_WITH_FIBER   "Enable Boost.Fiber-backed awaiters"        OFF)
 option(PVPGN_V3_WITH_ANKERL  "Fetch & build ankerl/unordered_dense"      ON)
+option(PVPGN_V3_WITH_PUGIXML "Fetch & build pugixml for the v3 tree"     ON)
 
 if(PVPGN_V3_WITH_ANKERL)
     FetchContent_Declare(
@@ -50,6 +51,25 @@ if(PVPGN_V3_WITH_TOMLPP)
     FetchContent_MakeAvailable(tomlplusplus)
     if(TARGET tomlplusplus_tomlplusplus)
         set_target_properties(tomlplusplus_tomlplusplus PROPERTIES SYSTEM TRUE)
+    endif()
+endif()
+
+if(PVPGN_V3_WITH_PUGIXML)
+    set(PUGIXML_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        pugixml
+        GIT_REPOSITORY https://github.com/zeux/pugixml.git
+        GIT_TAG        v1.14
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(pugixml)
+    if(TARGET pugixml-static)
+        set_target_properties(pugixml-static PROPERTIES SYSTEM TRUE)
+        # pugixml's CMake exports the static target as pugixml::static
+        # but also as pugixml-static; ensure the canonical alias exists.
+        if(NOT TARGET pugixml::static)
+            add_library(pugixml::static ALIAS pugixml-static)
+        endif()
     endif()
 endif()
 
@@ -114,10 +134,48 @@ endif()
 
 # ---- infra/compat -------------------------------------------------------
 #
-# Thin C++20 wrappers around platform-specific helpers (getpid, gethostname,
-# uname). Replaces the headers under src/compat/. Header-only consumers
-# can include <infra/compat/platform.hpp>; consumers of process info link
+# Thin C++20 wrappers around platform-specific helpers. Replaces the
+# headers under src/compat/. Header-only consumers can include any of
+# the headers below without linking; consumers of process info must link
 # against `infra_compat`.
+#
+# Header inventory (all under infra/compat/include/infra/compat/):
+#
+#   platform.hpp      — compile-time OS detection (kIsWindows, kIsLinux, …)
+#   process.hpp       — current_process_id(), host_name(), system_info()
+#                       replaces: pgetpid.h, gethostname.h
+#   netinet_in.hpp    — kInAddrLoopback, kInAddrAny constants
+#                       replaces: netinet_in.h
+#   read.hpp          — ensures read() / _read() is declared
+#                       replaces: read.h
+#   stdfileno.hpp     — kStdinFd, kStdoutFd, kStderrFd constants
+#                       replaces: stdfileno.h
+#   termios.hpp       — Termios type + tcgetattr/tcsetattr (POSIX or stub)
+#                       replaces: termios.h
+#   socket.hpp        — pulls in platform socket headers
+#                       replaces: socket.h
+#   recv.hpp          — ensures recv() is declared (delegates to socket.hpp)
+#                       replaces: recv.h
+#   send.hpp          — ensures send() is declared (delegates to socket.hpp)
+#                       replaces: send.h
+#   mkdir.hpp         — make_directory() via std::filesystem
+#                       replaces: mkdir.h
+#   rename.hpp        — rename_file() via std::filesystem
+#                       replaces: rename.h
+#   runtime_libs.hpp  — DynamicLibrary RAII + open/get/close_library()
+#                       replaces: runtime_libs.h
+#   strerror.hpp      — error_string(), socket_error_string()
+#                       replaces: strerror.h + strerror.cpp
+#   directory.hpp     — DirectoryIterator / DirectoryEntry RAII types,
+#                       open_directory() / read_directory() / close_directory(),
+#                       list_files() (replaces dir_getfiles())
+#                       replaces: pdir.h + pdir.cpp  [✅ R113]
+#   getopt.hpp        — CommandLineParser class + parse_args() free function
+#                       ArgSpec (short/long/description/has_arg), ParseResult
+#                       replaces: pgetopt.h + pgetopt.cpp  [✅ R114]
+#
+# Still pending (Tier C — Round 115+):
+#   psock migration   — goes to infra/net/ (Boost.Asio), not infra/compat/
 
 pvpgn_v3_add_library(infra_compat
     STATIC
@@ -128,6 +186,23 @@ pvpgn_v3_add_library(infra_compat
     PUBLIC_DEPS
         core
 )
+
+# ---- infra/xml ----------------------------------------------------------
+#
+# Thin C++20 wrapper over pugixml.  Header-only from the consumer's
+# perspective; links pugixml::static transitively.
+#
+# Provides:
+#   XmlDocument  — owns a parsed XML document (move-only)
+#   XmlNode      — lightweight wrapper around pugi::xml_node (value type)
+#   load_file()  — parse from std::filesystem::path → std::optional<XmlDocument>
+#   load_string()— parse from std::string_view     → std::optional<XmlDocument>
+#
+# All in namespace pvpgn::v3::infra::xml.
+
+if(PVPGN_V3_WITH_PUGIXML)
+    add_subdirectory(infra/xml)
+endif()
 
 # ---- infra/crypto -------------------------------------------------------
 #
@@ -347,7 +422,6 @@ pvpgn_v3_add_library(protocol_file
     PUBLIC_DEPS
         core
         protocol_common
-        protocol_bnet
 )
 
 # ---- protocol/d2cs ------------------------------------------------------
@@ -356,6 +430,7 @@ pvpgn_v3_add_library(protocol_d2cs
     STATIC
     SOURCES
         protocol/d2cs/src/codec.cpp
+        protocol/d2cs/src/fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/d2cs/include
     PUBLIC_DEPS
@@ -403,6 +478,26 @@ pvpgn_v3_add_library(protocol_wolgameres
         core
         protocol_common
         application_ports
+)
+
+# ---- protocol/wol (WOL IRC-like chat protocol FSM) ----------------------
+#
+# Implements the Westwood Online (WOL) text-based chat protocol used by
+# Command & Conquer, Red Alert, Tiberian Sun, and other Westwood/EA games.
+# The protocol is IRC-like (line-oriented, \r\n terminated) with WOL-specific
+# extensions (CVERS, VERCHK, APGAR, GAMEOPT, STARTG, JOINGAME, etc.).
+#
+# States: Connecting → Authenticating → Authenticated → InChannel / InGame
+# Commands: NICK, USER, PASS, PING, QUIT, LIST, JOIN, PART, PRIVMSG
+
+pvpgn_v3_add_library(protocol_wol
+    STATIC
+    SOURCES
+        protocol/wol/src/wol_fsm.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/protocol/wol/include
+    PUBLIC_DEPS
+        core
 )
 
 # ---- domain/shared (value objects, events, IDs) -------------------------
@@ -994,6 +1089,7 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/send_clandisbandreply_bridge.cpp
         integration/legacy_bnetd/src/send_clancreateinviteforward_bridge.cpp
         integration/legacy_bnetd/src/send_clancreateinvitereply_bridge.cpp
+        integration/legacy_bnetd/src/send_raw_text_bridge.cpp
         integration/legacy_bnetd/src/d2cs_link_dispatch_bridge.cpp
         integration/legacy_bnetd/src/bot_dispatch_bridge.cpp
         integration/legacy_bnetd/src/telnet_dispatch_bridge.cpp
@@ -1006,6 +1102,14 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/send_clan_motdreply_bridge.cpp
         integration/legacy_bnetd/src/encode_clanmemberupdate_bridge.cpp
         integration/legacy_bnetd/src/clan_bridges.cpp
+        integration/legacy_bnetd/src/send_anongame_search_reply_bridge.cpp
+        integration/legacy_bnetd/src/send_anongame_found_bridge.cpp
+        integration/legacy_bnetd/src/send_anongame_cancel_bridge.cpp
+        integration/legacy_bnetd/src/send_w3route_bridge.cpp
+        integration/legacy_bnetd/src/send_udptest_bridge.cpp
+        integration/legacy_bnetd/src/send_d2cs_bnetd_bridges.cpp
+        integration/legacy_bnetd/src/send_file_bridge.cpp
+        integration/legacy_bnetd/src/prefs_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
     PUBLIC_DEPS
@@ -1018,6 +1122,7 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         infra_legacy_config
         protocol_common
         protocol_bnet
+        $<$<TARGET_EXISTS:infra_config>:infra_config>
 )
 
 # ---- integration/legacy_d2cs (strangler-fig scaffold) -------------------
@@ -1047,6 +1152,7 @@ pvpgn_v3_add_library(integration_legacy_d2cs
         integration/legacy_d2cs/src/send_listreply_bridges.cpp
         integration/legacy_d2cs/src/send_ladderreply_bridge.cpp
         integration/legacy_d2cs/src/send_charlistreply_bridge.cpp
+        integration/legacy_d2cs/src/send_outbound_obs_bridges.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2cs/include
     PUBLIC_DEPS
@@ -1193,6 +1299,37 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
 endif()
 
 # ---- infra/net ----------------------------------------------------------
+#
+# Socket abstraction layer — v3 replacement for src/compat/psock.h.
+# Two distinct layers live here:
+#
+#   socket.hpp        — Thin C++20 RAII wrapper over POSIX sockets / Winsock2.
+#                       No Boost.Asio dependency — uses OS socket APIs directly.
+#                       Replaces: psock.h + psock.cpp  [✅ R115]
+#                       Types:    SocketFd, IpAddress, Port, SocketAddress,
+#                                 UniqueSocket, WinsockGuard
+#                       Factory:  make_tcp_socket(), make_udp_socket(),
+#                                 bind_socket(), listen_socket(),
+#                                 accept_connection(), connect_socket(),
+#                                 set_nonblocking(), set_reuse_addr(),
+#                                 socket_send(), socket_recv(),
+#                                 socket_error(), socket_error_string()
+#
+#   io_runtime.hpp    — Boost.Asio IoRuntime (thread-pool, strand, timers)
+#   tcp_acceptor.hpp  — Boost.Asio TcpAcceptor (async accept loop)
+#   tcp_session.hpp   — Boost.Asio TcpSession (async read/write)
+#   udp_endpoint.hpp  — Boost.Asio UdpEndpoint (async send/recv)
+#   fiber_pool.hpp    — Boost.Fiber pool (optional, PVPGN_V3_WITH_FIBER)
+#   fiber_session.hpp — Fiber-backed session wrapper (optional)
+#   signal_handler.hpp — OS signal → async notification bridge
+#   shutdown_coordinator.hpp — Graceful shutdown sequencer
+#
+# The Boost.Asio layer (infra_net target) requires PVPGN_V3_WITH_BOOST=ON.
+# socket.hpp is header-only and has no Boost dependency — it is included
+# in the infra_net PUBLIC_INCLUDES so it is available to all consumers.
+#
+# Caller migration (17 files) is tracked in plans/step8-networking-checklist.md
+# and deferred to Round 116+.
 
 if(PVPGN_V3_WITH_BOOST)
     set(_pvpgn_net_public_deps core Boost::system Threads::Threads)
@@ -1276,6 +1413,14 @@ add_subdirectory(tools/bnpass)
 add_subdirectory(tools/bniutils)
 add_subdirectory(tools/bntrackd)
 add_subdirectory(tools/client)
+
+# ---- app/bnetd (v3 composition root — standalone server binary) -------------
+#
+# Wires all v3 protocol FSMs (BnetFsm, BnftpFsm, WolFsm) together with a
+# Boost.Asio event loop. Only built when Boost is available (infra_net dep).
+# The guard is also inside app/bnetd/CMakeLists.txt for safety.
+
+add_subdirectory(app/bnetd)
 
 # ---- tests --------------------------------------------------------------
 

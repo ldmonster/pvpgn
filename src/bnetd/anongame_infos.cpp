@@ -27,7 +27,6 @@
 #include "common/packet.h"
 #include "common/tag.h"
 #include "common/bn_type.h"
-#include "common/xalloc.h"
 #include "zlib.h"
 #include "tournament.h"
 #include "anongame_maplists.h"

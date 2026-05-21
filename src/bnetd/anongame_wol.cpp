@@ -41,6 +41,12 @@
 #include "anongame.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// Send-bridge: encodes a raw-text packet and dispatches via send_packet handler.
+// Returns 1 (handled), 0 (fall through), -1 (error).
+extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -306,13 +312,6 @@ namespace pvpgn
 				return -1;
 			}
 
-			t_packet * p = packet_create(packet_class_raw);
-			if (!p)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
-				return -1;
-			}
-
 			const char *nick = conn_get_loggeduser(conn);
 			if (!nick)
 				nick = "UserName";
@@ -322,10 +321,29 @@ namespace pvpgn
 
 			DEBUG2("[{}] sent \"{}\"", conn_get_socket(conn), data.c_str());
 			data.append("\r\n");
-			packet_set_size(p, 0);
-			packet_append_data(p, data.c_str(), data.length());
-			conn_push_outqueue(conn, p);
-			packet_del_ref(p);
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				int const _rc = pvpgn_v3_send_raw_text(conn, data.c_str());
+				if (_rc == 1) goto anongame_wol_send_msg_skip_legacy;
+				if (_rc == -1) return -1;
+			}
+#endif
+			{
+				t_packet * p = packet_create(packet_class_raw);
+				if (!p)
+				{
+					eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
+					return -1;
+				}
+				packet_set_size(p, 0);
+				packet_append_data(p, data.c_str(), data.length());
+				conn_push_outqueue(conn, p);
+				packet_del_ref(p);
+			}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			anongame_wol_send_msg_skip_legacy:;
+#endif
 			return 0;
 		}
 

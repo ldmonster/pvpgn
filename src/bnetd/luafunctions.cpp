@@ -323,19 +323,10 @@ namespace pvpgn
 				st.at(1, username);
 
 				if (t_account * account = accountlist_find_account(username))
-				if (t_list *friendlist = account_get_friends(account))
 				{
-					t_elem const * curr;
-					t_friend * f;
-					LIST_TRAVERSE_CONST(friendlist, curr)
-					{
-						if (!(f = (t_friend*)elem_get_data(curr)))
-						{
-							eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-							continue;
-						}
+					auto& friendlist = account_get_friends(account);
+					for (t_friend* f : friendlist)
 						friends.push_back(get_friend_object(f));
-					}
 				}
 				st.push(friends);
 			}
@@ -404,19 +395,10 @@ namespace pvpgn
 				st.at(1, clanid);
 
 				if (t_clan * clan = clanlist_find_clan_by_clanid(clanid))
-				if (t_list * clanmembers = clan_get_members(clan))
 				{
-					t_elem const * curr;
-					LIST_TRAVERSE_CONST(clanmembers, curr)
-					{
-						t_clanmember *	m;
-						if (!(m = (t_clanmember*)elem_get_data(curr)))
-						{
-							eventlog(eventlog_level_error, __FUNCTION__, "got NULL elem in list");
-							continue;
-						}
+					auto& clanmembers = clan_get_members(clan);
+					for (t_clanmember* m : clanmembers)
 						members.push_back(get_clanmember_object(m));
-					}
 				}
 				st.push(members);
 			}
@@ -538,10 +520,8 @@ namespace pvpgn
 				}
 				else
 				{
-					t_elem const * curr;
-					LIST_TRAVERSE_CONST(connlist(), curr)
+					for (t_connection * conn : connlist())
 					{
-						if (conn = (t_connection*)elem_get_data(curr))
 						if (account = conn_get_account(conn))
 							users.push_back(get_account_object(account));
 					}
@@ -596,12 +576,11 @@ namespace pvpgn
 			{
 				lua::stack st(L);
 
-				t_elem *   curr;
-				LIST_TRAVERSE(channellist(), curr)
-				{
-					if (channel = (t_channel*)elem_get_data(curr))
-						channels.push_back(get_channel_object(channel));
-				}
+				for (t_channel* ch : channellist())
+					{
+						if (ch)
+							channels.push_back(get_channel_object(ch));
+					}
 				st.push(channels);
 			}
 			catch (const std::exception& e)

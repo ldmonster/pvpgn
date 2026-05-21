@@ -38,8 +38,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
+#include <string>
 
 #include "core/result.hpp"
+#include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
 #include "protocol/bnet/messages.hpp"
 #include "protocol/bnet/session_context.hpp"
@@ -58,9 +61,15 @@ enum class BnetState : std::uint8_t {
 
 class BnetFsm {
 public:
-    explicit BnetFsm(std::shared_ptr<ISessionContext> ctx, 
-                     const BnetUseCaseContext& use_cases) noexcept 
-        : ctx_(ctx), use_cases_(use_cases) {}
+    /// Construct the FSM.
+    /// @param ctx         Session I/O context (send / close).
+    /// @param use_cases   Injected application use-cases (may be null).
+    /// @param session_id  This session's identity, used when broadcasting
+    ///                    via message_router so the sender is excluded.
+    explicit BnetFsm(std::shared_ptr<ISessionContext> ctx,
+                     const BnetUseCaseContext& use_cases,
+                     domain::SessionId session_id = domain::SessionId{}) noexcept
+        : ctx_(ctx), use_cases_(use_cases), session_id_(session_id) {}
 
     BnetState state() const noexcept { return state_; }
 
@@ -172,14 +181,30 @@ public:
 private:
     core::Status<> reject(const char* reason);
 
+    /// Encode a ChatEvent and broadcast it to `sessions` via message_router.
+    /// No-op if message_router is null or sessions is empty.
+    /// Ignores send errors (best-effort broadcast).
+    void broadcast_chat_event(const ChatEvent& ev,
+                              std::span<const domain::SessionId> sessions);
+
     std::shared_ptr<ISessionContext> ctx_;
     BnetUseCaseContext use_cases_;
     BnetState state_ = BnetState::Init;
-    
+
+    // Per-session identity
+    domain::SessionId session_id_{};
+
     // Session tracking
     domain::AccountId current_account_id_{0};
     domain::ChannelId current_channel_id_{0};
-    domain::GameId current_game_id_{0};
+    domain::GameId    current_game_id_{0};
+
+    /// Client product tag stored from AUTH_INFO (e.g. STAR, D2DV, WAR3).
+    /// Default-constructed (all-zero) until AUTH_INFO is received.
+    domain::ClientTag client_tag_{};
+
+    /// Username stored at login time, used in broadcast ChatEvents.
+    std::string current_username_;
 };
 
 }  // namespace pvpgn::protocol::bnet

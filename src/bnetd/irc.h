@@ -34,6 +34,7 @@ namespace pvpgn
 	namespace bnetd
 	{
 
+		extern int handle_irc_common_packet(t_connection * conn, t_packet const * const packet);
 		extern int irc_send_cmd(t_connection * conn, char const * command, char const * params);
 		extern int irc_send(t_connection * conn, int code, char const * params);
 		extern int irc_send_ping(t_connection * conn);

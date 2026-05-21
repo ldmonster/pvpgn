@@ -21,6 +21,7 @@
 #define FRIEND_NOTMUTUAL 0
 #define FRIEND_ISMUTUAL 1
 
+#include <vector>
 #include "account.h"
 
 namespace pvpgn
@@ -45,16 +46,16 @@ namespace pvpgn
 		extern char friend_get_mutual(t_friend *);
 		extern int friend_set_mutual(t_friend *, int);
 
-		extern int friendlist_unload(t_list *);
-		extern int friendlist_close(t_list *);
-		extern int friendlist_purge(t_list *);
-		extern int friendlist_add_account(t_list *, t_account *, int);
-		extern int friendlist_remove_friend(t_list *, t_friend *);
-		extern int friendlist_remove_account(t_list *, t_account *);
-		extern int friendlist_remove_username(t_list *, const char *);
-		extern t_friend * friendlist_find_account(t_list *, t_account *);
-		extern t_friend * friendlist_find_username(t_list *, const char *);
-		extern t_friend * friendlist_find_uid(t_list *, unsigned int);
+		extern int friendlist_unload(std::vector<t_friend*>&);
+		extern int friendlist_close(std::vector<t_friend*>&);
+		extern int friendlist_purge(std::vector<t_friend*>&);
+		extern int friendlist_add_account(std::vector<t_friend*>&, t_account *, int);
+		extern int friendlist_remove_friend(std::vector<t_friend*>&, t_friend *);
+		extern int friendlist_remove_account(std::vector<t_friend*>&, t_account *);
+		extern int friendlist_remove_username(std::vector<t_friend*>&, const char *);
+		extern t_friend * friendlist_find_account(std::vector<t_friend*>&, t_account *);
+		extern t_friend * friendlist_find_username(std::vector<t_friend*>&, const char *);
+		extern t_friend * friendlist_find_uid(std::vector<t_friend*>&, unsigned int);
 
 #endif
 

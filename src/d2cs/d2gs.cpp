@@ -24,15 +24,28 @@
 #include <ctime>
 #include <cstring>
 
-#include "compat/psock.h"
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <winsock2.h>
+#else
+#  include <netinet/in.h>
+#  include <arpa/inet.h>
+#endif
+
 #include "common/addr.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/introtate.h"
 #include "prefs.h"
 #include "game.h"
 #include "net.h"
 #include "common/setup_after.h"
+
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+extern "C" int pvpgn_v3_d2cs_obs_echoreq_d2gs(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_d2cs_obs_control_d2gs(void* conn_ptr) noexcept;
+#endif
 
 namespace pvpgn
 {
@@ -382,6 +395,9 @@ namespace pvpgn
 			t_packet	* packet;
 			t_d2gs *	gs;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			pvpgn_v3_d2cs_obs_echoreq_d2gs(nullptr);
+#endif
 			if (!(packet = packet_create(packet_class_d2gs))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error creating packet");
 				return -1;
@@ -406,6 +422,9 @@ namespace pvpgn
 			t_packet        * packet;
 			t_d2gs          * gs;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			pvpgn_v3_d2cs_obs_control_d2gs(nullptr);
+#endif
 			if (!(packet = packet_create(packet_class_d2gs))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error creating packet");
 				return -1;

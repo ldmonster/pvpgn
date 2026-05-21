@@ -25,18 +25,21 @@
 #include <cassert>
 #include <string>
 
-#include "compat/psock.h"
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#else
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <arpa/inet.h>
+#  include <netdb.h>
+#endif
 #include "common/eventlog.h"
 #include "common/list.h"
 #include "common/util.h"
-#include "common/xalloc.h"
-
-#ifdef HAVE_ARPA_INET_H
-# include <arpa/inet.h>
-#endif
-#ifdef HAVE_WS2TCPIP_H
-# include <Ws2tcpip.h>
-#endif
 
 #include "common/setup_after.h"
 
@@ -57,7 +60,7 @@ namespace pvpgn
 
 		curr = (curr + 1) % HACK_SIZE;
 
-		tsa.sin_family = PSOCK_AF_INET;
+		tsa.sin_family = AF_INET;
 		tsa.sin_port = htons((unsigned short)0);
 		tsa.sin_addr.s_addr = htonl(ipaddr);
 
@@ -79,7 +82,7 @@ namespace pvpgn
 		curr = (curr + 1) % HACK_SIZE;
 
 		std::memset(&tsa, 0, sizeof(tsa));
-		tsa.sin_family = PSOCK_AF_INET;
+		tsa.sin_family = AF_INET;
 		tsa.sin_port = htons((unsigned short)0);
 		tsa.sin_addr.s_addr = htonl(ipaddr);
 
@@ -100,7 +103,7 @@ namespace pvpgn
 		curr = (curr + 1) % HACK_SIZE;
 
 		std::memset(&tsa, 0, sizeof(tsa));
-		tsa.sin_family = PSOCK_AF_INET;
+		tsa.sin_family = AF_INET;
 		tsa.sin_port = htons((unsigned short)0);
 		tsa.sin_addr.s_addr = htonl(netipaddr);
 
@@ -132,13 +135,10 @@ namespace pvpgn
 		}
 
 		std::memset(&tsa, 0, sizeof(tsa));
-		tsa.sin_family = PSOCK_AF_INET;
+		tsa.sin_family = AF_INET;
 		tsa.sin_port = htons(0);
 
 #ifdef HAVE_GETHOSTBYNAME
-#ifdef WIN32
-		psock_init();
-#endif
 		hp = gethostbyname(hoststr);
 		if (!hp || !hp->h_addr_list)
 #endif

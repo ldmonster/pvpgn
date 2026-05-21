@@ -23,7 +23,6 @@
 
 #include "common/packet.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 #define QUEUE_QUANTUM	10 /* allocate ring buffer slots for 10 packets at once */

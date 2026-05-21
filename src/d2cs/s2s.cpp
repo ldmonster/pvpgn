@@ -26,7 +26,6 @@
 #include "compat/psock.h"
 #include "compat/strerror.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "bnetd.h"
 #include "net.h"
 #include "server.h"

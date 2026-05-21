@@ -28,7 +28,6 @@
 
 #include <cstring>
 #include <strings.h>
-#include "common/xalloc.h"
 #include "common/conf.h"
 #include "common/eventlog.h"
 #include "version.h"

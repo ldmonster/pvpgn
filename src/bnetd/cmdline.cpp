@@ -22,7 +22,6 @@
 
 #include <cstdio>
 
-#include "common/xalloc.h"
 #ifdef WIN32
 # include "win32/service.h"
 #endif

@@ -28,7 +28,7 @@
 #include <cmath>
 
 #include <strings.h>
-#include "compat/pdir.h"
+#include "infra/compat/directory.hpp"
 #include "common/tag.h"
 #include "common/util.h"
 #include "common/eventlog.h"
@@ -96,19 +96,23 @@ namespace pvpgn
 				// init lua virtual machine
 				vm.initialize();
 
-				std::vector<std::string> files = dir_getfiles(scriptdir, ".lua", true);
-
+				namespace dir = pvpgn::v3::infra::compat;
+				auto raw_files = dir::list_files(scriptdir, ".lua", true);
+				std::vector<std::string> files;
+				files.reserve(raw_files.size());
+				for (const auto& p : raw_files) files.push_back(p.string());
+	
 				// load all files from the script directory
-				for (int i = 0; i < files.size(); ++i)
+				for (int i = 0; i < (int)files.size(); ++i)
 				{
 					vm.load_file(files[i].c_str());
-
+	
 					std::snprintf(_msgtemp, sizeof(_msgtemp), "%s", files[i].c_str());
 					eventlog(eventlog_level_info, __FUNCTION__, "{}", _msgtemp);
 				}
-
+	
 				_register_functions();
-
+	
 				std::snprintf(_msgtemp, sizeof(_msgtemp), "Lua sripts were successfully loaded (%zu files)", files.size());
 				eventlog(eventlog_level_info, __FUNCTION__, "{}", _msgtemp);
 			}

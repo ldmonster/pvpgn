@@ -23,7 +23,6 @@
 #include "common/elist.h"
 #include "connection.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 namespace pvpgn

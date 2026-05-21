@@ -37,3 +37,7 @@ pvpgn_v3_add_test(test_integration_legacy_d2cs_send_listreply_bridges
 pvpgn_v3_add_test(test_integration_legacy_d2cs_send_ladderreply_bridge
     SOURCES send_d2cs_listreply_encoders_bridges_test.cpp
     DEPS    integration_legacy_d2cs)
+
+pvpgn_v3_add_test(test_integration_legacy_d2cs_send_outbound_obs_bridges
+    SOURCES send_outbound_obs_bridges_test.cpp
+    DEPS    integration_legacy_d2cs)

@@ -26,11 +26,17 @@
 # include <conio.h>
 #endif
 
-#include "compat/psock.h"
 #include "compat/strerror.h"
+#ifndef _WIN32
+#  include <sys/socket.h>
+#  include <sys/select.h>
+#  include <unistd.h>
+#  include <fcntl.h>
+#  include <errno.h>
+#  include <netinet/in.h>
+#endif
 #include "common/eventlog.h"
 #include "common/addr.h"
-#include "common/xalloc.h"
 #include "common/network.h"
 #include "d2ladder.h"
 #include "prefs.h"
@@ -124,23 +130,19 @@ namespace pvpgn
 				return -1;
 			}
 
-			if (psock_init() < 0)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "psock_init() failed");
-				return -1;
-			}
-
-			sd = psock_socket(PSOCK_PF_INET, PSOCK_SOCK_STREAM, PSOCK_IPPROTO_TCP);
+			/* psock_init() is a no-op on POSIX */
+	
+			sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 			if (sd == -1)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "psock_socket() failed : {}", pstrerror(psock_errno()));
+				eventlog(eventlog_level_error, __FUNCTION__, "socket() failed : {}", pstrerror(errno));
 				return -1;
 			}
 
 			val = 1;
-			if (psock_setsockopt(sd, PSOCK_SOL_SOCKET, PSOCK_SO_REUSEADDR, &val, sizeof(val)) < 0)
+			if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) < 0)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "psock_setsockopt() failed : {}", pstrerror(psock_errno()));
+				eventlog(eventlog_level_error, __FUNCTION__, "setsockopt() failed : {}", pstrerror(errno));
 			}
 
 			if (!(servaddr = addr_create_str(d2dbs_prefs_get_servaddrs(), INADDR_ANY, DEFAULT_LISTEN_PORT)))
@@ -149,17 +151,17 @@ namespace pvpgn
 				return -1;
 			}
 
-			sinInterface.sin_family = PSOCK_AF_INET;
+			sinInterface.sin_family = AF_INET;
 			sinInterface.sin_addr.s_addr = htonl(addr_get_ip(servaddr));
 			sinInterface.sin_port = htons(addr_get_port(servaddr));
-			if (psock_bind(sd, (struct sockaddr*)&sinInterface, (psock_t_socklen)sizeof(struct sockaddr_in)) < 0)
+			if (bind(sd, (struct sockaddr*)&sinInterface, (socklen_t)sizeof(struct sockaddr_in)) < 0)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "psock_bind() failed : {}", pstrerror(psock_errno()));
+				eventlog(eventlog_level_error, __FUNCTION__, "bind() failed : {}", pstrerror(errno));
 				return -1;
 			}
-			if (psock_listen(sd, LISTEN_QUEUE) < 0)
+			if (listen(sd, LISTEN_QUEUE) < 0)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "psock_listen() failed : {}", pstrerror(psock_errno()));
+				eventlog(eventlog_level_error, __FUNCTION__, "listen() failed : {}", pstrerror(errno));
 				return -1;
 			}
 			addr_destroy(servaddr);
@@ -173,19 +175,19 @@ namespace pvpgn
 		 * one.
 		 */
 
-		int dbs_server_setup_fdsets(t_psock_fd_set * pReadFDs, t_psock_fd_set * pWriteFDs, t_psock_fd_set * pExceptFDs, int lsocket)
+		int dbs_server_setup_fdsets(fd_set * pReadFDs, fd_set * pWriteFDs, fd_set * pExceptFDs, int lsocket)
 		{
 			t_elem const * elem;
 			t_d2dbs_connection* it;
 			int highest_fd;
 
-			PSOCK_FD_ZERO(pReadFDs);
-			PSOCK_FD_ZERO(pWriteFDs);
-			PSOCK_FD_ZERO(pExceptFDs); /* FIXME: don't check these... remove this code */
+			FD_ZERO(pReadFDs);
+			FD_ZERO(pWriteFDs);
+			FD_ZERO(pExceptFDs); /* FIXME: don't check these... remove this code */
 			/* Add the listener socket to the read and except FD sets, if there is one. */
 			if (lsocket >= 0) {
-				PSOCK_FD_SET(lsocket, pReadFDs);
-				PSOCK_FD_SET(lsocket, pExceptFDs);
+				FD_SET(lsocket, pReadFDs);
+				FD_SET(lsocket, pExceptFDs);
 			}
 			highest_fd = lsocket;
 
@@ -194,12 +196,12 @@ namespace pvpgn
 				if (!(it = (t_d2dbs_connection*)elem_get_data(elem))) continue;
 				if (it->nCharsInReadBuffer < (kBufferSize - kMaxPacketLength)) {
 					/* There's space in the read buffer, so pay attention to incoming data. */
-					PSOCK_FD_SET(it->sd, pReadFDs);
+					FD_SET(it->sd, pReadFDs);
 				}
 				if (it->nCharsInWriteBuffer > 0) {
-					PSOCK_FD_SET(it->sd, pWriteFDs);
+					FD_SET(it->sd, pWriteFDs);
 				}
-				PSOCK_FD_SET(it->sd, pExceptFDs);
+				FD_SET(it->sd, pExceptFDs);
 				if (highest_fd < it->sd) highest_fd = it->sd;
 			}
 			return highest_fd;
@@ -304,7 +306,7 @@ namespace pvpgn
 			const char* pcErrorType;
 			struct timeval         tv;
 			int highest_fd;
-			psock_t_socklen nAddrSize = sizeof(sinRemote);
+			socklen_t nAddrSize = sizeof(sinRemote);
 
 			while (1) {
 
@@ -323,9 +325,9 @@ namespace pvpgn
 
 				tv.tv_sec = 0;
 				tv.tv_usec = SELECT_TIME_OUT;
-				switch (psock_select(highest_fd + 1, &ReadFDs, &WriteFDs, &ExceptFDs, &tv)) {
+				switch (select(highest_fd + 1, &ReadFDs, &WriteFDs, &ExceptFDs, &tv)) {
 				case -1:
-					eventlog(eventlog_level_error, __FUNCTION__, "psock_select() failed : {}", pstrerror(psock_errno()));
+					eventlog(eventlog_level_error, __FUNCTION__, "select() failed : {}", pstrerror(errno));
 					continue;
 				case 0:
 					continue;
@@ -333,10 +335,10 @@ namespace pvpgn
 					break;
 				}
 
-				if (PSOCK_FD_ISSET(lsocket, &ReadFDs)) {
-					sd = psock_accept(lsocket, (struct sockaddr*)&sinRemote, &nAddrSize);
+				if (FD_ISSET(lsocket, &ReadFDs)) {
+					sd = accept(lsocket, (struct sockaddr*)&sinRemote, &nAddrSize);
 					if (sd == -1) {
-						eventlog(eventlog_level_error, __FUNCTION__, "psock_accept() failed : {}", pstrerror(psock_errno()));
+						eventlog(eventlog_level_error, __FUNCTION__, "accept() failed : {}", pstrerror(errno));
 						return;
 					}
 
@@ -348,12 +350,12 @@ namespace pvpgn
 						addrstr, ntohs(sinRemote.sin_port), sd);
 					setsockopt_keepalive(sd);
 					dbs_server_list_add_socket(sd, ntohl(sinRemote.sin_addr.s_addr));
-					if (psock_ctl(sd, PSOCK_NONBLOCK) < 0) {
-						eventlog(eventlog_level_error, __FUNCTION__, "could not set TCP socket [{}] to non-blocking mode (closing connection) (psock_ctl: {})", sd, pstrerror(psock_errno()));
-						psock_close(sd);
+					if (fcntl(sd, F_SETFL, O_NONBLOCK) < 0) {
+						eventlog(eventlog_level_error, __FUNCTION__, "could not set TCP socket [{}] to non-blocking mode (closing connection) (fcntl: {})", sd, pstrerror(errno));
+						close(sd);
 					}
 				}
-				else if (PSOCK_FD_ISSET(lsocket, &ExceptFDs)) {
+				else if (FD_ISSET(lsocket, &ExceptFDs)) {
 					eventlog(eventlog_level_error, __FUNCTION__, "exception on listening socket");
 					/* FIXME: exceptions are not errors with TCP, they are out-of-band data */
 					return;
@@ -365,35 +367,35 @@ namespace pvpgn
 					pcErrorType = 0;
 
 					if (!(it = (t_d2dbs_connection*)elem_get_data(elem))) continue;
-					if (PSOCK_FD_ISSET(it->sd, &ExceptFDs)) {
+					if (FD_ISSET(it->sd, &ExceptFDs)) {
 						bOK = false;
 						pcErrorType = "General socket error"; /* FIXME: no no no no no */
-						PSOCK_FD_CLR(it->sd, &ExceptFDs);
+						FD_CLR(it->sd, &ExceptFDs);
 					}
 					else {
-
-						if (PSOCK_FD_ISSET(it->sd, &ReadFDs)) {
+	
+						if (FD_ISSET(it->sd, &ReadFDs)) {
 							bOK = dbs_server_read_data(it);
 							pcErrorType = "Read error";
-							PSOCK_FD_CLR(it->sd, &ReadFDs);
+							FD_CLR(it->sd, &ReadFDs);
 						}
-
-						if (PSOCK_FD_ISSET(it->sd, &WriteFDs)) {
+	
+						if (FD_ISSET(it->sd, &WriteFDs)) {
 							bOK = dbs_server_write_data(it);
 							pcErrorType = "Write error";
-							PSOCK_FD_CLR(it->sd, &WriteFDs);
+							FD_CLR(it->sd, &WriteFDs);
 						}
 					}
 
 					if (!bOK) {
 						int	err, errno2;
-						psock_t_socklen	errlen;
-
+						socklen_t	errlen;
+	
 						err = 0;
 						errlen = sizeof(err);
-						errno2 = psock_errno();
-
-						if (psock_getsockopt(it->sd, PSOCK_SOL_SOCKET, PSOCK_SO_ERROR, &err, &errlen) == 0) {
+						errno2 = errno;
+	
+						if (getsockopt(it->sd, SOL_SOCKET, SO_ERROR, &err, &errlen) == 0) {
 							if (errlen && err != 0) {
 								err = err ? err : errno2;
 								eventlog(eventlog_level_error, __FUNCTION__, "data socket error : {}({})", pstrerror(err), err);
@@ -419,7 +421,7 @@ namespace pvpgn
 			t_d2dbs_connection * it;
 
 			if (dbs_server_listen_socket >= 0)
-				psock_close(dbs_server_listen_socket);
+				close(dbs_server_listen_socket);
 			dbs_server_listen_socket = -1;
 
 			LIST_TRAVERSE(dbs_server_connection_list, elem)
@@ -447,8 +449,8 @@ namespace pvpgn
 
 		int dbs_server_shutdown_connection(t_d2dbs_connection* conn)
 		{
-			psock_shutdown(conn->sd, PSOCK_SHUT_RDWR);
-			psock_close(conn->sd);
+			shutdown(conn->sd, SHUT_RDWR);
+			close(conn->sd);
 			if (conn->verified && conn->type == CONNECT_CLASS_D2GS_TO_D2DBS) {
 				eventlog(eventlog_level_info, __FUNCTION__, "unlock all characters on gs {}({})", conn->serverip, conn->serverid);
 				eventlog_step(prefs_get_logfile_gs(), eventlog_level_info, __FUNCTION__, "unlock all characters on gs %s(%d)", conn->serverip, conn->serverid);
@@ -462,12 +464,12 @@ namespace pvpgn
 		static int setsockopt_keepalive(int sock)
 		{
 			int		optval;
-			psock_t_socklen	optlen;
-
+			socklen_t	optlen;
+	
 			optval = 1;
 			optlen = sizeof(optval);
-			if (psock_setsockopt(sock, PSOCK_SOL_SOCKET, PSOCK_SO_KEEPALIVE, &optval, optlen)) {
-				eventlog(eventlog_level_info, __FUNCTION__, "failed set KEEPALIVE for socket {}, errno={}", sock, psock_errno());
+			if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen)) {
+				eventlog(eventlog_level_info, __FUNCTION__, "failed set KEEPALIVE for socket {}, errno={}", sock, errno);
 				return -1;
 			}
 			else {

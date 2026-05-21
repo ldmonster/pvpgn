@@ -24,7 +24,6 @@
 #include <cctype>
 
 #include <strings.h>
-#include "common/xalloc.h"
 #include "common/introtate.h"
 #include "common/xstring.h"
 #include "common/setup_after.h"

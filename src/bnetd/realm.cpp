@@ -23,10 +23,10 @@
 #include <cerrno>
 #include <cstring>
 #include <cassert>
+#include <vector>
+#include <algorithm>
 
-#include "common/list.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/addr.h"
 #include "common/util.h"
 
@@ -52,7 +52,7 @@ namespace pvpgn
 			std::memcpy(r, s, n);
 			return r;
 		}
-		static t_list * realmlist_head = NULL;
+		static std::vector<t_realm*> realmlist_head;
 
 		static t_realm * realm_create(char const * name, char const * description, unsigned int ip, unsigned int port);
 		static int realm_destroy(t_realm * realm);
@@ -315,7 +315,7 @@ namespace pvpgn
 		}
 
 
-		t_list * realmlist_load(char const * filename)
+		static std::vector<t_realm*> realmlist_load(char const * filename)
 		{
 			std::FILE *          fp;
 			unsigned int    line;
@@ -327,21 +327,19 @@ namespace pvpgn
 			char *          name;
 			char *          desc;
 			t_realm *       realm;
-			t_list *        list_head = NULL;
+			std::vector<t_realm*> result;
 
 			if (!filename)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL filename");
-				return NULL;
+				return result;
 			}
 
 			if (!(fp = std::fopen(filename, "r")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open realm file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
-				return NULL;
+				return result;
 			}
-
-			list_head = list_create();
 
 			for (line = 1; (buff = file_get_line(fp)); line++)
 			{
@@ -433,112 +431,72 @@ namespace pvpgn
 				delete[] name;
 				delete[] desc;
 
-				list_prepend_data(list_head, realm);
+				result.push_back(realm);
 			}
 			file_get_line(NULL); // clear file_get_line buffer
 			if (std::fclose(fp) < 0)
 				eventlog(eventlog_level_error, __FUNCTION__, "could not close realm file \"{}\" after reading (std::fclose: {})", filename, std::strerror(errno));
-			return list_head;
+			return result;
 		}
 
 		extern int realmlist_reload(char const * filename)
 		{
-			t_elem * new_curr;
-			t_elem * old_curr;
-			t_realm * new_realm;
-			t_realm * old_realm;
-			int match;
-			t_list * newlist = NULL;
-			t_list * oldlist = realmlist_head;
+			std::vector<t_realm*> newlist;
+			std::vector<t_realm*> oldlist;
 
-			realmlist_head = NULL;
+			oldlist = std::move(realmlist_head);
+			realmlist_head.clear();
 
-			if (!(newlist = realmlist_load(filename)))
+			newlist = realmlist_load(filename);
+			if (newlist.empty())
 				return -1;
 
-			LIST_TRAVERSE(oldlist, old_curr)
+			for (t_realm* old_realm : oldlist)
 			{
-				if (!(old_realm = (t_realm*)elem_get_data(old_curr)))
+				bool match = false;
+				for (t_realm* new_realm : newlist)
 				{
-					eventlog(eventlog_level_error, __FUNCTION__, "found NULL elem in list");
-					continue;
-				}
-
-				match = 0;
-
-				LIST_TRAVERSE(newlist, new_curr)
-				{
-					if (!(new_realm = (t_realm*)elem_get_data(new_curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL elem in list");
-						continue;
-					}
-
 					if (!std::strcmp(old_realm->name, new_realm->name))
 					{
-						match = 1;
+						match = true;
 						rcm_chref(&old_realm->rcm, new_realm);
-
 						break;
 					}
-
 				}
 				if (!match)
 					rcm_chref(&old_realm->rcm, NULL);
 
 				realm_destroy(old_realm);
-				list_remove_elem(oldlist, &old_curr);
 			}
 
-			list_destroy(oldlist);
-
-			realmlist_head = newlist;
+			realmlist_head = std::move(newlist);
 
 			return 0;
 		}
 
 		extern int realmlist_create(char const * filename)
 		{
-			if (!(realmlist_head = realmlist_load(filename)))
+			realmlist_head = realmlist_load(filename);
+			if (realmlist_head.empty())
 				return -1;
 
 			return 0;
-
 		}
 
-		extern int realmlist_unload(t_list * list_head)
+		static void realmlist_unload(std::vector<t_realm*>& list)
 		{
-			t_elem *  curr;
-			t_realm * realm;
-
-			if (list_head)
-			{
-				LIST_TRAVERSE(list_head, curr)
-				{
-					if (!(realm = (t_realm*)elem_get_data(curr)))
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL realm in list");
-					else
-						realm_destroy(realm);
-
-					list_remove_elem(list_head, &curr);
-				}
-				list_destroy(list_head);
-			}
-
-			return 0;
+			for (t_realm* realm : list)
+				realm_destroy(realm);
+			list.clear();
 		}
 
 		extern int realmlist_destroy()
 		{
-			int res;
-
-			res = realmlist_unload(realmlist_head);
-			realmlist_head = NULL;
-
-			return res;
+			realmlist_unload(realmlist_head);
+			return 0;
 		}
 
-		extern t_list * realmlist(void)
+		extern const std::vector<t_realm*>& realmlist(void)
 		{
 			return realmlist_head;
 		}
@@ -546,18 +504,14 @@ namespace pvpgn
 
 		extern t_realm * realmlist_find_realm(char const * realmname)
 		{
-			t_elem const *  curr;
-			t_realm * realm;
-
 			if (!realmname)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL realmname");
 				return NULL;
 			}
 
-			LIST_TRAVERSE_CONST(realmlist_head, curr)
+			for (t_realm* realm : realmlist_head)
 			{
-				realm = (t_realm*)elem_get_data(curr);
 				if (strcasecmp(realm->name, realmname) == 0)
 					return realm;
 			}
@@ -567,12 +521,8 @@ namespace pvpgn
 
 		extern t_realm * realmlist_find_realm_by_ip(unsigned long ip)
 		{
-			t_elem const *  curr;
-			t_realm * realm;
-
-			LIST_TRAVERSE_CONST(realmlist_head, curr)
+			for (t_realm* realm : realmlist_head)
 			{
-				realm = (t_realm*)elem_get_data(curr);
 				if (realm->ip == ip)
 					return realm;
 			}

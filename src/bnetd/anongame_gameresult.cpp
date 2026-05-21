@@ -20,7 +20,6 @@
 #include <cassert>
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/packet.h"
 #include "common/bn_type.h"
 

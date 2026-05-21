@@ -29,7 +29,6 @@
 #include <cstring>
 #include <strings.h>
 #include "common/conf.h"
-#include "common/xalloc.h"
 #include "common/eventlog.h"
 #include "version.h"
 #include "common/setup_after.h"

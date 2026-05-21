@@ -244,6 +244,7 @@ namespace pvpgn
 #define INCLUDED_CONNECTION_PROTOS
 
 #include <ctime>
+#include <vector>
 
 #define JUST_NEED_TYPES
 #include "common/packet.h"
@@ -251,7 +252,6 @@ namespace pvpgn
 #include "channel.h"
 #include "game.h"
 #include "account.h"
-#include "common/list.h"
 #include "character.h"
 #include "versioncheck.h"
 #include "timer.h"
@@ -284,7 +284,7 @@ namespace pvpgn
 		extern char const * conn_state_get_str(t_conn_state state);
 
 		extern t_connection * conn_create(int tsock, int usock, unsigned int real_local_addr, unsigned short real_local_port, unsigned int local_addr, unsigned short local_port, unsigned int addr, unsigned short port);
-		extern void conn_destroy(t_connection * c, t_elem ** elem, int conn_or_dead_list);
+		extern void conn_destroy(t_connection * c, int conn_or_dead_list);
 		extern int conn_match(t_connection const * c, char const * user);
 		extern t_conn_class conn_get_class(t_connection const * c);
 		extern void conn_set_class(t_connection * c, t_conn_class cclass);
@@ -444,7 +444,7 @@ namespace pvpgn
 		extern int connlist_create(void);
 		extern void connlist_reap(void);
 		extern int connlist_destroy(void);
-		extern t_list * connlist(void);
+		extern const std::vector<t_connection*>& connlist(void);
 		extern t_connection * connlist_find_connection_by_sessionkey(unsigned int sessionkey);
 		extern t_connection * connlist_find_connection_by_socket(int socket);
 		extern t_connection * connlist_find_connection_by_sessionnum(unsigned int sessionnum);

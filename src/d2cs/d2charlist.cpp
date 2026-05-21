@@ -24,7 +24,6 @@
 
 #include <strings.h>
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "prefs.h"
 #include "common/setup_after.h"
 

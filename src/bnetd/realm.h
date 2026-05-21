@@ -66,8 +66,9 @@ namespace pvpgn
 #ifndef INCLUDED_REALM_PROTOS
 #define INCLUDED_REALM_PROTOS
 
+#include <vector>
+
 #define JUST_NEED_TYPES
-# include "common/list.h"
 # include "connection.h"
 # include "common/rcm.h"
 #undef JUST_NEED_TYPES
@@ -97,7 +98,7 @@ namespace pvpgn
 		extern int realmlist_reload(char const * filename);
 		extern t_realm * realmlist_find_realm(char const * realmname);
 		extern t_realm * realmlist_find_realm_by_ip(unsigned long ip); /* ??? */
-		extern t_list * realmlist(void);
+		extern const std::vector<t_realm*>& realmlist(void);
 
 		extern struct connection * realm_get_conn(t_realm * realm);
 

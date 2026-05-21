@@ -26,7 +26,15 @@
 #include "compat/recv.h"
 #include "compat/send.h"
 #include "compat/netinet_in.h"
-#include "compat/psock.h"
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <winsock2.h>
+#else
+#  include <sys/socket.h>
+#  include <cerrno>
+#endif
 #include "common/packet.h"
 #include "common/eventlog.h"
 #include "common/field_sizes.h"
@@ -40,39 +48,45 @@ namespace pvpgn
 	{
 		int res;
 
-		res = psock_recv(sock, buff, len, 0);
+		res = recv(sock, buff, len, 0);
 		if (res > 0) return res;
 		if (!res) return -1;	/* connection closed */
 
+#ifdef _WIN32
+		int const sock_err = WSAGetLastError();
+#else
+		int const sock_err = errno;
+#endif
+
 		if (
-#ifdef PSOCK_EINTR
-			psock_errno() == PSOCK_EINTR ||
+#ifdef EINTR
+			sock_err == EINTR ||
 #endif
-#ifdef PSOCK_EAGAIN
-			psock_errno() == PSOCK_EAGAIN ||
+#ifdef EAGAIN
+			sock_err == EAGAIN ||
 #endif
-#ifdef PSOCK_EWOULDBLOCK
-			psock_errno() == PSOCK_EWOULDBLOCK ||
+#ifdef EWOULDBLOCK
+			sock_err == EWOULDBLOCK ||
 #endif
-#ifdef PSOCK_ENOMEM
-			psock_errno() == PSOCK_ENOMEM ||
+#ifdef ENOMEM
+			sock_err == ENOMEM ||
 #endif
 			0) /* try later */
 			return 0;
 
 		if (
-#ifdef PSOCK_ENOTCONN
-			psock_errno() == PSOCK_ENOTCONN ||
+#ifdef ENOTCONN
+			sock_err == ENOTCONN ||
 #endif
-#ifdef PSOCK_ECONNRESET
-			psock_errno() == PSOCK_ECONNRESET ||
+#ifdef ECONNRESET
+			sock_err == ECONNRESET ||
 #endif
 			0) {
-			/*	    eventlog(eventlog_level_debug,__FUNCTION__,"[{}] remote host closed connection (psock_recv: {})",sock,std::strerror(psock_errno())); */
+			/*	    eventlog(eventlog_level_debug,__FUNCTION__,"[{}] remote host closed connection (recv: {})",sock,std::strerror(sock_err)); */
 			return -1; /* common error: close connection, but no message */
 		}
 
-		eventlog(eventlog_level_debug, __FUNCTION__, "[{}] receive error (closing connection) (psock_recv: {})", sock, std::strerror(psock_errno()));
+		eventlog(eventlog_level_debug, __FUNCTION__, "[{}] receive error (closing connection) (recv: {})", sock, std::strerror(sock_err));
 		return -1;
 	}
 
@@ -134,38 +148,44 @@ namespace pvpgn
 	{
 		int res;
 
-		res = psock_send(sock, buff, len, 0);
+		res = send(sock, buff, len, 0);
 
 		if (res > 0) return res;
 		if (!res) return -1;
 
+#ifdef _WIN32
+		int const sock_err = WSAGetLastError();
+#else
+		int const sock_err = errno;
+#endif
+
 		if (
-#ifdef PSOCK_EINTR
-			psock_errno() == PSOCK_EINTR ||
+#ifdef EINTR
+			sock_err == EINTR ||
 #endif
-#ifdef PSOCK_EAGAIN
-			psock_errno() == PSOCK_EAGAIN ||
+#ifdef EAGAIN
+			sock_err == EAGAIN ||
 #endif
-#ifdef PSOCK_EWOULDBLOCK
-			psock_errno() == PSOCK_EWOULDBLOCK ||
+#ifdef EWOULDBLOCK
+			sock_err == EWOULDBLOCK ||
 #endif
-#ifdef PSOCK_ENOBUFS
-			psock_errno() == PSOCK_ENOBUFS ||
+#ifdef ENOBUFS
+			sock_err == ENOBUFS ||
 #endif
-#ifdef PSOCK_ENOMEM
-			psock_errno() == PSOCK_ENOMEM ||
+#ifdef ENOMEM
+			sock_err == ENOMEM ||
 #endif
 			0)
 			return 0; /* try again later */
 
 		if (
-#ifdef PSOCK_EPIPE
-			psock_errno() != PSOCK_EPIPE &&
+#ifdef EPIPE
+			sock_err != EPIPE &&
 #endif
-#ifdef PSOCK_ECONNRESET
-			psock_errno() != PSOCK_ECONNRESET &&
+#ifdef ECONNRESET
+			sock_err != ECONNRESET &&
 #endif
-			1) eventlog(eventlog_level_debug, __FUNCTION__, "[{}] could not send data (closing connection) (psock_send: {})", sock, std::strerror(psock_errno()));
+			1) eventlog(eventlog_level_debug, __FUNCTION__, "[{}] could not send data (closing connection) (send: {})", sock, std::strerror(sock_err));
 
 		return -1;
 	}

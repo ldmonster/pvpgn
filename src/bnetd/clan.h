@@ -35,11 +35,11 @@
 
 #ifdef CLAN_INTERNAL_ACCESS
 #ifdef JUST_NEED_TYPES
-# include "common/list.h"
+# include <vector>
 # include "account.h"
 #else
 # define JUST_NEED_TYPES
-# include "common/list.h"
+# include <vector>
 # include "account.h"
 # undef JUST_NEED_TYPES
 #endif
@@ -62,7 +62,7 @@ namespace pvpgn
 			char const *clanname;
 			std::time_t creation_time;
 			char const *clan_motd;
-			t_list *members;
+			std::vector<struct _clanmember*> members;
 			int created;
 			/* --by Soar
 			   on create, set it to -count of invited members,
@@ -107,9 +107,7 @@ namespace pvpgn
 #ifndef INCLUDED_CLAN_PROTOS
 #define INCLUDED_CLAN_PROTOS
 
-#define JUST_NEED_TYPES
-#include "common/list.h"
-#undef JUST_NEED_TYPES
+#include <vector>
 
 
 namespace pvpgn
@@ -118,7 +116,7 @@ namespace pvpgn
 	namespace bnetd
 	{
 
-		extern t_list *clanlist(void);
+		extern const std::vector<t_clan*>& clanlist(void);
 		extern int clanlist_load(void);
 		extern int clanlist_save(void);
 		extern int clanlist_unload(void);
@@ -161,7 +159,7 @@ namespace pvpgn
 		extern int clan_set_modified(t_clan * clan, char modified);
 		extern char clan_get_channel_type(t_clan * clan);
 		extern int clan_set_channel_type(t_clan * clan, char channel_type);
-		extern t_list *clan_get_members(t_clan * clan);
+		extern std::vector<t_clanmember*>& clan_get_members(t_clan * clan);
 		extern char const *clan_get_name(t_clan * clan);
 		extern t_clantag clan_get_clantag(t_clan * clan);
 		extern char const *clan_get_motd(t_clan * clan);

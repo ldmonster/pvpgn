@@ -17,13 +17,14 @@
 #include "common/setup_before.h"
 #include "clan.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
 
 #include <cstring>
 #include <strings.h>
-#include "compat/pdir.h"
+#include "infra/compat/directory.hpp"
 
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -34,10 +35,8 @@
 #include "common/util.h"
 #include "common/bnettime.h"
 #include "common/eventlog.h"
-#include "common/list.h"
 #include "common/proginfo.h"
 #include "common/bn_type.h"
-#include "common/xalloc.h"
 
 #include "connection.h"
 #include "anongame.h"
@@ -131,7 +130,7 @@ namespace pvpgn
 			std::memcpy(r, s, n);
 			return r;
 		}
-		static t_list *clanlist_head = NULL;
+		static std::vector<t_clan*> clanlist_head;
 		unsigned max_clanid = 0;
 
 		/* callback function for storage use */
@@ -157,9 +156,6 @@ namespace pvpgn
 		{
 			/* PELISH: Send message to online clan_members
 			   returns: an error == -1, done but no one heard == 0, done with message sended == 1 */
-			t_list * cl_member_list;
-			t_elem * curr;
-			t_clanmember * dest_member;
 			t_connection * dest_conn;
 			bool heard = false;
 
@@ -173,10 +169,8 @@ namespace pvpgn
 				return -1;
 			}
 
-			cl_member_list = clan_get_members(clan);
-
-			LIST_TRAVERSE(cl_member_list, curr) {
-				if (!(dest_member = (t_clanmember*)elem_get_data(curr))) {
+			for (t_clanmember* dest_member : clan_get_members(clan)) {
+				if (!dest_member) {
 					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
 					continue;
 				}
@@ -200,8 +194,6 @@ namespace pvpgn
 
 		extern int clan_send_packet_to_online_members(t_clan * clan, t_packet * packet)
 		{
-			t_elem *curr;
-
 			if (!clan)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL clan");
@@ -214,13 +206,12 @@ namespace pvpgn
 				return -1;
 			}
 
-			LIST_TRAVERSE(clan->members, curr)
+			for (t_clanmember* member : clan->members)
 			{
-				t_clanmember *	member;
 				t_clienttag	clienttag;
 				t_connection *	conn;
 
-				if (!(member = (t_clanmember*)elem_get_data(curr)))
+				if (!member)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "got NULL elem in list");
 					continue;
@@ -246,7 +237,6 @@ namespace pvpgn
 		extern int clan_send_status_window_on_create(t_clan * clan)
 		{
 			t_packet * rpacket;
-			t_elem *curr;
 
 			if (!(clan))
 			{
@@ -273,20 +263,19 @@ namespace pvpgn
 				bn_byte_set(&rpacket->u.server_clan_clanack.unknow1, 0);
 				bn_int_set(&rpacket->u.server_clan_clanack.clantag, clan->tag);
 
-				LIST_TRAVERSE(clan->members, curr)
+				for (t_clanmember* member : clan->members)
 				{
-					t_clanmember *	member;
 					t_clienttag 	clienttag;
 					t_connection *	conn;
-
-					if (!(member = (t_clanmember*)elem_get_data(curr)))
+	
+					if (!member)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "got NULL elem in list");
 						continue;
 					}
 					if (!(conn = clanmember_get_conn(member)))
 						continue;			// not online;
-
+	
 					if (!(clienttag = conn_get_clienttag(conn)))
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "conn has NULL clienttag");
@@ -332,7 +321,6 @@ namespace pvpgn
 		extern int clan_close_status_window_on_disband(t_clan * clan)
 		{
 			t_packet * rpacket;
-			t_elem *curr;
 
 			if (!(clan))
 			{
@@ -345,20 +333,19 @@ namespace pvpgn
 				packet_set_size(rpacket, sizeof(t_server_clanquitnotify));
 				packet_set_type(rpacket, SERVER_CLANQUITNOTIFY);
 				bn_byte_set(&rpacket->u.server_clan_clanack.status, SERVER_CLANQUITNOTIFY_STATUS_REMOVED_FROM_CLAN);
-				LIST_TRAVERSE(clan->members, curr)
+				for (t_clanmember* member : clan->members)
 				{
-					t_clanmember *	member;
 					t_clienttag 	clienttag;
 					t_connection *	conn;
-
-					if (!(member = (t_clanmember*)elem_get_data(curr)))
+	
+					if (!member)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "got NULL elem in list");
 						continue;
 					}
 					if (!(conn = clanmember_get_conn(member)))
 						continue;			// not online;
-
+	
 					if (!(clienttag = conn_get_clienttag(conn)))
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "conn has NULL clienttag");
@@ -489,7 +476,6 @@ namespace pvpgn
 		extern int clan_send_memberlist(t_connection * c, t_packet const *const packet)
 		{
 			t_packet * rpacket;
-			t_elem *curr;
 			char const *username;
 			t_clanmember *member;
 			t_clan *clan;
@@ -519,14 +505,15 @@ namespace pvpgn
 				packet_set_type(rpacket, SERVER_CLANMEMBERLIST_REPLY);
 				bn_int_set(&rpacket->u.server_clanmemberlist_reply.count,
 					bn_int_get(packet->u.client_clanmemberlist_req.count));
-				LIST_TRAVERSE(clan->members, curr)
+				for (t_clanmember* member_iter : clan->members)
 				{
-					if (!(member = (t_clanmember*)elem_get_data(curr)))
+					member = member_iter;
+					if (!member)
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "got NULL element in list");
 						continue;
 					}
-
+	
 					if (!(memberacc = (t_account*)member->memberacc))
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "member has NULL account");
@@ -734,13 +721,10 @@ namespace pvpgn
 			if (channel_get_permanent(channel))
 			{
 				/* If not in a private channel, retreive number of mutual friend connected */
-				t_list *flist = account_get_friends(conn_get_account(c));
-				t_elem const *curr;
-				t_friend *fr;
-
-				LIST_TRAVERSE_CONST(flist, curr)
+				auto& flist = account_get_friends(conn_get_account(c));
+				for (t_friend* fr : flist)
 				{
-					if ((fr = (t_friend*)elem_get_data(curr)) != NULL)
+					if (fr != nullptr)
 					{
 						t_account *fr_acc = friend_get_account(fr);
 						t_clienttag clienttag;
@@ -755,9 +739,9 @@ namespace pvpgn
 						{
 							friend_count++;
 							packet_append_string(rpacket, username);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
 							v3_friend_names.emplace_back(username);
-#endif
+	#endif
 						}
 					}
 				}
@@ -854,13 +838,11 @@ namespace pvpgn
 					        v3_buf, sizeof(v3_buf), &v3_size) == 1)
 					{
 						int all_ok = 1;
-						t_elem *curr_v3;
-						LIST_TRAVERSE(member->clan->members, curr_v3)
+						for (t_clanmember* m_v3 : member->clan->members)
 						{
-							t_clanmember *m_v3;
 							t_connection *c_v3;
 							t_clienttag    ct_v3;
-							if (!(m_v3 = (t_clanmember*)elem_get_data(curr_v3))) continue;
+							if (!m_v3) continue;
 							if (!(c_v3 = clanmember_get_conn(m_v3))) continue;
 							if (!(ct_v3 = conn_get_clienttag(c_v3))) continue;
 							if (ct_v3 != CLIENTTAG_WARCRAFT3_UINT && ct_v3 != CLIENTTAG_WAR3XP_UINT) continue;
@@ -928,13 +910,11 @@ namespace pvpgn
 					        v3_buf, sizeof(v3_buf), &v3_size) == 1)
 					{
 						int all_ok = 1;
-						t_elem *curr_v3;
-						LIST_TRAVERSE(member->clan->members, curr_v3)
+						for (t_clanmember* m_v3 : member->clan->members)
 						{
-							t_clanmember *m_v3;
 							t_connection *c_v3;
 							t_clienttag    ct_v3;
-							if (!(m_v3 = (t_clanmember*)elem_get_data(curr_v3))) continue;
+							if (!m_v3) continue;
 							if (!(c_v3 = clanmember_get_conn(m_v3))) continue;
 							if (!(ct_v3 = conn_get_clienttag(c_v3))) continue;
 							if (ct_v3 != CLIENTTAG_WARCRAFT3_UINT && ct_v3 != CLIENTTAG_WAR3XP_UINT) continue;
@@ -960,73 +940,38 @@ namespace pvpgn
 
 		extern int clan_unload_members(t_clan * clan)
 		{
-			t_elem *curr;
-			t_clanmember *member;
-
-			if (clan->members)
-			{
-				LIST_TRAVERSE(clan->members, curr)
-				{
-					if (!(member = (t_clanmember*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-						continue;
-					}
-					list_remove_elem(clan->members, &curr);
-					delete member;
-				}
-
-				if (list_destroy(clan->members) < 0)
-					return -1;
-
-				clan->members = NULL;
-			}
-
+			for (t_clanmember* member : clan->members)
+				delete member;
+			clan->members.clear();
 			return 0;
 		}
 
 		extern int clan_remove_all_members(t_clan * clan)
 		{
-			t_elem *curr;
-			t_clanmember *member;
-
-			if (clan->members)
+			for (t_clanmember* member : clan->members)
 			{
-				LIST_TRAVERSE(clan->members, curr)
-				{
-					if (!(member = (t_clanmember*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-						continue;
-					}
-					if (member->memberacc != NULL)
-						account_set_clanmember((t_account*)member->memberacc, NULL);
-					list_remove_elem(clan->members, &curr);
-					delete member;
-				}
-
-				if (list_destroy(clan->members) < 0)
-					return -1;
-
-				clan->members = NULL;
+				if (member->memberacc != NULL)
+					account_set_clanmember((t_account*)member->memberacc, NULL);
+				delete member;
 			}
-
+			clan->members.clear();
 			return 0;
 		}
 
 		extern int clanlist_remove_clan(t_clan * clan)
 		{
-			t_elem * elem;
 			if (clan == NULL)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "get NULL clan");
 				return -1;
 			}
-			if (list_remove_data(clanlist_head, clan, &elem) < 0)
+			auto it = std::find(clanlist_head.begin(), clanlist_head.end(), clan);
+			if (it == clanlist_head.end())
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not delete clan entry");
 				return -1;
 			}
+			clanlist_head.erase(it);
 			return 0;
 		}
 
@@ -1054,7 +999,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		extern t_list *clanlist(void)
+		extern const std::vector<t_clan*>& clanlist(void)
 		{
 			return clanlist_head;
 		}
@@ -1070,7 +1015,7 @@ namespace pvpgn
 			if (!(clan->clanid))
 				clan->clanid = ++max_clanid;
 
-			list_append_data(clanlist_head, clan);
+			clanlist_head.push_back(clan);
 
 			return clan->clanid;
 		}
@@ -1078,10 +1023,8 @@ namespace pvpgn
 		int clanlist_load(void)
 		{
 			// make sure to unload previous clanlist before loading again
-			if (clanlist_head)
+			if (!clanlist_head.empty())
 				clanlist_unload();
-
-			clanlist_head = list_create();
 
 			storage->load_clans(_cb_load_clans);
 
@@ -1090,22 +1033,15 @@ namespace pvpgn
 
 		extern int clanlist_save(void)
 		{
-			t_elem *curr;
-			t_clan *clan;
-
-			if (clanlist_head)
+			for (t_clan* clan : clanlist_head)
 			{
-				LIST_TRAVERSE(clanlist_head, curr)
+				if (!clan)
 				{
-					if (!(clan = (t_clan*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-						continue;
-					}
-					if (clan->modified)
-						clan_save(clan);
+					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
+					continue;
 				}
-
+				if (clan->modified)
+					clan_save(clan);
 			}
 
 			return 0;
@@ -1113,55 +1049,37 @@ namespace pvpgn
 
 		extern int clanlist_unload(void)
 		{
-			t_elem *curr;
-			t_clan *clan;
-
-			if (clanlist_head)
+			for (t_clan* clan : clanlist_head)
 			{
-				LIST_TRAVERSE(clanlist_head, curr)
+				if (!clan)
 				{
-					if (!(clan = (t_clan*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-						continue;
-					}
-					if (clan->clanname)
-						delete[] const_cast<char*>(clan->clanname);
-					if (clan->clan_motd)
-						delete[] const_cast<char*>(clan->clan_motd);
-					clan_unload_members(clan);
-					delete clan;
-					list_remove_elem(clanlist_head, &curr);
+					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
+					continue;
 				}
-
-				if (list_destroy(clanlist_head) < 0)
-					return -1;
-
-				clanlist_head = NULL;
+				if (clan->clanname)
+					delete[] const_cast<char*>(clan->clanname);
+				if (clan->clan_motd)
+					delete[] const_cast<char*>(clan->clan_motd);
+				clan_unload_members(clan);
+				delete clan;
 			}
+			clanlist_head.clear();
 
 			return 0;
 		}
 
 		extern t_clan *clanlist_find_clan_by_clanid(unsigned cid)
 		{
-			t_elem *curr;
-			t_clan *clan;
-
-			if (clanlist_head)
+			for (t_clan* clan : clanlist_head)
 			{
-				LIST_TRAVERSE(clanlist_head, curr)
+				if (!clan)
 				{
-					if (!(clan = (t_clan*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-						continue;
-					}
-					eventlog(eventlog_level_trace, __FUNCTION__, "trace {}", clan->clanid);
-					if (clan->created && (clan->clanid == cid))
-						return clan;
+					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
+					continue;
 				}
-
+				eventlog(eventlog_level_trace, __FUNCTION__, "trace {}", clan->clanid);
+				if (clan->created && (clan->clanid == cid))
+					return clan;
 			}
 
 			return NULL;
@@ -1169,29 +1087,21 @@ namespace pvpgn
 
 		extern t_clan *clanlist_find_clan_by_clantag(t_clantag clantag)
 		{
-			t_elem *curr;
-			t_clan *clan;
-			char * needle;
-
 			if (clantag == 0)
 				return NULL;
 
-			needle = cl_strdup(clantag_to_str(clantag));
-			if (clanlist_head)
+			char * needle = cl_strdup(clantag_to_str(clantag));
+			for (t_clan* clan : clanlist_head)
 			{
-				LIST_TRAVERSE(clanlist_head, curr)
+				if (!clan)
 				{
-					if (!(clan = (t_clan*)elem_get_data(curr)))
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-						continue;
-					}
-					if (clan->created && !strcasecmp(needle, clantag_to_str(clan->tag))) {
-						delete[] needle;
-						return clan;
-					}
+					eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
+					continue;
 				}
-
+				if (clan->created && !strcasecmp(needle, clantag_to_str(clan->tag))) {
+					delete[] needle;
+					return clan;
+				}
 			}
 
 			delete[] needle;
@@ -1200,21 +1110,14 @@ namespace pvpgn
 
 		extern t_clanmember *clan_find_member(t_clan * clan, t_account * memberacc)
 		{
-			t_clanmember *member;
-			t_elem *curr;
 			if (!(clan))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL clan");
 				return NULL;
 			}
-			if (!(clan->members))
+			for (t_clanmember* member : clan->members)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "found NULL clan->members");
-				return NULL;
-			}
-			LIST_TRAVERSE(clan->members, curr)
-			{
-				if (!(member = (t_clanmember*)elem_get_data(curr)))
+				if (!member)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "got NULL element in list");
 					return NULL;
@@ -1228,21 +1131,14 @@ namespace pvpgn
 
 		extern t_clanmember *clan_find_member_by_name(t_clan * clan, char const *membername)
 		{
-			t_clanmember *member;
-			t_elem *curr;
 			if (!(clan))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL clan");
 				return NULL;
 			}
-			if (!(clan->members))
+			for (t_clanmember* member : clan->members)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "found NULL clan->members");
-				return NULL;
-			}
-			LIST_TRAVERSE(clan->members, curr)
-			{
-				if (!(member = (t_clanmember*)elem_get_data(curr)))
+				if (!member)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "got NULL element in list");
 					return NULL;
@@ -1256,21 +1152,14 @@ namespace pvpgn
 
 		extern t_clanmember *clan_find_member_by_uid(t_clan * clan, unsigned int memberuid)
 		{
-			t_clanmember *member;
-			t_elem *curr;
 			if (!(clan))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL clan");
 				return NULL;
 			}
-			if (!(clan->members))
+			for (t_clanmember* member : clan->members)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "found NULL clan->members");
-				return NULL;
-			}
-			LIST_TRAVERSE(clan->members, curr)
-			{
-				if (!(member = (t_clanmember*)elem_get_data(curr)))
+				if (!member)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "got NULL element in list");
 					return NULL;
@@ -1566,12 +1455,13 @@ namespace pvpgn
 			return 0;
 		}
 
-		extern t_list *clan_get_members(t_clan * clan)
+		extern std::vector<t_clanmember*>& clan_get_members(t_clan * clan)
 		{
+			static std::vector<t_clanmember*> empty;
 			if (!(clan))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL clan");
-				return NULL;
+				return empty;
 			}
 
 			return clan->members;
@@ -1676,12 +1566,6 @@ namespace pvpgn
 				return NULL;
 			}
 
-			if (!(clan->members))
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "found NULL clan->members");
-				return NULL;
-			}
-
 			member = new t_clanmember{};
 			member->memberacc = memberacc;
 			member->status = status;
@@ -1692,7 +1576,7 @@ namespace pvpgn
 			member->modified = 1;
 #endif
 
-			list_append_data(clan->members, member);
+			clan->members.push_back(member);
 
 			account_set_clanmember(memberacc, member);
 
@@ -1703,15 +1587,15 @@ namespace pvpgn
 
 		extern int clan_remove_member(t_clan * clan, t_clanmember * member)
 		{
-			t_elem * elem;
-
 			if (!member)
 				return -1;
-			if (list_remove_data(clan->members, member, &elem) < 0)
+			auto it = std::find(clan->members.begin(), clan->members.end(), member);
+			if (it == clan->members.end())
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not remove member");
 				return -1;
 			}
+			clan->members.erase(it);
 			if (member->memberacc != NULL)
 			{
 				account_set_clanmember((t_account*)member->memberacc, NULL);
@@ -1753,8 +1637,6 @@ namespace pvpgn
 			clan->modified = 1;
 			clan->channel_type = prefs_get_clan_channel_default_private();
 
-			clan->members = list_create();
-
 			member->memberacc = chieftain_acc;
 			member->status = CLAN_CHIEFTAIN;
 			member->join_time = clan->creation_time;
@@ -1764,7 +1646,7 @@ namespace pvpgn
 			member->modified = 1;
 #endif
 
-			list_append_data(clan->members, member);
+			clan->members.push_back(member);
 
 			account_set_clanmember(chieftain_acc, member);
 
@@ -1786,14 +1668,7 @@ namespace pvpgn
 
 		extern unsigned clan_get_member_count(t_clan * clan)
 		{
-			t_elem *curr;
-			unsigned count = 0;
-			LIST_TRAVERSE(clan->members, curr)
-			{
-				if ((elem_get_data(curr)) != NULL)
-					count++;
-			}
-			return count;
+			return static_cast<unsigned>(clan->members.size());
 		}
 
 		extern t_clantag str_to_clantag(const char *str)

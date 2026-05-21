@@ -30,7 +30,6 @@
 #include "common/eventlog.h"
 #include "common/introtate.h"
 #include "common/addr.h"
-#include "common/xalloc.h"
 #include "common/network.h"
 #include "common/xstring.h"
 #include "prefs.h"

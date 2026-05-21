@@ -27,7 +27,6 @@
 #include <strings.h>
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/xstring.h"
 #include "common/setup_after.h"
 

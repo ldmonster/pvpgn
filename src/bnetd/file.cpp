@@ -23,6 +23,10 @@
 #include <cerrno>
 #include <string>
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+# include "integration/legacy_bnetd/send_file_bridge.hpp"
+#endif
+
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -34,7 +38,6 @@
 #endif
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/bnettime.h"
 #include "common/packet.h"
 #include "common/util.h"
@@ -207,11 +210,14 @@ namespace pvpgn
 				return -1;
 			}
 
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+			pvpgn_v3_observe_file_send(c, nullptr);
+	#endif
 			if (!(rpacket = packet_create(packet_class_file)))
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create file packet");
-				return -1;
-			}
+				{
+					eventlog(eventlog_level_error, __FUNCTION__, "could not create file packet");
+					return -1;
+				}
 			packet_set_size(rpacket, sizeof(t_server_file_reply));
 			packet_set_type(rpacket, SERVER_FILE_REPLY);
 
@@ -271,9 +277,12 @@ namespace pvpgn
 			eventlog(eventlog_level_info, __FUNCTION__, "[{}] sending file \"{}\" (\"{}\") of length {}", conn_get_socket(c), rawname, filename.c_str(), filelen);
 			for (;;)
 			{
+	#ifdef PVPGN_V3_BNETD_INTEGRATION
+				pvpgn_v3_observe_file_raw_send(c, nullptr);
+	#endif
 				if (!(rpacket = packet_create(packet_class_raw)))
-				{
-					eventlog(eventlog_level_error, __FUNCTION__, "could not create raw packet");
+					{
+						eventlog(eventlog_level_error, __FUNCTION__, "could not create raw packet");
 					if (std::fclose(fp) < 0)
 						eventlog(eventlog_level_error, __FUNCTION__, "could not close file \"{}\" after reading (std::fclose: {})", filename.c_str(), std::strerror(errno));
 					return -1;

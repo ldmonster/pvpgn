@@ -28,7 +28,7 @@
 
 #include <cstring>
 #include <strings.h>
-#include "compat/pdir.h"
+#include "infra/compat/directory.hpp"
 #include "common/list.h"
 #include "common/elist.h"
 #include "common/eventlog.h"
@@ -52,7 +52,6 @@
 #include "attrlayer.h"
 #include "storage.h"
 #include "common/flags.h"
-#include "common/xalloc.h"
 #include "common/xstring.h"
 #include "common/setup_after.h"
 
@@ -130,7 +129,7 @@ namespace pvpgn
 			account->name = NULL;
 			account->clanmember = NULL;
 			account->attrgroup = NULL;
-			account->friends = NULL;
+			/* account->friends is std::vector, default-initialized to empty */
 			account->teams = NULL;
 			account->conn = NULL;
 			FLAG_ZERO(&account->flags);
@@ -190,7 +189,7 @@ namespace pvpgn
 		{
 			assert(account);
 
-			friendlist_close(account->friends);
+			friendlist_close(account->friends);  // clears the vector
 			teams_destroy(account->teams);
 			if (account->attrgroup)
 				attrgroup_destroy(account->attrgroup);
@@ -785,7 +784,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			if (account->friends != NULL)
+			if (FLAG_ISSET(account->flags, ACCOUNT_FLAG_FLOADED))
 			{
 				t_friend * fr;
 				if ((fr = friendlist_find_uid(account->friends, myuserid)) != NULL)
@@ -816,19 +815,20 @@ namespace pvpgn
 			return -1;
 		}
 
-		extern t_list * account_get_friends(t_account * account)
+		extern std::vector<t_friend*>& account_get_friends(t_account * account)
 		{
+			static std::vector<t_friend*> empty;
 			if (!account)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL account");
-				return NULL;
+				return empty;
 			}
 
 			if (!FLAG_ISSET(account->flags, ACCOUNT_FLAG_FLOADED))
 			if (account_load_friends(account) < 0)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not load friend list");
-				return NULL;
+				return empty;
 			}
 
 			return account->friends;
@@ -842,7 +842,7 @@ namespace pvpgn
 			t_account * acc;
 			t_friend * fr;
 
-			int newlist = 0;
+			bool newlist = false;
 			if (!account)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL account");
@@ -852,11 +852,8 @@ namespace pvpgn
 			if (FLAG_ISSET(account->flags, ACCOUNT_FLAG_FLOADED))
 				return 0;
 
-			if (account->friends == NULL)
-			{
-				account->friends = list_create();
-				newlist = 1;
-			}
+			if (account->friends.empty())
+				newlist = true;
 
 			n = account_get_friendcount(account);
 			for (i = 0; i < n; i++)
@@ -903,7 +900,7 @@ namespace pvpgn
 
 		static int account_unload_friends(t_account * account)
 		{
-			if (account->friends != nullptr && friendlist_unload(account->friends) < 0)
+			if (friendlist_unload(account->friends) < 0)
 				return -1;
 			FLAG_CLEAR(&account->flags, ACCOUNT_FLAG_FLOADED);
 			return 0;

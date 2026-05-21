@@ -21,16 +21,15 @@
 
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 #include <strings.h>
 #include "common/eventlog.h"
-#include "common/list.h"
 #include "common/bnet_protocol.h"
 #include "account.h"
 #include "account_wrap.h"
 #include "common/bn_type.h"
 #include "common/util.h"
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 
@@ -50,7 +49,7 @@ namespace pvpgn
 			std::memcpy(r, s, n);
 			return r;
 		}
-		static t_list * characterlist_head = NULL;
+		static std::vector<t_character*> characterlist;
 
 
 		static t_character_class bncharacter_class_to_character_class(std::uint8_t cclass)
@@ -466,46 +465,22 @@ namespace pvpgn
 
 		extern int characterlist_create(char const * dirname)
 		{
-			characterlist_head = list_create();
+			characterlist.clear();
 			return 0;
 		}
 
 
 		extern int characterlist_destroy(void)
 		{
-			t_elem *      curr;
-			t_character * ch;
-
-			if (characterlist_head)
-			{
-				LIST_TRAVERSE(characterlist_head, curr)
-				{
-					ch = (t_character*)elem_get_data(curr);
-					if (!ch) /* should not happen */
-					{
-						eventlog(eventlog_level_error, __FUNCTION__, "characterlist contains NULL item");
-						continue;
-					}
-
-					if (list_remove_elem(characterlist_head, &curr) < 0)
-						eventlog(eventlog_level_error, __FUNCTION__, "could not remove item from list");
-					delete ch;
-				}
-
-				if (list_destroy(characterlist_head) < 0)
-					return -1;
-				characterlist_head = NULL;
-			}
-
+			for (t_character* ch : characterlist)
+				delete ch;
+			characterlist.clear();
 			return 0;
 		}
 
 
 		extern t_character * characterlist_find_character(char const * realmname, char const * charname)
 		{
-			t_elem *      curr;
-			t_character * ch;
-
 			if (!realmname)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got NULL realmname");
@@ -517,9 +492,8 @@ namespace pvpgn
 				return NULL;
 			}
 
-			LIST_TRAVERSE(characterlist_head, curr)
+			for (t_character* ch : characterlist)
 			{
-				ch = (t_character*)elem_get_data(curr);
 				if (strcasecmp(ch->name, charname) == 0 && strcasecmp(ch->realmname, realmname) == 0)
 					return ch;
 			}

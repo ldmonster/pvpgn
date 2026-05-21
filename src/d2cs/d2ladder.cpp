@@ -28,7 +28,6 @@
 
 #include <strings.h>
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/tag.h"
 #include "prefs.h"
 #include "d2charfile.h"

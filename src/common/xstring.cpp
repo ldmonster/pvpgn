@@ -28,7 +28,6 @@
 #include <iomanip>
 
 #include <strings.h>
-#include "common/xalloc.h"
 #include "common/setup_after.h"
 
 namespace pvpgn

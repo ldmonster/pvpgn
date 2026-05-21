@@ -22,7 +22,6 @@
 #include <ctime>
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 /*
 #include "common/packet.h"
 #include "common/list.h"

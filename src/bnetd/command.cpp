@@ -49,7 +49,6 @@
 #include "common/proginfo.h"
 #include "common/queue.h"
 #include "common/bn_type.h"
-#include "common/xalloc.h"
 #include "common/xstr.h"
 #include "common/trans.h"
 #include "common/lstr.h"
@@ -1515,7 +1514,6 @@ namespace pvpgn
 				t_game * game;
 				t_channel * channel;
 				char stat;
-				t_list * flist;
 				t_friend * fr;
 
 				if (args[2].empty()) {
@@ -1575,7 +1573,7 @@ namespace pvpgn
 				{
 					bn_int_set(&status.clienttag, conn_get_clienttag(dest_c));
 					stat = 0;
-					flist = account_get_friends(my_acc);
+					auto& flist = account_get_friends(my_acc);
 					fr = friendlist_find_account(flist, friend_acc);
 					if ((friend_get_mutual(fr)))    stat |= FRIEND_TYPE_MUTUAL;
 					if ((conn_get_dndstr(dest_c)))  stat |= FRIEND_TYPE_DND;
@@ -1629,28 +1627,19 @@ namespace pvpgn
 				char const *msg;
 				int cnt = 0;
 				t_connection * dest_c;
-				t_elem  * curr;
 				t_friend * fr;
-				t_list  * flist;
-
+	
 				if (args[2].empty()) {
 					describe_command(c, args[0].c_str());
 					return -1;
 				}
 				msg = args[2].c_str(); // message
-
-				flist = account_get_friends(my_acc);
-				if (flist == NULL)
-					return -1;
-
-				LIST_TRAVERSE(flist, curr)
+	
+				auto& flist2 = account_get_friends(my_acc);
+				for (t_friend* fr2 : flist2)
 				{
-					if (!(fr = (t_friend*)elem_get_data(curr))) {
-						eventlog(eventlog_level_error, __FUNCTION__, "found NULL entry in list");
-						continue;
-					}
-					if (friend_get_mutual(fr)) {
-						dest_c = connlist_find_connection_by_account(friend_get_account(fr));
+					if (friend_get_mutual(fr2)) {
+						dest_c = connlist_find_connection_by_account(friend_get_account(fr2));
 						if (!dest_c) continue;
 						message_send_text(dest_c, message_type_whisper, c, msg);
 						cnt++;
@@ -1707,22 +1696,21 @@ namespace pvpgn
 				int n;
 				char const * dest_name;
 				t_packet * rpacket;
-				t_list * flist;
 				t_friend * fr;
 				t_account * dest_acc;
 				unsigned int dest_uid;
-
+	
 				if (args[2].empty()) {
 					describe_command(c, args[0].c_str());
 					return -1;
 				}
 				text = args[2].c_str(); // username
-
+	
 				num = account_get_friendcount(my_acc);
-				flist = account_get_friends(my_acc);
+				auto& flist_p = account_get_friends(my_acc);
 				for (n = 1; n < num; n++)
 				if ((dest_uid = account_get_friend(my_acc, n)) &&
-					(fr = friendlist_find_uid(flist, dest_uid)) &&
+					(fr = friendlist_find_uid(flist_p, dest_uid)) &&
 					(dest_acc = friend_get_account(fr)) &&
 					(dest_name = account_get_name(dest_acc)) &&
 					(strcasecmp(dest_name, text) == 0))
@@ -1758,22 +1746,21 @@ namespace pvpgn
 				int n;
 				char const * dest_name;
 				t_packet * rpacket;
-				t_list * flist;
 				t_friend * fr;
 				t_account * dest_acc;
 				unsigned int dest_uid;
-
+	
 				if (args[2].empty()) {
 					describe_command(c, args[0].c_str());
 					return -1;
 				}
 				text = args[2].c_str(); // username
-
+	
 				num = account_get_friendcount(my_acc);
-				flist = account_get_friends(my_acc);
+				auto& flist_d = account_get_friends(my_acc);
 				for (n = 0; n < num - 1; n++)
 				if ((dest_uid = account_get_friend(my_acc, n)) &&
-					(fr = friendlist_find_uid(flist, dest_uid)) &&
+					(fr = friendlist_find_uid(flist_d, dest_uid)) &&
 					(dest_acc = friend_get_account(fr)) &&
 					(dest_name = account_get_name(dest_acc)) &&
 					(strcasecmp(dest_name, text) == 0))
@@ -1812,11 +1799,10 @@ namespace pvpgn
 				t_game const * game;
 				t_channel const * channel;
 				t_friend * fr;
-				t_list  * flist;
 				int num;
 				unsigned int uid;
 				bool online_only = false;
-
+	
 				if (args[1] == "online" || args[1] == "o")
 				{
 					online_only = true;
@@ -1833,12 +1819,12 @@ namespace pvpgn
 				}
 				message_send_text(c, message_type_info, c, "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
 				num = account_get_friendcount(my_acc);
-
-				flist = account_get_friends(my_acc);
-				if (flist != NULL) {
+	
+				auto& flist_l = account_get_friends(my_acc);
+				if (!flist_l.empty()) {
 					for (i = 0; i < num; i++)
 					{
-						if ((!(uid = account_get_friend(my_acc, i))) || (!(fr = friendlist_find_uid(flist, uid))))
+						if ((!(uid = account_get_friend(my_acc, i))) || (!(fr = friendlist_find_uid(flist_l, uid))))
 						{
 							eventlog(eventlog_level_error, __FUNCTION__, "friend uid in list");
 							continue;
@@ -2772,7 +2758,6 @@ namespace pvpgn
 			t_realm * realm;
 			t_realm * trealm;
 			t_connection * tc;
-			t_elem const * curr;
 			t_message    * message;
 
 			if (!(realm = conn_get_realm(c))) {
@@ -2797,9 +2782,8 @@ namespace pvpgn
 			}
 			else
 			{
-				LIST_TRAVERSE_CONST(connlist(), curr)
+				for (t_connection * tc : connlist())
 				{
-					tc = (t_connection*)elem_get_data(curr);
 					if (!tc)
 						continue;
 					if ((trealm = conn_get_realm(tc)) && (trealm == realm))
@@ -2942,8 +2926,6 @@ namespace pvpgn
 		static int _handle_lusers_command(t_connection * c, char const *text)
 		{
 			t_channel *    channel;
-			t_elem const * curr;
-			char const *   banned;
 			unsigned int   i;
 
 			if (!(channel = conn_get_channel(c)))
@@ -2954,15 +2936,14 @@ namespace pvpgn
 
 			std::snprintf(msgtemp0, sizeof msgtemp0, "%s", localize(c, "Banned users:").c_str());
 			i = std::strlen(msgtemp0);
-			LIST_TRAVERSE_CONST(channel_get_banlist(channel), curr)
+			for (const auto& banned : channel_get_banlist(channel))
 			{
-				banned = (char*)elem_get_data(curr);
-				if (i + std::strlen(banned) + 2 > sizeof(msgtemp0)) /* " ", name, '\0' */
+				if (i + banned.size() + 2 > sizeof(msgtemp0)) /* " ", name, '\0' */
 				{
 					message_send_text(c, message_type_info, c, msgtemp0);
 					i = 0;
 				}
-				std::sprintf(&msgtemp0[i], " %s", banned);
+				std::sprintf(&msgtemp0[i], " %s", banned.c_str());
 				i += std::strlen(&msgtemp0[i]);
 			}
 			if (i > 0)
@@ -3143,8 +3124,6 @@ namespace pvpgn
 
 		static int _handle_channels_command(t_connection * c, char const *text)
 		{
-			t_elem const *    curr;
-			t_channel const * channel;
 			t_clienttag       clienttag;
 			t_connection const * conn;
 			t_account * acc;
@@ -3183,9 +3162,8 @@ namespace pvpgn
 
 			msgtemp = localize(c, " -----------name----------- users ----admin/operator----");
 			message_send_text(c, message_type_info, c, msgtemp);
-			LIST_TRAVERSE_CONST(channellist(), curr)
+			for (t_channel const* channel : channellist())
 			{
-				channel = (t_channel*)elem_get_data(curr);
 				if ((!(channel_get_flags(channel) & channel_flags_clan)) && (!clienttag || !prefs_get_hide_temp_channels() || channel_get_permanent(channel)) &&
 					(!clienttag || !channel_get_clienttag(channel) ||
 					channel_get_clienttag(channel) == clienttag) &&
@@ -3365,7 +3343,6 @@ namespace pvpgn
 
 		static int _handle_connections_command(t_connection *c, char const *text)
 		{
-			t_elem const * curr;
 			t_connection * conn;
 			char           name[19];
 			char const *   channel_name;
@@ -3402,9 +3379,9 @@ namespace pvpgn
 				return -1;
 			}
 
-			LIST_TRAVERSE_CONST(connlist(), curr)
+			for (t_connection * conn_it : connlist())
 			{
-				conn = (t_connection*)elem_get_data(curr);
+				conn = conn_it;
 				std::snprintf(name, sizeof name, "%s", conn_get_account(conn) ? conn_get_username(conn) : "(none)");
 
 				if (conn_get_channel(conn) != NULL)
@@ -3623,15 +3600,14 @@ namespace pvpgn
 		static int _handle_admins_command(t_connection * c, char const *text)
 		{
 			unsigned int    i;
-			t_elem const *  curr;
 			t_connection *  tc;
 			char const *    nick;
 
 			std::snprintf(msgtemp0, sizeof msgtemp0, "%s", localize(c, "Currently logged on Administrators:").c_str());
 			i = std::strlen(msgtemp0);
-			LIST_TRAVERSE_CONST(connlist(), curr)
+			for (t_connection * tc_it : connlist())
 			{
-				tc = (t_connection*)elem_get_data(curr);
+				tc = tc_it;
 				if (!tc)
 					continue;
 				if (!conn_get_account(tc))
@@ -4695,10 +4671,9 @@ namespace pvpgn
 
 			message_send_text(c, message_type_info, c, localize(c, "Scanning online users for IP {}...", ip));
 
-			t_elem const * curr;
 			int count = 0;
-			LIST_TRAVERSE_CONST(connlist(), curr) {
-				conn = (t_connection *)elem_get_data(curr);
+			for (t_connection * conn_it : connlist()) {
+				conn = conn_it;
 				if (!conn) {
 					// got empty element
 					continue;
@@ -5288,11 +5263,10 @@ namespace pvpgn
 			msgtemp = localize(c, " for {}", prefs_get_servername());
 
 			t_connection * conn;
-			t_elem const * curr;
 			// send to online users
-			LIST_TRAVERSE_CONST(connlist(), curr)
+			for (t_connection * conn_it : connlist())
 			{
-				if (conn = (t_connection*)elem_get_data(curr))
+				if ((conn = conn_it) != nullptr)
 				{
 					clienttag_dest = conn_get_clienttag(conn);
 

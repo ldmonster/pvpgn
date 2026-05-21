@@ -19,14 +19,7 @@
 #define INCLUDED_QUOTA_TYPES
 
 #include <ctime>
-
-#ifdef JUST_NEED_TYPES
-# include "common/list.h"
-#else
-# define JUST_NEED_TYPES
-# include "common/list.h"
-# undef JUST_NEED_TYPES
-#endif
+#include <deque>
 
 namespace pvpgn
 {
@@ -42,8 +35,8 @@ namespace pvpgn
 
 		typedef struct
 		{
-			unsigned int totcount;
-			t_list *     list;
+			unsigned int          totcount;
+			std::deque<t_qline>   list;
 		} t_quota;
 
 	}

@@ -21,7 +21,6 @@
 # include <sqlite3.h>
 #include <cstdlib>
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "storage_sql.h"
 #include "sql_sqlite3.h"
 #include "common/setup_after.h"

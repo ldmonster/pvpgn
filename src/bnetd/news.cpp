@@ -26,7 +26,6 @@
 #include <cassert>
 
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/tag.h"
 #include "i18n.h"
 

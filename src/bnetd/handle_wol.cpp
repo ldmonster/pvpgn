@@ -63,6 +63,9 @@
 // handle_wol_log_command / handle_wol_welcome. Returns 0; legacy
 // path always runs.
 extern "C" int pvpgn_v3_wol_dispatch_try(void* conn_ptr, char const* op) noexcept;
+// Send-bridge: encodes a raw-text packet and dispatches via send_packet handler.
+// Returns 1 (handled), 0 (fall through), -1 (error).
+extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
 #endif
 
 namespace pvpgn
@@ -579,7 +582,6 @@ namespace pvpgn
 		static int _handle_list_command(t_connection * conn, int numparams, char ** params, char * text)
 		{
 			char temp[MAX_IRC_MESSAGE_LEN];
-			t_elem const * curr;
 
 			irc_send(conn, RPL_LISTSTART, "Channel :Users Names"); /* backward compatibility */
 
@@ -591,8 +593,7 @@ namespace pvpgn
 				 * DUNE 2000 use params[0] to determine channels by channeltype
 				 */
 
-				LIST_TRAVERSE_CONST(channellist(), curr) {
-					t_channel const * channel = (const t_channel*)elem_get_data(curr);
+				for (t_channel const* channel : channellist()) {
 					char const * tempname;
 
 					tempname = irc_convert_channel(channel, conn);
@@ -1123,7 +1124,7 @@ namespace pvpgn
 					}
 					else {
 						t_game * game = conn_get_game(conn);
-						t_channel * channel = channel_create(gamename, gamename, 0, 0, 1, 1, prefs_get_chanlog(), NULL, NULL, (prefs_get_maxusers_per_channel() > 0) ? prefs_get_maxusers_per_channel() : -1, 0, 0, 0, NULL);
+						t_channel * channel = channel_create(gamename, gamename, 0, 0, 1, 1, prefs_get_chanlog(), NULL, NULL, (prefs_get_maxusers_per_channel() > 0) ? prefs_get_maxusers_per_channel() : -1, 0, 0, 0);
 						game_set_channel(game, channel);
 						conn_set_channel_var(conn, channel);
 						channel_add_connection(channel, conn);
@@ -1440,7 +1441,6 @@ namespace pvpgn
 			char const * friend_name;
 			t_account * my_acc;
 			t_account * friend_acc;
-			t_list * flist;
 			t_friend * fr;
 			int num;
 			unsigned int uid;
@@ -1459,10 +1459,10 @@ namespace pvpgn
 
 			my_acc = conn_get_account(conn);
 			num = account_get_friendcount(my_acc);
-
-			flist = account_get_friends(my_acc);
-
-			if (flist != NULL) {
+	
+			auto& flist = account_get_friends(my_acc);
+	
+			if (!flist.empty()) {
 				for (i = 0; i < num; i++) {
 					if ((!(uid = account_get_friend(my_acc, i))) || (!(fr = friendlist_find_uid(flist, uid)))) {
 						eventlog(eventlog_level_error, __FUNCTION__, "friend uid in list");
@@ -1649,30 +1649,38 @@ namespace pvpgn
 			char data[MAX_IRC_MESSAGE_LEN + 1];
 			unsigned len = 0;
 
-			t_packet* const p = packet_create(packet_class_raw);
-			if (!p)
-			{
-				return -1;
-			}
-
 			if (command)
 				len = (std::strlen(command) + 6);
 
 			if (len > MAX_IRC_MESSAGE_LEN)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "message to send is too large ({} bytes)", len);
-				packet_del_ref(p);
 				return -1;
 			}
-			
 
 			std::sprintf(data, "\r\n\r\n\r\n%s", command);
-
-			packet_set_size(p, 0);
-			packet_append_data(p, data, len);
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] sent \"{}\"", conn_get_socket(conn), data);
-			conn_push_outqueue(conn, p);
-			packet_del_ref(p);
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			{
+				int const _rc = pvpgn_v3_send_raw_text(conn, data);
+				if (_rc == 1) goto handle_wol_ladder_send_skip_legacy;
+				if (_rc == -1) return -1;
+			}
+#endif
+			{
+				t_packet* const p = packet_create(packet_class_raw);
+				if (!p)
+				{
+					return -1;
+				}
+				packet_set_size(p, 0);
+				packet_append_data(p, data, len);
+				conn_push_outqueue(conn, p);
+				packet_del_ref(p);
+			}
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			handle_wol_ladder_send_skip_legacy:;
+#endif
 
 			/* In ladder server we must destroy connection after send packet */
 			conn_set_state(conn, conn_state_destroy);

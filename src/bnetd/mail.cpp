@@ -32,7 +32,6 @@
 #include <strings.h>
 #include "compat/mkdir.h"
 #include "common/eventlog.h"
-#include "common/xalloc.h"
 #include "common/xstring.h"
 #include "account.h"
 #include "message.h"
@@ -88,8 +87,12 @@ namespace pvpgn
 			}
 
 		Mailbox::Mailbox(unsigned uid_)
-			:uid(uid_), path(buildPath(prefs_get_maildir())), mdir(path, true)
+			:uid(uid_), path(buildPath(prefs_get_maildir()))
 		{
+			// Lazy open: try to open the directory; if it doesn't exist yet,
+			// mdir_ stays nullopt and createOpenDir() will create it on demand.
+			namespace dir = pvpgn::v3::infra::compat;
+			mdir_ = dir::open_directory(path);
 		}
 
 		std::string
@@ -105,7 +108,11 @@ namespace pvpgn
 		{
 				p_mkdir(prefs_get_maildir());
 				p_mkdir(path.c_str());
-				mdir.open(path, false);
+				namespace dir = pvpgn::v3::infra::compat;
+				mdir_ = dir::open_directory(path);
+				if (!mdir_) {
+					throw DeliverError("could not open directory: " + path);
+				}
 			}
 
 		Mailbox::~Mailbox() throw()
@@ -115,32 +122,37 @@ namespace pvpgn
 		unsigned
 			Mailbox::size() const
 		{
-				mdir.rewind();
+				if (!mdir_) return 0;
+				mdir_->rewind();
 
 				unsigned count = 0;
-				while ((mdir.read())) count++;
+				namespace dir = pvpgn::v3::infra::compat;
+				while (dir::read_directory(*mdir_)) count++;
 				return count;
 			}
 
 		bool
 			Mailbox::empty() const
 		{
-				mdir.rewind();
+				if (!mdir_) return true;
+				mdir_->rewind();
 
-				if (mdir.read()) return false;
+				namespace dir = pvpgn::v3::infra::compat;
+				if (dir::read_directory(*mdir_)) return false;
 				return true;
 			}
 
 		void
 			Mailbox::deliver(const std::string& sender, const std::string& mess)
 		{
-				if (!mdir)
+				if (!mdir_) {
 					try {
-					createOpenDir();
-				}
-				catch (const Directory::OpenError&) {
-					ERROR1("could not (re)open directory: '{}'", path.c_str());
-					throw DeliverError("could not (re)open directory: " + path);
+						createOpenDir();
+					}
+					catch (const DeliverError&) {
+						ERROR1("could not (re)open directory: '{}'", path.c_str());
+						throw;
+					}
 				}
 
 				std::ostringstream ostr;
@@ -176,36 +188,48 @@ namespace pvpgn
 		Mail
 			Mailbox::read(unsigned int idx) const
 		{
-				mdir.rewind();
-				const char * dentry = mdir.read();
-				for (unsigned i = 0; i < idx && (dentry = mdir.read());)
-				if (dentry[0] != '.') ++i;
-				if (!dentry) {
+				if (!mdir_) {
+					INFO0("mail not found");
+					throw ReadError("mail not found");
+				}
+				namespace dir = pvpgn::v3::infra::compat;
+				mdir_->rewind();
+				std::optional<pvpgn::v3::infra::compat::DirectoryEntry> entry;
+				unsigned i = 0;
+				while ((entry = dir::read_directory(*mdir_))) {
+					if (entry->name.string()[0] != '.') {
+						if (i == idx) break;
+						++i;
+					}
+				}
+				if (!entry) {
 					INFO0("mail not found");
 					throw ReadError("mail not found");
 				}
 
 				std::string fname(path);
 				fname += '/';
-				fname += dentry;
+				fname += entry->name.string();
 
-				return read(fname, std::atoi(dentry));
+				return read(fname, std::atoi(entry->name.string().c_str()));
 			}
 
 		void
 			Mailbox::readAll(MailList& dest) const
 		{
-				mdir.rewind();
+				if (!mdir_) return;
+				namespace dir = pvpgn::v3::infra::compat;
+				mdir_->rewind();
 
 				std::string fname(path);
 				fname += '/';
 
-				const char* dentry;
-				while ((dentry = mdir.read())) {
-					if (dentry[0] == '.') continue;
+				while (auto entry = dir::read_directory(*mdir_)) {
+					const std::string ename = entry->name.string();
+					if (ename[0] == '.') continue;
 
 					try {
-						dest.push_back(read(fname + dentry, std::atoi(dentry)));
+						dest.push_back(read(fname + ename, std::atoi(ename.c_str())));
 					}
 					catch (const ReadError&) {
 						/* ignore ReadError in reading a specific message and try to read as much as we can */
@@ -216,19 +240,29 @@ namespace pvpgn
 		void
 			Mailbox::erase(unsigned int idx)
 		{
-				mdir.rewind();
-				const char* dentry = mdir.read();
-				for (unsigned i = 0; i < idx && (dentry = mdir.read());)
-				if (dentry[0] != '.') ++i;
+				if (!mdir_) {
+					WARN0("index out of range");
+					return;
+				}
+				namespace dir = pvpgn::v3::infra::compat;
+				mdir_->rewind();
+				std::optional<pvpgn::v3::infra::compat::DirectoryEntry> entry;
+				unsigned i = 0;
+				while ((entry = dir::read_directory(*mdir_))) {
+					if (entry->name.string()[0] != '.') {
+						if (i == idx) break;
+						++i;
+					}
+				}
 
-				if (!dentry) {
+				if (!entry) {
 					WARN0("index out of range");
 					return;
 				}
 
 				std::string fname(path);
 				fname += '/';
-				fname += dentry;
+				fname += entry->name.string();
 
 				if (std::remove(fname.c_str()) < 0)
 					INFO2("could not remove file \"{}\" (std::remove: {})", fname.c_str(), std::strerror(errno));
@@ -237,14 +271,15 @@ namespace pvpgn
 		void
 			Mailbox::clear()
 		{
+				if (!mdir_) return;
+				namespace dir = pvpgn::v3::infra::compat;
 				std::string fname(path);
 				fname += '/';
 
-				mdir.rewind();
+				mdir_->rewind();
 
-				const char* dentry;
-				while ((dentry = mdir.read())) {
-					std::remove((fname + dentry).c_str());
+				while (auto entry = dir::read_directory(*mdir_)) {
+					std::remove((fname + entry->name.string()).c_str());
 				}
 			}
 
