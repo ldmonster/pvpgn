@@ -97,7 +97,7 @@ std::string format_iso8601_utc(core::SystemTime tp) {
 #else
     ::gmtime_r(&t, &tm_buf);
 #endif
-    char buf[32];
+    char buf[64];
     std::snprintf(buf, sizeof(buf),
                   "%04d-%02d-%02dT%02d:%02d:%02dZ",
                   tm_buf.tm_year + 1900, tm_buf.tm_mon + 1, tm_buf.tm_mday,

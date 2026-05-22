@@ -43,6 +43,16 @@ core::LogLevel levels_str_to_level(std::string_view levels) noexcept
 
 // ── section parsers ───────────────────────────────────────────────────────────
 
+void parse_server(const Config& cfg, ServerConfig& sc)
+{
+    if (auto sec = cfg.section("server")) {
+        if (auto name = sec->get<std::string>("name"))
+            sc.servername = *name;
+        if (auto script_dir = sec->get<std::string>("script_dir"))
+            sc.script_dir = *script_dir;
+    }
+}
+
 void parse_privileges(const Config& cfg, ServerConfig& sc)
 {
     if (auto sec = cfg.section("privileges")) {
@@ -128,7 +138,12 @@ void parse_localization(const Config& cfg, ServerConfig& sc)
 void parse_log(const Config& cfg, ServerConfig& sc)
 {
     if (auto sec = cfg.section("log")) {
-        sc.log.levels_str  = sec->get_or<std::string>("levels", sc.log.levels_str);
+        // Support both "level" (single) and "levels" (comma-separated list)
+        if (auto level = sec->get<std::string>("level")) {
+            sc.log.levels_str = *level;
+        } else {
+            sc.log.levels_str = sec->get_or<std::string>("levels", sc.log.levels_str);
+        }
         sc.log.level       = levels_str_to_level(sc.log.levels_str);
         sc.log.rotate_size = static_cast<std::size_t>(
             sec->get_or<std::int64_t>("rotate_size",
@@ -379,6 +394,7 @@ ServerConfig from_config(const Config& cfg)
     parse_account(cfg, sc);
     parse_tracking(cfg, sc);
     parse_network(cfg, sc);     // propagates servername to sc.servername
+    parse_server(cfg, sc);      // must come after parse_network to override servername
     parse_wol(cfg, sc);
     parse_irc(cfg, sc);
     parse_telnet(cfg, sc);
@@ -409,11 +425,20 @@ parse_server_config(std::string_view toml_text)
 core::Result<ServerConfig, core::Error>
 load_server_config(const std::filesystem::path& path)
 {
+    // Try to load the file
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return core::fail(core::Error{
+            core::StatusCode::NotFound,
+            "cannot open config file: " + path.string()});
+    }
+    
+    // File exists, now try to parse it
     auto cfg = Config::load_file(path.string());
     if (!cfg) {
         return core::fail(core::Error{
-            core::StatusCode::NotFound,
-            "cannot open or parse config file: " + path.string()});
+            core::StatusCode::InvalidArgument,
+            "TOML parse error in config file: " + path.string()});
     }
     return from_config(*cfg);
 }

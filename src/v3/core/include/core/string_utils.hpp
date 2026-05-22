@@ -253,8 +253,8 @@ inline void append_percent_hex(std::string& out, unsigned char c) {
 //
 // C-style backslash escaping for printable strings stored in config files.
 //
-// escape_chars: converts non-printable bytes to \a \b \t \n \v \f \r \\
-//               \" or \OOO (3-digit octal).  Printable chars pass through.
+// escape_chars: converts non-printable bytes to \a \b \t \n \v \f \r
+//               backslash, \" or \OOO (3-digit octal).  Printable chars pass through.
 // unescape_chars: reverses the above.
 //
 // Both mirror the legacy pvpgn::escape_chars / unescape_chars but return

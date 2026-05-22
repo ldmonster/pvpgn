@@ -169,7 +169,43 @@ if(PVPGN_BUILD_LEGACY)
         set(JSON_Install    OFF CACHE INTERNAL "")
         FetchContent_MakeAvailable(nlohmann_json)
     endif()
+
+    # When WITH_BNETD is ON, migrated bnetd source files include
+    # "infra/xml/xml_document.hpp" which in turn includes <pugixml.hpp>.
+    # Fetch pugixml early so it's available to both legacy and v3 builds.
+    if(WITH_BNETD)
+        find_package(pugixml CONFIG QUIET)
+        if(NOT pugixml_FOUND AND NOT TARGET pugixml-static)
+            include(FetchContent)
+            set(PUGIXML_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+            FetchContent_Declare(
+                pugixml
+                GIT_REPOSITORY https://github.com/zeux/pugixml.git
+                GIT_TAG        v1.14
+                GIT_SHALLOW    TRUE
+            )
+            FetchContent_MakeAvailable(pugixml)
+            if(TARGET pugixml-static AND NOT TARGET pugixml::static)
+                add_library(pugixml::static ALIAS pugixml-static)
+            endif()
+        endif()
+    endif()
+
     add_subdirectory(man)
+    if(PVPGN_BUILD_V3)
+        # The v3 sub-tree must be added before src (legacy) so that v3 targets
+        # like infra_compat are available when legacy code needs them.
+        # The v3 sub-tree (and its Catch2 test harness) expects a narrow
+        # `main()`. When PVPGN_BUILD_LEGACY=ON we added `-DUNICODE
+        # -D_UNICODE` globally for the legacy daemons, which would force
+        # MSVC's CRT to expect `wmain` in every executable, breaking the
+        # v3 test targets. Strip those flags before descending into the
+        # v3 subdirectory so v3 targets see narrow `main()`.
+        if (MSVC)
+            remove_definitions(-DUNICODE -D_UNICODE)
+        endif()
+        add_subdirectory(src/v3)
+    endif()
     add_subdirectory(src)
     if(WITH_LUA)
         add_subdirectory(lua)
@@ -179,16 +215,6 @@ endif()
 enable_testing()
 
 if(PVPGN_BUILD_V3)
-    # The v3 sub-tree (and its Catch2 test harness) expects a narrow
-    # `main()`. When PVPGN_BUILD_LEGACY=ON we added `-DUNICODE
-    # -D_UNICODE` globally for the legacy daemons, which would force
-    # MSVC's CRT to expect `wmain` in every executable, breaking the
-    # v3 test targets. Strip those flags before descending into the
-    # v3 subdirectory so v3 targets see narrow `main()`.
-    if (MSVC)
-        remove_definitions(-DUNICODE -D_UNICODE)
-    endif()
-    add_subdirectory(src/v3)
     add_subdirectory(tests)
 endif()
 

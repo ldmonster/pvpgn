@@ -7,6 +7,8 @@
 #   - IrcSessionFactory (IrcTcpSession factory callable)
 #   - IrcFsm state transitions via a FakeIrcContext
 #   - IRC codec encode/decode round-trip
+#   - AsioEventLoop lifecycle (run_for, post, stop, io_context)
+#   - LegacyBridge tick / singleton lifecycle
 #
 # Requires Boost (infra_net depends on Boost.Asio).
 # Skipped when PVPGN_V3_WITH_BOOST=OFF.
@@ -14,14 +16,46 @@
 if(NOT PVPGN_V3_WITH_BOOST)
     message(STATUS "test_app_bnetd_bnftp_session: skipped (PVPGN_V3_WITH_BOOST=OFF)")
     message(STATUS "test_app_bnetd_irc_session: skipped (PVPGN_V3_WITH_BOOST=OFF)")
+    message(STATUS "test_app_bnetd_asio_event_loop: skipped (PVPGN_V3_WITH_BOOST=OFF)")
     return()
 endif()
 
 if(NOT TARGET infra_net)
     message(STATUS "test_app_bnetd_bnftp_session: skipped (infra_net not available)")
     message(STATUS "test_app_bnetd_irc_session: skipped (infra_net not available)")
+    message(STATUS "test_app_bnetd_asio_event_loop: skipped (infra_net not available)")
     return()
 endif()
+
+# ---------------------------------------------------------------------------
+# AsioEventLoop + LegacyBridge tests (Round 138)
+# ---------------------------------------------------------------------------
+
+pvpgn_v3_add_test(test_app_bnetd_asio_event_loop
+    SOURCES
+        asio_event_loop_test.cpp
+        ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/src/asio_event_loop.cpp
+        ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/src/legacy_bridge.cpp
+    DEPS
+        infra_net
+        Boost::system
+        Threads::Threads
+)
+
+# The test defines PVPGN_V3_BNETD_INTEGRATION itself (at the top of the
+# source file) so that LegacyBridge compiles in its non-stub form.
+# We also set it here so that legacy_bridge.cpp sees it during compilation.
+target_compile_definitions(test_app_bnetd_asio_event_loop
+    PRIVATE
+        PVPGN_V3_BNETD_INTEGRATION=1
+)
+
+# Expose the app/bnetd include directory so the test can
+# #include "app/bnetd/asio_event_loop.hpp" etc.
+target_include_directories(test_app_bnetd_asio_event_loop
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/include
+)
 
 pvpgn_v3_add_test(test_app_bnetd_bnftp_session
     SOURCES bnftp_session_test.cpp
@@ -65,3 +99,47 @@ target_include_directories(test_app_bnetd_irc_session
 )
 
 endif()  # TARGET protocol_irc
+
+# ---------------------------------------------------------------------------
+# BnetConnectionAdapter tests (Round 140)
+# ---------------------------------------------------------------------------
+
+pvpgn_v3_add_test(test_app_bnetd_connection_adapter
+    SOURCES
+        bnet_connection_adapter_test.cpp
+        ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/src/bnet_connection_adapter.cpp
+        ${CMAKE_SOURCE_DIR}/src/v3/domain/connection/src/connection_fsm.cpp
+    DEPS
+        core
+        domain_connection
+        infra_net
+)
+
+# Expose the app/bnetd and domain/connection include directories.
+target_include_directories(test_app_bnetd_connection_adapter
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/include
+        ${CMAKE_SOURCE_DIR}/src/v3/domain/connection/include
+)
+
+# ---------------------------------------------------------------------------
+# LuaConnectionContext tests (Round 141)
+# ---------------------------------------------------------------------------
+
+pvpgn_v3_add_test(test_app_bnetd_lua_connection_context
+    SOURCES
+        lua_connection_context_test.cpp
+        ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/src/lua_connection_context.cpp
+    DEPS
+        core
+        domain_connection
+        infra_lua
+)
+
+# Expose the app/bnetd, domain/connection, and infra/lua include directories.
+target_include_directories(test_app_bnetd_lua_connection_context
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/include
+        ${CMAKE_SOURCE_DIR}/src/v3/domain/connection/include
+        ${CMAKE_SOURCE_DIR}/src/v3/infra/lua/include
+)

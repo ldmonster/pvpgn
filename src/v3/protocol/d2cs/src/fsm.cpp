@@ -85,8 +85,9 @@ core::Result<void, core::Error> D2CSSessionFsm::dispatch(
         case D2CSPacketType::DELETECHARREQ:
             return handle_delete_char(payload, len);
         case D2CSPacketType::CHARLISTREQ:
-        case D2CSPacketType::CHARLISTREQ110:
             return handle_char_list(payload, len);
+        case D2CSPacketType::CHARLISTREQ110:
+            return handle_char_list_110(payload, len);
         case D2CSPacketType::MOTDREQ:
             return handle_motd(payload, len);
         case D2CSPacketType::CANCELCREATEGAME:
@@ -94,9 +95,9 @@ core::Result<void, core::Error> D2CSSessionFsm::dispatch(
         case D2CSPacketType::CONVERTCHARREQ:
             return handle_convert_char(payload, len);
         case D2CSPacketType::LADDERREQ:
+            return handle_ladder(payload, len);
         case D2CSPacketType::CHARLADDERREQ:
-            // Ladder requests are advisory; no callback defined — silently ignore.
-            return core::Result<void, core::Error>();
+            return handle_char_ladder(payload, len);
         default:
             // Unknown packet type — log and ignore rather than killing the session.
             // This matches legacy behaviour in handle_d2cs.cpp where unrecognised
@@ -532,6 +533,117 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_convert_char(
     return core::Result<void, core::Error>();
 }
 
+core::Result<void, core::Error> D2CSSessionFsm::handle_char_list_110(
+    const uint8_t* payload, size_t len)
+{
+    // Wire layout (after 3-byte header):
+    //   [0..3]  uint32_t  seqno
+    //
+    // This is the 1.10+ variant of CHARLISTREQ.  The wire format is identical
+    // to CHARLISTREQ (0x17) in the v3 redesign; the distinction is surfaced to
+    // the application layer via the separate on_char_list_110 callback so that
+    // the reply can include per-character expire_time fields if needed.
+    constexpr size_t kMinFixed = 4;
+    if (len < kMinFixed) {
+        return core::fail(
+            core::make_error(core::StatusCode::InvalidArgument,
+                             "D2CS CHARLISTREQ110: payload too short"));
+    }
+
+    D2CSCharListRequest req;
+    size_t offset = 0;
+    if (!read_u32le(payload, len, offset, req.seqno)) {
+        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
+                                           "D2CS CHARLISTREQ110: cannot read seqno"));
+    }
+
+    // Fire the base on_char_list callback first (backward-compat: TC-34).
+    if (callbacks_.on_char_list) {
+        auto result = callbacks_.on_char_list(req);
+        if (!result) {
+            return core::fail(std::move(result).error());
+        }
+    }
+    // Fire the 1.10+-specific callback if registered.
+    if (callbacks_.on_char_list_110) {
+        auto result = callbacks_.on_char_list_110(req);
+        if (!result) {
+            return core::fail(std::move(result).error());
+        }
+    }
+    return core::Result<void, core::Error>();
+}
+
+core::Result<void, core::Error> D2CSSessionFsm::handle_ladder(
+    const uint8_t* payload, size_t len)
+{
+    // Wire layout (after 3-byte header):
+    //   [0]     uint8_t   ladder_type  (0=standard, 1=hardcore, etc.)
+    //   [1..2]  uint16_t  start_pos    (start position in ladder, LE)
+    constexpr size_t kMinFixed = 3;
+    if (len < kMinFixed) {
+        return core::fail(
+            core::make_error(core::StatusCode::InvalidArgument,
+                             "D2CS LADDERREQ: payload too short"));
+    }
+
+    D2CSLadderRequest req;
+    size_t offset = 0;
+    if (!read_u8(payload, len, offset, req.ladder_type)) {
+        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
+                                           "D2CS LADDERREQ: cannot read ladder_type"));
+    }
+    if (!read_u16le(payload, len, offset, req.start_pos)) {
+        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
+                                           "D2CS LADDERREQ: cannot read start_pos"));
+    }
+
+    if (callbacks_.on_ladder) {
+        auto result = callbacks_.on_ladder(req);
+        if (!result) {
+            return core::fail(std::move(result).error());
+        }
+    }
+    return core::Result<void, core::Error>();
+}
+
+core::Result<void, core::Error> D2CSSessionFsm::handle_char_ladder(
+    const uint8_t* payload, size_t len)
+{
+    // Wire layout (after 3-byte header):
+    //   [0..3]  uint32_t  hardcore   (hardcore flag, LE)
+    //   [4..7]  uint32_t  expansion  (expansion flag, LE)
+    //   [8..]   char[]    char_name  (null-terminated)
+    constexpr size_t kMinFixed = 8;
+    if (len < kMinFixed) {
+        return core::fail(
+            core::make_error(core::StatusCode::InvalidArgument,
+                             "D2CS CHARLADDERREQ: payload too short"));
+    }
+
+    D2CSCharLadderRequest req;
+    size_t offset = 0;
+    if (!read_u32le(payload, len, offset, req.hardcore))  goto short_payload;
+    if (!read_u32le(payload, len, offset, req.expansion)) goto short_payload;
+
+    if (!read_cstring(payload, len, offset, req.char_name)) {
+        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
+                                           "D2CS CHARLADDERREQ: unterminated char_name"));
+    }
+
+    if (callbacks_.on_char_ladder) {
+        auto result = callbacks_.on_char_ladder(req);
+        if (!result) {
+            return core::fail(std::move(result).error());
+        }
+    }
+    return core::Result<void, core::Error>();
+
+short_payload:
+    return core::fail(core::make_error(core::StatusCode::InvalidArgument,
+                                       "D2CS CHARLADDERREQ: payload too short"));
+}
+
 // ===========================================================================
 // Packet builders
 // ===========================================================================
@@ -684,6 +796,29 @@ bool D2CSSessionFsm::read_u32le(
         | (static_cast<uint32_t>(buf[offset + 2]) << 16)
         | (static_cast<uint32_t>(buf[offset + 3]) << 24);
     offset += 4;
+    return true;
+}
+
+bool D2CSSessionFsm::read_u8(
+    const uint8_t* buf, size_t len, size_t& offset, uint8_t& out)
+{
+    if (offset + 1 > len) {
+        return false;
+    }
+    out = buf[offset];
+    offset += 1;
+    return true;
+}
+
+bool D2CSSessionFsm::read_u16le(
+    const uint8_t* buf, size_t len, size_t& offset, uint16_t& out)
+{
+    if (offset + 2 > len) {
+        return false;
+    }
+    out = static_cast<uint16_t>(buf[offset])
+        | (static_cast<uint16_t>(buf[offset + 1]) << 8);
+    offset += 2;
     return true;
 }
 

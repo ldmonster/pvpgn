@@ -159,6 +159,26 @@ struct D2CSConvertCharRequest {
     std::string char_name; ///< Null-terminated character name
 };
 
+/// Ladder request (0x11).
+/// Wire layout (after 3-byte header):
+///   [0]     uint8_t   ladder_type  (0=standard, 1=hardcore, etc.)
+///   [1..2]  uint16_t  start_pos    (start position in ladder, LE)
+struct D2CSLadderRequest {
+    uint8_t  ladder_type; ///< Ladder type
+    uint16_t start_pos;   ///< Start position in ladder
+};
+
+/// Character ladder request (0x16).
+/// Wire layout (after 3-byte header):
+///   [0..3]  uint32_t  hardcore   (hardcore flag, LE)
+///   [4..7]  uint32_t  expansion  (expansion flag, LE)
+///   [8..]   char[]    char_name  (null-terminated)
+struct D2CSCharLadderRequest {
+    uint32_t    hardcore;  ///< Hardcore flag
+    uint32_t    expansion; ///< Expansion flag
+    std::string char_name; ///< Character name
+};
+
 // ---------------------------------------------------------------------------
 // Callbacks
 // ---------------------------------------------------------------------------
@@ -166,19 +186,24 @@ struct D2CSConvertCharRequest {
 /// All callbacks return `core::Result<void, core::Error>`.
 /// Returning a failure causes `feed()` to propagate the error.
 struct D2CSFsmCallbacks {
-    std::function<core::Result<void, core::Error>(const D2CSLoginRequest&)>      on_login;
-    std::function<core::Result<void, core::Error>(const D2CSCharLoginRequest&)>  on_char_login;
-    std::function<core::Result<void, core::Error>(const D2CSCreateGameRequest&)> on_create_game;
-    std::function<core::Result<void, core::Error>(const D2CSJoinGameRequest&)>   on_join_game;
-    std::function<core::Result<void, core::Error>(const D2CSGameListRequest&)>   on_game_list;
-    std::function<core::Result<void, core::Error>(const D2CSGameInfoRequest&)>   on_game_info;
-    std::function<core::Result<void, core::Error>(const D2CSCreateCharRequest&)> on_create_char;
-    std::function<core::Result<void, core::Error>(const D2CSDeleteCharRequest&)> on_delete_char;
-    std::function<core::Result<void, core::Error>(const D2CSCharListRequest&)>   on_char_list;
-    std::function<core::Result<void, core::Error>(const D2CSMotdRequest&)>       on_motd;
-    std::function<core::Result<void, core::Error>(const D2CSConvertCharRequest&)>on_convert_char;
-    std::function<core::Result<void, core::Error>()>                             on_cancel_create_game;
-    std::function<void()>                                                        on_disconnect;
+    std::function<core::Result<void, core::Error>(const D2CSLoginRequest&)>        on_login;
+    std::function<core::Result<void, core::Error>(const D2CSCharLoginRequest&)>    on_char_login;
+    std::function<core::Result<void, core::Error>(const D2CSCreateGameRequest&)>   on_create_game;
+    std::function<core::Result<void, core::Error>(const D2CSJoinGameRequest&)>     on_join_game;
+    std::function<core::Result<void, core::Error>(const D2CSGameListRequest&)>     on_game_list;
+    std::function<core::Result<void, core::Error>(const D2CSGameInfoRequest&)>     on_game_info;
+    std::function<core::Result<void, core::Error>(const D2CSCreateCharRequest&)>   on_create_char;
+    std::function<core::Result<void, core::Error>(const D2CSDeleteCharRequest&)>   on_delete_char;
+    std::function<core::Result<void, core::Error>(const D2CSCharListRequest&)>     on_char_list;
+    std::function<core::Result<void, core::Error>(const D2CSMotdRequest&)>         on_motd;
+    std::function<core::Result<void, core::Error>(const D2CSConvertCharRequest&)>  on_convert_char;
+    std::function<core::Result<void, core::Error>()>                               on_cancel_create_game;
+    std::function<core::Result<void, core::Error>(const D2CSLadderRequest&)>       on_ladder;
+    std::function<core::Result<void, core::Error>(const D2CSCharLadderRequest&)>   on_char_ladder;
+    /// Called for CHARLISTREQ110 (0x19) in addition to on_char_list.
+    /// Allows the application layer to distinguish the 1.10+ variant.
+    std::function<core::Result<void, core::Error>(const D2CSCharListRequest&)>     on_char_list_110;
+    std::function<void()>                                                          on_disconnect;
 };
 
 // ---------------------------------------------------------------------------
@@ -281,11 +306,17 @@ private:
         const uint8_t* payload, size_t len);
     [[nodiscard]] core::Result<void, core::Error> handle_char_list(
         const uint8_t* payload, size_t len);
+    [[nodiscard]] core::Result<void, core::Error> handle_char_list_110(
+        const uint8_t* payload, size_t len);
     [[nodiscard]] core::Result<void, core::Error> handle_motd(
         const uint8_t* payload, size_t len);
     [[nodiscard]] core::Result<void, core::Error> handle_cancel_create_game(
         const uint8_t* payload, size_t len);
     [[nodiscard]] core::Result<void, core::Error> handle_convert_char(
+        const uint8_t* payload, size_t len);
+    [[nodiscard]] core::Result<void, core::Error> handle_ladder(
+        const uint8_t* payload, size_t len);
+    [[nodiscard]] core::Result<void, core::Error> handle_char_ladder(
         const uint8_t* payload, size_t len);
 
     /// Read a null-terminated string from `buf[offset..]`.
@@ -298,6 +329,16 @@ private:
     /// Advances `offset` by 4.  Returns false if fewer than 4 bytes remain.
     [[nodiscard]] static bool read_u32le(
         const uint8_t* buf, size_t len, size_t& offset, uint32_t& out);
+
+    /// Read a single byte from `buf[offset..]`.
+    /// Advances `offset` by 1.  Returns false if no byte remains.
+    [[nodiscard]] static bool read_u8(
+        const uint8_t* buf, size_t len, size_t& offset, uint8_t& out);
+
+    /// Read a little-endian uint16_t from `buf[offset..]`.
+    /// Advances `offset` by 2.  Returns false if fewer than 2 bytes remain.
+    [[nodiscard]] static bool read_u16le(
+        const uint8_t* buf, size_t len, size_t& offset, uint16_t& out);
 
     /// Write a little-endian uint32_t into a vector.
     static void push_u32le(std::vector<uint8_t>& v, uint32_t val);

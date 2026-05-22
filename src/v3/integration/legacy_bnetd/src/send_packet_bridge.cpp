@@ -37,16 +37,16 @@ SendPacketHandler get_send_packet_handler() noexcept {
 }  // namespace pvpgn::integration::legacy_bnetd
 
 extern "C" int pvpgn_v3_send_packet_try(void* conn_ptr,
-                                        void const* bytes,
-                                        unsigned int size) noexcept {
-    if (conn_ptr == nullptr || bytes == nullptr) return 0;
-    if (size == 0u
-        || size > pvpgn::integration::legacy_bnetd::kSendPacketMaxSize) {
-        return 0;
-    }
-    auto* h = pvpgn::integration::legacy_bnetd::get_send_packet_handler();
-    if (h == nullptr) return 0;
-    return h(conn_ptr, bytes, size);
+                                         void const* bytes,
+                                         unsigned int size) noexcept {
+     if (conn_ptr == nullptr || bytes == nullptr) return 0;
+     if (size == 0u
+         || size > pvpgn::integration::legacy_bnetd::kSendPacketMaxSize) {
+         return 0;
+     }
+     auto* h = pvpgn::integration::legacy_bnetd::get_send_packet_handler();
+     if (h == nullptr) return 0;
+     return h(conn_ptr, bytes, size);
 }
 
 extern "C" int pvpgn_v3_send_packet_available(void) noexcept {

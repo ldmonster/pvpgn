@@ -31,12 +31,13 @@ struct Capture {
 
 static Capture* g_cap = nullptr;
 
-static int fake_handler(void*                conn_ptr,
-                        unsigned char const* data,
-                        unsigned int         size) noexcept {
+static int fake_handler(void*        conn_ptr,
+                        void const*  data,
+                        unsigned int size) noexcept {
     if (g_cap) {
         g_cap->conn = conn_ptr;
-        g_cap->bytes.assign(data, data + size);
+        auto bytes = static_cast<unsigned char const*>(data);
+        g_cap->bytes.assign(bytes, bytes + size);
     }
     return g_cap ? g_cap->ret : 0;
 }
@@ -45,10 +46,10 @@ struct HandlerGuard {
     explicit HandlerGuard(Capture& cap, int ret_val = 1) {
         cap.ret = ret_val;
         g_cap   = &cap;
-        pvpgn_v3_install_send_packet_handler(fake_handler);
+        pvpgn::integration::legacy_bnetd::set_send_packet_handler(fake_handler);
     }
     ~HandlerGuard() {
-        pvpgn_v3_install_send_packet_handler(nullptr);
+        pvpgn::integration::legacy_bnetd::set_send_packet_handler(nullptr);
         g_cap = nullptr;
     }
 };
@@ -72,7 +73,7 @@ inline std::uint32_t read_le32(std::vector<unsigned char> const& v, std::size_t 
 
 TEST_CASE("send_anongame_cancel: no handler returns 0",
           "[send_anongame_cancel_bridge]") {
-    pvpgn_v3_install_send_packet_handler(nullptr);
+    pvpgn::integration::legacy_bnetd::set_send_packet_handler(nullptr);
     CHECK(pvpgn_v3_send_anongame_cancel(CONN, 1u) == 0);
 }
 

@@ -127,6 +127,8 @@
 extern "C" int pvpgn_v3_server_dispatch_try(void* opaque, char const* op) noexcept;
 #endif
 
+#include "server_v3_hook.h"
+
 extern std::FILE * hexstrm; /* from main.c */
 extern int g_ServiceStatus;
 
@@ -1891,7 +1893,13 @@ namespace pvpgn
 
 				/* cycle through the ready sockets and handle them */
 				fdwatch_handle();
-
+	
+				/* v3 strangler-fig (R139): pump the Asio io_context for
+				 * up to 5 ms so v3 async work makes progress on every
+				 * fdwatch iteration. No-op when PVPGN_V3_BNETD_INTEGRATION
+				 * is not defined (legacy-only build). */
+				server_tick_v3(5);
+	
 				/* reap dead connections */
 				connlist_reap();
 

@@ -536,7 +536,7 @@ int server_process(socket_t sockfd)
                         g_prefs.outfile, std::strerror(errno));
                 }
                 if (g_prefs.process && g_prefs.process[0] != '\0') {
-                    std::system(g_prefs.process);
+                    [[maybe_unused]] int ret = std::system(g_prefs.process);
                 }
             }
         }

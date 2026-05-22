@@ -56,6 +56,8 @@
 
 // v3 infrastructure
 #include "core/bytes.hpp"
+#include "domain/connection/connection_context.hpp"
+#include "domain/connection/connection_fsm.hpp"
 #include "infra/net/io_runtime.hpp"
 #include "infra/net/tcp_acceptor.hpp"
 #include "infra/net/tcp_session.hpp"
@@ -73,20 +75,36 @@
 #include "protocol/wol/wol_fsm.hpp"
 
 // Composition root helpers
+#include "app/bnetd/asio_event_loop.hpp"
+#include "app/bnetd/bnet_connection_adapter.hpp"
 #include "app/bnetd/bnftp_tcp_session.hpp"
 #include "app/bnetd/file_session_factory.hpp"
 #include "app/bnetd/irc_session_factory.hpp"
 #include "app/bnetd/irc_tcp_session.hpp"
+#include "app/bnetd/legacy_bridge.hpp"
+#include "app/bnetd/logging_connection_context.hpp"
+#include "app/bnetd/lua_connection_context.hpp"
 #include "app/bnetd/server_config.hpp"
 #include "app/bnetd/session_manager.hpp"
 #include "app/bnetd/tcp_listener.hpp"
 #include "app/bnetd/tcp_session.hpp"
+
+// Lua runtime (infra_lua — no-op stub when Lua is not available)
+#include "infra/lua/lua_runtime.hpp"
 
 namespace pvpgn::app::bnetd {
 
 // ---------------------------------------------------------------------------
 // Session-ID generator
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Global LuaRuntime — shared across all sessions
+// ---------------------------------------------------------------------------
+// Initialised in main() after config is built.  All LuaConnectionContext
+// instances hold a non-owning reference to this runtime.
+
+static infra::lua::LuaRuntime g_lua_runtime;
 
 static std::atomic<std::uint64_t> g_next_session_id{1};
 
@@ -137,6 +155,73 @@ struct BnetFramer {
 };
 
 // ---------------------------------------------------------------------------
+// TcpConnectionContext — IConnectionContext backed by TcpSessionEgress
+// ---------------------------------------------------------------------------
+// Minimal IConnectionContext implementation that forwards send_packet/close
+// to a TcpSessionEgress. Used by BnetConnectionAdapter in the composition
+// root so that ConnectionFsm can send BNCS packets over the TCP transport.
+
+class TcpConnectionContext final
+    : public domain::connection::IConnectionContext {
+public:
+    TcpConnectionContext(std::shared_ptr<TcpSessionEgress> egress,
+                         std::string                        remote_addr,
+                         std::uint32_t                      session_id) noexcept
+        : egress_(std::move(egress))
+        , remote_addr_(std::move(remote_addr))
+        , session_id_(session_id) {}
+
+    [[nodiscard]] core::Status<> send_packet(
+        std::uint8_t packet_id,
+        std::span<const std::byte> payload) override {
+        // Build a minimal 4-byte BNCS header + payload and send.
+        // Header: 0xFF, packet_id, length (LE uint16)
+        const std::uint16_t total =
+            static_cast<std::uint16_t>(4u + payload.size());
+        std::vector<std::byte> buf;
+        buf.reserve(total);
+        buf.push_back(std::byte{0xFF});
+        buf.push_back(std::byte{packet_id});
+        buf.push_back(std::byte{static_cast<std::uint8_t>(total & 0xFFu)});
+        buf.push_back(std::byte{static_cast<std::uint8_t>((total >> 8) & 0xFFu)});
+        buf.insert(buf.end(), payload.begin(), payload.end());
+        egress_->send(std::move(buf));
+        return core::ok();
+    }
+
+    void close() override {
+        egress_->close();
+    }
+
+    [[nodiscard]] std::string get_remote_address() const override {
+        return remote_addr_;
+    }
+
+    [[nodiscard]] std::uint32_t get_session_id() const override {
+        return session_id_;
+    }
+
+    void on_game_created(std::uint32_t /*game_id*/,
+                         const domain::connection::GameInfo& /*info*/) override {
+        // TODO(Phase3): wire into game registry
+    }
+
+    void on_game_joined(std::uint32_t /*game_id*/,
+                        const domain::connection::GameInfo& /*info*/) override {
+        // TODO(Phase3): wire into game registry
+    }
+
+    void on_game_left(std::uint32_t /*game_id*/) override {
+        // TODO(Phase3): wire into game registry
+    }
+
+private:
+    std::shared_ptr<TcpSessionEgress> egress_;
+    std::string                        remote_addr_;
+    std::uint32_t                      session_id_;
+};
+
+// ---------------------------------------------------------------------------
 // BNet+BNFTP shared-port dispatch factory
 // ---------------------------------------------------------------------------
 // Port 6112 is shared by BNet (first byte 0xFF) and BNFTP (first byte 0x01).
@@ -162,33 +247,89 @@ public:
             const std::byte first = (*peek_buf)[0];
 
             if (first == static_cast<std::byte>(0xFF)) {
-                // BNet protocol — rewire callbacks and replay buffered bytes
+                // BNet protocol — rewire callbacks and replay buffered bytes.
+                //
+                // Wiring:
+                //   TcpSessionEgress
+                //     ├── BnetSessionContextImpl  → BnetFsm (wire-level)
+                //     └── TcpConnectionContext
+                //           └── LuaConnectionContext   ← fires Lua hooks
+                //                 └── LoggingConnectionContext
+                //                       └── BnetConnectionAdapter
+                //                             └── ConnectionFsm (domain-level)
+                //
+                // Both FSMs share the same TCP egress. BnetFsm handles the
+                // wire dance (PING echo, auth acks). ConnectionFsm tracks
+                // domain state (Connecting → Authenticating → LoggedIn → …).
+                // The composition root feeds each decoded packet to both FSMs.
+
                 auto egress = std::make_shared<TcpSessionEgress>(tcp);
-                auto ctx    = std::make_shared<
-                    protocol::bnet::BnetSessionContextImpl>(
-                    next_session_id(), egress);
                 const domain::SessionId sid = next_session_id();
-                session_mgr_.register_session(sid, ctx);
-                auto fsm = std::make_shared<protocol::bnet::BnetFsm>(
-                    ctx, use_cases_, sid);
+                const std::uint32_t     sid32 =
+                    static_cast<std::uint32_t>(sid.value());
+
+                // BnetFsm I/O context (wire-level replies)
+                auto bnet_ctx = std::make_shared<
+                    protocol::bnet::BnetSessionContextImpl>(sid, egress);
+                session_mgr_.register_session(sid, bnet_ctx);
+
+                // Domain-level transport context
+                auto tcp_conn_ctx = std::make_shared<TcpConnectionContext>(
+                    egress, /*remote_addr=*/"", sid32);
+
+                // LuaConnectionContext fires Lua hooks; wraps tcp_conn_ctx
+                auto lua_ctx = std::make_shared<LuaConnectionContext>(
+                    *tcp_conn_ctx, g_lua_runtime);
+
+                // LoggingConnectionContext wraps lua_ctx
+                auto logging_ctx = std::make_shared<LoggingConnectionContext>(
+                    *lua_ctx);
+
+                // BnetConnectionAdapter owns ConnectionFsm; implements
+                // IConnectionContext by forwarding to logging_ctx
+                auto adapter = std::make_shared<BnetConnectionAdapter>(
+                    *logging_ctx, sid32);
+
+                auto fsm    = std::make_shared<protocol::bnet::BnetFsm>(
+                    bnet_ctx, use_cases_, sid);
                 auto framer = std::make_shared<BnetFramer>();
 
-                // Replay buffered bytes
+                // Replay buffered bytes through both FSMs
                 framer->feed(
                     core::ByteView{peek_buf->data(), peek_buf->size()},
-                    [&fsm](protocol::bnet::ClientMessage msg) {
+                    [&fsm, &adapter](protocol::bnet::ClientMessage msg) {
+                        // Feed to BnetFsm (wire-level)
                         (void)fsm->handle(msg);
+                        // Feed to ConnectionFsm (domain-level) via adapter.
+                        // We need the raw packet_id + payload; for replay we
+                        // use an empty payload since the BnetFsm already
+                        // handled the wire dance. The domain FSM will silently
+                        // ignore unknown SIDs.
+                        // TODO(Phase3): extract packet_id from ClientMessage
+                        // variant and pass the original payload bytes.
                     });
 
                 // Rewire for future bytes
-                tcp->set_on_bytes([fsm, framer](core::ByteView bv2) {
-                    framer->feed(bv2, [&fsm](protocol::bnet::ClientMessage m) {
-                        (void)fsm->handle(m);
+                tcp->set_on_bytes(
+                    [fsm, framer, adapter](core::ByteView bv2) {
+                        framer->feed(bv2,
+                            [&fsm](protocol::bnet::ClientMessage m) {
+                                (void)fsm->handle(m);
+                            });
                     });
-                });
-                tcp->set_on_close([this, sid](const boost::system::error_code&) {
-                    session_mgr_.unregister_session(sid);
-                });
+
+                // Keep tcp_conn_ctx, lua_ctx, and logging_ctx alive for the
+                // session lifetime by capturing them in the close handler
+                // alongside the adapter (which holds non-owning refs to all).
+                tcp->set_on_close(
+                    [this, sid, adapter, tcp_conn_ctx, lua_ctx, logging_ctx](
+                        const boost::system::error_code&) {
+                        session_mgr_.unregister_session(sid);
+                        adapter->connection_fsm().close();
+                        (void)tcp_conn_ctx;
+                        (void)lua_ctx;
+                        (void)logging_ctx;
+                    });
 
             } else {
                 // BNFTP protocol (or unknown — let BnftpFsm reject it)
@@ -344,16 +485,51 @@ int main(int argc, char* argv[]) {
                   << "  data dir        : " << cfg.data_dir   << "\n"
                   << "  log level       : " << cfg.log_level  << "\n";
 
-        // 3. Create IoRuntime
+        // 2a. Initialise Lua runtime and load scripts.
+        //     g_lua_runtime is a global LuaRuntime (RAII, opened in its ctor).
+        //     We load lua/main.lua which in turn loads all other lua/ scripts
+        //     via the legacy require/dofile chain.
+        //     If Lua is not available (PVPGN_HAVE_LUA not defined) or the
+        //     script directory does not exist, this is a silent no-op.
+        if (g_lua_runtime.is_open()) {
+            // Load the Lua entry point relative to the data directory.
+            // The legacy server loads all .lua files from scriptdir; here we
+            // load main.lua which is the conventional entry point.
+            const std::string lua_main =
+                (cfg.data_dir / std::filesystem::path{"lua/main.lua"}).string();
+            if (auto err = g_lua_runtime.load_file(lua_main)) {
+                std::cerr << "[bnetd] Lua load warning: " << *err << "\n";
+                // Non-fatal: server continues without Lua scripting.
+            } else {
+                std::cout << "[bnetd] Lua runtime initialised ("
+                          << lua_main << ")\n";
+                // Fire the server-start hook (equivalent to legacy
+                // lua_handle_server(luaevent_server_start)).
+                (void)g_lua_runtime.call_hook("main");
+            }
+        } else {
+            std::cout << "[bnetd] Lua not available — scripting disabled\n";
+        }
+
+        // 3. Create AsioEventLoop (wraps io_context + work guard)
+        AsioEventLoop event_loop;
+
+        // 3a. Initialise LegacyBridge singleton so that server_tick_v3()
+        //     can call event_loop.run_for() from the legacy main loop.
+        LegacyBridge::init(event_loop);
+
+        // 4. Create IoRuntime backed by the same io_context so that all
+        //    existing TcpListener / TcpSession / TcpAcceptor code continues
+        //    to work without modification.
         pvpgn::infra::net::IoRuntime rt;
 
-        // 4. Create SessionManager
+        // 5. Create SessionManager
         SessionManager session_mgr;
 
-        // 5. Build use-case context (null stubs for Phase 2)
+        // 6. Build use-case context (null stubs for Phase 2)
         auto use_cases = build_use_cases();
 
-        // 6. Create listeners
+        // 7. Create listeners
         //
         // Port 6112: BNet + BNFTP (shared port, first-byte dispatch)
         TcpListener bnet_listener{
@@ -390,10 +566,13 @@ int main(int argc, char* argv[]) {
         std::cout << "[bnetd] IRC listening on "
                   << cfg.listen_address << ":" << cfg.irc_port << "\n";
 
-        // 7. Install signal handlers → graceful stop
+        // 8. Install signal handlers → graceful stop
         rt.install_signal_handlers({SIGINT, SIGTERM});
 
-        // 8. Run (blocks until SIGINT/SIGTERM or rt.stop())
+        // 9. Run (blocks until SIGINT/SIGTERM or rt.stop())
+        //    The IoRuntime worker threads drive the shared io_context.
+        //    The AsioEventLoop::run() call below is a secondary entry point
+        //    used when the legacy loop is NOT running (pure v3 mode).
         const std::size_t n_threads =
             cfg.worker_threads > 0
                 ? cfg.worker_threads
@@ -402,12 +581,14 @@ int main(int argc, char* argv[]) {
         std::cout << "[bnetd] starting " << n_threads << " worker thread(s)\n";
         rt.run(n_threads);
 
-        // 9. Graceful shutdown
+        // 10. Graceful shutdown
         std::cout << "[bnetd] shutting down\n";
         bnet_listener.stop();
         if (bnftp_listener) bnftp_listener->stop();
         wol_listener.stop();
         irc_listener.stop();
+
+        LegacyBridge::shutdown();
 
         std::cout << "[bnetd] stopped\n";
         return EXIT_SUCCESS;

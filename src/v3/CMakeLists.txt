@@ -115,6 +115,11 @@ pvpgn_v3_add_library(runtime
         core
 )
 
+# Suppress false positive null-dereference warnings from boost/asio
+if(NOT MSVC)
+    target_compile_options(runtime PRIVATE -Wno-null-dereference)
+endif()
+
 # Platform-specific runtime sources
 if(WIN32)
     target_sources(runtime PRIVATE runtime/src/win_service.cpp)
@@ -266,8 +271,8 @@ if(PVPGN_V3_WITH_TOMLPP)
         PUBLIC_DEPS
             core
             application_ports
-        DEPS
             tomlplusplus::tomlplusplus
+        DEPS
     )
 endif()
 
@@ -326,6 +331,15 @@ pvpgn_v3_add_library(infra_compression
 # ---- infra/scripting/plugin -------------------------------------------------
 
 add_subdirectory(infra/scripting)
+
+# ---- infra/lua --------------------------------------------------------------
+#
+# Clean C++20 RAII wrapper around a Lua VM (`lua_State*`).
+# Builds as a stub (all methods are no-ops) when Lua is not found.
+# Consumers link against `infra_lua`; the PVPGN_HAVE_LUA compile definition
+# is propagated publicly so they can use the same guard.
+
+add_subdirectory(infra/lua)
 
 # ---- protocol/common ----------------------------------------------------
 
@@ -605,6 +619,18 @@ pvpgn_v3_add_library(domain_realm
         core
         domain_shared
 )
+
+# ---- domain/connection (ConnectionFsm — Phase 3 Step 2) -----------------
+
+add_subdirectory(domain/connection)
+
+# ---- domain/d2cs (D2CS domain layer — Phase 4 Step 2) -------------------
+
+add_subdirectory(domain/d2cs)
+
+# ---- domain/d2dbs (D2DBS domain layer — Phase 4 Step 6) -----------------
+
+add_subdirectory(domain/d2dbs)
 
 # ---- application/ports (interface-only) ---------------------------------
 
@@ -1421,6 +1447,14 @@ add_subdirectory(tools/client)
 # The guard is also inside app/bnetd/CMakeLists.txt for safety.
 
 add_subdirectory(app/bnetd)
+
+# ---- app/d2cs (D2CS session handler — Phase 4 Step 3) -------------------
+
+add_subdirectory(app/d2cs)
+
+# ---- app/d2dbs (D2DBS session handler — Phase 4 Step 6) -----------------
+
+add_subdirectory(app/d2dbs)
 
 # ---- tests --------------------------------------------------------------
 

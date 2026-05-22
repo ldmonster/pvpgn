@@ -31,6 +31,13 @@ public:
         return core::Result<void, core::Error>();
     }
     
+    core::Result<void, core::Error>
+    remove(const domain::realm::CharacterId& id) override {
+        std::string key = id.account_name + ":" + id.char_name;
+        storage.erase(key);
+        return core::Result<void, core::Error>();
+    }
+    
     core::Result<std::vector<domain::realm::Character>, core::Error>
     list_for_account(std::string_view account_name) override {
         std::vector<domain::realm::Character> result;

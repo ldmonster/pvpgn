@@ -44,6 +44,17 @@ static void push_u32(std::vector<uint8_t>& v, uint32_t val) {
     v.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
 }
 
+/// Append a single byte to a byte vector.
+static void push_u8(std::vector<uint8_t>& v, uint8_t val) {
+    v.push_back(val);
+}
+
+/// Append a little-endian uint16_t to a byte vector.
+static void push_u16(std::vector<uint8_t>& v, uint16_t val) {
+    v.push_back(static_cast<uint8_t>(val & 0xFF));
+    v.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
+}
+
 /// Append a null-terminated C-string to a byte vector.
 static void push_cstr(std::vector<uint8_t>& v, const char* s) {
     while (*s) v.push_back(static_cast<uint8_t>(*s++));
@@ -820,14 +831,17 @@ TEST_CASE("D2CSSessionFsm - TC-35 LADDERREQ silently ignored", "[protocol][d2cs]
 }
 
 // ---------------------------------------------------------------------------
-// TC-36: CHARLADDERREQ (0x16) — silently ignored
+// TC-36: CHARLADDERREQ (0x16) — no callback set, succeeds without error
 // ---------------------------------------------------------------------------
 TEST_CASE("D2CSSessionFsm - TC-36 CHARLADDERREQ silently ignored", "[protocol][d2cs]") {
     D2CSFsmCallbacks cb;
     D2CSSessionFsm fsm(cb);
 
+    // Provide a valid payload: hardcore(4) + expansion(4) + char_name(cstr)
     std::vector<uint8_t> payload;
-    push_u32(payload, 1);
+    push_u32(payload, 0);           // hardcore = 0
+    push_u32(payload, 0);           // expansion = 0
+    push_cstr(payload, "Hero");     // char_name
 
     auto r = feed(fsm, make_packet(0x16, payload));
     REQUIRE(r);
@@ -915,6 +929,459 @@ TEST_CASE("D2CSSessionFsm - TC-40 full login flow state machine", "[protocol][d2
         REQUIRE(feed(fsm, make_packet(0x03, p)));
         CHECK(fsm.state() == D2CSSessionState::in_game);
     }
+}
+
+// ---------------------------------------------------------------------------
+// TC-41: LADDERREQ — callback invoked with correct fields
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-41 LADDERREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSLadderRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_ladder = [&](const D2CSLadderRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u8(payload, 1);    // ladder_type = 1 (hardcore)
+    push_u16(payload, 50);  // start_pos = 50
+
+    auto r = feed(fsm, make_packet(0x11, payload));
+
+    REQUIRE(r);
+    CHECK(r.value() > 0);
+    CHECK(called);
+    CHECK(captured.ladder_type == 1);
+    CHECK(captured.start_pos == 50);
+}
+
+// ---------------------------------------------------------------------------
+// TC-42: LADDERREQ — too-short payload rejected
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-42 LADDERREQ too-short payload rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // Only 2 bytes (need at least 3: type(1) + start_pos(2))
+    std::vector<uint8_t> payload = {0x01, 0x00};
+    auto r = feed(fsm, make_packet(0x11, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+// ---------------------------------------------------------------------------
+// TC-43: LADDERREQ — empty payload rejected
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-43 LADDERREQ empty payload rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    auto r = feed(fsm, make_packet(0x11, {}));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+// ---------------------------------------------------------------------------
+// TC-44: LADDERREQ — no callback, still succeeds
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-44 LADDERREQ no callback succeeds", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;  // no on_ladder set
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u8(payload, 0);    // ladder_type = 0 (standard)
+    push_u16(payload, 0);   // start_pos = 0
+
+    auto r = feed(fsm, make_packet(0x11, payload));
+    REQUIRE(r);
+    CHECK(r.value() > 0);
+}
+
+// ---------------------------------------------------------------------------
+// TC-45: LADDERREQ — callback failure propagates
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-45 LADDERREQ callback failure propagates", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_ladder = [](const D2CSLadderRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::NotFound, "ladder not found"));
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u8(payload, 0);
+    push_u16(payload, 0);
+
+    auto r = feed(fsm, make_packet(0x11, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::NotFound);
+}
+
+// ---------------------------------------------------------------------------
+// TC-46: LADDERREQ — start_pos round-trips correctly (LE encoding)
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-46 LADDERREQ start_pos LE encoding", "[protocol][d2cs]") {
+    uint16_t captured_pos = 0;
+
+    D2CSFsmCallbacks cb;
+    cb.on_ladder = [&](const D2CSLadderRequest& req) {
+        captured_pos = req.start_pos;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u8(payload, 2);       // ladder_type = 2
+    push_u16(payload, 0x0102); // start_pos = 258 (0x01 low, 0x02 high in LE → 0x0201 = 513? No: LE means low byte first)
+    // push_u16 writes val & 0xFF first, then val >> 8
+    // So 0x0102 → bytes [0x02, 0x01] → read back as 0x0102 = 258
+
+    auto r = feed(fsm, make_packet(0x11, payload));
+    REQUIRE(r);
+    CHECK(captured_pos == 0x0102);
+}
+
+// ---------------------------------------------------------------------------
+// TC-47: CHARLADDERREQ — callback invoked with correct fields
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-47 CHARLADDERREQ callback invoked", "[protocol][d2cs]") {
+    bool called = false;
+    D2CSCharLadderRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_ladder = [&](const D2CSCharLadderRequest& req) {
+        called = true;
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);           // hardcore = 1
+    push_u32(payload, 1);           // expansion = 1
+    push_cstr(payload, "LadderChar");
+
+    auto r = feed(fsm, make_packet(0x16, payload));
+
+    REQUIRE(r);
+    CHECK(r.value() > 0);
+    CHECK(called);
+    CHECK(captured.hardcore == 1);
+    CHECK(captured.expansion == 1);
+    CHECK(captured.char_name == "LadderChar");
+}
+
+// ---------------------------------------------------------------------------
+// TC-48: CHARLADDERREQ — too-short payload rejected
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-48 CHARLADDERREQ too-short payload rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // Only 4 bytes (need at least 8 for hardcore + expansion)
+    std::vector<uint8_t> payload(4, 0x00);
+    auto r = feed(fsm, make_packet(0x16, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+// ---------------------------------------------------------------------------
+// TC-49: CHARLADDERREQ — unterminated char_name rejected
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-49 CHARLADDERREQ unterminated char_name rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 0);  // hardcore
+    push_u32(payload, 0);  // expansion
+    // char_name without null terminator
+    payload.push_back('A');
+    payload.push_back('B');
+    payload.push_back('C');
+
+    auto r = feed(fsm, make_packet(0x16, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+// ---------------------------------------------------------------------------
+// TC-50: CHARLADDERREQ — no callback, still succeeds
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-50 CHARLADDERREQ no callback succeeds", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;  // no on_char_ladder set
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 0);
+    push_u32(payload, 0);
+    push_cstr(payload, "Hero");
+
+    auto r = feed(fsm, make_packet(0x16, payload));
+    REQUIRE(r);
+    CHECK(r.value() > 0);
+}
+
+// ---------------------------------------------------------------------------
+// TC-51: CHARLADDERREQ — callback failure propagates
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-51 CHARLADDERREQ callback failure propagates", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_char_ladder = [](const D2CSCharLadderRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::NotFound, "char not found"));
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 0);
+    push_u32(payload, 0);
+    push_cstr(payload, "Hero");
+
+    auto r = feed(fsm, make_packet(0x16, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::NotFound);
+}
+
+// ---------------------------------------------------------------------------
+// TC-52: CHARLADDERREQ — hardcore=0, expansion=0 (classic softcore)
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-52 CHARLADDERREQ classic softcore fields", "[protocol][d2cs]") {
+    D2CSCharLadderRequest captured;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_ladder = [&](const D2CSCharLadderRequest& req) {
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 0);           // hardcore = 0
+    push_u32(payload, 0);           // expansion = 0
+    push_cstr(payload, "SoftChar");
+
+    REQUIRE(feed(fsm, make_packet(0x16, payload)));
+    CHECK(captured.hardcore == 0);
+    CHECK(captured.expansion == 0);
+    CHECK(captured.char_name == "SoftChar");
+}
+
+// ---------------------------------------------------------------------------
+// TC-53: CHARLISTREQ110 — on_char_list_110 callback invoked
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-53 CHARLISTREQ110 on_char_list_110 callback invoked", "[protocol][d2cs]") {
+    bool called_110 = false;
+    D2CSCharListRequest captured_110;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_list_110 = [&](const D2CSCharListRequest& req) {
+        called_110 = true;
+        captured_110 = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 200);  // seqno
+
+    auto r = feed(fsm, make_packet(0x19, payload));
+    REQUIRE(r);
+    CHECK(called_110);
+    CHECK(captured_110.seqno == 200);
+}
+
+// ---------------------------------------------------------------------------
+// TC-54: CHARLISTREQ110 — both on_char_list AND on_char_list_110 are called
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-54 CHARLISTREQ110 fires both callbacks", "[protocol][d2cs]") {
+    bool called_base = false;
+    bool called_110  = false;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_list = [&](const D2CSCharListRequest&) {
+        called_base = true;
+        return core::Result<void, core::Error>();
+    };
+    cb.on_char_list_110 = [&](const D2CSCharListRequest&) {
+        called_110 = true;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 300);
+
+    auto r = feed(fsm, make_packet(0x19, payload));
+    REQUIRE(r);
+    CHECK(called_base);
+    CHECK(called_110);
+}
+
+// ---------------------------------------------------------------------------
+// TC-55: CHARLISTREQ110 — on_char_list_110 callback failure propagates
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-55 CHARLISTREQ110 on_char_list_110 failure propagates", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_char_list_110 = [](const D2CSCharListRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::Internal, "110 handler error"));
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+
+    auto r = feed(fsm, make_packet(0x19, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::Internal);
+}
+
+// ---------------------------------------------------------------------------
+// TC-56: CHARLISTREQ110 — on_char_list failure stops before on_char_list_110
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-56 CHARLISTREQ110 base callback failure stops chain", "[protocol][d2cs]") {
+    bool called_110 = false;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_list = [](const D2CSCharListRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::PermissionDenied, "denied"));
+    };
+    cb.on_char_list_110 = [&](const D2CSCharListRequest&) {
+        called_110 = true;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+
+    auto r = feed(fsm, make_packet(0x19, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::PermissionDenied);
+    CHECK_FALSE(called_110);  // on_char_list_110 must NOT be called after base fails
+}
+
+// ---------------------------------------------------------------------------
+// TC-57: CHARLISTREQ110 — too-short payload rejected
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-57 CHARLISTREQ110 too-short payload rejected", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    D2CSSessionFsm fsm(cb);
+
+    // Only 2 bytes (need at least 4 for seqno)
+    std::vector<uint8_t> payload = {0x01, 0x02};
+    auto r = feed(fsm, make_packet(0x19, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::InvalidArgument);
+}
+
+// ---------------------------------------------------------------------------
+// TC-58: CHARLISTREQ (0x17) — does NOT fire on_char_list_110
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-58 CHARLISTREQ does not fire on_char_list_110", "[protocol][d2cs]") {
+    bool called_110 = false;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_list_110 = [&](const D2CSCharListRequest&) {
+        called_110 = true;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+
+    auto r = feed(fsm, make_packet(0x17, payload));
+    REQUIRE(r);
+    CHECK_FALSE(called_110);  // 0x17 must NOT trigger on_char_list_110
+}
+
+// ---------------------------------------------------------------------------
+// TC-59: GAMELISTREQ — callback failure propagates
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-59 GAMELISTREQ callback failure propagates", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_game_list = [](const D2CSGameListRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::Unavailable, "game list unavailable"));
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+    push_u32(payload, 0);
+
+    auto r = feed(fsm, make_packet(0x05, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::Unavailable);
+}
+
+// ---------------------------------------------------------------------------
+// TC-60: GAMEINFOREQ — callback failure propagates
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-60 GAMEINFOREQ callback failure propagates", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_game_info = [](const D2CSGameInfoRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::NotFound, "game not found"));
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+    push_cstr(payload, "NoSuchGame");
+
+    auto r = feed(fsm, make_packet(0x06, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::NotFound);
+}
+
+// ---------------------------------------------------------------------------
+// TC-61: CREATECHARREQ — callback failure propagates
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-61 CREATECHARREQ callback failure propagates", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_create_char = [](const D2CSCreateCharRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::AlreadyExists, "char already exists"));
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+    push_u8(payload, 0);   // char_class
+    push_u8(payload, 0);   // char_flags
+    push_cstr(payload, "DupChar");
+
+    auto r = feed(fsm, make_packet(0x02, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::AlreadyExists);
+}
+
+// ---------------------------------------------------------------------------
+// TC-62: DELETECHARREQ — callback failure propagates
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-62 DELETECHARREQ callback failure propagates", "[protocol][d2cs]") {
+    D2CSFsmCallbacks cb;
+    cb.on_delete_char = [](const D2CSDeleteCharRequest&) {
+        return core::fail(
+            core::make_error(core::StatusCode::NotFound, "char not found"));
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+    push_cstr(payload, "GhostChar");
+
+    auto r = feed(fsm, make_packet(0x0A, payload));
+    CHECK_FALSE(r);
+    CHECK(r.error().code() == core::StatusCode::NotFound);
 }
 
 } // namespace pvpgn::protocol::d2cs

@@ -188,11 +188,12 @@ and `TcpListener` for all active protocols.
 
 ---
 
-## Phase 3: bnetd Server Logic Migration 🔄 IN PROGRESS
+## Phase 3: bnetd Server Logic Migration 🔄 IN PROGRESS (deferred items remain)
 
 > **Started:** Round 130
+> **Active through:** Round 142
 > **Depends on:** Phase 2 (complete ✅)
-> **Reference:** [`plans/refactoring-plan-legacy-bnetd.md`](plans/refactoring-plan-legacy-bnetd.md)
+> **Reference:** [`plans/phase3-bnetd-checklist.md`](plans/phase3-bnetd-checklist.md)
 
 ### Phase 3 Scope
 
@@ -200,19 +201,38 @@ Migrate `src/bnetd/` (140+ files) into the v3 hexagonal architecture by deleting
 `handle_*.cpp` files one by one as the v3 FSMs take over each protocol. The strangler-fig
 bridges already intercept all outbound packet sites; Phase 3 completes the inbound side.
 
-#### Priority 1 — Legacy Handler Deletion (unblocked by Phase 2)
+### Phase 3 Completed (R131–R142)
 
-- [ ] Delete `src/bnetd/handle_file.cpp` — `BnftpFsm` is complete (R122)
-- [ ] Delete `src/bnetd/handle_irc.cpp` + `handle_irc_common.cpp` — `IrcFsm` is complete (R127)
-- [ ] Delete `src/bnetd/handle_wol_gameres.cpp` — `WolFsm` binary game results (stub, needs R130+)
-- [ ] Delete `src/bnetd/handle_telnet.cpp` — `TelnetAdminFsm` needs login flow first
-- [ ] Delete `src/bnetd/handle_init.cpp` — `ConnectionClassifier` needs wiring first
+- [x] **R131** — Phase 3 audit + `plans/phase3-bnetd-checklist.md` created
+- [x] **R132** — Deleted `handle_file.cpp/h`, `handle_wol_gameres.cpp/h`
+- [x] **R133** — Migrated `psock.h` callers (5 bnetd files)
+- [x] **R134** — Deleted `handle_irc.cpp` + `handle_irc_common.cpp`; inlined into `irc.cpp`
+- [x] **R135** — Fixed missing `infra/compat/directory.hpp` (CMakeLists.txt fallbacks)
+- [x] **R136** — `ConnectionFsm` skeleton (28 tests, 183 assertions)
+- [x] **R137** — `ConnectionFsm` expanded with `InGame` state (45 tests, 407 assertions)
+- [x] **R138** — `AsioEventLoop` + `LegacyBridge` + `server_v3_hook` (12 tests)
+- [x] **R139** — `server_tick_v3(5)` wired into `server.cpp` main loop
+- [x] **R140** — `BnetConnectionAdapter` bridges `BnetFsm` → `ConnectionFsm` (13 tests, 108 assertions)
+- [x] **R141** — `LuaRuntime` + `LuaConnectionContext` (10 tests)
+- [x] **R142** — Handler audit: `handle_wol.cpp`, `handle_wserv.cpp`, `handle_d2cs.cpp` — all deferred
 
-#### Priority 2 — Domain / Application Layer Completion
+### Phase 3 Deferred (blocked)
+
+- [ ] Delete `handle_wol.cpp/h` — blocked by 3 call sites in `irc.cpp` + `anongame_wol.cpp`
+- [ ] Delete `handle_wserv.cpp/h` — blocked by 1 call site in `irc.cpp`
+- [ ] Delete `handle_d2cs.cpp/h` — blocked by `server.cpp:996`, `handle_init.cpp:192`, `connection.cpp:2187`
+- [ ] Delete `handle_telnet.cpp` — `TelnetAdminFsm` needs login flow first
+- [ ] Delete `handle_init.cpp` — `ConnectionClassifier` needs wiring first
+- [ ] Delete `handle_bnet.cpp` — after `BnetFsm` covers all SIDs
+- [ ] Delete `handle_bot.cpp` — after `BotProtocolFsm` complete
+- [ ] Integration bridge cleanup (`LegacyBridge`, `server_v3_hook`)
+- [ ] Migrate `prefs_get_*` callers (36/~38 files done R136–R139; ~2 files remain)
+- [ ] Delete `src/bnetd/prefs.cpp` / `prefs.h` after all callers migrated
+
+#### Priority 2 — Domain / Application Layer Completion (still pending)
 
 - [ ] `connection.cpp/.h` → `domain/shared/` + `infra/net/`
 - [ ] `server.cpp/.h` → `runtime/` + `infra/net/`
-- [ ] `prefs.cpp/.h` → `infra/config/` (TOML bridge already done R122; full migration pending)
 - [ ] `storage.cpp/.h` + `storage_file.cpp/.h` → `infra/persistence/` + `infra/file/`
 - [ ] SQL backends (`sql_mysql`, `sql_sqlite3`, `sql_pgsql`, `sql_odbc`) → `infra/*/`
 - [ ] `adbanner.cpp/.h` → `application/adbanner/`
@@ -227,15 +247,41 @@ bridges already intercept all outbound packet sites; Phase 3 completes the inbou
 - [ ] `watch.cpp/.h` → `application/watch/`
 - [ ] `lua*.cpp/.h` → `infra/scripting/lua/`
 
-#### Priority 3 — Final Cleanup
+## Phase 4: D2 Services Migration 🔜 STARTING
 
-- [ ] Delete `src/bnetd/handle_bnet.cpp` (after BnetFsm covers all SIDs)
-- [ ] Delete `src/bnetd/connection.cpp` (after composition root owns connections)
-- [ ] Delete `src/bnetd/server.cpp` (after IoRuntime owns event loop)
-- [ ] Delete `src/bnetd/main.cpp` (after `pvpgn_v3_bnetd` is the sole entry point)
-- [ ] Install TOML templates via `conf/CMakeLists.txt`
-- [ ] Migrate `prefs_get_*` callers (38 files, ~300+ sites) to `LegacyPrefs`
-- [ ] Delete `src/bnetd/prefs.cpp` / `prefs.h` after all callers migrated
+> **Started:** Round 143
+> **Depends on:** Phase 3 (in progress — D2 work is independent)
+> **Reference:** [`plans/phase4-d2-checklist.md`](plans/phase4-d2-checklist.md), [`plans/refactoring-plan-legacy-d2.md`](plans/refactoring-plan-legacy-d2.md)
+
+### Phase 4 Scope
+
+Migrate `src/d2cs/` (42 files, ~8 700 LOC) and `src/d2dbs/` (20 files, ~4 100 LOC) into the
+v3 hexagonal architecture. Both services already have static-library carve-outs
+(`d2cs_legacy`, `d2dbs_legacy`) and v3 composition-root stubs. The `D2CSSessionFsm` (310-line
+header, 706-line impl) is already complete from R129.
+
+### Phase 4 What Already Exists in v3
+
+- `domain/realm/` — `Character`, `CharacterList`, `DupeChecker`, `Realm` aggregates
+- `application/realm/` — `CharacterLock`, `CharacterPersistence`, `GsQueue`, `CreateCharacter`,
+  `DeleteCharacter`, `ListCharacters`, `LoadCharacter`, `SaveCharacter`, `JoinGameServer`
+- `protocol/d2cs/` — `D2CSSessionFsm` (complete), `Codec`, `CharListReplyEncoder`, `LadderReplyEncoder`
+- `protocol/d2dbs/` — `Codec`, `D2DBSSessionFsm` (stub)
+- `protocol/d2gs/` — `Codec`
+- `protocol/d2save/` — D2 save-file codec
+- `infra/persistence/realm/` — `FilesystemSaveStore`, `InMemoryCharacterRepository`, `InMemorySaveStore`
+- `services/d2cs/` — composition root stub (`D2CSComposition`)
+- `services/d2dbs/` — composition root stub (`D2DBSComposition`)
+
+### Phase 4 Steps (see checklist for detail)
+
+- [ ] **Step 1** — Domain layer: `CharacterList` + `D2Ladder` domain objects
+- [ ] **Step 2** — Application layer: D2CS + D2DBS use-case services
+- [ ] **Step 3** — Protocol FSM: D2CS FSM wired to app layer; D2DBS FSM expanded
+- [ ] **Step 4** — Infrastructure: character-file persistence + ladder persistence
+- [ ] **Step 5** — Inter-service communication: D2CS↔D2DBS + D2CS↔D2GS adapters
+- [ ] **Step 6** — Composition roots: wire D2CS + D2DBS services end-to-end
+- [ ] **Step 7** — Combined mode: D2CS + D2DBS run inside bnetd process
 
 ## Phase 5: Tools Migration ✅ Mostly Done
 
@@ -2153,3 +2199,119 @@ Intentionally NOT migrated (no/broken bridge accessor; left as legacy
 
 Validation: g++ -fsyntax-only across all 4 TUs reports zero prefs-related
 diagnostics.
+
+---
+
+### Round 131 — 2026-05-22
+
+Phase 3 audit. Created `plans/phase3-bnetd-checklist.md` (865 lines) documenting
+the full bnetd migration scope, deferred psock callers, handler deletion order,
+and complexity ratings for all remaining work.
+
+Deliverables:
+- `plans/phase3-bnetd-checklist.md` — comprehensive Phase 3 checklist
+
+### Round 132 — 2026-05-22
+
+Deleted two legacy handler files that were fully superseded by Phase 2 FSMs:
+- `src/bnetd/handle_file.cpp` + `handle_file.h` — replaced by `BnftpFsm` (R122)
+- `src/bnetd/handle_wol_gameres.cpp` + `handle_wol_gameres.h` — replaced by `WolFsm`
+
+Both files had zero remaining callers after the Phase 2 bridge work.
+
+### Round 133 — 2026-05-22
+
+Migrated 5 bnetd files from `psock.h` to POSIX `<sys/socket.h>` / `<unistd.h>`:
+`server.cpp`, `connection.cpp`, `net.cpp` (bnetd), `udptest.cpp`, `handle_bnet.cpp`.
+Added `#ifndef _WIN32` guards for POSIX headers. Removed `#include "compat/psock.h"`.
+
+### Round 134 — 2026-05-22
+
+Deleted `src/bnetd/handle_irc.cpp` + `src/bnetd/handle_irc_common.cpp`.
+All IRC dispatch logic inlined into `src/bnetd/irc.cpp`. The `IrcFsm` (R127)
+now owns the inbound IRC path. Zero remaining callers of the deleted files.
+
+### Round 135 — 2026-05-22
+
+Fixed missing `infra/compat/directory.hpp` in legacy build. Root cause: the
+`d2cs_legacy` and `d2dbs_legacy` static libraries did not link `infra_compat`
+when the v3 tree was present. Added conditional `target_link_libraries` blocks
+to `src/d2cs/CMakeLists.txt` and `src/d2dbs/CMakeLists.txt`. Full 129/129
+CMake targets built with zero errors after fix.
+
+### Round 136 — 2026-05-22
+
+Created `ConnectionFsm` skeleton in `src/v3/domain/connection/`:
+- `include/domain/connection/connection_fsm.hpp`
+- `include/domain/connection/connection_context.hpp`
+- `src/connection_fsm.cpp`
+- `tests/unit/domain/connection/connection_fsm_test.cpp`
+
+States: `Connected`, `Authenticating`, `Authenticated`, `Disconnected`.
+Test suite: 28 tests, 183 assertions. All green.
+
+### Round 137 — 2026-05-22
+
+Expanded `ConnectionFsm` with `InGame` state and full game lifecycle:
+- `enter_game()` / `leave_game()` transitions
+- `game_name` + `game_token` stored on `InGame` state
+- Guard: `leave_game()` from non-`InGame` state returns error
+
+Test suite expanded to 45 tests, 407 assertions. All green.
+
+### Round 138 — 2026-05-22
+
+Asio event loop integration bridge:
+- `src/v3/app/bnetd/include/app/bnetd/asio_event_loop.hpp` + `src/asio_event_loop.cpp`
+- `src/v3/app/bnetd/include/app/bnetd/legacy_bridge.hpp` + `src/legacy_bridge.cpp`
+- `src/bnetd/server_v3_hook.h` + `src/bnetd/server_v3_hook.cpp`
+
+`AsioEventLoop` wraps `asio::io_context`. `LegacyBridge` holds the loop and
+exposes `tick(ms)`. `server_v3_hook` is the C-linkage entry point called from
+legacy `server.cpp`. Test suite: 12 tests. All green.
+
+### Round 139 — 2026-05-22
+
+Wired `server_tick_v3(5)` into `src/bnetd/server.cpp` main loop. The legacy
+`server_loop()` now calls `server_tick_v3(5)` once per iteration, giving the
+Asio event loop 5 ms of CPU time per legacy tick. Zero functional change to
+legacy behaviour; the v3 loop is a no-op until handlers are registered.
+
+### Round 140 — 2026-05-22
+
+`BnetConnectionAdapter` bridges `BnetFsm` → `ConnectionFsm`:
+- `src/v3/app/bnetd/include/app/bnetd/bnet_connection_adapter.hpp`
+- `src/v3/app/bnetd/src/bnet_connection_adapter.cpp`
+- `src/v3/app/bnetd/include/app/bnetd/logging_connection_context.hpp`
+
+Adapter translates `BnetFsm` callbacks into `ConnectionFsm` state transitions.
+`LoggingConnectionContext` provides a no-op `IConnectionContext` for tests.
+Test suite: 13 tests, 108 assertions. All green.
+
+### Round 141 — 2026-05-22
+
+`LuaRuntime` + `LuaConnectionContext`:
+- Lua scripting wired into v3 event hooks via `IConnectionContext`
+- `LuaRuntime` loads scripts from `lua/` directory
+- `LuaConnectionContext` implements `IConnectionContext` with Lua dispatch
+
+Test suite: 10 tests. All green.
+
+### Round 142 — 2026-05-22
+
+Handler audit — `handle_wol.cpp`, `handle_wserv.cpp`, `handle_d2cs.cpp`.
+All three files deferred (see `plans/phase3-bnetd-checklist.md` §5.4, §5.9):
+
+- `handle_wol.cpp` — 3 call sites in `irc.cpp` + 1 in `anongame_wol.cpp` remain
+- `handle_wserv.cpp` — 1 call site in `irc.cpp` remains
+- `handle_d2cs.cpp` — called from `server.cpp:996`, `handle_init.cpp:192`,
+  `connection.cpp:2187`; deletion blocked until D2CS v3 session handling is live
+
+Phase 3 deferred items tracked in checklist. Phase 4 (D2 services) starting R143.
+
+### Round 143 — 2026-05-22
+
+Phase 4 planning:
+- Updated `plans/progress-master.md`: Phase 3 status (R131–R142), Phase 4 section added
+- Created `plans/phase4-d2-checklist.md`: comprehensive D2CS + D2DBS audit and
+  migration checklist (file inventory, line counts, v3 coverage map, step-by-step plan)
