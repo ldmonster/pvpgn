@@ -38,7 +38,7 @@
 #include "message.h"
 #include "account.h"
 #include "account_wrap.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "irc.h"
 #include "i18n.h"
 #include "common/setup_after.h"
@@ -205,8 +205,8 @@ namespace pvpgn
 					tmnow->tm_min,
 					tmnow->tm_sec);
 
-				channel->logname = new char[std::strlen(prefs_get_chanlogdir()) + 9 + std::strlen(dstr) + 1 + 6 + 1]; /* dir + "/chanlog-" + dstr + "-" + id + NUL */
-				std::sprintf(channel->logname, "%s/chanlog-%s-%06u", prefs_get_chanlogdir(), dstr, channel->id);
+				channel->logname = new char[std::strlen(prefs_v3::chanlogdir()) + 9 + std::strlen(dstr) + 1 + 6 + 1]; /* dir + "/chanlog-" + dstr + "-" + id + NUL */
+				std::sprintf(channel->logname, "%s/chanlog-%s-%06u", prefs_v3::chanlogdir(), dstr, channel->id);
 
 				if (!(channel->log = std::fopen(channel->logname, "w")))
 					eventlog(eventlog_level_error, __FUNCTION__, "could not open channel log \"{}\" for writing (std::fopen: {})", channel->logname, std::strerror(errno));
@@ -1231,7 +1231,7 @@ namespace pvpgn
 		extern int channellist_create(void)
 		{
 			/* channellist_head is already a default-constructed empty vector */
-			return channellist_load_permanent(prefs_get_channelfile());
+			return channellist_load_permanent(prefs_v3::channelfile());
 		}
 
 

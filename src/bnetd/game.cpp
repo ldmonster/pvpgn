@@ -35,7 +35,7 @@
 #include "server.h"
 #include "account.h"
 #include "account_wrap.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "watch.h"
 #include "realm.h"
 #include "ladder.h"
@@ -775,7 +775,7 @@ namespace pvpgn
 				game->clienttag == CLIENTTAG_DIABLO2DV_UINT ||
 				game->clienttag == CLIENTTAG_DIABLO2XP_UINT)
 			{
-				if (prefs_get_report_diablo_games() == 1)
+				if (prefs_v3::report_diablo_games() == 1)
 					/* diablo games have transient players and no reported winners/losers */
 					realcount = 0;
 				else
@@ -950,7 +950,7 @@ namespace pvpgn
 				}
 			}
 
-			if (game_get_type(game) != game_type_ladder && prefs_get_report_all_games() != 1)
+			if (game_get_type(game) != game_type_ladder && prefs_v3::report_all_games() != 1)
 			{
 				eventlog(eventlog_level_debug, __FUNCTION__, "not reporting normal games");
 
@@ -977,10 +977,10 @@ namespace pvpgn
 					tmval->tm_min,
 					tmval->tm_sec);
 
-				tempname = new char[std::strlen(prefs_get_reportdir()) + 1 + 1 + 5 + 1 + 2 + 1 + std::strlen(dstr) + 1 + 6 + 1];
-				std::sprintf(tempname, "%s/_bnetd-gr_%s_%06u", prefs_get_reportdir(), dstr, game->id);
-				realname = new char[std::strlen(prefs_get_reportdir()) + 1 + 2 + 1 + std::strlen(dstr) + 1 + 6 + 1];
-				std::sprintf(realname, "%s/gr_%s_%06u", prefs_get_reportdir(), dstr, game->id);
+				tempname = new char[std::strlen(prefs_v3::reportdir()) + 1 + 1 + 5 + 1 + 2 + 1 + std::strlen(dstr) + 1 + 6 + 1];
+				std::sprintf(tempname, "%s/_bnetd-gr_%s_%06u", prefs_v3::reportdir(), dstr, game->id);
+				realname = new char[std::strlen(prefs_v3::reportdir()) + 1 + 2 + 1 + std::strlen(dstr) + 1 + 6 + 1];
+				std::sprintf(realname, "%s/gr_%s_%06u", prefs_v3::reportdir(), dstr, game->id);
 			}
 
 			if (!(fp = std::fopen(tempname, "w")))
@@ -1040,7 +1040,7 @@ namespace pvpgn
 				game_get_count(game),
 				game_get_maxplayers(game));
 
-			if (!prefs_get_hide_addr())
+			if (!prefs_v3::hide_addr())
 				std::fprintf(fp, "host=%s\n", addr_num_to_addr_str(game_get_addr(game), game_get_port(game)));
 
 			std::fprintf(fp, "\n\n");
@@ -2380,8 +2380,8 @@ namespace pvpgn
 				game->type == game_type_ironman) return 1;
 
 			/* addition game types are also checked against gamename prefix if set */
-			if (game_match_type(game_get_type(game), prefs_get_ladder_games()) &&
-				game_match_name(game_get_name(game), prefs_get_ladder_prefix())) return 1;
+			if (game_match_type(game_get_type(game), prefs_v3::ladder_games()) &&
+				game_match_name(game_get_name(game), prefs_v3::ladder_prefix())) return 1;
 
 			return 0;
 		}
@@ -2390,7 +2390,7 @@ namespace pvpgn
 		{
 			assert(game);
 
-			if (prefs_get_discisloss())
+			if (prefs_v3::discisloss())
 				return 1;
 
 			/* all normal ladder games provide discisloss option themselves */
@@ -2398,8 +2398,8 @@ namespace pvpgn
 				game->type == game_type_ironman) return game->option == game_option_ladder_countasloss;
 
 			/* additional game types that are consideres ladder are always considered discasloss */
-			if (game_match_type(game_get_type(game), prefs_get_ladder_games()) &&
-				game_match_name(game_get_name(game), prefs_get_ladder_prefix())) return 1;
+			if (game_match_type(game_get_type(game), prefs_v3::ladder_games()) &&
+				game_match_name(game_get_name(game), prefs_v3::ladder_prefix())) return 1;
 
 			/* all other games are handled as usual */
 			return  game->option == game_option_ladder_countasloss;

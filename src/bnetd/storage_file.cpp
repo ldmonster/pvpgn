@@ -45,7 +45,7 @@
 #include "team.h"
 #include "account.h"
 #include "file_plain.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "clan.h"
 #undef CLAN_INTERNAL_ACCESS
 #undef TEAM_INTERNAL_ACCESS
@@ -231,7 +231,7 @@ namespace pvpgn
 				return NULL;
 			}
 
-			if (prefs_get_savebyname())
+			if (prefs_v3::savebyname())
 			{
 				char const *safename;
 
@@ -421,7 +421,7 @@ namespace pvpgn
 			/* ONLY if requesting for a username and if savebyname() is true
 			 * PS: yes its kind of a hack, we will make a proper index file
 			 */
-			if (accname && prefs_get_savebyname()) {
+			if (accname && prefs_v3::savebyname()) {
 				pathname = new char[std::strlen(accountsdir) + 1 + std::strlen(accname) + 1];	/* dir + / + file + NUL */
 				std::sprintf(pathname, "%s/%s", accountsdir, accname);
 				if (!std::filesystem::exists(pathname))	/* if it doesn't exist */
@@ -565,7 +565,7 @@ namespace pvpgn
 					clan->creation_time = (std::time_t) creation_time;
 					clan->created = 1;
 					clan->modified = 0;
-					clan->channel_type = prefs_get_clan_channel_default_private();
+clan->channel_type = prefs_v3::clan_channel_default_private();
 
 					eventlog(eventlog_level_trace, __FUNCTION__, "name: {} motd: {} clanid: {} time: {}", clanname, motd, cid, creation_time);
 
@@ -585,7 +585,7 @@ namespace pvpgn
 						member->clan = clan;
 						member->fullmember = 1; /* In files we have only fullmembers */
 	
-						if ((member->status == CLAN_NEW) && (std::time(NULL) - member->join_time > prefs_get_clan_newer_time() * 3600))
+						if ((member->status == CLAN_NEW) && (std::time(NULL) - member->join_time > prefs_v3::clan_newer_time() * 3600))
 						{
 							member->status = CLAN_PEON;
 							clan->modified = 1;
@@ -633,7 +633,7 @@ namespace pvpgn
 
 			for (t_clanmember* member2 : clan->members)
 			{
-				if ((member2->status == CLAN_NEW) && (std::time(NULL) - member2->join_time > prefs_get_clan_newer_time() * 3600))
+				if ((member2->status == CLAN_NEW) && (std::time(NULL) - member2->join_time > prefs_v3::clan_newer_time() * 3600))
 					member2->status = CLAN_PEON;
 				if (member2->fullmember == 1) /* only fullmembers are stored */
 					std::fprintf(fp, "%i,%c,%u\n", account_get_uid((t_account*)member2->memberacc), member2->status + '0', (unsigned)member2->join_time);

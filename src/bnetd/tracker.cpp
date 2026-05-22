@@ -45,7 +45,7 @@
 # include <sys/utsname.h>
 #endif
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "connection.h"
 #include "channel.h"
 #include "game.h"
@@ -111,13 +111,13 @@ namespace pvpgn
 				bn_short_nset(&packet.packet_version, static_cast<unsigned short>(TRACK_VERSION));
 				/* packet.port is set below */
 				bn_int_nset(&packet.flags, 0);
-				std::snprintf(reinterpret_cast<char*>(packet.server_location), sizeof packet.server_location, "%s", prefs_get_location());
+				std::snprintf(reinterpret_cast<char*>(packet.server_location), sizeof packet.server_location, "%s", prefs_v3::location());
 				std::snprintf(reinterpret_cast<char*>(packet.software), sizeof packet.software, PVPGN_SOFTWARE);
 				std::snprintf(reinterpret_cast<char*>(packet.version), sizeof packet.version, PVPGN_VERSION);
-				std::snprintf(reinterpret_cast<char*>(packet.server_desc), sizeof packet.server_desc, "%s", prefs_get_description());
-				std::snprintf(reinterpret_cast<char*>(packet.server_url), sizeof packet.server_url, "%s", prefs_get_url());
-				std::snprintf(reinterpret_cast<char*>(packet.contact_name), sizeof packet.contact_name, "%s", prefs_get_contact_name());
-				std::snprintf(reinterpret_cast<char*>(packet.contact_email), sizeof packet.contact_email, "%s", prefs_get_contact_email());
+				std::snprintf(reinterpret_cast<char*>(packet.server_desc), sizeof packet.server_desc, "%s", prefs_v3::description());
+				std::snprintf(reinterpret_cast<char*>(packet.server_url), sizeof packet.server_url, "%s", prefs_v3::url());
+				std::snprintf(reinterpret_cast<char*>(packet.contact_name), sizeof packet.contact_name, "%s", prefs_v3::contact_name());
+				std::snprintf(reinterpret_cast<char*>(packet.contact_email), sizeof packet.contact_email, "%s", prefs_v3::contact_email());
 				bn_int_nset(&packet.users, connlist_login_get_length());
 				bn_int_nset(&packet.channels, channellist_get_length());
 				bn_int_nset(&packet.games, gamelist_get_length());

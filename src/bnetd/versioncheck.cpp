@@ -50,7 +50,7 @@
 #include "common/token.h"
 #include "common/util.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 
@@ -215,7 +215,7 @@ namespace pvpgn
 			}
 
 			if (it->second.m_checksum != checkrevision_checksum
-				&& !prefs_get_allow_bad_version())
+				&& !prefs_v3::allow_bad_version())
 			{
 				return nullptr;
 			}

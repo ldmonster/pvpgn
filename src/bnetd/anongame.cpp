@@ -36,7 +36,7 @@
 #include "account.h"
 #include "account_wrap.h"
 #include "connection.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "versioncheck.h"
 #include "tournament.h"
 #include "timer.h"
@@ -942,7 +942,7 @@ namespace pvpgn
 			if (w3routeip == -1) {
 				t_addr *routeraddr;
 
-				routeraddr = addr_create_str(prefs_get_w3route_addr(), 0, BNETD_W3ROUTE_PORT);
+				routeraddr = addr_create_str(prefs_v3::w3route_addr(), 0, BNETD_W3ROUTE_PORT);
 
 				if (!routeraddr) {
 					eventlog(eventlog_level_error, __FUNCTION__, "error getting w3route_addr");

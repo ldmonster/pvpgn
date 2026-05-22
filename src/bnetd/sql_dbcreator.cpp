@@ -27,7 +27,7 @@
 #include "common/xstr.h"
 #include "common/util.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -651,7 +651,7 @@ namespace pvpgn
 			char           query[1024];
 			t_sqlcommand * sqlcmd;
 
-			load_db_layout(prefs_get_DBlayoutfile());
+			load_db_layout(prefs_v3::DBlayoutfile());
 
 			eventlog(eventlog_level_info, __FUNCTION__, "Creating missing tables and columns (if any)");
 

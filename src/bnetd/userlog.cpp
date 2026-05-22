@@ -40,7 +40,7 @@
 #include "account_wrap.h"
 #include "command_groups.h"
 #include "command.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "helpfile.h"
 #include "i18n.h"
 #include "userlog.h"
@@ -76,7 +76,7 @@ namespace pvpgn
 			userlog_commands.clear();
 
 			// fill command list that must be logged
-			if (const char * cmdlist = prefs_get_log_command_list())
+			if (const char * cmdlist = prefs_v3::log_command_list())
 			{
 				temp = ul_strdup(cmdlist);
 				tok = std::strtok(temp, ","); /* std::strtok modifies the string it is passed */
@@ -92,11 +92,11 @@ namespace pvpgn
 		extern void userlog_append(t_account * account, const char * text)
 		{
 			// is logging enabled?
-			if (!prefs_get_log_commands())
+			if (!prefs_v3::log_commands())
 				return;
 			
 			unsigned int groups = 0;
-			const char * cglist = prefs_get_log_command_groups();
+			const char * cglist = prefs_v3::log_command_groups();
 			size_t cglistlen = std::strlen(cglist);
 
 			// convert string groups from config to integer
@@ -261,7 +261,7 @@ namespace pvpgn
 			// it will improve performance with large count of files
 			std::string dir_prefix = lusername.substr(0, 3);
 
-			std::string filepath = fmt::format("{}/{}", prefs_get_userlogdir(), dir_prefix);
+			std::string filepath = fmt::format("{}/{}", prefs_v3::userlogdir(), dir_prefix);
 			// create directories in path
 			if (force_create_path)
 			{

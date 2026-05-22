@@ -27,7 +27,7 @@
 #include "common/list.h"
 #include "common/util.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "game.h"
 #include "channel.h"
 #include "connection.h"
@@ -53,10 +53,10 @@ namespace pvpgn
 		{
 			eventlog(eventlog_level_info, __FUNCTION__, "initializing output file");
 
-			if (prefs_get_XML_status_output())
-				status_filename = fmt::format("{}/{}", prefs_get_outputdir(), "server.xml");
+			if (prefs_v3::XML_status_output())
+				status_filename = fmt::format("{}/{}", prefs_v3::outputdir(), "server.xml");
 			else
-				status_filename = fmt::format("{}/{}", prefs_get_outputdir(), "server.dat");
+				status_filename = fmt::format("{}/{}", prefs_v3::outputdir(), "server.dat");
 
 			return;
 		}
@@ -101,7 +101,7 @@ namespace pvpgn
 			int uptime = server_get_uptime();
 
 
-			if (prefs_get_XML_status_output())
+			if (prefs_v3::XML_status_output())
 			{
 				int seconds;
 				int minutes;

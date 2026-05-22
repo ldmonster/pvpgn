@@ -39,7 +39,7 @@
 
 #include "message.h"
 #include "server.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "connection.h"
 
 #include "helpfile.h"
@@ -245,7 +245,7 @@ namespace pvpgn
 
 			eventlog(eventlog_level_debug, __FUNCTION__, "lastcheck: {}, now: {}, now-lc: {}.", (unsigned)lastchecktime, (unsigned)now, (unsigned)(now - lastchecktime));
 
-			if (now - lastchecktime >= (signed)prefs_get_ipban_check_int()) /* unsigned; no need to check prefs < 0 */
+			if (now - lastchecktime >= (signed)prefs_v3::ipban_check_int()) /* unsigned; no need to check prefs < 0 */
 			{
 				ipbanlist_unload_expired();
 				lastchecktime = now;
@@ -457,7 +457,7 @@ namespace pvpgn
 					++it;
 				}
 			}
-			if (removed) ipbanlist_save(prefs_get_ipbanfile());
+			if (removed) ipbanlist_save(prefs_v3::ipbanfile());
 			return 0;
 		}
 
@@ -522,11 +522,11 @@ namespace pvpgn
 			{
 			case IPBAN_FUNC_ADD:
 				result = ipbanlist_add(c, ipstr, ipbanlist_str_to_time_t(c, time));
-				result = ipbanlist_save(prefs_get_ipbanfile());
+				result = ipbanlist_save(prefs_v3::ipbanfile());
 				break;
 			case IPBAN_FUNC_DEL:
 				result = ipban_func_del(c, ipstr);
-				result = ipbanlist_save(prefs_get_ipbanfile());
+				result = ipbanlist_save(prefs_v3::ipbanfile());
 				break;
 			case IPBAN_FUNC_LIST:
 				result = ipban_func_list(c);

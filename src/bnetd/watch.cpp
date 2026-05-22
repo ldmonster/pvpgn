@@ -22,7 +22,7 @@
 #include "common/eventlog.h"
 #include "message.h"
 #include "friends.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 
@@ -156,10 +156,10 @@ namespace pvpgn
 						std::snprintf(msg, sizeof(msg), "Your friend %s has left a %s game.", myusername, game_title);
 						break;
 					case Watch::ET_login:
-						std::snprintf(msg, sizeof(msg), "Your friend %s has entered %s.", myusername, prefs_get_servername());
+						std::snprintf(msg, sizeof(msg), "Your friend %s has entered %s.", myusername, prefs_v3::servername());
 						break;
 					case Watch::ET_logout:
-						std::snprintf(msg, sizeof(msg), "Your friend %s has left %s.", myusername, prefs_get_servername());
+						std::snprintf(msg, sizeof(msg), "Your friend %s has left %s.", myusername, prefs_v3::servername());
 						break;
 					}
 					for (t_friend* fr : flist)
@@ -191,10 +191,10 @@ namespace pvpgn
 					std::snprintf(msg, sizeof(msg), "Watched user %s has left a %s game.", myusername, game_title);
 					break;
 				case Watch::ET_login:
-					std::snprintf(msg, sizeof(msg), "Watched user %s has entered %s.", myusername, prefs_get_servername());
-					break;
-				case Watch::ET_logout:
-					std::snprintf(msg, sizeof(msg), "Watched user %s has left %s", myusername, prefs_get_servername());
+				std::snprintf(msg, sizeof(msg), "Watched user %s has entered %s.", myusername, prefs_v3::servername());
+				break;
+			case Watch::ET_logout:
+				std::snprintf(msg, sizeof(msg), "Watched user %s has left %s", myusername, prefs_v3::servername());
 					break;
 				}
 

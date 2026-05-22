@@ -32,7 +32,7 @@
 #include "common/field_sizes.h"
 
 #include "message.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 
 #include "common/setup_after.h"
 
@@ -51,7 +51,7 @@ namespace pvpgn
 			if (this->topiclist.IsHeadLoaded == true)
 				return;
 
-			std::ifstream topicfile_stream(prefs_get_topicfile());
+			std::ifstream topicfile_stream(prefs_v3::topicfile());
 			if (!topicfile_stream)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "couldn't open topic file");
@@ -200,7 +200,7 @@ namespace pvpgn
 		//Saves data from Head vector to topic file
 		bool class_topic::class_topiclist::save()
 		{
-			std::fstream topicfile_stream(prefs_get_topicfile(), std::ofstream::app);
+			std::fstream topicfile_stream(prefs_v3::topicfile(), std::ofstream::app);
 			if (!topicfile_stream)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "couldn't open topic file");

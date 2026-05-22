@@ -31,7 +31,7 @@
 #include "attr.h"
 #include "attrlayer.h"
 #include "storage.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "server.h"
 #include "connection.h"
 #include "common/setup_after.h"
@@ -198,7 +198,7 @@ namespace pvpgn
 			if (!FLAG_ISSET(attrgroup->flags, ATTRGROUP_FLAG_DIRTY))
 				return 0;
 
-			if (!FLAG_ISSET(flags, FS_FORCE) && now - attrgroup->dirtytime < prefs_get_user_sync_timer())
+			if (!FLAG_ISSET(flags, FS_FORCE) && now - attrgroup->dirtytime < prefs_v3::user_sync_timer())
 				return 0;
 
 			assert(attrgroup->storage);
@@ -224,7 +224,7 @@ namespace pvpgn
 
 			if (!FLAG_ISSET(flags, FS_FORCE) &&
 				FLAG_ISSET(attrgroup->flags, ATTRGROUP_FLAG_ACCESSED) &&
-				now - attrgroup->lastaccess < prefs_get_user_flush_timer())
+				now - attrgroup->lastaccess < prefs_v3::user_flush_timer())
 				return 0;
 
 			assert(attrgroup->storage);
@@ -240,7 +240,7 @@ namespace pvpgn
 			}
 
 			// do not flush online users (but flush if FORCE!)
-			if (!prefs_get_user_flush_connected() && !FLAG_ISSET(flags, FS_FORCE))
+			if (!prefs_v3::user_flush_connected() && !FLAG_ISSET(flags, FS_FORCE))
 			{
 				if (const char * username = attrgroup_get_attr(attrgroup, "BNET\\acct\\username"))
 					if (t_connection * c = connlist_find_connection_by_accountname(username))
@@ -271,7 +271,7 @@ namespace pvpgn
 			t_attrgroup *attrgroup = (t_attrgroup *)data;
 
 #ifdef WITH_SQL
-			if (strcmp(prefs_get_storage_path(), "sql") == 0)
+			if (strcmp(prefs_v3::storage_path(), "sql") == 0)
 			{
 				const char *tab = key_get_tab(key);
 
@@ -300,7 +300,7 @@ namespace pvpgn
 			if (FLAG_ISSET(attrgroup->flags, ATTRGROUP_FLAG_LOADED))
 			{
 #ifdef WITH_SQL
-				if (strcmp(prefs_get_storage_path(), "sql") == 0)
+				if (strcmp(prefs_v3::storage_path(), "sql") == 0)
 				{
 					// find a tab
 					for (std::vector<const char *>::iterator it = attrgroup->loadedtabs->begin(); it != attrgroup->loadedtabs->end(); ++it)

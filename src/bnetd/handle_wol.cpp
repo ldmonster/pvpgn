@@ -40,7 +40,7 @@
 
 #include "common/packet.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "command.h"
 #include "irc.h"
 #include "account.h"
@@ -261,7 +261,7 @@ namespace pvpgn
 			tempapgar = conn_wol_get_apgar(conn);
 			temphash = account_get_wol_apgar(a);
 
-			if (connlist_find_connection_by_account(a) && prefs_get_kick_old_login() == 0)
+			if (connlist_find_connection_by_account(a) && prefs_v3::kick_old_login() == 0)
 			{
 				irc_send(conn, ERR_NICKNAMEINUSE, std::string(std::string(conn_get_loggeduser(conn)) + " :Account is already in use!").c_str());
 			}
@@ -1124,7 +1124,7 @@ namespace pvpgn
 					}
 					else {
 						t_game * game = conn_get_game(conn);
-						t_channel * channel = channel_create(gamename, gamename, 0, 0, 1, 1, prefs_get_chanlog(), NULL, NULL, (prefs_get_maxusers_per_channel() > 0) ? prefs_get_maxusers_per_channel() : -1, 0, 0, 0);
+						t_channel * channel = channel_create(gamename, gamename, 0, 0, 1, 1, prefs_v3::chanlog(), NULL, NULL, (prefs_v3::maxusers_per_channel() > 0) ? prefs_v3::maxusers_per_channel() : -1, 0, 0, 0);
 						game_set_channel(game, channel);
 						conn_set_channel_var(conn, channel);
 						channel_add_connection(channel, conn);

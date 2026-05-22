@@ -57,7 +57,7 @@
 #include "common/hexdump.h"
 
 #include "server.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "cmdline.h"
 #include "storage.h"
 #include "support.h"
@@ -170,7 +170,7 @@ int eventlog_startup(void)
 	char const * tok;
 
 	eventlog_clear_level();
-	if ((levels = prefs_get_loglevels())) {
+	if ((levels = prefs_v3::loglevels())) {
 		temp = ([&](){ std::size_t n = std::strlen(levels) + 1; char* r = new char[n]; std::memcpy(r, levels, n); return r; })();
 		tok = std::strtok(temp, ","); /* std::strtok modifies the string it is passed */
 		while (tok) {
@@ -187,16 +187,16 @@ int eventlog_startup(void)
 	}
 #endif
 
-	if (eventlog_open(prefs_get_logfile()) < 0) {
-		if (prefs_get_logfile()) {
-			eventlog(eventlog_level_fatal, __FUNCTION__, "could not use file \"{}\" for the eventlog (exiting)", prefs_get_logfile());
+	if (eventlog_open(prefs_v3::logfile()) < 0) {
+		if (prefs_v3::logfile()) {
+			eventlog(eventlog_level_fatal, __FUNCTION__, "could not use file \"{}\" for the eventlog (exiting)", prefs_v3::logfile());
 		}
 		else {
 			eventlog(eventlog_level_fatal, __FUNCTION__, "no logfile specified in configuration file \"{}\" (exiting)", cmdline_get_preffile());
 		}
 		return -1;
 	}
-	eventlog(eventlog_level_info, __FUNCTION__, "logging event levels: {}", prefs_get_loglevels());
+	eventlog(eventlog_level_info, __FUNCTION__, "logging event levels: {}", prefs_v3::loglevels());
 	return 0;
 }
 
@@ -262,7 +262,7 @@ int fork_bnetd(int foreground)
 
 char * write_to_pidfile(void)
 {
-	char *pidfile = ([&](){ char const* _s = prefs_get_pidfile(); if (!_s) return (char*)nullptr; std::size_t n = std::strlen(_s) + 1; char* r = new char[n]; std::memcpy(r, _s, n); return r; })();
+	char *pidfile = ([&](){ char const* _s = prefs_v3::pidfile(); if (!_s) return (char*)nullptr; std::size_t n = std::strlen(_s) + 1; char* r = new char[n]; std::memcpy(r, _s, n); return r; })();
 
 	if (pidfile)
 	{
@@ -300,7 +300,7 @@ int pre_server_startup(void)
 	pvpgn_greeting();
 	std::set_new_handler(new_oom_handler);
 
-	if (storage_init(prefs_get_storage_path()) < 0) {
+	if (storage_init(prefs_v3::storage_path()) < 0) {
 		eventlog(eventlog_level_error, "pre_server_startup", "storage init failed");
 		return STATUS_STORAGE_FAILURE;
 	}
@@ -313,9 +313,9 @@ int pre_server_startup(void)
 		}
 	}
 #endif
-	if (support_check_files(prefs_get_supportfile()) < 0) {
+	if (support_check_files(prefs_v3::supportfile()) < 0) {
 		eventlog(eventlog_level_error, "pre_server_startup", "some needed files are missing");
-		eventlog(eventlog_level_error, "pre_server_startup", "please make sure you installed the supportfiles in {}", prefs_get_filedir());
+		eventlog(eventlog_level_error, "pre_server_startup", "please make sure you installed the supportfiles in {}", prefs_v3::filedir());
 		return STATUS_SUPPORT_FAILURE;
 	}
 	if (anongame_maplists_create() < 0) {
@@ -326,7 +326,7 @@ int pre_server_startup(void)
 		eventlog(eventlog_level_error, "pre_server_startup", "could not create matchlists");
 		return STATUS_MATCHLISTS_FAILURE;
 	}
-	if (fdwatch_init(prefs_get_max_connections())) {
+	if (fdwatch_init(prefs_v3::max_connections())) {
 		eventlog(eventlog_level_error, __FUNCTION__, "error initilizing fdwatch");
 		return STATUS_FDWATCH_FAILURE;
 	}
@@ -339,10 +339,10 @@ int pre_server_startup(void)
 	server_set_hostname();
 	channellist_create();
 	apireglist_create();
-	if (helpfile_init(prefs_get_helpfile()) < 0)
+	if (helpfile_init(prefs_v3::helpfile()) < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load helpfile");
 	ipbanlist_create();
-	if (ipbanlist_load(prefs_get_ipbanfile()) < 0)
+	if (ipbanlist_load(prefs_v3::ipbanfile()) < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load IP ban list");
 
 	try
@@ -352,28 +352,28 @@ int pre_server_startup(void)
 			AdBannerList.unload();
 		}
 		
-		AdBannerList.load(prefs_get_adfile());
+		AdBannerList.load(prefs_v3::adfile());
 	}
 	catch (const std::exception& e)
 	{
 		eventlog(eventlog_level_error, __FUNCTION__, "{}", e.what());
 	}
 
-	if (autoupdate_load(prefs_get_mpqfile()) < 0)
+	if (autoupdate_load(prefs_v3::mpqfile()) < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load autoupdate list");
 
-	if (!load_versioncheck_conf(prefs_get_versioncheck_file()))
+	if (!load_versioncheck_conf(prefs_v3::versioncheck_file()))
 	{
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load versioncheck list");
 	}
 
-	if (news_load(prefs_get_newsfile()) < 0)
+	if (news_load(prefs_v3::newsfile()) < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load news list");
 	watchlist.reset(new WatchComponent());
 	output_init();
 	attrlayer_init();
 	accountlist_create();
-	if (ladder_createxptable(prefs_get_xplevel_file(), prefs_get_xpcalc_file()) < 0) {
+	if (ladder_createxptable(prefs_v3::xplevel_file(), prefs_v3::xpcalc_file()) < 0) {
 		eventlog(eventlog_level_error, "pre_server_startup", "could not load WAR3 xp calc tables");
 		return STATUS_WAR3XPTABLES_FAILURE;
 	}
@@ -381,26 +381,26 @@ int pre_server_startup(void)
 	ladders.update();
 	if (characterlist_create("") < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load character list");
-	if (prefs_get_track()) /* setup the tracking mechanism */
+	if (prefs_v3::track()) /* setup the tracking mechanism */
 		tracker_set_servers(prefs_get_trackserv_addrs());
-	if (command_groups_load(prefs_get_command_groups_file()) < 0)
+	if (command_groups_load(prefs_v3::command_groups_file()) < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load command_groups list");
-	aliasfile_load(prefs_get_aliasfile());
-	if (trans_load(prefs_get_transfile(), TRANS_BNETD) < 0)
+	aliasfile_load(prefs_v3::aliasfile());
+	if (trans_load(prefs_v3::transfile(), TRANS_BNETD) < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load trans list");
-	tournament_init(prefs_get_tournament_file());
-	customicons_load(prefs_get_customicons_file());
-	anongame_infos_load(prefs_get_anongame_infos_file());
+	tournament_init(prefs_v3::tournament_file());
+	customicons_load(prefs_v3::customicons_file());
+	anongame_infos_load(prefs_v3::anongame_infos_file());
 	anongame_wol_matchlist_create();
 	clanlist_load();
 	teamlist_load();
-	if (realmlist_create(prefs_get_realmfile()) < 0)
+	if (realmlist_create(prefs_v3::realmfile()) < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load realm list");
-	//topiclist_load(std::string(prefs_get_topicfile()));
+	//topiclist_load(std::string(prefs_v3::topicfile()));
 	userlog_init();
 
 #ifdef WITH_LUA
-	lua_load(prefs_get_scriptdir());
+	lua_load(prefs_v3::scriptdir());
 #endif
 
 
@@ -436,7 +436,7 @@ void post_server_shutdown(int status)
 		news_unload();
 		unload_versioncheck_conf();
 		autoupdate_unload();
-		ipbanlist_save(prefs_get_ipbanfile());
+		ipbanlist_save(prefs_v3::ipbanfile());
 		ipbanlist_destroy();
 		helpfile_unload();
 		apireglist_destroy();
@@ -565,7 +565,7 @@ extern int main(int argc, char ** argv)
 
 		/* Give up root privileges */
 		/* Hakan: That's way too late to give up root privileges... Have to look for a better place */
-		if (give_up_root_privileges(prefs_get_effective_user(), prefs_get_effective_group()) < 0) {
+		if (give_up_root_privileges(prefs_v3::effective_user(), prefs_v3::effective_group()) < 0) {
 			eventlog(eventlog_level_fatal, __FUNCTION__, "could not give up privileges (exiting)");
 			return -1;
 		}

@@ -35,7 +35,7 @@
 #include "common/xstring.h"
 #include "account.h"
 #include "message.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "connection.h"
 #include "helpfile.h"
 #include "command.h"
@@ -87,7 +87,7 @@ namespace pvpgn
 			}
 
 		Mailbox::Mailbox(unsigned uid_)
-			:uid(uid_), path(buildPath(prefs_get_maildir()))
+			:uid(uid_), path(buildPath(prefs_v3::maildir()))
 		{
 			// Lazy open: try to open the directory; if it doesn't exist yet,
 			// mdir_ stays nullopt and createOpenDir() will create it on demand.
@@ -106,7 +106,7 @@ namespace pvpgn
 		void
 			Mailbox::createOpenDir()
 		{
-				p_mkdir(prefs_get_maildir());
+				p_mkdir(prefs_v3::maildir());
 				p_mkdir(path.c_str());
 				namespace dir = pvpgn::v3::infra::compat;
 				mdir_ = dir::open_directory(path);
@@ -285,7 +285,7 @@ namespace pvpgn
 
 		extern int handle_mail_command(t_connection * c, char const * text)
 		{
-			if (!prefs_get_mail_support()) {
+			if (!prefs_v3::mail_support()) {
 				message_send_text(c, message_type_error, c, localize(c, "This server has NO mail support."));
 				return -1;
 			}
@@ -344,7 +344,7 @@ namespace pvpgn
 			int quota;
 			char const * user_quota = account_get_strattr(user, "BNET\\auth\\mailquota");
 
-			if (!user_quota) quota = prefs_get_mail_quota();
+			if (!user_quota) quota = prefs_v3::mail_quota();
 			else {
 				quota = std::atoi(user_quota);
 				if (quota < 1) quota = 1;

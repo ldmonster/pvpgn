@@ -24,7 +24,7 @@
 #include "attr.h"
 #include "attrgroup.h"
 #include "storage.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -97,7 +97,7 @@ namespace pvpgn
 
 			/* elist_for_each_safe splitted into separate startup for userstep function */
 			for (; curr != &loadedlist; curr = next, next = elist_next(curr)) {
-				if (!FLAG_ISSET(flags, FS_ALL) && tcount >= prefs_get_user_step()) break;
+				if (!FLAG_ISSET(flags, FS_ALL) && tcount >= prefs_v3::user_step()) break;
 
 				attrgroup = elist_entry(curr, t_attrgroup, loadedlist);
 				switch (attrgroup_flush(attrgroup, flags)) {
@@ -141,7 +141,7 @@ namespace pvpgn
 
 			/* elist_for_each_safe splitted into separate startup for userstep function */
 			for (; curr != &dirtylist; curr = next, next = elist_next(curr)) {
-				if (!FLAG_ISSET(flags, FS_ALL) && tcount >= prefs_get_user_step()) break;
+				if (!FLAG_ISSET(flags, FS_ALL) && tcount >= prefs_v3::user_step()) break;
 
 				attrgroup = elist_entry(curr, t_attrgroup, dirtylist);
 				switch (attrgroup_save(attrgroup, flags)) {

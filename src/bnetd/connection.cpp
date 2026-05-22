@@ -58,7 +58,7 @@
 #include "game.h"
 #include "tick.h"
 #include "message.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "watch.h"
 #include "timer.h"
 #include "irc.h"
@@ -166,7 +166,7 @@ namespace pvpgn
 				return;
 			}
 
-			if (filename = prefs_get_motdfile())
+			if (filename = prefs_v3::motdfile())
 			{
 				std::string lang_filename = i18n_filename(filename, conn_get_gamelang_localized(c));
 				if (fp = std::fopen(lang_filename.c_str(), "r"))
@@ -197,7 +197,7 @@ namespace pvpgn
 				return;
 			}
 
-			if ((filename = prefs_get_issuefile()))
+			if ((filename = prefs_v3::issuefile()))
 			if ((fp = std::fopen(filename, "r")))
 			{
 				message_send_file(c, fp);
@@ -722,7 +722,7 @@ namespace pvpgn
 #ifdef WIN32_GUI
 				guiOnUpdateUserList();
 #endif
-				if (prefs_get_sync_on_logoff()) {
+				if (prefs_v3::sync_on_logoff()) {
 					if (account_save(conn_get_account(c), FS_FORCE) < 0)
 						eventlog(eventlog_level_error, __FUNCTION__, "cannot sync account (sync_on_logoff)");
 				}
@@ -830,13 +830,13 @@ namespace pvpgn
 
 			switch (cclass) {
 			case conn_class_bnet:
-				if (prefs_get_udptest_port() != 0)
-					conn_set_game_port(c, (unsigned short)prefs_get_udptest_port());
+				if (prefs_v3::udptest_port() != 0)
+					conn_set_game_port(c, (unsigned short)prefs_v3::udptest_port());
 				udptest_send(c);
 
 				/* remove any init timers */
 				if (oldclass == conn_class_init) timerlist_del_all_timers(c);
-				delta = prefs_get_latency();
+				delta = prefs_v3::latency();
 				data.n = delta;
 				if (timerlist_add_timer(c, now + (std::time_t)delta, conn_test_latency, data) < 0)
 					eventlog(eventlog_level_error, __FUNCTION__, "could not add timer");
@@ -845,7 +845,7 @@ namespace pvpgn
 				break;
 
 			case conn_class_w3route:
-				delta = prefs_get_latency();
+				delta = prefs_v3::latency();
 				data.n = delta;
 				if (timerlist_add_timer(c, now + (std::time_t)delta, conn_test_latency, data)<0)
 					eventlog(eventlog_level_error, __FUNCTION__, "could not add timer");
@@ -856,7 +856,7 @@ namespace pvpgn
 			{
 									  t_packet * rpacket;
 									  if (cclass == conn_class_bot) {
-										  if ((delta = prefs_get_nullmsg())>0) {
+										  if ((delta = prefs_v3::nullmsg())>0) {
 											  data.n = delta;
 											  if (timerlist_add_timer(c, now + (std::time_t)delta, conn_send_nullmsg, data) < 0)
 												  eventlog(eventlog_level_error, __FUNCTION__, "could not add timer");
@@ -1572,7 +1572,7 @@ namespace pvpgn
 				str_to_uint(&username[1], &userid);
 				if (userid != 0)
 				{
-					if (prefs_get_account_force_username())
+					if (prefs_v3::account_force_username())
 					{
 						t_account* account = accountlist_find_account_by_uid(userid);
 						temp = account_get_name(account);
@@ -2032,9 +2032,9 @@ namespace pvpgn
 			if (!channel)
 			{
 				if (clantag)
-					channel = channel_create(channelname, channelname, 0, 0, 1, 1, prefs_get_chanlog(), NULL, NULL, (prefs_get_maxusers_per_channel() > 0) ? prefs_get_maxusers_per_channel() : -1, 0, 1, 0);
+					channel = channel_create(channelname, channelname, 0, 0, 1, 1, prefs_v3::chanlog(), NULL, NULL, (prefs_v3::maxusers_per_channel() > 0) ? prefs_v3::maxusers_per_channel() : -1, 0, 1, 0);
 				else
-					channel = channel_create(channelname, channelname, 0, 0, 1, 1, prefs_get_chanlog(), NULL, NULL, (prefs_get_maxusers_per_channel() > 0) ? prefs_get_maxusers_per_channel() : -1, 0, 0, 0);
+					channel = channel_create(channelname, channelname, 0, 0, 1, 1, prefs_v3::chanlog(), NULL, NULL, (prefs_v3::maxusers_per_channel() > 0) ? prefs_v3::maxusers_per_channel() : -1, 0, 0, 0);
 				if (!channel)
 				{
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not create channel on join \"{}\"", conn_get_socket(c), channelname);
@@ -2371,11 +2371,11 @@ namespace pvpgn
 			// Protection from hack attempt
 			// Limit out queue packets due to it may cause memory leak with not enough memory program crash on a server machine
 			t_queue ** q = &c->protocol.queues.outqueue;
-			if (prefs_get_packet_limit() && queue_get_length((t_queue const * const *)q) > prefs_get_packet_limit())
+			if (prefs_v3::packet_limit() && queue_get_length((t_queue const * const *)q) > prefs_v3::packet_limit())
 			{
 				queue_clear(q);
 				conn_set_state(c, conn_state_destroy);
-				eventlog(eventlog_level_error, __FUNCTION__, "outqueue reached limit of {} packets (hack attempt?)", prefs_get_packet_limit());
+				eventlog(eventlog_level_error, __FUNCTION__, "outqueue reached limit of {} packets (hack attempt?)", prefs_v3::packet_limit());
 				return 0;
 			}
 
@@ -3868,12 +3868,12 @@ namespace pvpgn
 		{
 			unsigned int count;
 
-			if (prefs_get_passfail_count() > 0)
+			if (prefs_v3::passfail_count() > 0)
 			{
 				count = conn_get_passfail_count(c) + 1;
-				if (count == prefs_get_passfail_count())
+				if (count == prefs_v3::passfail_count())
 				{
-					ipbanlist_add(NULL, addr_num_to_ip_str(conn_get_addr(c)), now + (std::time_t)prefs_get_passfail_bantime());
+					ipbanlist_add(NULL, addr_num_to_ip_str(conn_get_addr(c)), now + (std::time_t)prefs_v3::passfail_bantime());
 					eventlog(eventlog_level_info, __FUNCTION__, "[{}] failed password tries: {} (banned ip)", conn_get_socket(c), count);
 					conn_set_state(c, conn_state_destroy);
 					return -1;

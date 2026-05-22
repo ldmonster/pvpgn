@@ -55,7 +55,7 @@
 #include "message.h"
 #include "helpfile.h"
 #include "channel.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "account_wrap.h"
 #include "command.h"
 #include "i18n.h"
@@ -119,7 +119,7 @@ namespace pvpgn
 
 	
 			namespace dir = pvpgn::v3::infra::compat;
-			auto raw_files = dir::list_files(prefs_get_i18ndir(), ".xml", true);
+			auto raw_files = dir::list_files(prefs_v3::i18ndir(), ".xml", true);
 			std::vector<std::string> files;
 			files.reserve(raw_files.size());
 			for (const auto& p : raw_files) files.push_back(p.string());
@@ -291,14 +291,14 @@ namespace pvpgn
 		example: motd.txt -> motd-ruRU.txt */
 		extern std::string i18n_filename(const char * filename, t_tag gamelang)
 		{
-			std::string path = fmt::format("{}/{}/{}", prefs_get_i18ndir(), tag_uint_to_str2(gamelang), filename);
+			std::string path = fmt::format("{}/{}/{}", prefs_v3::i18ndir(), tag_uint_to_str2(gamelang), filename);
 
 			// if localized file not found
 			struct stat sfile = {};
 			if (stat(path.c_str(), &sfile) < 0)
 			{
 				// use default file
-				path = fmt::format("{}/{}", prefs_get_i18ndir(), filename);
+				path = fmt::format("{}/{}", prefs_v3::i18ndir(), filename);
 			}
 
 			return path;
@@ -310,7 +310,7 @@ namespace pvpgn
 			t_gamelang gamelang = conn_get_gamelang(c);
 
 			// force localize by user country
-			if (prefs_get_localize_by_country())
+			if (prefs_v3::localize_by_country())
 				if (const char * country = conn_get_country(c))
 					gamelang = gamelang_get_by_country(country);
 

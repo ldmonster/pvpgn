@@ -25,7 +25,7 @@
 #include "common/packet.h"
 #include "common/tag.h"
 #include "common/eventlog.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 #define MAXMAPS 100
@@ -196,13 +196,13 @@ namespace pvpgn
 			int len, i, queue;
 			char *p, *q, *r, *u;
 
-			if (prefs_get_mapsfile() == NULL) {
+			if (prefs_v3::mapsfile() == NULL) {
 				eventlog(eventlog_level_error, "anongame_maplists_create", "invalid mapsfile, check your config");
 				return -1;
 			}
 
-			if ((mapfd = std::fopen(prefs_get_mapsfile(), "rt")) == NULL) {
-				eventlog(eventlog_level_error, "anongame_maplists_create", "could not open mapsfile : \"{}\"", prefs_get_mapsfile());
+			if ((mapfd = std::fopen(prefs_v3::mapsfile(), "rt")) == NULL) {
+				eventlog(eventlog_level_error, "anongame_maplists_create", "could not open mapsfile : \"{}\"", prefs_v3::mapsfile());
 				return -1;
 			}
 

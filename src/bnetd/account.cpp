@@ -37,7 +37,7 @@
 #include "common/bnethash.h"
 #include "common/introtate.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "account_wrap.h"
 #include "common/hashtable.h"
 #include "connection.h"
@@ -421,13 +421,13 @@ namespace pvpgn
 		{
 			eventlog(eventlog_level_info, __FUNCTION__, "started creating accountlist");
 
-			if (!(accountlist_head = hashtable_create(prefs_get_hashtable_size())))
+			if (!(accountlist_head = hashtable_create(prefs_v3::hashtable_size())))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not create accountlist_head");
 				return -1;
 			}
 
-			if (!(accountlist_uid_head = hashtable_create(prefs_get_hashtable_size())))
+			if (!(accountlist_uid_head = hashtable_create(prefs_v3::hashtable_size())))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not create accountlist_uid_head");
 				return -1;
@@ -518,7 +518,7 @@ namespace pvpgn
 				if (str_to_uint(&username[1], &userid) < 0)
 					userid = 0;
 			}
-			else if (!(prefs_get_savebyname()))
+			else if (!(prefs_v3::savebyname()))
 			if (str_to_uint(username, &userid) < 0)
 				userid = 0;
 
@@ -601,10 +601,10 @@ namespace pvpgn
 			if (force_account_add)
 				return 1; /* the permission was forced */
 
-			if (prefs_get_max_accounts() == 0)
+			if (prefs_v3::max_accounts() == 0)
 				return 1; /* allow infinite accounts */
 
-			if (prefs_get_max_accounts() <= hashtable_get_length(accountlist_head))
+			if (prefs_v3::max_accounts() <= hashtable_get_length(accountlist_head))
 				return 0; /* maximum account limit reached */
 
 			return 1; /* otherwise let them proceed */
@@ -634,7 +634,7 @@ namespace pvpgn
 
 			/* check whether the account limit was reached */
 			if (!accountlist_allow_add()) {
-				eventlog(eventlog_level_warn, __FUNCTION__, "account limit reached (current is {}, storing {})", prefs_get_max_accounts(), hashtable_get_length(accountlist_head));
+				eventlog(eventlog_level_warn, __FUNCTION__, "account limit reached (current is {}, storing {})", prefs_v3::max_accounts(), hashtable_get_length(accountlist_head));
 				return NULL;
 			}
 
@@ -738,7 +738,7 @@ namespace pvpgn
 				/* hardcoded safety checks */
 				if (ch == '/' || ch == '\\') return -1;
 				if (std::isalnum((unsigned char)ch)) continue;
-				if (std::strchr(prefs_get_account_allowed_symbols(), ch)) continue;
+				if (std::strchr(prefs_v3::account_allowed_symbols(), ch)) continue;
 				return -1;
 			}
 

@@ -31,7 +31,7 @@
 #include "common/util.h"
 
 #include "realm.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "account_wrap.h"
 #include "game.h"
 #include "common/setup_after.h"
@@ -139,7 +139,7 @@ namespace pvpgn
 			if (!(realm = realmlist_find_realm(realmname))) {
 				realm = realmlist_find_realm_by_ip(conn_get_addr(c)); /* should not fail - checked in handle_init_packet() handle_init.c */
 				eventlog(eventlog_level_warn, __FUNCTION__, "warn: realm name mismatch {} {}", realm_get_name(realm), realmname);
-				if (!(prefs_allow_d2cs_setname())) { /* fail if allow_d2cs_setname = false */
+				if (!(prefs_v3::allow_d2cs_setname())) { /* fail if allow_d2cs_setname = false */
 					eventlog(eventlog_level_error, __FUNCTION__, "d2cs not allowed to set realm name");
 					return -1;
 				}
@@ -149,7 +149,7 @@ namespace pvpgn
 				}
 				realm_set_name(realm, realmname);
 			}
-			version = prefs_get_d2cs_version();
+			version = prefs_v3::d2cs_version();
 			try_version = bn_int_get(packet->u.d2cs_bnetd_authreply.version);
 			if (version && version != try_version) {
 				eventlog(eventlog_level_error, __FUNCTION__, "d2cs version mismatch 0x{:X} - 0x{:X}",

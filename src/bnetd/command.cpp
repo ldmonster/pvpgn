@@ -63,7 +63,7 @@
 #include "account.h"
 #include "account_wrap.h"
 #include "server.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "ladder.h"
 #include "timer.h"
 #include "helpfile.h"
@@ -597,7 +597,7 @@ namespace pvpgn
 #endif
 				if ((text[0] != '\0') && (conn_quota_exceeded(c, text)))
 				{
-					msgtemp = localize(c, "You are sending commands to {} too quickly and risk being disconnected for flooding. Please slow down.", prefs_get_servername());
+					msgtemp = localize(c, "You are sending commands to {} too quickly and risk being disconnected for flooding. Please slow down.", prefs_v3::servername());
 					message_send_text(c, message_type_error, c, msgtemp);
 					return 0;
 				}
@@ -754,7 +754,7 @@ namespace pvpgn
 							if ((dest_account = accountlist_find_account(username)) && (dest_conn = account_get_conn(dest_account))
 								&& (account_get_clan(dest_account) == NULL) && (account_get_creating_clan(dest_account) == NULL))
 							{
-								if (prefs_get_clan_newer_time() > 0)
+								if (prefs_v3::clan_newer_time() > 0)
 									clan_add_member(clan, dest_account, CLAN_NEW);
 								else
 									clan_add_member(clan, dest_account, CLAN_PEON);
@@ -865,7 +865,7 @@ namespace pvpgn
 					if ((clan = clan_create(conn_get_account(c), str_to_clantag(clantag), clanname, NULL)) && clanlist_add_clan(clan))
 					{
 						member = account_get_clanmember_forced(acc);
-						if (prefs_get_clan_min_invites() == 0) {
+						if (prefs_v3::clan_min_invites() == 0) {
 							clan_set_created(clan, 1);
 							clan_set_creation_time(clan, std::time(NULL));
 							msgtemp = localize(c, "Clan {} is created!", clan_get_name(clan));
@@ -873,10 +873,10 @@ namespace pvpgn
 							clan_save(clan);
 						}
 						else {
-							clan_set_created(clan, -prefs_get_clan_min_invites() + 1); //Pelish: +1 means that creator of clan is already invited
+							clan_set_created(clan, -prefs_v3::clan_min_invites() + 1); //Pelish: +1 means that creator of clan is already invited
 							msgtemp = localize(c, "Clan {} is pre-created, please invite", clan_get_name(clan));
 							message_send_text(c, message_type_info, c, msgtemp);
-							msgtemp = localize(c, "at least {} players to your clan by using", prefs_get_clan_min_invites());
+							msgtemp = localize(c, "at least {} players to your clan by using", prefs_v3::clan_min_invites());
 							message_send_text(c, message_type_info, c, msgtemp);
 							message_send_text(c, message_type_info, c, localize(c, "/clan invite <username> command."));
 						}
@@ -1535,7 +1535,7 @@ namespace pvpgn
 					message_send_text(c, message_type_info, c, localize(c, "You can't add yourself to your friends list."));
 					return -1;
 				case -3:
-					msgtemp = localize(c, "You can only have a maximum of {} friends.", prefs_get_max_friends());
+					msgtemp = localize(c, "You can only have a maximum of {} friends.", prefs_v3::max_friends());
 					message_send_text(c, message_type_info, c, msgtemp);
 					return -1;
 				case -4:
@@ -1809,12 +1809,12 @@ namespace pvpgn
 				}
 				if (!online_only)
 				{
-					msgtemp = localize(c, "Your {} - Friends List", prefs_get_servername());
+					msgtemp = localize(c, "Your {} - Friends List", prefs_v3::servername());
 					message_send_text(c, message_type_info, c, msgtemp);
 				}
 				else
 				{
-					msgtemp = localize(c, "Your {} - Online Friends List", prefs_get_servername());
+					msgtemp = localize(c, "Your {} - Online Friends List", prefs_v3::servername());
 					message_send_text(c, message_type_info, c, msgtemp);
 				}
 				message_send_text(c, message_type_info, c, "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
@@ -3018,7 +3018,7 @@ namespace pvpgn
 				return 0;
 			}
 
-			unsigned int pref = prefs_get_hide_pass_games();
+			unsigned int pref = prefs_v3::hide_pass_games();
 			if (pref && game_get_flag(game) == game_flag_private)
 			{
 				// return early if hide_pass_games is true and the game is private
@@ -3048,7 +3048,7 @@ namespace pvpgn
 				std::strcat(msgtemp0, " ");
 			}
 
-			if ((!prefs_get_hide_addr()) || (account_get_command_groups(conn_get_account(cbdata->c)) & command_get_group("/admin-addr"))) /* default to false */
+			if ((!prefs_v3::hide_addr()) || (account_get_command_groups(conn_get_account(cbdata->c)) & command_get_group("/admin-addr"))) /* default to false */
 				std::strcat(msgtemp0, addr_num_to_addr_str(game_get_addr(game), game_get_port(game)));
 
 			message_send_text(cbdata->c, message_type_info, cbdata->c, msgtemp0);
@@ -3114,7 +3114,7 @@ namespace pvpgn
 			msgtemp = localize(c, " ------name------ p -status- --------type--------- count ");
 			if (!cbdata.tag)
 				msgtemp += localize(c, "ctag ");
-			if ((!prefs_get_hide_addr()) || (account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr"))) /* default to false */
+			if ((!prefs_v3::hide_addr()) || (account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr"))) /* default to false */
 				msgtemp += localize(c, "--------addr--------");
 			message_send_text(c, message_type_info, c, msgtemp);
 			gamelist_traverse(_glist_cb, &cbdata, gamelist_source_none);
@@ -3164,7 +3164,7 @@ namespace pvpgn
 			message_send_text(c, message_type_info, c, msgtemp);
 			for (t_channel const* channel : channellist())
 			{
-				if ((!(channel_get_flags(channel) & channel_flags_clan)) && (!clienttag || !prefs_get_hide_temp_channels() || channel_get_permanent(channel)) &&
+				if ((!(channel_get_flags(channel) & channel_flags_clan)) && (!clienttag || !prefs_v3::hide_temp_channels() || channel_get_permanent(channel)) &&
 					(!clienttag || !channel_get_clienttag(channel) ||
 					channel_get_clienttag(channel) == clienttag) &&
 					((channel_get_max(channel) != 0) || //only show restricted channels to OPs and Admins
@@ -3348,7 +3348,7 @@ namespace pvpgn
 			char const *   channel_name;
 			char           clienttag_str[5];
 
-			if (!prefs_get_enable_conn_all() && !(account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-con"))) /* default to false */
+			if (!prefs_v3::enable_conn_all() && !(account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-con"))) /* default to false */
 			{
 				message_send_text(c, message_type_error, c, localize(c, "This command is only enabled for admins."));
 				return -1;
@@ -3367,7 +3367,7 @@ namespace pvpgn
 			else
 			if (std::strcmp(text, "all") == 0) /* print extended info */
 			{
-				if (prefs_get_hide_addr() && !(account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr")))
+				if (prefs_v3::hide_addr() && !(account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr")))
 					msgtemp = localize(c, " -#- -class ----state--- -tag -----name------ -session-- -flag- -lat(ms)- ----channel---- --game--");
 				else
 					msgtemp = localize(c, " -#- -class ----state--- -tag -----name------ -session-- -flag- -lat(ms)- ----channel---- --game-- ---------addr--------");
@@ -3404,7 +3404,7 @@ namespace pvpgn
 					channel_name,
 					game_name.c_str());
 				else
-				if (prefs_get_hide_addr() && !(account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr"))) /* default to false */
+				if (prefs_v3::hide_addr() && !(account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr"))) /* default to false */
 					std::snprintf(msgtemp0, sizeof(msgtemp0), " %3d %-6.6s %-12.12s %4.4s %-15.15s 0x%08x 0x%04x %9u %-16.16s %-8.8s",
 					conn_get_socket(conn),
 					conn_class_get_str(conn_get_class(conn)),
@@ -3674,7 +3674,7 @@ namespace pvpgn
 
 			if (min[0] != '\0' && ipbanlist_add(c, addr_num_to_ip_str(conn_get_addr(user)), ipbanlist_str_to_time_t(c, min)) == 0)
 			{
-				ipbanlist_save(prefs_get_ipbanfile());
+				ipbanlist_save(prefs_v3::ipbanfile());
 				message_send_text(user, message_type_info, user, localize(c, "An admin has closed your connection and banned your IP address."));
 			}
 			else
@@ -3714,7 +3714,7 @@ namespace pvpgn
 			}
 			if (min[0] != '\0' && ipbanlist_add(c, addr_num_to_ip_str(conn_get_addr(user)), ipbanlist_str_to_time_t(c, min)) == 0)
 			{
-				ipbanlist_save(prefs_get_ipbanfile());
+				ipbanlist_save(prefs_v3::ipbanfile());
 				message_send_text(user, message_type_info, user, localize(c, "Connection closed by admin and banned your IP's."));
 			}
 			else
@@ -3772,7 +3772,7 @@ namespace pvpgn
 			}
 			message_send_text(c, message_type_info, c, msgtemp);
 
-			if (!prefs_get_hide_addr() || (account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr"))) /* default to false */
+			if (!prefs_v3::hide_addr() || (account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr"))) /* default to false */
 			{
 				unsigned int   addr;
 				unsigned short port;
@@ -3999,7 +3999,7 @@ namespace pvpgn
 			dest = args[1].c_str(); // delay
 
 			if (dest[0] == '\0')
-				delay = prefs_get_shutdown_delay();
+				delay = prefs_v3::shutdown_delay();
 			else
 			if (clockstr_to_seconds(dest, &delay) < 0)
 			{
@@ -4357,7 +4357,7 @@ namespace pvpgn
 			}
 
 			if (conn_get_account(conn) != conn_get_account(c) &&
-				prefs_get_hide_addr() && !(account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr"))) // default to false
+				prefs_v3::hide_addr() && !(account_get_command_groups(conn_get_account(c)) & command_get_group("/admin-addr"))) // default to false
 			{
 				message_send_text(c, message_type_error, c, localize(c, "Address information for other users is only available to admins."));
 				return -1;
@@ -4759,7 +4759,7 @@ namespace pvpgn
 
 		static int _handle_motd_command(t_connection * c, char const *text)
 		{
-			std::string filename = i18n_filename(prefs_get_motdfile(), conn_get_gamelang_localized(c));
+			std::string filename = i18n_filename(prefs_v3::motdfile(), conn_get_gamelang_localized(c));
 
 			std::FILE* fp = std::fopen(filename.c_str(), "r");
 			if (fp)
@@ -4781,7 +4781,7 @@ namespace pvpgn
 		{
 			/* handle /tos - shows terms of service by user request -raistlinthewiz */
 
-			std::string filename = i18n_filename(prefs_get_tosfile(), conn_get_gamelang_localized(c));
+			std::string filename = i18n_filename(prefs_v3::tosfile(), conn_get_gamelang_localized(c));
 			/* FIXME: if user enters relative path to tos file in config,
 			   above routine will fail */
 			std::FILE* fp = std::fopen(filename.c_str(), "r");
@@ -5259,8 +5259,8 @@ namespace pvpgn
 			std::string goodtext = args[1] + localize(c, "\n\n***************************\nBy {}", conn_get_username(c));
 
 			// caption
-			msgtemp = localize(c, "Information from {}", prefs_get_servername());
-			msgtemp = localize(c, " for {}", prefs_get_servername());
+			msgtemp = localize(c, "Information from {}", prefs_v3::servername());
+			msgtemp = localize(c, " for {}", prefs_v3::servername());
 
 			t_connection * conn;
 			// send to online users

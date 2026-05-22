@@ -24,7 +24,7 @@
 #include "common/bn_type.h"
 #include "common/addr.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "connection.h"
 #include "realm.h"
 #include "handle_d2cs.h"
@@ -92,9 +92,9 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad packet (class {})", conn_get_socket(c), (int)packet_get_class(packet));
 				return -1;
 			}
-			if ((prefs_get_max_conns_per_IP() != 0) &&
+			if ((prefs_v3::max_conns_per_IP() != 0) &&
 				bn_byte_get(packet->u.client_initconn.cclass) != CLIENT_INITCONN_CLASS_D2CS_BNETD &&
-				(connlist_count_connections(conn_get_addr(c)) > prefs_get_max_conns_per_IP()))
+				(connlist_count_connections(conn_get_addr(c)) > prefs_v3::max_conns_per_IP()))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] too many connections from address {} (closing connection)", conn_get_socket(c), addr_num_to_addr_str(conn_get_addr(c), conn_get_port(c)));
 				return -1;

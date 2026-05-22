@@ -48,7 +48,7 @@
 
 #include "account.h"
 #include "account_wrap.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "ladder_calc.h"
 #include "team.h"
 #include "common/setup_after.h"
@@ -100,7 +100,7 @@ namespace pvpgn
 					eventlog(eventlog_level_warn, __FUNCTION__, "account for \"{}\" ({}) has {} wins and {} losses but has zero rating", account_get_name(account), clienttag_uint_to_str(clienttag), account_get_ladder_wins(account, clienttag, id), account_get_ladder_losses(account, clienttag, id));
 					return -1;
 				}
-				account_adjust_ladder_rating(account, clienttag, id, prefs_get_ladder_init_rating());
+				account_adjust_ladder_rating(account, clienttag, id, prefs_v3::ladder_init_rating());
 
 				uid = account_get_uid(account);
 				rating = account_get_ladder_rating(account, clienttag, id);
@@ -1043,7 +1043,7 @@ namespace pvpgn
 		bool
 			LadderList::loadBinary()
 		{
-				std::string filename = prefs_get_ladderdir();
+				std::string filename = prefs_v3::ladderdir();
 				filename += "/";
 				filename += ladderFilename;
 
@@ -1154,7 +1154,7 @@ namespace pvpgn
 				if (saved)
 					return true;
 
-				std::string filename = prefs_get_ladderdir();
+				std::string filename = prefs_v3::ladderdir();
 				filename += "/";
 				filename += ladderFilename;
 
@@ -1306,7 +1306,7 @@ namespace pvpgn
 		{
 				std::string filename;
 
-				filename = prefs_get_outputdir();
+				filename = prefs_v3::outputdir();
 				filename += "/";
 				filename += ladderFilename;
 

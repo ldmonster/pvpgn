@@ -42,7 +42,7 @@
 #include "friends.h"
 #include "i18n.h"
 #include "ladder.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "server.h"
 #include "team.h"
 #include "common/setup_after.h"
@@ -1839,7 +1839,7 @@ namespace pvpgn
 
 		extern int account_set_friend(t_account * account, int friendnum, unsigned int frienduid)
 		{
-			if (frienduid == 0 || friendnum < 0 || friendnum >= prefs_get_max_friends())
+			if (frienduid == 0 || friendnum < 0 || friendnum >= prefs_v3::max_friends())
 				return -1;
 
 			std::string key("friend\\" + std::to_string(friendnum) + "\\uid");
@@ -1849,10 +1849,10 @@ namespace pvpgn
 
 		extern unsigned int account_get_friend(t_account * account, int friendnum)
 		{
-			if (friendnum < 0 || friendnum >= prefs_get_max_friends())
+			if (friendnum < 0 || friendnum >= prefs_v3::max_friends())
 			{
 				// bogus name (user himself) instead of NULL, otherwise clients might crash
-				eventlog(eventlog_level_error, __FUNCTION__, "invalid friendnum {} (max: {})", friendnum, prefs_get_max_friends());
+				eventlog(eventlog_level_error, __FUNCTION__, "invalid friendnum {} (max: {})", friendnum, prefs_v3::max_friends());
 				return 0;
 			}
 
@@ -1890,7 +1890,7 @@ namespace pvpgn
 
 		static int account_set_friendcount(t_account * account, int count)
 		{
-			if (count < 0 || count > prefs_get_max_friends())
+			if (count < 0 || count > prefs_v3::max_friends())
 				return -1;
 
 			return account_set_numattr(account, "friend\\count", count);
@@ -1916,7 +1916,7 @@ namespace pvpgn
 				return -2;
 
 			int nf = account_get_friendcount(my_acc);
-			if (nf >= prefs_get_max_friends())
+			if (nf >= prefs_v3::max_friends())
 				return -3;
 
 			auto& flist = account_get_friends(my_acc);

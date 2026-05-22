@@ -32,7 +32,7 @@
 
 #include <strings.h>
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "irc.h"
 #include "account.h"
 #include "account_wrap.h"
@@ -863,7 +863,7 @@ namespace pvpgn
 				return 0;
 			}
 			else if ((request) && (std::strcmp(apiregmember_get_request(apiregmember), REQUEST_GETNICK) == 0)) {
-				if (!prefs_get_allow_new_accounts()){
+				if (!prefs_v3::allow_new_accounts()){
 					std::snprintf(message, sizeof(message), "Account creation is not allowed");
 					std::snprintf(hresult, sizeof(hresult), "-2147221248");
 				}

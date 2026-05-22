@@ -48,7 +48,7 @@
 #include "server.h"
 #include "account.h"
 #include "account_wrap.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "tick.h"
 #include "handle_wol.h"
 #include "handle_wserv.h"
@@ -273,7 +273,7 @@ namespace pvpgn
 				return 0;
 			}
 
-			if (connlist_find_connection_by_account(a) && prefs_get_kick_old_login() == 0) {
+			if (connlist_find_connection_by_account(a) && prefs_v3::kick_old_login() == 0) {
 				std::snprintf(temp, sizeof(temp), "%s :Account is already in use!", conn_get_loggeduser(conn));
 				irc_send(conn, ERR_NICKNAMEINUSE, temp);
 			}
@@ -621,7 +621,7 @@ namespace pvpgn
 			}
 			*e4++ = '\0';
 
-			if (prefs_get_hide_addr() && !(account_get_command_groups(conn_get_account(dest)) & command_get_group("/admin-addr")))
+			if (prefs_v3::hide_addr() && !(account_get_command_groups(conn_get_account(dest)) & command_get_group("/admin-addr")))
 			{
 				e1_2 = std::strchr(e1, '@');
 				if (e1_2)
@@ -1251,7 +1251,7 @@ namespace pvpgn
 
 			tempname = conn_get_loggeduser(conn);
 
-			if ((filename = prefs_get_motdfile())) {
+			if ((filename = prefs_v3::motdfile())) {
 				if ((fp = std::fopen(filename, "r"))) {
 					while ((line = file_get_line(fp))) {
 						if ((formatted_line = message_format_line(conn, line))) {
@@ -1306,7 +1306,7 @@ namespace pvpgn
 			tempname = conn_get_loggeduser(conn);
 
 			if ((34 + std::strlen(tempname) + 1) <= MAX_IRC_MESSAGE_LEN)
-				std::sprintf(temp, ":Welcome to the %s IRC Network %s", prefs_get_irc_network_name(), tempname);
+				std::sprintf(temp, ":Welcome to the %s IRC Network %s", prefs_v3::irc_network_name(), tempname);
 			else
 				std::sprintf(temp, ":Maximum length exceeded");
 			irc_send(conn, RPL_WELCOME, temp);
@@ -1333,7 +1333,7 @@ namespace pvpgn
 			irc_send(conn, RPL_MYINFO, temp);
 
 			std::sprintf(temp, "NICKLEN=%d TOPICLEN=%d CHANNELLEN=%d PREFIX=%s CHANTYPES=" CHANNEL_TYPE " NETWORK=%s IRCD=" PVPGN_SOFTWARE,
-				MAX_CHARNAME_LEN, MAX_TOPIC_LEN, MAX_CHANNELNAME_LEN, CHANNEL_PREFIX, prefs_get_irc_network_name());
+				MAX_CHARNAME_LEN, MAX_TOPIC_LEN, MAX_CHANNELNAME_LEN, CHANNEL_PREFIX, prefs_v3::irc_network_name());
 
 			irc_send(conn, RPL_ISUPPORT, temp);
 
@@ -1859,7 +1859,7 @@ namespace pvpgn
 									break;
 								}
 	
-								if (!prefs_get_allow_new_accounts()){
+								if (!prefs_v3::allow_new_accounts()){
 									message_send_text(conn, message_type_error, conn, "Account creation is not allowed");
 									break;
 								}
@@ -2121,7 +2121,7 @@ namespace pvpgn
 					{
 						if ((c = connlist_find_connection_by_accountname(e[i])))
 						{
-							if (prefs_get_hide_addr() && !(account_get_command_groups(conn_get_account(conn)) & command_get_group("/admin-addr")))
+							if (prefs_v3::hide_addr() && !(account_get_command_groups(conn_get_account(conn)) & command_get_group("/admin-addr")))
 								tmp = std::string(e[i]) + " " + std::string(clienttag_uint_to_str(conn_get_clienttag(c))) + " hidden * :PvPGN user";
 							else
 								tmp = std::string(e[i]) + " " + std::string(clienttag_uint_to_str(conn_get_clienttag(c))) + " " + std::string(addr_num_to_ip_str(conn_get_addr(c))) + " * :PvPGN user";
@@ -2283,7 +2283,7 @@ namespace pvpgn
 				else {
 					if (strcasecmp(command, "VERCHK") == 0) {
 						DEBUG0("Got WSERV packet");
-						if (std::strcmp(prefs_get_wolv2_addrs(), "") != 0)
+						if (std::strcmp(prefs_v3::wolv2_addrs(), "") != 0)
 							conn_set_class(conn, conn_class_wserv);
 						else
 							conn_set_state(conn, conn_state_destroy);
@@ -2291,7 +2291,7 @@ namespace pvpgn
 					}
 					else if (strcasecmp(command, "CVERS") == 0) {
 						DEBUG0("Got WOL packet");
-						if ((std::strcmp(prefs_get_wolv1_addrs(), "") != 0) || (std::strcmp(prefs_get_wolv2_addrs(), "") != 0))
+						if ((std::strcmp(prefs_v3::wolv1_addrs(), "") != 0) || (std::strcmp(prefs_v3::wolv2_addrs(), "") != 0))
 							conn_set_class(conn, conn_class_wol);
 						else
 							conn_set_state(conn, conn_state_destroy);
@@ -2301,7 +2301,7 @@ namespace pvpgn
 						(strcasecmp(command, "RUNGSEARCH") == 0) ||
 						(strcasecmp(command, "HIGHSCORE") == 0)) {
 						DEBUG0("Got WOL Ladder packet");
-						if (std::strcmp(prefs_get_wolv2_addrs(), "") != 0)
+						if (std::strcmp(prefs_v3::wolv2_addrs(), "") != 0)
 							conn_set_class(conn, conn_class_wladder);
 						else
 							conn_set_state(conn, conn_state_destroy);
@@ -2310,7 +2310,7 @@ namespace pvpgn
 					else if ((strcasecmp(command, "CRYPT") == 0) ||
 						(strcasecmp(command, "LOGIN") == 0)) {
 						DEBUG0("Got GameSpy packet");
-						if (std::strcmp(prefs_get_irc_addrs(), "") != 0)
+						if (std::strcmp(prefs_v3::irc_addrs(), "") != 0)
 							conn_set_class(conn, conn_class_irc);
 						else
 							conn_set_state(conn, conn_state_destroy);
@@ -2318,7 +2318,7 @@ namespace pvpgn
 					}
 					else {
 						DEBUG0("Got IRC packet");
-						if (std::strcmp(prefs_get_irc_addrs(), "") != 0)
+						if (std::strcmp(prefs_v3::irc_addrs(), "") != 0)
 							conn_set_class(conn, conn_class_irc);
 						else
 							conn_set_state(conn, conn_state_destroy);
@@ -2433,7 +2433,7 @@ namespace pvpgn
 						(conn_get_class(conn) != conn_class_wladder)) {
 	
 						t_timer_data temp;
-						temp.n = prefs_get_irc_latency();
+						temp.n = prefs_v3::irc_latency();
 						conn_test_latency(conn, std::time(NULL), temp);
 					}
 				}

@@ -27,7 +27,7 @@
 #include "common/eventlog.h"
 #include "common/util.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -58,7 +58,7 @@ namespace pvpgn
 				return 0;
 			}
 
-			filedirlen = std::strlen(prefs_get_filedir());
+			filedirlen = std::strlen(prefs_v3::filedir());
 
 			for (line = 1; (buff = file_get_line(fp)); line++)
 			{
@@ -68,7 +68,7 @@ namespace pvpgn
 				}
 
 				namebuff = new char[filedirlen + 1 + std::strlen(buff) + 1];
-				std::sprintf(namebuff, "%s/%s", prefs_get_filedir(), buff);
+				std::sprintf(namebuff, "%s/%s", prefs_v3::filedir(), buff);
 
 				if (!std::filesystem::exists(namebuff))
 				{

@@ -34,7 +34,7 @@
 #include "common/addr.h"
 #include "common/trans.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "irc.h"
 #include "message.h"
 #include "tick.h"
@@ -114,9 +114,9 @@ namespace pvpgn
 				if (filestring)
 				{
 					//:westwood-patch.ea.com update world96 lore3/1.003 65539_65536_6400.rtp 65539 6400 REQ
-					ftphostname = prefs_get_wol_autoupdate_serverhost();
-					ftpusername = prefs_get_wol_autoupdate_username();
-					ftppassword = prefs_get_wol_autoupdate_password();
+					ftphostname = prefs_v3::wol_autoupdate_serverhost();
+					ftpusername = prefs_v3::wol_autoupdate_username();
+					ftppassword = prefs_v3::wol_autoupdate_password();
 					std::snprintf(temp, sizeof(temp), ":%s %s %s %s 131075 %s REQ", ftphostname, ftpusername, ftppassword, filestring, params[0]);
 					irc_send(conn, RPL_UPDATE_FTP, temp);
 					delete[] const_cast<char*>(filestring);
@@ -145,10 +145,10 @@ namespace pvpgn
 
 			/* Casted to avoid warnings */
 			const char * wolip;
-			const char * wolname = prefs_get_servername();
-			const char * woltimezone = prefs_get_wol_timezone();
-			const char * wollong = prefs_get_wol_longitude();
-			const char * wollat = prefs_get_wol_latitude();
+			const char * wolname = prefs_v3::servername();
+			const char * woltimezone = prefs_v3::wol_timezone();
+			const char * wollong = prefs_v3::wol_longitude();
+			const char * wollat = prefs_v3::wol_latitude();
 
 			{    /* trans support */
 				unsigned short port = conn_get_real_local_port(conn);
@@ -162,7 +162,7 @@ namespace pvpgn
 			//irc_send(conn,RPL_UPDATE_EXIST,":You must update before connecting!");
 
 			// Check if it's an allowed client type
-			if (!tag_check_in_list(conn_get_clienttag(conn), prefs_get_allowed_clients())) {
+			if (!tag_check_in_list(conn_get_clienttag(conn), prefs_v3::allowed_clients())) {
 				//  This is for anyone game but not for Emperor
 				if (conn_get_clienttag(conn) != CLIENTTAG_EMPERORBD_UINT) {
 					//        a.xwis.net 4009 RA2

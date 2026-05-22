@@ -225,3 +225,155 @@ public:
 - Installing `bnetd.toml.in`, `d2cs.toml.in`, `d2dbs.toml.in` via `conf/CMakeLists.txt`
 - Wiring `ConfigWatcher` into the bnetd startup path (hot-reload support)
 - Expanding `d2cs` and `d2dbs` to have their own typed config structs (analogous to `ServerConfig`)
+
+---
+
+## Round 134 — caller migration kickoff (7 small files)
+
+Introduced [`src/bnetd/prefs_v3_shim.h`](../src/bnetd/prefs_v3_shim.h) — a header-only
+shim exposing inline `pvpgn::bnetd::prefs_v3::X()` accessors that delegate to the
+existing `pvpgn_v3_prefs_*` C-bridge under `PVPGN_V3_BNETD_INTEGRATION` and fall
+back to legacy `prefs_get_X()` otherwise. The shim keeps the in-flight migration
+*observably* neutral (the bridge dispatch is the same one that already lives
+inside `prefs.cpp`) while moving callers off the legacy entry points one TU at a
+time.
+
+**Migrated (7 / ~38 files, 12 / ~300 call sites):**
+
+- [x] `src/bnetd/versioncheck.cpp` — `allow_bad_version`
+- [x] `src/bnetd/sql_dbcreator.cpp` — `DBlayoutfile`
+- [x] `src/bnetd/handle_apireg.cpp` — `allow_new_accounts`
+- [x] `src/bnetd/handle_d2cs.cpp` — `allow_d2cs_setname`, `d2cs_version`
+- [x] `src/bnetd/handle_init.cpp` — `max_conns_per_IP` (×2)
+- [x] `src/bnetd/support.cpp` — `filedir` (×2)
+- [x] `src/bnetd/topic.cpp` — `topicfile` (×2)
+
+**Inspected, nothing to migrate:**
+
+- `src/bnetd/icons.cpp` — only contains the *definition* of
+  `prefs_get_custom_icons`, no call sites.
+
+**Pending — medium-complexity files (single accessor used a handful of times):**
+
+- [ ] `src/bnetd/message.cpp`
+- [ ] `src/bnetd/output.cpp`
+- [ ] `src/bnetd/mail.cpp`
+- [ ] `src/bnetd/userlog.cpp`
+- [ ] `src/bnetd/tracker.cpp`
+- [ ] `src/bnetd/ipban.cpp`
+- [ ] `src/bnetd/watch.cpp`
+- [ ] `src/bnetd/sql_common.cpp`
+- [ ] `src/bnetd/storage_file.cpp`
+- [ ] `src/bnetd/attrgroup.cpp`
+- [ ] `src/bnetd/attrlayer.cpp`
+- [ ] `src/bnetd/account_wrap.cpp`
+- [ ] `src/bnetd/ladder.cpp`
+- [ ] `src/bnetd/i18n.cpp`
+- [ ] `src/bnetd/anongame_maplists.cpp`
+- [ ] `src/bnetd/anongame.cpp`
+- [ ] `src/bnetd/handle_wol.cpp`
+- [ ] `src/bnetd/handle_wserv.cpp`
+- [ ] `src/bnetd/handle_irc.cpp`
+- [ ] `src/bnetd/handle_irc_common.cpp`
+- [ ] `src/bnetd/clan.cpp`
+- [ ] `src/bnetd/irc.cpp`
+- [ ] `src/bnetd/account.cpp`
+- [ ] `src/bnetd/channel.cpp`
+
+**Pending — high-impact files (many distinct accessors, often startup paths):**
+
+- [ ] `src/bnetd/handle_bnet.cpp`
+- [ ] `src/bnetd/connection.cpp`
+- [ ] `src/bnetd/server.cpp`
+- [ ] `src/bnetd/command.cpp`
+- [ ] `src/bnetd/game.cpp`
+- [ ] `src/bnetd/luainterface.cpp`
+- [ ] `src/bnetd/main.cpp`
+
+**Verification (Round 134):** `g++ -std=c++20 -fsyntax-only -DPVPGN_V3_BNETD_INTEGRATION=1`
+on all 7 modified TUs compiles cleanly with the v3 integration headers in scope.
+Local `cmake --build . --target bnetd_legacy` blocked by pre-existing env issues
+unrelated to this round (Lua not auto-detected; `bnetd_legacy` include dirs miss
+`src/v3/infra/compat/include`).
+
+---
+
+## Round 135 — medium callers wave 1 (8 files)
+
+Extended [`src/bnetd/prefs_v3_shim.h`](../src/bnetd/prefs_v3_shim.h) with 18 new
+accessors (see Round 135 entry in `progress-master.md` for the full list).
+Migrated:
+
+- [x] `src/bnetd/message.cpp`  — `servername`, `contact_name`
+- [x] `src/bnetd/output.cpp`   — `XML_status_output`, `outputdir`
+- [x] `src/bnetd/mail.cpp`     — `maildir`, `mail_support`, `mail_quota`
+- [x] `src/bnetd/userlog.cpp`  — `log_command_list`, `log_commands`, `log_command_groups`, `userlogdir`
+- [x] `src/bnetd/tracker.cpp`  — `location`, `description`, `url`, `contact_name`, `contact_email`
+- [x] `src/bnetd/ipban.cpp`    — `ipban_check_int`, `ipbanfile`
+- [x] `src/bnetd/watch.cpp`    — `servername`
+- [x] `src/bnetd/sql_common.cpp` — `clan_channel_default_private`, `clan_newer_time`
+
+**Cumulative:** 15 / ~38 files migrated. Remaining medium-complexity files
+(unchanged from Round 134 list, minus the 8 above): `attrgroup.cpp`,
+`attrlayer.cpp`, `account_wrap.cpp`, `ladder.cpp`, `i18n.cpp`,
+`anongame_maplists.cpp`, `anongame.cpp`, `handle_wol.cpp`, `handle_wserv.cpp`,
+`handle_irc.cpp`, `handle_irc_common.cpp`, `clan.cpp`, `irc.cpp`, `account.cpp`,
+`channel.cpp`, `storage_file.cpp`.
+
+**Verification (Round 135):** `g++ -std=c++20 -fsyntax-only -DPVPGN_V3_BNETD_INTEGRATION=1`
+with `src/v3/infra/compat/include` on the include path compiles all 8 modified
+TUs cleanly.
+
+## Round 136 — Medium prefs caller migration (batch 3)
+
+Migrated 8 files, 29 call sites. 13 new shim accessors.
+Files: attrgroup, attrlayer, account_wrap, ladder, i18n,
+anongame_maplists, anongame, storage_file. Syntax-check passes for 7/8
+(i18n.cpp pre-existing pugixml env block — call-site edits are trivial
+pattern, identical to other files in batch).
+
+Cumulative: 23/~38 files migrated, 39 shim accessors total.
+
+Pending medium files: handle_wol, handle_wserv, handle_irc,
+handle_irc_common, clan, irc, account, channel.
+High-impact (deferred): handle_bnet, connection, server, command, game,
+luainterface, main.
+
+## Round 137 — Medium prefs caller migration (batch 4)
+
+Migrated 6 files, 36 call sites. 21 new shim accessors.
+Files: channel, clan, handle_wol, handle_wserv, irc, account.
+Syntax-check clean for all 6.
+
+NOT migrated (intentional):
+- channel.cpp:492 `prefs_get_log_notice()` — pre-existing bridge
+  return-type bug (bridge says unsigned int, legacy says char const*).
+
+Two pre-existing bridge bugs discovered (not fixed here):
+- log_notice return-type mismatch
+- irc_addrs vs ircaddrs symbol name mismatch (shim works around it)
+
+Cumulative: 29/~38 files migrated, 60 shim accessors total.
+
+Note: `handle_irc.cpp` and `handle_irc_common.cpp` from the original
+plan do not exist in this branch (only `irc.cpp`).
+
+Next batch candidates: handle_bnet, connection, server, command,
+game, luainterface, main.
+
+### Round 138 — high-impact files
+- [x] handle_bnet.cpp — ~30 sites via shim
+- [x] connection.cpp  — ~17 sites via shim
+- [x] server.cpp      — ~46 sites via shim
+- [x] 45 new shim accessors appended to prefs_v3_shim.h
+- [ ] Skipped (no bridge): custom_icons, quota*, trackserv_addrs
+- [x] g++ -fsyntax-only: no prefs-related diagnostics
+
+### Round 139 — remaining medium/large files
+- [x] command.cpp       — ~25 sites via shim
+- [x] game.cpp          — ~10 sites via shim
+- [x] main.cpp          — ~28 sites via shim
+- [x] luainterface.cpp  — ~120 sites via shim
+- [x] 19 new shim accessors appended to prefs_v3_shim.h
+- [ ] Skipped (no/broken bridge): custom_icons, quota*, trackserv_addrs, log_notice
+- [x] g++ -fsyntax-only: no prefs-related diagnostics

@@ -52,7 +52,7 @@
 
 #include "handlers.h"
 #include "connection.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "versioncheck.h"
 #include "handle_anongame.h"
 #include "account.h"
@@ -964,7 +964,7 @@ namespace pvpgn
 				}
 
 				/* check if it's an allowed client type */
-				if (tag_check_in_list(bn_int_get(packet->u.client_auth_info.clienttag), prefs_get_allowed_clients())) {
+				if (tag_check_in_list(bn_int_get(packet->u.client_auth_info.clienttag), prefs_v3::allowed_clients())) {
 					conn_set_state(c, conn_state_destroy);
 					return 0;
 				}
@@ -1108,7 +1108,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			if (tag_check_in_list(bn_int_get(packet->u.client_progident.clienttag), prefs_get_allowed_clients())) {
+			if (tag_check_in_list(bn_int_get(packet->u.client_progident.clienttag), prefs_v3::allowed_clients())) {
 				conn_set_state(c, conn_state_destroy);
 				return 0;
 			}
@@ -1221,7 +1221,7 @@ namespace pvpgn
 
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] new account requested for \"{}\"", conn_get_socket(c), username);
 
-			if (prefs_get_allow_new_accounts() == 0)
+			if (prefs_v3::allow_new_accounts() == 0)
 			{
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account not created (disabled)", conn_get_socket(c));
 				bn_int_set(&rpacket->u.server_createaccount_w3.result, SERVER_CREATEACCOUNT_W3_RESULT_EXIST);
@@ -1329,7 +1329,7 @@ namespace pvpgn
 			packet_set_size(rpacket, sizeof(t_server_createacctreply1));
 			packet_set_type(rpacket, SERVER_CREATEACCTREPLY1);
 
-			if (prefs_get_allow_new_accounts() == 0) {
+			if (prefs_v3::allow_new_accounts() == 0) {
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account not created (disabled)", conn_get_socket(c));
 				bn_int_set(&rpacket->u.server_createacctreply1.result, SERVER_CREATEACCTREPLY1_RESULT_NO);
 				goto out;
@@ -1391,7 +1391,7 @@ namespace pvpgn
 			packet_set_size(rpacket, sizeof(t_server_createacctreply2));
 			packet_set_type(rpacket, SERVER_CREATEACCTREPLY2);
 
-			if (prefs_get_allow_new_accounts() == 0) {
+			if (prefs_v3::allow_new_accounts() == 0) {
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account not created (disabled)", conn_get_socket(c));
 				bn_int_set(&rpacket->u.server_createacctreply2.result, SERVER_CREATEACCTREPLY2_RESULT_EXIST);
 				goto out;
@@ -1668,7 +1668,7 @@ namespace pvpgn
 			}
 			else
 			{
-				if (prefs_get_allow_unknown_version())
+				if (prefs_v3::allow_unknown_version())
 				{
 					eventlog(eventlog_level_info, __FUNCTION__, "[{}] skipping versioncheck because allow_unknown_version is true", conn_get_socket(c));
 				}
@@ -1826,7 +1826,7 @@ namespace pvpgn
 				}
 				else
 				{
-					if (prefs_get_allow_unknown_version())
+					if (prefs_v3::allow_unknown_version())
 					{
 						eventlog(eventlog_level_info, __FUNCTION__, "[{}] skipping versioncheck because allow_unknown_version is true", conn_get_socket(c));
 					}
@@ -1913,20 +1913,20 @@ namespace pvpgn
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				packet_set_size(rpacket, sizeof(t_server_iconreply));
 				packet_set_type(rpacket, SERVER_ICONREPLY);
-				file_to_mod_time(c, prefs_get_iconfile(), &rpacket->u.server_iconreply.timestamp);
+				file_to_mod_time(c, prefs_v3::iconfile(), &rpacket->u.server_iconreply.timestamp);
 
 				/* battle.net sends different file on iconreq for WAR3 and W3XP [Omega] */
 				if ((conn_get_clienttag(c) == CLIENTTAG_WARCRAFT3_UINT) || (conn_get_clienttag(c) == CLIENTTAG_WAR3XP_UINT))
-					packet_append_string(rpacket, prefs_get_war3_iconfile());
+					packet_append_string(rpacket, prefs_v3::war3_iconfile());
 				/* battle.net still sends "icons.bni" to sc/bw clients
 				 * clients request icons_STAR.bni seperatly */
 				/*	else if (std::strcmp(conn_get_clienttag(c),CLIENTTAG_STARCRAFT)==0)
-						packet_append_string(rpacket,prefs_get_star_iconfile());
+						packet_append_string(rpacket,prefs_v3::star_iconfile());
 						else if (std::strcmp(conn_get_clienttag(c),CLIENTTAG_BROODWARS)==0)
-						packet_append_string(rpacket,prefs_get_star_iconfile());
+						packet_append_string(rpacket,prefs_v3::star_iconfile());
 						*/
 				else
-					packet_append_string(rpacket, prefs_get_iconfile());
+					packet_append_string(rpacket, prefs_v3::iconfile());
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
@@ -2318,11 +2318,11 @@ namespace pvpgn
 				packet_set_type(rpacket, SERVER_LOGINREPLY1);
 
 				// too many logins? [added by NonReal]
-				if (prefs_get_max_concurrent_logins() > 0)
+				if (prefs_v3::max_concurrent_logins() > 0)
 				{
-					if (prefs_get_max_concurrent_logins() <= connlist_login_get_length())
+					if (prefs_v3::max_concurrent_logins() <= connlist_login_get_length())
 					{
-						eventlog(eventlog_level_error, __FUNCTION__, "[{}] login denied, too many concurrent logins. max: {}. current: {}.", conn_get_socket(c), prefs_get_max_concurrent_logins(), connlist_login_get_length());
+						eventlog(eventlog_level_error, __FUNCTION__, "[{}] login denied, too many concurrent logins. max: {}. current: {}.", conn_get_socket(c), prefs_v3::max_concurrent_logins(), connlist_login_get_length());
 						bn_int_set(&rpacket->u.server_loginreply1.message, SERVER_LOGINREPLY1_MESSAGE_FAIL);
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 						if (pvpgn_v3_send_loginreply1(
@@ -2344,7 +2344,7 @@ namespace pvpgn
 				}
 				else
 					/* already logged in */
-				if (connlist_find_connection_by_account(account) && prefs_get_kick_old_login() == 0) {
+				if (connlist_find_connection_by_account(account) && prefs_v3::kick_old_login() == 0) {
 					eventlog(eventlog_level_info, __FUNCTION__, "[{}] login for \"{}\" refused (already logged in)", conn_get_socket(c), username);
 					bn_int_set(&rpacket->u.server_loginreply1.message, SERVER_LOGINREPLY1_MESSAGE_FAIL);
 				}
@@ -2497,9 +2497,9 @@ namespace pvpgn
 				packet_set_type(rpacket, SERVER_LOGINREPLY2);
 
 				// too many logins? [added by NonReal]
-				if (prefs_get_max_concurrent_logins() > 0) {
-					if (prefs_get_max_concurrent_logins() <= connlist_login_get_length()) {
-						eventlog(eventlog_level_error, __FUNCTION__, "[{}] login denied, too many concurrent logins. max: {}. current: {}.", conn_get_socket(c), prefs_get_max_concurrent_logins(), connlist_login_get_length());
+				if (prefs_v3::max_concurrent_logins() > 0) {
+					if (prefs_v3::max_concurrent_logins() <= connlist_login_get_length()) {
+						eventlog(eventlog_level_error, __FUNCTION__, "[{}] login denied, too many concurrent logins. max: {}. current: {}.", conn_get_socket(c), prefs_v3::max_concurrent_logins(), connlist_login_get_length());
 						if (supports_locked_reply) {
 							bn_int_set(&rpacket->u.server_loginreply2.message, SERVER_LOGINREPLY2_MESSAGE_LOCKED);
 							packet_append_string(rpacket, "Too many concurrent logins. Try again later.");
@@ -2519,7 +2519,7 @@ namespace pvpgn
 					bn_int_set(&rpacket->u.server_loginreply2.message, SERVER_LOGINREPLY2_MESSAGE_NONEXIST);
 				}
 				/* already logged in */
-				else if (connlist_find_connection_by_account(account) && prefs_get_kick_old_login() == 0) {
+				else if (connlist_find_connection_by_account(account) && prefs_v3::kick_old_login() == 0) {
 					eventlog(eventlog_level_info, __FUNCTION__, "[{}] login for \"{}\" refused (already logged in)", conn_get_socket(c), username);
 					if (supports_locked_reply) {
 						bn_int_set(&rpacket->u.server_loginreply1.message, SERVER_LOGINREPLY2_MESSAGE_LOCKED);
@@ -2689,8 +2689,8 @@ namespace pvpgn
 
 				{
 					/* too many logins? */
-					if (prefs_get_max_concurrent_logins() > 0 && prefs_get_max_concurrent_logins() <= connlist_login_get_length()) {
-						eventlog(eventlog_level_error, __FUNCTION__, "[{}] login denied, too many concurrent logins. max: {}. current: {}.", conn_get_socket(c), prefs_get_max_concurrent_logins(), connlist_login_get_length());
+					if (prefs_v3::max_concurrent_logins() > 0 && prefs_v3::max_concurrent_logins() <= connlist_login_get_length()) {
+						eventlog(eventlog_level_error, __FUNCTION__, "[{}] login denied, too many concurrent logins. max: {}. current: {}.", conn_get_socket(c), prefs_v3::max_concurrent_logins(), connlist_login_get_length());
 						bn_int_set(&rpacket->u.server_loginreply_w3.message, SERVER_LOGINREPLY_W3_MESSAGE_BADACCT);
 					}
 					else
@@ -2701,7 +2701,7 @@ namespace pvpgn
 					}
 					else
 						/* already logged in */
-					if (connlist_find_connection_by_account(account) && prefs_get_kick_old_login() == 0) {
+					if (connlist_find_connection_by_account(account) && prefs_v3::kick_old_login() == 0) {
 						eventlog(eventlog_level_info, __FUNCTION__, "[{}] (W3) login for \"{}\" refused (already logged in)", conn_get_socket(c), username);
 						bn_int_set(&rpacket->u.server_loginreply_w3.message, SERVER_LOGINREPLY_W3_MESSAGE_ALREADY);
 					}
@@ -4030,7 +4030,7 @@ namespace pvpgn
 			{
 				fmt::memory_buffer serverinfo;
 
-				std::string filename = i18n_filename(prefs_get_motdw3file(), conn_get_gamelang_localized(c));
+				std::string filename = i18n_filename(prefs_v3::motdw3file(), conn_get_gamelang_localized(c));
 				std::FILE* fp = std::fopen(filename.c_str(), "r");
 				if (fp)
 				{
@@ -4949,7 +4949,7 @@ namespace pvpgn
 
 			/* d2 uses this packet with clienttag = 0 to request the channel list */
 			if (bn_int_get(packet->u.client_progident2.clienttag)) {
-				if (tag_check_in_list(bn_int_get(packet->u.client_progident2.clienttag), prefs_get_allowed_clients())) {
+				if (tag_check_in_list(bn_int_get(packet->u.client_progident2.clienttag), prefs_v3::allowed_clients())) {
 					conn_set_state(c, conn_state_destroy);
 					return 0;
 				}
@@ -4965,7 +4965,7 @@ namespace pvpgn
 				packet_set_type(rpacket, SERVER_CHANNELLIST);
 				{
 					for (t_channel const* ch : channellist()) {
-						if ((!(channel_get_flags(ch) & channel_flags_clan)) && (!prefs_get_hide_temp_channels() || channel_get_permanent(ch)) && (!channel_get_clienttag(ch) || channel_get_clienttag(ch) == conn_get_clienttag(c)) && (!(channel_get_flags(ch) & channel_flags_thevoid)) &&	// don't display theVoid in channel list
+						if ((!(channel_get_flags(ch) & channel_flags_clan)) && (!prefs_v3::hide_temp_channels() || channel_get_permanent(ch)) && (!channel_get_clienttag(ch) || channel_get_clienttag(ch) == conn_get_clienttag(c)) && (!(channel_get_flags(ch) & channel_flags_thevoid)) &&	// don't display theVoid in channel list
 							((channel_get_max(ch) != 0) || ((channel_get_max(ch) == 0) && (account_is_operator_or_admin(conn_get_account(c), channel_get_name(ch)) == 1))))	// don't display restricted channel for no admins/ops
 							packet_append_string(rpacket, channel_get_name(ch));
 					}
@@ -5047,7 +5047,7 @@ namespace pvpgn
 				case CLIENT_JOINCHANNEL_NORMAL:
 					eventlog(eventlog_level_info, __FUNCTION__, "[{}] CLIENT_JOINCHANNEL_NORMAL channel \"{}\"", conn_get_socket(c), cname);
 
-					if (prefs_get_ask_new_channel() && (!(channellist_find_channel_by_name(cname, conn_get_country(c), realm_get_name(conn_get_realm(c)))))) {
+					if (prefs_v3::ask_new_channel() && (!(channellist_find_channel_by_name(cname, conn_get_country(c), realm_get_name(conn_get_realm(c)))))) {
 						found = 0;
 						eventlog(eventlog_level_info, __FUNCTION__, "[{}] didn't find channel \"{}\" to join", conn_get_socket(c), cname);
 						message_send_text(c, message_type_channeldoesnotexist, c, cname);
@@ -5153,11 +5153,11 @@ namespace pvpgn
 			cbdata->tcount++;
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] considering listing game=\"{}\", pass=\"{}\" clienttag=\"{}\" gtype={}", conn_get_socket(cbdata->c), game_get_name(game), game_get_pass(game), tag_uint_to_str(clienttag_str, game_get_clienttag(game)), (int)game_get_type(game));
 
-			if (prefs_get_hide_pass_games() && game_get_flag(game) == game_flag_private) {
+			if (prefs_v3::hide_pass_games() && game_get_flag(game) == game_flag_private) {
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] not listing because game is passworded or has private flag", conn_get_socket(cbdata->c));
 				return 0;
 			}
-			if (prefs_get_hide_started_games() && game_get_status(game) != game_status_open) {
+			if (prefs_v3::hide_started_games() && game_get_status(game) != game_status_open) {
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] not listing because game is not open", conn_get_socket(cbdata->c));
 				return 0;
 			}
@@ -6566,7 +6566,7 @@ namespace pvpgn
 							offset += (std::strlen(username) + 1);
 							if ((conn = connlist_find_connection_by_accountname(username)) != NULL) {
 								t_clanmember *clanmember;
-								if (prefs_get_clan_newer_time() > 0) {
+								if (prefs_v3::clan_newer_time() > 0) {
 									clanmember = clan_add_member(clan, conn_get_account(conn), CLAN_NEW);
 									clanmember_set_fullmember(clanmember, 1);      /* FIXME: do only this here and no clan_add_member() */
 								}
@@ -6958,13 +6958,13 @@ namespace pvpgn
 
 						// clan allready ful
 					}
-					else if (clan_get_member_count(clan) >= prefs_get_clan_max_members()) {
+					else if (clan_get_member_count(clan) >= prefs_v3::clan_max_members()) {
 						response_code = CLAN_RESPONSE_CLAN_FULL;
 
 						// valid invitereq
 					}
 					else {
-						if (prefs_get_clan_newer_time() > 0) {
+						if (prefs_v3::clan_newer_time() > 0) {
 							clan_add_member(clan, conn_account, CLAN_NEW);
 						}
 						else {
@@ -7064,7 +7064,7 @@ namespace pvpgn
 					bn_byte_set(&rpacket->u.server_clan_invitereply.result, status);
 				}
 				else {
-					if (clan_get_member_count(clan) >= prefs_get_clan_max_members()) {
+					if (clan_get_member_count(clan) >= prefs_v3::clan_max_members()) {
 						clan_remove_member(clan, member);
 						bn_byte_set(&rpacket->u.server_clan_invitereply.result, CLAN_RESPONSE_CLAN_FULL);
 					}

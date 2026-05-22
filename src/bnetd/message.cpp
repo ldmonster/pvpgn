@@ -41,7 +41,7 @@
 #include "channel_conv.h"
 #include "game.h"
 #include "mail.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "connection.h"
 #include "irc.h"
 #include "command.h"
@@ -254,7 +254,7 @@ namespace pvpgn
 						break;
 
 					case 's':
-						std::sprintf(&out[outpos], "%s", prefs_get_servername());
+						std::sprintf(&out[outpos], "%s", prefs_v3::servername());
 						outpos += std::strlen(&out[outpos]);
 						break;
 
@@ -291,7 +291,7 @@ namespace pvpgn
 						break;
 
 					case 'H':
-						std::strcpy(&out[outpos], prefs_get_contact_name());
+						std::strcpy(&out[outpos], prefs_v3::contact_name());
 						outpos += std::strlen(&out[outpos]);
 						break;
 
@@ -458,7 +458,7 @@ namespace pvpgn
 					if (me)
 						tname = conn_get_chatcharname(me, dst);
 					else
-						tname = prefs_get_servername();
+						tname = prefs_v3::servername();
 
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
@@ -490,7 +490,7 @@ namespace pvpgn
 					if (me)
 						tname = conn_get_chatcharname(me, dst);
 					else
-						tname = prefs_get_servername();
+						tname = prefs_v3::servername();
 
 					if ((newtext = escape_chars(text, std::strlen(text))))
 					{
@@ -838,7 +838,7 @@ namespace pvpgn
 						if (me)
 							tname = conn_get_chatcharname(me, dst);
 						else
-							tname = prefs_get_servername();
+							tname = prefs_v3::servername();
 
 						msgtemp = new char[32 + std::strlen(tname) + 32 + std::strlen(text)];
 						std::sprintf(msgtemp, "%u %s %s %04x \"%s\"\r\n", EID_WHISPER, "WHISPER", tname, me ? conn_get_flags(me) | dstflags : dstflags, text);
@@ -1133,7 +1133,7 @@ namespace pvpgn
 					conn_unget_chatcharname(me, tname);
 				}
 				else
-					packet_append_string(packet, prefs_get_servername());
+					packet_append_string(packet, prefs_v3::servername());
 
 				packet_append_string(packet, text);
 
@@ -1670,7 +1670,7 @@ namespace pvpgn
 					chatname_buf.c_str(),
 					playerinfo_buf.c_str(),
 					message->text ? message->text : "",
-					prefs_get_servername());
+					prefs_v3::servername());
 				if (v3_rc == 1) {
 					// v3 fully handled this send — skip the entire
 					// legacy format + cache + push path.

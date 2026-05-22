@@ -60,7 +60,7 @@
 #endif
 #include "common/util.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "connection.h"
 #include "ipban.h"
 #include "timer.h"
@@ -348,7 +348,7 @@ namespace pvpgn
 
 			eventlog(eventlog_level_info, __FUNCTION__, "[{}] v3-owned: accepted connection from {} on {}", csocket, addr_num_to_addr_str(ntohl(caddr->sin_addr.s_addr), ntohs(caddr->sin_port)), tempa);
 
-			if (prefs_get_use_keepalive())
+			if (prefs_v3::use_keepalive())
 			{
 				int val = 1;
 				if (setsockopt(csocket, SOL_SOCKET, SO_KEEPALIVE, &val, (socklen_t)sizeof(val)) < 0)
@@ -398,7 +398,7 @@ namespace pvpgn
 			 * still attach the initkill timer used by the legacy
 			 * bnet branch. */
 			if (laddr_info->type == laddr_type_bnet) {
-				int delay = prefs_get_initkill_timer();
+				int delay = prefs_v3::initkill_timer();
 				if (delay) {
 					t_timer_data data;
 					data.p = NULL;
@@ -423,9 +423,9 @@ namespace pvpgn
 		extern void server_quit_wraper(void)
 		{
 			if (sigexittime)
-				sigexittime -= prefs_get_shutdown_decr();
+				sigexittime -= prefs_v3::shutdown_decr();
 			else
-				sigexittime = std::time(NULL) + (std::time_t)prefs_get_shutdown_delay();
+				sigexittime = std::time(NULL) + (std::time_t)prefs_v3::shutdown_delay();
 		}
 
 		extern void server_restart_wraper(int mode){
@@ -554,7 +554,7 @@ namespace pvpgn
 
 			eventlog(eventlog_level_info, __FUNCTION__, "[{}] accepted connection from {} on {}", csocket, addr_num_to_addr_str(ntohl(caddr.sin_addr.s_addr), ntohs(caddr.sin_port)), tempa);
 
-			if (prefs_get_use_keepalive())
+			if (prefs_v3::use_keepalive())
 			{
 				int val = 1;
 
@@ -645,7 +645,7 @@ namespace pvpgn
 										t_timer_data data;
 
 										data.p = NULL;
-										delay = prefs_get_initkill_timer();
+										delay = prefs_v3::initkill_timer();
 										if (delay) timerlist_add_timer(c, std::time(NULL) + delay, conn_shutdown, data);
 				}
 				default:
@@ -1136,7 +1136,7 @@ namespace pvpgn
 				server_hostname = NULL;
 			}
 
-			hn = prefs_get_hostname();
+			hn = prefs_v3::hostname();
 			if ((!hn) || (hn[0] == '\0')) {
 				if (gethostname(temp, sizeof(temp)) < 0) {
 #ifdef WIN32
@@ -1587,10 +1587,10 @@ namespace pvpgn
 			std::time_t prev_time = 0;
 
 			starttime = std::time(NULL);
-			track_time = starttime - prefs_get_track();
-			next_savetime = starttime + prefs_get_user_sync_timer();
-			war3_ladder_updatetime = starttime - prefs_get_war3_ladder_update_secs();
-			output_updatetime = starttime - prefs_get_output_update_secs();
+			track_time = starttime - prefs_v3::track();
+			next_savetime = starttime + prefs_v3::user_sync_timer();
+			war3_ladder_updatetime = starttime - prefs_v3::war3_ladder_update_secs();
+			output_updatetime = starttime - prefs_v3::output_update_secs();
 
 			/* v3 strangler-fig (38g): open the main-loop post queue
 			 * so `server_post_to_main` from worker threads is
@@ -1670,24 +1670,24 @@ namespace pvpgn
 					clanlist_save();
 					gamelist_check_voidgame();
 					ladders.save();
-					next_savetime += prefs_get_user_sync_timer();
+					next_savetime += prefs_v3::user_sync_timer();
 				}
 				accountlist_save(FS_NONE);
 				accountlist_flush(FS_NONE);
 
-				if (prefs_get_track() && track_time + (std::time_t)prefs_get_track() <= now)
+				if (prefs_v3::track() && track_time + (std::time_t)prefs_v3::track() <= now)
 				{
 					track_time = now;
 					tracker_send_report(laddrs);
 				}
 
-				if (prefs_get_war3_ladder_update_secs() && war3_ladder_updatetime + (std::time_t)prefs_get_war3_ladder_update_secs() <= now)
+				if (prefs_v3::war3_ladder_update_secs() && war3_ladder_updatetime + (std::time_t)prefs_v3::war3_ladder_update_secs() <= now)
 				{
 					war3_ladder_updatetime = now;
 					ladders.status();
 				}
 
-				if (prefs_get_output_update_secs() && output_updatetime + (std::time_t)prefs_get_output_update_secs() <= now)
+				if (prefs_v3::output_update_secs() && output_updatetime + (std::time_t)prefs_v3::output_update_secs() <= now)
 				{
 					output_updatetime = now;
 					output_write_to_file();
@@ -1716,8 +1716,8 @@ namespace pvpgn
 						if (prefs_load(BNETD_DEFAULT_CONF_FILE) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "using default configuration");
 
-						if (eventlog_open(prefs_get_logfile()) < 0)
-							eventlog(eventlog_level_error, __FUNCTION__, "could not use the file \"{}\" for the eventlog", prefs_get_logfile());
+						if (eventlog_open(prefs_v3::logfile()) < 0)
+							eventlog(eventlog_level_error, __FUNCTION__, "could not use the file \"{}\" for the eventlog", prefs_v3::logfile());
 
 						/* FIXME: load new network settings */
 
@@ -1739,28 +1739,28 @@ namespace pvpgn
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_realms)
 					{
-						if (realmlist_reload(prefs_get_realmfile()) < 0)
+						if (realmlist_reload(prefs_v3::realmfile()) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not reload realm list");
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_autoupdate)
 					{
 						autoupdate_unload();
-						if (autoupdate_load(prefs_get_mpqfile()) < 0)
+						if (autoupdate_load(prefs_v3::mpqfile()) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not load autoupdate list");
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_news)
 					{
 						news_unload();
-						if (news_load(prefs_get_newsfile()) < 0)
+						if (news_load(prefs_v3::newsfile()) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not load news list");
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_versioncheck)
 					{
 						unload_versioncheck_conf();
-						if (!load_versioncheck_conf(prefs_get_versioncheck_file()))
+						if (!load_versioncheck_conf(prefs_v3::versioncheck_file()))
 						{
 							eventlog(eventlog_level_error, __FUNCTION__, "could not load versioncheck list");
 						}
@@ -1771,14 +1771,14 @@ namespace pvpgn
 						if (ipbanlist_destroy() < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not unload old IP ban list");
 						ipbanlist_create();
-						if (ipbanlist_load(prefs_get_ipbanfile()) < 0)
+						if (ipbanlist_load(prefs_v3::ipbanfile()) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not load new IP ban list");
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_helpfile)
 					{
 						helpfile_unload();
-						if (helpfile_init(prefs_get_helpfile()) < 0)
+						if (helpfile_init(prefs_v3::helpfile()) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not load the helpfile");
 					}
 
@@ -1791,7 +1791,7 @@ namespace pvpgn
 								AdBannerList.unload();
 							}
 
-							AdBannerList.load(prefs_get_adfile());
+							AdBannerList.load(prefs_v3::adfile());
 						}
 						catch (const std::exception& e)
 						{
@@ -1801,43 +1801,43 @@ namespace pvpgn
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_tracker)
 					{
-						if (prefs_get_track())
+						if (prefs_v3::track())
 							tracker_set_servers(prefs_get_trackserv_addrs());
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_commandgroups)
 					{
-						if (command_groups_reload(prefs_get_command_groups_file()) < 0)
+						if (command_groups_reload(prefs_v3::command_groups_file()) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not load new command_groups list");
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_aliasfile)
 					{
 						aliasfile_unload();
-						aliasfile_load(prefs_get_aliasfile());
+						aliasfile_load(prefs_v3::aliasfile());
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_transfile)
 					{
-						if (trans_reload(prefs_get_transfile(), TRANS_BNETD) < 0)
+						if (trans_reload(prefs_v3::transfile(), TRANS_BNETD) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not reload trans list");
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_tournament)
 					{
-						tournament_reload(prefs_get_tournament_file());
+						tournament_reload(prefs_v3::tournament_file());
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_icons)
 					{
 						customicons_unload();
-						customicons_load(prefs_get_customicons_file());
+						customicons_load(prefs_v3::customicons_file());
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_anongame)
 					{
 						anongame_infos_unload();
-						anongame_infos_load(prefs_get_anongame_infos_file());
+						anongame_infos_load(prefs_v3::anongame_infos_file());
 					}
 
 #ifdef WITH_LUA
@@ -1846,7 +1846,7 @@ namespace pvpgn
 						lua_handle_server(luaevent_server_rehash);
 
 						lua_unload();
-						lua_load(prefs_get_scriptdir());
+						lua_load(prefs_v3::scriptdir());
 					}
 #endif
 
@@ -2093,64 +2093,64 @@ namespace pvpgn
 
 			laddrs = NULL;
 			/* Start with the Battle.net address list */
-			if (_setup_add_addrs(&laddrs, prefs_get_bnetdserv_addrs(), INADDR_ANY, BNETD_SERV_PORT, laddr_type_bnet))
+			if (_setup_add_addrs(&laddrs, prefs_v3::bnetdserv_addrs(), INADDR_ANY, BNETD_SERV_PORT, laddr_type_bnet))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_bnet), prefs_get_bnetdserv_addrs());
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_bnet), prefs_v3::bnetdserv_addrs());
 				return -1;
 			}
 
 			/* Append list of addresses to listen for IRC connections */
-			if (_setup_add_addrs(&laddrs, prefs_get_irc_addrs(), INADDR_ANY, BNETD_IRC_PORT, laddr_type_irc))
+			if (_setup_add_addrs(&laddrs, prefs_v3::irc_addrs(), INADDR_ANY, BNETD_IRC_PORT, laddr_type_irc))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_irc), prefs_get_irc_addrs());
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_irc), prefs_v3::irc_addrs());
 				_shutdown_addrs(laddrs);
 				return -1;
 			}
 
 			/* Append list of addresses to listen for WOLv1 connections */
-			if (_setup_add_addrs(&laddrs, prefs_get_wolv1_addrs(), INADDR_ANY, BNETD_WOLV1_PORT, laddr_type_wolv1))
+			if (_setup_add_addrs(&laddrs, prefs_v3::wolv1_addrs(), INADDR_ANY, BNETD_WOLV1_PORT, laddr_type_wolv1))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_wolv1), prefs_get_wolv1_addrs());
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_wolv1), prefs_v3::wolv1_addrs());
 				_shutdown_addrs(laddrs);
 				return -1;
 			}
 
 			/* Append list of addresses to listen for WOLv2 connections */
-			if (_setup_add_addrs(&laddrs, prefs_get_wolv2_addrs(), INADDR_ANY, BNETD_WOLV2_PORT, laddr_type_wolv2))
+			if (_setup_add_addrs(&laddrs, prefs_v3::wolv2_addrs(), INADDR_ANY, BNETD_WOLV2_PORT, laddr_type_wolv2))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_wolv2), prefs_get_wolv2_addrs());
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_wolv2), prefs_v3::wolv2_addrs());
 				_shutdown_addrs(laddrs);
 				return -1;
 			}
 
 			/* Append list of addresses to listen for APIREGISER connections */
-			if (_setup_add_addrs(&laddrs, prefs_get_apireg_addrs(), INADDR_ANY, BNETD_APIREG_PORT, laddr_type_apireg))
+			if (_setup_add_addrs(&laddrs, prefs_v3::apireg_addrs(), INADDR_ANY, BNETD_APIREG_PORT, laddr_type_apireg))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_apireg), prefs_get_apireg_addrs());
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_apireg), prefs_v3::apireg_addrs());
 				_shutdown_addrs(laddrs);
 				return -1;
 			}
 
 			/* Append list of addresses to listen for WGAMERES connections */
-			if (_setup_add_addrs(&laddrs, prefs_get_wgameres_addrs(), INADDR_ANY, BNETD_WGAMERES_PORT, laddr_type_wgameres))
+			if (_setup_add_addrs(&laddrs, prefs_v3::wgameres_addrs(), INADDR_ANY, BNETD_WGAMERES_PORT, laddr_type_wgameres))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_wgameres), prefs_get_wgameres_addrs());
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_wgameres), prefs_v3::wgameres_addrs());
 				_shutdown_addrs(laddrs);
 				return -1;
 			}
 
 			/* Append list of addresses to listen for W3ROUTE connections */
-			if (_setup_add_addrs(&laddrs, prefs_get_w3route_addr(), INADDR_ANY, BNETD_W3ROUTE_PORT, laddr_type_w3route))
+			if (_setup_add_addrs(&laddrs, prefs_v3::w3route_addr(), INADDR_ANY, BNETD_W3ROUTE_PORT, laddr_type_w3route))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_w3route), prefs_get_w3route_addr());
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_w3route), prefs_v3::w3route_addr());
 				_shutdown_addrs(laddrs);
 				return -1;
 			}
 
 			/* Append list of addresses to listen for telnet connections */
-			if (_setup_add_addrs(&laddrs, prefs_get_telnet_addrs(), INADDR_ANY, BNETD_TELNET_PORT, laddr_type_telnet))
+			if (_setup_add_addrs(&laddrs, prefs_v3::telnet_addrs(), INADDR_ANY, BNETD_TELNET_PORT, laddr_type_telnet))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_telnet), prefs_get_telnet_addrs());
+				eventlog(eventlog_level_error, __FUNCTION__, "could not create {} server address list from \"{}\"", laddr_type_get_str(laddr_type_telnet), prefs_v3::telnet_addrs());
 				_shutdown_addrs(laddrs);
 				return -1;
 			}

@@ -1903,3 +1903,253 @@ ctest -R test_protocol_wol_fsm --output-on-failure
 - Updated `plans/phase2-fsm-checklist.md`: added COMPLETE banner, total test count summary,
   marked all checklist items complete, updated Migration Order table
 
+
+### Round 134 — 2026-05-21
+
+**Phase 1 Step 10 — first wave of `prefs_get_*` caller migration**
+
+- **Approach:** introduced `src/bnetd/prefs_v3_shim.h` (header-only) exposing inline
+  `pvpgn::bnetd::prefs_v3::*()` accessors. Each accessor preserves the existing
+  `pvpgn_v3_prefs_loaded()` → bridge dispatch already present inside `prefs.cpp`,
+  with the legacy `prefs_get_*()` call as the `#ifndef`/no-TOML fallback. Semantics
+  are byte-identical; the shim simply moves the dispatch out of `prefs.cpp` so
+  callers no longer reference the legacy `prefs_get_*` symbols directly.
+
+- **Files migrated (7):**
+  - `src/bnetd/versioncheck.cpp` — `prefs_get_allow_bad_version()` → `prefs_v3::allow_bad_version()`
+  - `src/bnetd/sql_dbcreator.cpp` — `prefs_get_DBlayoutfile()` → `prefs_v3::DBlayoutfile()`
+  - `src/bnetd/handle_apireg.cpp` — `prefs_get_allow_new_accounts()` → `prefs_v3::allow_new_accounts()`
+  - `src/bnetd/handle_d2cs.cpp` — `prefs_allow_d2cs_setname()` + `prefs_get_d2cs_version()` → `prefs_v3::*`
+  - `src/bnetd/handle_init.cpp` — both `prefs_get_max_conns_per_IP()` call sites → `prefs_v3::max_conns_per_IP()`
+  - `src/bnetd/support.cpp` — both `prefs_get_filedir()` call sites → `prefs_v3::filedir()`
+  - `src/bnetd/topic.cpp` — both `prefs_get_topicfile()` call sites → `prefs_v3::topicfile()`
+
+- **Files NOT migrated:**
+  - `src/bnetd/icons.cpp` — the only `prefs_get_*` occurrence (`prefs_get_custom_icons`) is the
+    *definition* of an out-of-tree accessor, not a call site. Nothing to migrate.
+
+- **New file:** [`src/bnetd/prefs_v3_shim.h`](../src/bnetd/prefs_v3_shim.h) — 8 inline accessors
+  (`filedir`, `topicfile`, `DBlayoutfile`, `allow_bad_version`, `allow_new_accounts`,
+  `allow_d2cs_setname`, `d2cs_version`, `max_conns_per_IP`). New entries to be added as
+  additional caller files are migrated.
+
+- **Verification:** all 7 modified TUs pass `g++ -std=c++20 -fsyntax-only -DPVPGN_V3_BNETD_INTEGRATION=1`
+  with the v3 integration headers on the include path. (The local CMake build trees
+  `build/` and `build-v3/` are in a pre-existing broken state — `LUA_INCLUDE_DIR=NOTFOUND`
+  during reconfigure and `bnetd_legacy` missing `infra/compat/directory.hpp` on its include
+  path — both unrelated to this round; full validation belongs to `Dockerfile.v3`.)
+
+- **Step 10 caller-migration progress:** 7 / ~38 files (~12 / ~300 call sites).
+
+- **Next (Round 135+):** continue with the medium-complexity files
+  (`message.cpp`, `channel.cpp`, `account.cpp`, `account_wrap.cpp`, `irc.cpp`, `clan.cpp`,
+  `mail.cpp`, `output.cpp`, `userlog.cpp`, `tracker.cpp`, `ipban.cpp`, `attrgroup.cpp`,
+  `attrlayer.cpp`, `watch.cpp`, `sql_common.cpp`, `storage_file.cpp`, `anongame.cpp`,
+  `anongame_maplists.cpp`, `ladder.cpp`, `i18n.cpp`, `handle_wol.cpp`, `handle_wserv.cpp`,
+  `handle_irc.cpp`, `handle_irc_common.cpp`). Then tackle the high-impact files
+  (`handle_bnet.cpp`, `connection.cpp`, `server.cpp`, `command.cpp`, `game.cpp`,
+  `luainterface.cpp`, `main.cpp`). After all callers migrated and TOML becomes mandatory,
+  delete `prefs.cpp` / `prefs.h`.
+
+### Round 135 — 2026-05-21
+
+**Phase 1 Step 10 — second wave of `prefs_get_*` caller migration (8 files)**
+
+- Extended [`src/bnetd/prefs_v3_shim.h`](../src/bnetd/prefs_v3_shim.h) with 18 new
+  inline accessors: `servername`, `location`, `description`, `url`, `contact_name`,
+  `contact_email`, `ipbanfile`, `ipban_check_int`, `userlogdir`, `maildir`,
+  `mail_support`, `mail_quota`, `outputdir`, `XML_status_output`, `log_commands`,
+  `log_command_groups`, `log_command_list`, `clan_newer_time`,
+  `clan_channel_default_private`.
+- Note: the `outputdir` accessor delegates to `pvpgn_v3_prefs_get_statusdir()` in
+  the bridge — the v3 typed config exposes this field under the `statusdir` name
+  while the legacy accessor is `prefs_get_outputdir()`; both resolve to the same
+  underlying `outputdir` setting.
+
+**Files migrated (8):**
+- `src/bnetd/message.cpp` — `servername` (×5), `contact_name`
+- `src/bnetd/output.cpp` — `XML_status_output` (×2), `outputdir` (×2)
+- `src/bnetd/mail.cpp` — `maildir` (×2), `mail_support`, `mail_quota`
+- `src/bnetd/userlog.cpp` — `log_command_list`, `log_commands`, `log_command_groups`, `userlogdir`
+- `src/bnetd/tracker.cpp` — `location`, `description`, `url`, `contact_name`, `contact_email`
+- `src/bnetd/ipban.cpp` — `ipban_check_int`, `ipbanfile` (×3)
+- `src/bnetd/watch.cpp` — `servername` (×4)
+- `src/bnetd/sql_common.cpp` — `clan_channel_default_private`, `clan_newer_time` (×2)
+
+**Verification:** all 8 modified TUs pass
+`g++ -std=c++20 -fsyntax-only -DPVPGN_V3_BNETD_INTEGRATION=1`
+(with `src/v3/infra/compat/include` also on the path — pre-existing requirement,
+see Round 134 note).
+
+**Step 10 caller-migration progress (cumulative):**
+15 / ~38 files migrated, ~37 / ~300 call sites converted.
+
+## Round 136 — Medium prefs caller migration (batch 3)
+
+Migrated 8 medium-complexity files to use `prefs_v3::*` shim accessors so the
+TOML→ServerConfig→LegacyPrefs bridge can take over when loaded.
+
+Files migrated (8):
+- `src/bnetd/attrgroup.cpp` — `user_sync_timer`, `user_flush_timer`,
+  `user_flush_connected`, `storage_path` ×2 (5 sites).
+- `src/bnetd/attrlayer.cpp` — `user_step` ×2 (2 sites).
+- `src/bnetd/account_wrap.cpp` — `max_friends` ×5 (5 sites in friend
+  management).
+- `src/bnetd/ladder.cpp` — `ladder_init_rating`, `ladderdir` ×2,
+  `outputdir` (4 sites).
+- `src/bnetd/i18n.cpp` — `i18ndir` ×3, `localize_by_country` (4 sites).
+- `src/bnetd/anongame_maplists.cpp` — `mapsfile` ×3 (3 sites).
+- `src/bnetd/anongame.cpp` — `w3route_addr` (1 site).
+- `src/bnetd/storage_file.cpp` — `savebyname` ×2,
+  `clan_channel_default_private`, `clan_newer_time` ×2 (5 sites).
+
+Shim accessors added to `src/bnetd/prefs_v3_shim.h` (13 new):
+`i18ndir`, `localize_by_country`, `mapsfile`, `user_step`, `user_sync_timer`,
+`user_flush_timer`, `user_flush_connected`, `storage_path`, `max_friends`,
+`w3route_addr`, `ladder_init_rating`, `ladderdir`, `savebyname`.
+
+Total sites migrated this round: 29 across 8 files.
+Cumulative shim accessors: 39. Cumulative files migrated: 23/~38.
+
+Validation:
+- `g++ -std=c++20 -fsyntax-only -DPVPGN_V3_BNETD_INTEGRATION=1` clean for
+  7/8 files. `i18n.cpp` blocked on pre-existing pugixml include
+  unreachable from local env (not a regression — call-site edits identical
+  to other files).
+- Full CMake build of `bnetd_legacy` still blocked by pre-existing env
+  issues (Lua autodetect, missing `infra/compat/include` on legacy
+  target_include_directories). To be addressed separately.
+
+Next batch candidates: `handle_wol`, `handle_wserv`, `handle_irc`,
+`handle_irc_common`, `clan`, `irc`, `account`, `channel`. High-impact
+follow-up: `handle_bnet`, `connection`, `server`, `command`, `game`,
+`luainterface`, `main`.
+
+## Round 137 — Medium prefs caller migration (batch 4)
+
+Migrated 6 files to use `prefs_v3::*` shim accessors. (Original R137
+plan included `handle_irc` and `handle_irc_common` but those source
+files do not exist in this branch — only `irc.cpp` exists, which is
+included.)
+
+Files migrated (6):
+- `src/bnetd/channel.cpp` — `chanlogdir` ×2, `channelfile` (3 sites).
+  NOTE: `prefs_get_log_notice()` left intentionally unmigrated on
+  line 492; pre-existing bridge bug — bridge declares it
+  `unsigned int` but legacy returns `char const *`. Track as
+  separate fix.
+- `src/bnetd/clan.cpp` — `clan_newer_time`, `clan_channel_default_private`
+  (2 sites).
+- `src/bnetd/handle_wol.cpp` — `kick_old_login`, `chanlog`,
+  `maxusers_per_channel` ×2 (4 sites).
+- `src/bnetd/handle_wserv.cpp` — `wol_autoupdate_serverhost`,
+  `wol_autoupdate_username`, `wol_autoupdate_password`, `servername`,
+  `wol_timezone`, `wol_longitude`, `wol_latitude`, `allowed_clients`
+  (8 sites).
+- `src/bnetd/irc.cpp` — `kick_old_login`, `hide_addr` ×2, `motdfile`,
+  `irc_network_name` ×2, `allow_new_accounts`, `wolv2_addrs` ×3,
+  `wolv1_addrs`, `irc_addrs` ×2, `irc_latency` (12 sites).
+- `src/bnetd/account.cpp` — `hashtable_size` ×2, `savebyname`,
+  `max_accounts` ×3, `account_allowed_symbols` (7 sites).
+
+Shim accessors added to `src/bnetd/prefs_v3_shim.h` (21 new):
+`chanlogdir`, `channelfile`, `kick_old_login`, `chanlog`,
+`maxusers_per_channel`, `hide_addr`, `motdfile`, `irc_network_name`,
+`wolv1_addrs`, `wolv2_addrs`, `irc_addrs` (bridges to
+`pvpgn_v3_prefs_get_ircaddrs` — pre-existing naming mismatch
+intentionally bridged here), `irc_latency`, `wol_timezone`,
+`wol_longitude`, `wol_latitude`, `wol_autoupdate_serverhost`,
+`wol_autoupdate_username`, `wol_autoupdate_password`,
+`allowed_clients`, `hashtable_size`, `max_accounts`,
+`account_allowed_symbols`.
+
+Total sites migrated this round: 36 across 6 files.
+Cumulative shim accessors: 60. Cumulative files migrated: 29/~38.
+
+Validation:
+- `g++ -fsyntax-only` clean for all 6 files (only pre-existing
+  `-Wregister` warnings in `account.cpp`).
+
+Known pre-existing bridge inconsistencies discovered during R137 (not
+fixed here):
+- `pvpgn_v3_prefs_get_log_notice()` declared `unsigned int` in
+  bridge header but `prefs.cpp::prefs_get_log_notice` returns
+  `char const *` and stores a string. Will fail at link/typecheck
+  once the legacy dispatch in `prefs.cpp` is compiled with
+  `PVPGN_V3_BNETD_INTEGRATION=1`. Needs bridge return-type fix.
+- `prefs.cpp::prefs_get_irc_addrs` calls
+  `pvpgn_v3_prefs_get_irc_addrs()` but the bridge exports
+  `pvpgn_v3_prefs_get_ircaddrs()` (no underscore). Will fail at
+  link. The shim works around this by calling the bridge symbol
+  directly, but `prefs.cpp` itself remains broken under v3.
+
+Next batch candidates: `handle_bnet` (high-impact),
+`connection`, `server`, `command`, `game`, `luainterface`,
+`main`. Also remaining smaller files surfaced by grep.
+
+## Round 138 — high-impact callers (handle_bnet, connection, server)
+
+Files migrated (3):
+- src/bnetd/handle_bnet.cpp (~30 sites)
+- src/bnetd/connection.cpp  (~17 sites)
+- src/bnetd/server.cpp      (~46 sites)
+
+Total ~93 call sites migrated to `pvpgn::bnetd::prefs_v3::*`.
+
+Shim accessors added (45 new in R138): account_force_username, adfile,
+aliasfile, allow_unknown_version, anongame_infos_file, apireg_addrs,
+ask_new_channel, bnetdserv_addrs, clan_max_members, command_groups_file,
+customicons_file, helpfile, hide_pass_games, hide_started_games,
+hide_temp_channels, hostname, iconfile, initkill_timer, issuefile,
+latency, logfile, max_concurrent_logins, motdw3file, mpqfile, newsfile,
+nullmsg, output_update_secs, packet_limit, passfail_bantime,
+passfail_count, realmfile, scriptdir, shutdown_decr, shutdown_delay,
+star_iconfile, sync_on_logoff, telnet_addrs (→ bridge `telnetaddrs`),
+tournament_file, track, transfile, udptest_port, use_keepalive,
+versioncheck_file, war3_iconfile, war3_ladder_update_secs,
+wgameres_addrs.
+
+Cumulative shim accessors: ~105. Cumulative migrated files: 32.
+
+Intentionally NOT migrated (no bridge accessor; left as legacy
+`prefs_get_*`):
+- prefs_get_custom_icons    (only `customicons_file` exists in bridge)
+- prefs_get_quota, quota_dobae, quota_lines, quota_maxline, quota_time,
+  quota_wrapline
+- prefs_get_trackserv_addrs (bridge has `trackaddrs` — different
+  semantic / not yet wired)
+
+Validation: g++ -fsyntax-only across all 3 TUs reports zero prefs-related
+diagnostics. Remaining errors are pre-existing env blockers
+(strangler_macros.h `extern "C"` placement; incomplete bridge struct
+types `pvpgn_v3_friend_entry`, `pvpgn_v3_realm_legacy_entry` not
+declared in this minimal include set).
+
+## Round 139 — command, game, main, luainterface
+
+Files migrated (4):
+- src/bnetd/command.cpp       (~25 sites)
+- src/bnetd/game.cpp          (~10 sites)
+- src/bnetd/main.cpp          (~28 sites)
+- src/bnetd/luainterface.cpp  (~120 sites)
+
+Total ~183 call sites migrated through shim.
+
+Shim accessors added (19 new in R139): clan_min_invites, discisloss,
+effective_group, effective_user, enable_conn_all, ladder_games,
+ladder_prefix, localizefile, loglevels, max_connections, pidfile,
+report_all_games, report_diablo_games, reportdir, supportfile, tosfile,
+XML_output_ladder, xpcalc_file (→ bridge `xpcalcfile`),
+xplevel_file (→ bridge `xplevelfile`).
+
+Cumulative shim accessors: ~124. Cumulative migrated files: 36.
+
+Intentionally NOT migrated (no/broken bridge accessor; left as legacy
+`prefs_get_*`):
+- prefs_get_custom_icons, prefs_get_trackserv_addrs
+- prefs_get_quota, quota_dobae, quota_lines, quota_maxline, quota_time,
+  quota_wrapline
+- prefs_get_log_notice (bridge type mismatch: unsigned int vs char const*)
+
+Validation: g++ -fsyntax-only across all 4 TUs reports zero prefs-related
+diagnostics.

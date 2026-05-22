@@ -52,7 +52,7 @@
 #include "sql_odbc.h"
 #endif
 #include "clan.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #undef CLAN_INTERNAL_ACCESS
 #undef TEAM_INTERNAL_ACCESS
 #include "common/setup_after.h"
@@ -410,7 +410,7 @@ namespace pvpgn
 					clan->creation_time = std::atoi(row[4]);
 					clan->created = 1;
 					clan->modified = 0;
-					clan->channel_type = prefs_get_clan_channel_default_private();
+					clan->channel_type = prefs_v3::clan_channel_default_private();
 					clan->members = list_create();
 
 					std::snprintf(query, sizeof(query), "SELECT " SQL_UID_FIELD ", status, join_time FROM %sclanmember WHERE cid='%u'", tab_prefix, clan->clanid);
@@ -439,7 +439,7 @@ namespace pvpgn
 							member->clan = clan;
 							member->fullmember = 1;
 
-							if ((member->status == CLAN_NEW) && (std::time(NULL) - member->join_time > prefs_get_clan_newer_time() * 3600))
+							if ((member->status == CLAN_NEW) && (std::time(NULL) - member->join_time > prefs_v3::clan_newer_time() * 3600))
 							{
 								member->status = CLAN_PEON;
 								clan->modified = 1;
@@ -520,7 +520,7 @@ namespace pvpgn
 					}
 					if (member->fullmember == 0)
 						continue;
-					if ((member->status == CLAN_NEW) && (std::time(NULL) - member->join_time > prefs_get_clan_newer_time() * 3600))
+					if ((member->status == CLAN_NEW) && (std::time(NULL) - member->join_time > prefs_v3::clan_newer_time() * 3600))
 					{
 						member->status = CLAN_PEON;
 						member->modified = 1;

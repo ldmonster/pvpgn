@@ -40,7 +40,7 @@
 
 #include "connection.h"
 #include "anongame.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "friends.h"
 #include "game.h"
 #include "message.h"
@@ -1221,7 +1221,7 @@ namespace pvpgn
 				return 0;
 			}
 
-			if ((member->status == CLAN_NEW) && (now - member->join_time > prefs_get_clan_newer_time() * 3600))
+			if ((member->status == CLAN_NEW) && (now - member->join_time > prefs_v3::clan_newer_time() * 3600))
 			{
 				member->status = CLAN_PEON;
 				member->clan->modified = 1;
@@ -1635,7 +1635,7 @@ namespace pvpgn
 			clan->clanid = ++max_clanid;
 			clan->created = 0;
 			clan->modified = 1;
-			clan->channel_type = prefs_get_clan_channel_default_private();
+			clan->channel_type = prefs_v3::clan_channel_default_private();
 
 			member->memberacc = chieftain_acc;
 			member->status = CLAN_CHIEFTAIN;
