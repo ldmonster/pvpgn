@@ -78,7 +78,6 @@
 #include "icons.h"
 #include "i18n.h"
 #include "common/setup_after.h"
-#include "prefs.h"
 
 #ifdef WITH_LUA
 #include "luainterface.h"
@@ -2730,7 +2729,7 @@ namespace pvpgn
 
 			// if custom_icons is enabled then set a custom client tag by player rating
 			// do not override user selected icon if it's not null
-			if (!usericon && prefs_get_custom_icons() == 1 && customicons_allowed_by_client(clienttag))
+			if (!usericon && prefs_v3::custom_icons() == 1 && customicons_allowed_by_client(clienttag))
 			{
 				if (t_icon_info * icon = customicons_get_icon_by_account(account, clienttag))
 					std::snprintf(playerinfo, sizeof playerinfo, "%s", icon->icon_code);
@@ -3200,14 +3199,14 @@ namespace pvpgn
 
 		extern int conn_quota_exceeded(t_connection * con, char const * text)
 		{
-			if (!prefs_get_quota() ||
+			if (!prefs_v3::quota() ||
 				!conn_get_account(con)
 				// FIXME: (HarpyWar) do not allow flood for admins due to possible abuse with quick command sending that high load a server processor
 				//                   If we really need to ignore flood protection, it can be allowed in Lua config for special users
 				/* || (account_get_command_groups(conn_get_account(con)) & command_get_group("/admin-con"))*/
 				) return 0;
 
-			if (std::strlen(text) > prefs_get_quota_maxline())
+			if (std::strlen(text) > prefs_v3::quota_maxline())
 			{
 				message_send_text(con, message_type_error, con, localize(con, "Your line length quota has been exceeded!"));
 				return 1;
@@ -3217,7 +3216,7 @@ namespace pvpgn
 			while (!con->protocol.chat.quota.list.empty())
 			{
 				t_qline & front = con->protocol.chat.quota.list.front();
-				if (now >= front.inf + (std::time_t)prefs_get_quota_time())
+				if (now >= front.inf + (std::time_t)prefs_v3::quota_time())
 				{
 					/* these lines are at least quota_time old */
 					if (front.count > con->protocol.chat.quota.totcount)
@@ -3231,8 +3230,8 @@ namespace pvpgn
 
 			t_qline qline{};
 			qline.inf = now; /* set the moment */
-			if (std::strlen(text) > prefs_get_quota_wrapline()) /* round up on the divide */
-				qline.count = (std::strlen(text) + prefs_get_quota_wrapline() - 1) / prefs_get_quota_wrapline();
+			if (std::strlen(text) > prefs_v3::quota_wrapline()) /* round up on the divide */
+				qline.count = (std::strlen(text) + prefs_v3::quota_wrapline() - 1) / prefs_v3::quota_wrapline();
 			else
 				qline.count = 1;
 
@@ -3240,10 +3239,10 @@ namespace pvpgn
 
 			con->protocol.chat.quota.totcount += qline.count;
 
-			if (con->protocol.chat.quota.totcount >= prefs_get_quota_lines())
+			if (con->protocol.chat.quota.totcount >= prefs_v3::quota_lines())
 			{
 				message_send_text(con, message_type_error, con, localize(con, "Your message quota has been exceeded!"));
-				if (con->protocol.chat.quota.totcount >= prefs_get_quota_dobae())
+				if (con->protocol.chat.quota.totcount >= prefs_v3::quota_dobae())
 				{
 					/* kick out the dobae user for violation of the quota rule */
 					conn_set_state(con, conn_state_destroy);
@@ -3817,7 +3816,7 @@ namespace pvpgn
 
 			// if custom stats is enabled then set a custom client icon by player rating
 			// do not override user selected icon if any
-			if (!usericon && prefs_get_custom_icons() == 1 && customicons_allowed_by_client(clienttag))
+			if (!usericon && prefs_v3::custom_icons() == 1 && customicons_allowed_by_client(clienttag))
 			{
 				if (t_icon_info* icon = customicons_get_icon_by_account(account, clienttag))
 				{

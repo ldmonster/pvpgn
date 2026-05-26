@@ -105,6 +105,9 @@ extern "C" int pvpgn_v3_send_frienddel_ack(void* conn_ptr,
 extern "C" int pvpgn_v3_send_friendmove_ack(void* conn_ptr,
                                              unsigned int pos1,
                                              unsigned int pos2) noexcept;
+// R164: dump the active TOML prefs snapshot via a callback. Implemented
+// in `integration_legacy_bnetd_linked`. No-op when no snapshot loaded.
+extern "C" void pvpgn_v3_prefs_dump(void* user, void (*line_cb)(void* user, const char* line)) noexcept;
 #endif
 
 namespace pvpgn
@@ -423,6 +426,7 @@ namespace pvpgn
 		static int _handle_gameinfo_command(t_connection * c, char const * text);
 		static int _handle_ladderactivate_command(t_connection * c, char const * text);
 		static int _handle_rehash_command(t_connection * c, char const * text);
+		static int _handle_config_command(t_connection * c, char const * text);
 		static int _handle_find_command(t_connection * c, char const *text);
 		static int _handle_save_command(t_connection * c, char const * text);
 
@@ -530,6 +534,7 @@ namespace pvpgn
 			{ "/gameinfo", _handle_gameinfo_command },
 			{ "/ladderactivate", _handle_ladderactivate_command },
 			{ "/rehash", _handle_rehash_command },
+			{ "/config", _handle_config_command },
 			{ "/find", _handle_find_command },
 			{ "/save", _handle_save_command },
 			{ "/shutdown", _handle_shutdown_command },
@@ -2140,7 +2145,7 @@ namespace pvpgn
 			clienttag_uint = tag_case_str_to_uint(clienttag);
 
 			// custom stats
-			if (prefs_get_custom_icons() == 1 && customicons_allowed_by_client(clienttag_uint))
+			if (prefs_v3::custom_icons() == 1 && customicons_allowed_by_client(clienttag_uint))
 			{
 				const char *text;
 
@@ -3936,6 +3941,60 @@ namespace pvpgn
 		}
 
 		/**
+		 * /config -- dump the current v3 TOML config snapshot
+		 *
+		 * Read-only view of the live `prefs_v3::*` accessors. Used
+		 * to verify that a SIGHUP / `/rehash` actually picked up
+		 * the on-disk `.toml` file changes, without having to
+		 * tail the eventlog.
+		 *
+		 * Output is a compact TOML-shaped listing, one field per
+		 * line. It is intentionally *not* round-trip-safe TOML --
+		 * paths are emitted bare so admins can copy/paste them.
+		 */
+		static int _handle_config_command(t_connection * c, char const * /*text*/)
+		{
+			auto say = [&](std::string s) {
+				msgtemp = std::move(s);
+				message_send_text(c, message_type_info, c, msgtemp);
+			};
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// R164: route through the shared `format_dump()` formatter
+			// (same output the d2cs/d2dbs SIGHUP eventlog snapshots use)
+			// via the C-linkage bridge -- the bnetd_legacy translation
+			// unit cannot include <vector>/<string>-templated v3 headers
+			// directly.
+			struct Ctx { decltype(say)* say; };
+			Ctx ctx{ &say };
+			pvpgn_v3_prefs_dump(&ctx, [](void* u, const char* line) {
+				(*static_cast<Ctx*>(u)->say)(line ? line : "");
+			});
+#else
+			say("[server]");
+			say(std::string("servername = \"") + prefs_v3::servername() + "\"");
+			say(std::string("hostname   = \"") + prefs_v3::hostname()   + "\"");
+			say("");
+			say("[log]");
+			say(std::string("logfile    = \"") + prefs_v3::logfile()    + "\"");
+			say(std::string("loglevels  = \"") + prefs_v3::loglevels()  + "\"");
+			say("");
+			say("[network]");
+			say(std::string("bnetd      = \"") + prefs_v3::bnetdserv_addrs() + "\"");
+			say(std::string("telnet     = \"") + prefs_v3::telnet_addrs()    + "\"");
+			say(std::string("irc        = \"") + prefs_v3::irc_addrs()       + "\"");
+			say(std::string("w3route    = \"") + prefs_v3::w3route_addr()    + "\"");
+			say("");
+			say("[files]");
+			say(std::string("filedir    = \"") + prefs_v3::filedir()       + "\"");
+			say(std::string("i18ndir    = \"") + prefs_v3::i18ndir()       + "\"");
+			say(std::string("storage    = \"") + prefs_v3::storage_path() + "\"");
+			say(std::string("realmfile  = \"") + prefs_v3::realmfile()    + "\"");
+#endif
+			return 0;
+		}
+
+		/**
 		* /find <substr to search for inside username>
 		*/
 		static int _handle_find_command(t_connection * c, char const *text)
@@ -4405,11 +4464,11 @@ namespace pvpgn
 
 		static int _handle_quota_command(t_connection * c, char const * text)
 		{
-			msgtemp = localize(c, "Your quota allows you to write {} line(s) per {} second(s).", prefs_get_quota_lines(), prefs_get_quota_time());
+			msgtemp = localize(c, "Your quota allows you to write {} line(s) per {} second(s).", prefs_v3::quota_lines(), prefs_v3::quota_time());
 			message_send_text(c, message_type_info, c, msgtemp);
-			msgtemp = localize(c, "Long lines will be wrapped every {} characters.", prefs_get_quota_wrapline());
+			msgtemp = localize(c, "Long lines will be wrapped every {} characters.", prefs_v3::quota_wrapline());
 			message_send_text(c, message_type_info, c, msgtemp);
-			msgtemp = localize(c, "You are not allowed to send lines with more than {} characters.", prefs_get_quota_maxline());
+			msgtemp = localize(c, "You are not allowed to send lines with more than {} characters.", prefs_v3::quota_maxline());
 			message_send_text(c, message_type_info, c, msgtemp);
 
 			return 0;

@@ -30,8 +30,14 @@
 #include "common/packet.h"
 #include "bnetd/connection.h"
 #include "bnetd/handle_bnet.h"
-#include "bnetd/handle_init.h"
 #include "common/setup_after.h"
+
+// Forward decl: `handle_init_packet` is defined in
+// `init_packet_dispatch_link.cpp` (same static lib). The retired
+// `bnetd/handle_init.h` header (R178.b) used to provide this.
+namespace pvpgn { namespace bnetd {
+    extern int handle_init_packet(t_connection* c, t_packet const* const packet);
+}}
 
 namespace pvpgn::integration::legacy_bnetd {
 

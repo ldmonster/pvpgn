@@ -42,10 +42,12 @@ option(WITH_PGSQL "include PostgreSQL user accounts support" OFF)
 option(WITH_ODBC "include ODBC user accounts support" OFF)
 
 # ---- v3 refactor opt-in -------------------------------------------------
-# When PVPGN_BUILD_V3=ON, the new C++20 sub-tree under src/v3/ is built
-# alongside (or instead of) the legacy daemons. Legacy build is untouched
-# when PVPGN_BUILD_V3=OFF (the default).
-option(PVPGN_BUILD_V3        "Build the refactored v3 sub-tree (experimental)" OFF)
+# v3 is the supported build path -- TOML configuration, hexagonal
+# layering, Catch2 test suite. The legacy tree is still buildable via
+# PVPGN_BUILD_LEGACY for transitional setups but is no longer developed.
+# PVPGN_BUILD_V3 stays as an option only so downstream packagers can opt
+# out for now; defaulting to ON.
+option(PVPGN_BUILD_V3        "Build the refactored v3 sub-tree (default)"      ON)
 option(PVPGN_BUILD_LEGACY    "Build the legacy bnetd/d2cs/d2dbs tree"          ON)
 option(PVPGN_V3_BUILD_TESTS  "Build unit tests for the v3 sub-tree"            ${PVPGN_BUILD_V3})
 

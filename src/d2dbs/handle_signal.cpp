@@ -26,7 +26,7 @@
 #include <csignal>
 
 #include "common/eventlog.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "d2ladder.h"
 #include "cmdline.h"
 #include "common/setup_after.h"
@@ -69,10 +69,10 @@ namespace pvpgn
 				signal_data.do_quit = 0;
 				now = std::time(NULL);
 				if (!signal_data.exit_time) {
-					signal_data.exit_time = now + d2dbs_prefs_get_shutdown_delay();
+					signal_data.exit_time = now + pvpgn::d2dbs::prefs_v3::shutdown_delay();
 				}
 				else {
-					signal_data.exit_time -= d2dbs_prefs_get_shutdown_decr();
+					signal_data.exit_time -= pvpgn::d2dbs::prefs_v3::shutdown_decr();
 				}
 				eventlog(eventlog_level_info, __FUNCTION__, "the server is going to shutdown in {} minutes", (signal_data.exit_time - now) / 60);
 			}
@@ -87,12 +87,33 @@ namespace pvpgn
 			if (signal_data.reload_config) {
 				signal_data.reload_config = 0;
 				eventlog(eventlog_level_info, __FUNCTION__, "reloading configuartion file due to std::signal");
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+				{
+					/* R157: reload v3 TOML snapshot instead of legacy parser. */
+					std::string toml_path = cmdline_get_preffile();
+					auto dot = toml_path.rfind('.');
+					auto sep = toml_path.find_last_of("/\\");
+					if (dot != std::string::npos && (sep == std::string::npos || dot > sep))
+						toml_path.replace(dot, std::string::npos, ".toml");
+					else
+						toml_path += ".toml";
+					if (pvpgn_v3_d2dbs_prefs_load_toml(toml_path.c_str()) < 0) {
+						eventlog(eventlog_level_error, __FUNCTION__, "error reload v3 TOML config '{}',exitting", toml_path);
+						return -1;
+					}
+					eventlog(eventlog_level_info, __FUNCTION__, "v3 TOML config snapshot after reload:");
+					pvpgn_v3_d2dbs_prefs_dump(nullptr, [](void*, const char* line) {
+						eventlog(eventlog_level_info, "d2dbs_config", "  {}", line);
+					});
+				}
+#else
 				if (d2dbs_prefs_reload(cmdline_get_preffile()) < 0) {
 					eventlog(eventlog_level_error, __FUNCTION__, "error reload configuration file,exitting");
 					return -1;
 				}
+#endif
 				eventlog_clear_level();
-				if ((levels = d2dbs_prefs_get_loglevels()))
+				if ((levels = pvpgn::d2dbs::prefs_v3::loglevels()))
 				{
 					std::string temp(levels);
 					tok = std::strtok(temp.empty() ? nullptr : &temp[0], ","); /* std::strtok modifies the string it is passed */
@@ -107,7 +128,7 @@ namespace pvpgn
 #ifdef DO_DAEMONIZE
 				if (!cmdline_get_foreground())
 #endif
-					eventlog_open(d2dbs_prefs_get_logfile());
+					eventlog_open(pvpgn::d2dbs::prefs_v3::logfile());
 			}
 			if (signal_data.save_ladder) {
 				signal_data.save_ladder = 0;

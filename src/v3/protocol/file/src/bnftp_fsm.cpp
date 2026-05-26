@@ -15,6 +15,18 @@
 #include "protocol/common/writer.hpp"
 #include "protocol/file/codec.hpp"
 
+// GCC 14+ (alpine:latest) raises a false-positive `-Wnull-dereference`
+// on the trivial `write_uXXle()` helpers below because their first
+// parameter has no `nonnull` annotation. All call sites pass pointers
+// derived from a `std::vector<std::byte>` after a size check, so the
+// pointers are guaranteed non-null at runtime. Locally disable the
+// warning instead of sprinkling `assert()`s through hot serialisation
+// loops.
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
+
 namespace pvpgn::protocol::file {
 
 namespace {
@@ -317,3 +329,7 @@ core::Status<> BnftpFsm::stream_file(const std::string& path,
 }
 
 }  // namespace pvpgn::protocol::file
+
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif

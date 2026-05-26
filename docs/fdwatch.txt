@@ -40,7 +40,7 @@ A. the code flow before fdwatch
     the main loop
     - in the main loop after handing the events it starts to prepare the sockets
     for select/poll
-    - it starts a loop cycling through each address configured in bnetd.conf 
+    - it starts a loop cycling through each address configured in bnetd.toml 
     to listen on them and adds their sockets to the socket inspection list
     - after this, it does a O(n) cycle where it populates the socket inspection list
     with the sockets of every t_connection the server has (read availability)
@@ -48,7 +48,7 @@ A. the code flow before fdwatch
     send data) then the sockets are also added for write availability
     - then pvpgn calls select()/poll() on the socket inspection list
     - after the syscall returns, pvpgn cycles through each address configured
-    in bnetd.conf and checks if they are read available (if a new connection 
+    in bnetd.toml and checks if they are read available (if a new connection 
     is to be made)
     - pvpgn doesnt want to accept new connections when in shutdown phase but 
     it did it the wrong way: it completly ignored the listening sockets if 

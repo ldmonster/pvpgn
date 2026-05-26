@@ -24,7 +24,7 @@
 #include <cstring>
 #include <strings.h>
 #include "common/eventlog.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -138,7 +138,7 @@ namespace pvpgn
 			std::time_t	now;
 			int timeout;
 
-			timeout = prefs_get_max_game_idletime();
+			timeout = pvpgn::d2cs::prefs_v3::max_game_idletime();
 			if (!timeout) return;
 			now = std::time(NULL);
 			BEGIN_LIST_TRAVERSE_DATA(gamelist_head, game, t_game)
@@ -366,8 +366,8 @@ namespace pvpgn
 
 			ASSERT(game, 0);
 			maxlevel = game->charlevel + game->leveldiff;
-			if (maxlevel > prefs_get_game_maxlevel())
-				maxlevel = prefs_get_game_maxlevel();
+			if (maxlevel > pvpgn::d2cs::prefs_v3::game_maxlevel())
+				maxlevel = pvpgn::d2cs::prefs_v3::game_maxlevel();
 			return maxlevel;
 		}
 

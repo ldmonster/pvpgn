@@ -278,7 +278,15 @@ public:
     std::uint32_t    log_commands()           const noexcept { return cfg_.command_log.log_commands ? 1u : 0u; }
     std::string_view log_command_groups()     const noexcept { return log_command_groups_str_;                  }
     std::string_view log_command_list()       const noexcept { return log_command_list_str_;                    }
-    std::uint32_t    log_notice()             const noexcept { return cfg_.command_log.log_notice ? 1u : 0u;   }
+    std::string_view log_notice()             const noexcept { return cfg_.command_log.log_notice;              }
+
+    // ── [messages] (chat quota / flood control) ───────────────────────────────
+    std::uint32_t    quota()                  const noexcept { return cfg_.messages.quota ? 1u : 0u; }
+    std::uint32_t    quota_lines()            const noexcept { return cfg_.messages.quota_lines;    }
+    std::uint32_t    quota_time()             const noexcept { return cfg_.messages.quota_time;     }
+    std::uint32_t    quota_wrapline()         const noexcept { return cfg_.messages.quota_wrapline; }
+    std::uint32_t    quota_maxline()          const noexcept { return cfg_.messages.quota_maxline;  }
+    std::uint32_t    quota_dobae()            const noexcept { return cfg_.messages.quota_dobae;    }
 
     // ── [privileges] ──────────────────────────────────────────────────────────
     std::string_view effective_user()         const noexcept { return effective_user_str_;          }

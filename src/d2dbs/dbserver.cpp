@@ -39,7 +39,7 @@
 #include "common/addr.h"
 #include "common/network.h"
 #include "d2ladder.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "charlock.h"
 #include "dbspacket.h"
 #include "handle_signal.h"
@@ -145,7 +145,7 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "setsockopt() failed : {}", pstrerror(errno));
 			}
 
-			if (!(servaddr = addr_create_str(d2dbs_prefs_get_servaddrs(), INADDR_ANY, DEFAULT_LISTEN_PORT)))
+			if (!(servaddr = addr_create_str(pvpgn::d2dbs::prefs_v3::servaddrs(), INADDR_ANY, DEFAULT_LISTEN_PORT)))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not get servaddr");
 				return -1;
@@ -280,15 +280,15 @@ namespace pvpgn
 			std::time_t			now;
 
 			now = std::time(NULL);
-			if (now - prev_ladder_save_time > (signed)prefs_get_laddersave_interval()) {
+			if (now - prev_ladder_save_time > (signed)pvpgn::d2dbs::prefs_v3::laddersave_interval()) {
 				d2ladder_saveladder();
 				prev_ladder_save_time = now;
 			}
-			if (now - prev_keepalive_save_time > (signed)prefs_get_keepalive_interval()) {
+			if (now - prev_keepalive_save_time > (signed)pvpgn::d2dbs::prefs_v3::keepalive_interval()) {
 				dbs_keepalive();
 				prev_keepalive_save_time = now;
 			}
-			if (now - prev_timeout_checktime > (signed)d2dbs_prefs_get_timeout_checkinterval()) {
+			if (now - prev_timeout_checktime > (signed)pvpgn::d2dbs::prefs_v3::timeout_checkinterval()) {
 				dbs_check_timeout();
 				prev_timeout_checktime = now;
 			}
@@ -346,7 +346,7 @@ namespace pvpgn
 					inet_ntop(AF_INET, &(sinRemote.sin_addr), addrstr, sizeof(addrstr));
 					eventlog(eventlog_level_info, __FUNCTION__, "accepted connection from {}:{} , socket {} .",
 						addrstr, ntohs(sinRemote.sin_port), sd);
-					eventlog_step(prefs_get_logfile_gs(), eventlog_level_info, __FUNCTION__, "accepted connection from %s:%d , socket %d .",
+					eventlog_step(pvpgn::d2dbs::prefs_v3::logfile_gs(), eventlog_level_info, __FUNCTION__, "accepted connection from %s:%d , socket %d .",
 						addrstr, ntohs(sinRemote.sin_port), sd);
 					setsockopt_keepalive(sd);
 					dbs_server_list_add_socket(sd, ntohl(sinRemote.sin_addr.s_addr));
@@ -453,8 +453,8 @@ namespace pvpgn
 			close(conn->sd);
 			if (conn->verified && conn->type == CONNECT_CLASS_D2GS_TO_D2DBS) {
 				eventlog(eventlog_level_info, __FUNCTION__, "unlock all characters on gs {}({})", conn->serverip, conn->serverid);
-				eventlog_step(prefs_get_logfile_gs(), eventlog_level_info, __FUNCTION__, "unlock all characters on gs %s(%d)", conn->serverip, conn->serverid);
-				eventlog_step(prefs_get_logfile_gs(), eventlog_level_info, __FUNCTION__, "close connection to gs on socket %d", conn->sd);
+				eventlog_step(pvpgn::d2dbs::prefs_v3::logfile_gs(), eventlog_level_info, __FUNCTION__, "unlock all characters on gs %s(%d)", conn->serverip, conn->serverid);
+				eventlog_step(pvpgn::d2dbs::prefs_v3::logfile_gs(), eventlog_level_info, __FUNCTION__, "close connection to gs on socket %d", conn->sd);
 				cl_unlock_all_char_by_gsid(conn->serverid);
 			}
 			delete conn;

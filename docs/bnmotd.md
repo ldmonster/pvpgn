@@ -11,7 +11,7 @@ Parameter   | Description
 %g          | Number of running games
 %G          | Number of games with the same clienttag.
 %h          | Hostname of the server
-%H          | Contact name (as set in bnetd.conf)
+%H          | Contact name (as set in bnetd.toml)
 %i          | The userid of the user
 %l          | The username of the user
 %N          | Name of the game the user has connected with

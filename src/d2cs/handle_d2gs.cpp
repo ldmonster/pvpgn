@@ -41,7 +41,7 @@
 #include "d2gs.h"
 #include "serverqueue.h"
 #include "game.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 #ifdef PVPGN_V3_D2CS_INTEGRATION
@@ -160,9 +160,9 @@ static void d2gs_send_init_info(t_d2gs * gs, t_connection * c)
 		bn_int_set(&rpacket->u.d2cs_d2gs_setinitinfo.time, std::time(NULL));
 		bn_int_set(&rpacket->u.d2cs_d2gs_setinitinfo.gs_id, d2gs_get_id(gs));
 		bn_int_set(&rpacket->u.d2cs_d2gs_setinitinfo.ac_version, 0);
-//		packet_append_string(rpacket,prefs_get_d2gs_ac_checksum());
+//		packet_append_string(rpacket,pvpgn::d2cs::prefs_v3::d2gs_ac_checksum());
 		packet_append_string(rpacket,"bogus_ac_checksum");
-//		packet_append_string(rpacket,prefs_get_d2gs_ac_string());
+//		packet_append_string(rpacket,pvpgn::d2cs::prefs_v3::d2gs_ac_string());
 		packet_append_string(rpacket,"bogus_ac_string");
 		conn_push_outqueue(c,rpacket);
 		packet_del_ref(rpacket);
@@ -179,7 +179,7 @@ static void d2gs_send_server_conffile(t_d2gs *gs, t_connection *c)
 	struct stat	sfile;
 
 	/* open d2gs server config file */
-	fp = std::fopen(prefs_get_d2gsconffile(), "rb");
+	fp = std::fopen(pvpgn::d2cs::prefs_v3::d2gsconffile(), "rb");
 	if (!fp) goto err;
 
 	/* get file size */
@@ -260,7 +260,7 @@ static int on_d2gs_authreply(t_connection * c, t_packet * packet)
 	try_checksum=bn_int_get(packet->u.d2gs_d2cs_authreply.checksum);
 	checksum=d2gs_calc_checksum(c);
 
-	conf_version = prefs_get_d2gs_version();
+	conf_version = pvpgn::d2cs::prefs_v3::d2gs_version();
 	randnum = bn_int_get(packet->u.d2gs_d2cs_authreply.randnum);
 	signlen = bn_int_get(packet->u.d2gs_d2cs_authreply.signlen);
 	sign    = packet->u.d2gs_d2cs_authreply.sign;
@@ -272,7 +272,7 @@ static int on_d2gs_authreply(t_connection * c, t_packet * packet)
 		eventlog(eventlog_level_error,__FUNCTION__,"game server {} major version mismatch 0x{:X} - 0x{:X}",conn_get_d2gs_id(c),
 			version,conf_version);
 		reply=D2CS_D2GS_AUTHREPLY_BAD_VERSION;
-	} else if (prefs_get_d2gs_checksum() && try_checksum != checksum) {
+	} else if (pvpgn::d2cs::prefs_v3::d2gs_checksum() && try_checksum != checksum) {
 		eventlog(eventlog_level_error,__FUNCTION__,"game server {} checksum mismach 0x{:X} - 0x{:X}",conn_get_d2gs_id(c),try_checksum,checksum);
 		reply=D2CS_D2GS_AUTHREPLY_BAD_CHECKSUM;
 //	} else if (license_verify_reply(c, randnum, sign, signlen)) {
@@ -617,7 +617,7 @@ extern int handle_d2gs_init(t_connection * c)
 	if (pvpgn_v3_d2cs_send_authreq_d2gs(c, 0u,
 	        static_cast<unsigned int>(d2cs_conn_get_sessionnum(c)),
 	        0u,
-	        prefs_get_realmname() ? prefs_get_realmname() : "") == 1) {
+	        pvpgn::d2cs::prefs_v3::realmname() ? pvpgn::d2cs::prefs_v3::realmname() : "") == 1) {
 		eventlog(eventlog_level_info,__FUNCTION__,"sent init packet to d2gs {} (sessionnum={})",conn_get_d2gs_id(c),d2cs_conn_get_sessionnum(c));
 		return 0;
 	}
@@ -628,7 +628,7 @@ extern int handle_d2gs_init(t_connection * c)
 		bn_int_set(&packet->u.d2cs_d2gs_authreq.h.seqno,0);
 		bn_int_set(&packet->u.d2cs_d2gs_authreq.sessionnum,d2cs_conn_get_sessionnum(c));
 		bn_int_set(&packet->u.d2cs_d2gs_authreq.signlen, 0);
-		packet_append_string(packet,prefs_get_realmname());
+		packet_append_string(packet,pvpgn::d2cs::prefs_v3::realmname());
 //		packet_append_data(packet, sign, signlen);
 		conn_push_outqueue(c,packet);
 		packet_del_ref(packet);

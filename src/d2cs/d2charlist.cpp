@@ -24,7 +24,7 @@
 
 #include <strings.h>
 #include "common/eventlog.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -39,7 +39,7 @@ namespace pvpgn
 			char const * d2char_sort;
 			t_elist * curr;
 
-			d2char_sort = prefs_get_charlist_sort();
+			d2char_sort = pvpgn::d2cs::prefs_v3::charlist_sort();
 			charlist = new t_d2charlist{};
 			charlist->charinfo = charinfo;
 			charlist->expiration_time = expiration_time;

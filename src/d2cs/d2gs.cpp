@@ -37,7 +37,7 @@
 #include "common/addr.h"
 #include "common/eventlog.h"
 #include "common/introtate.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "game.h"
 #include "net.h"
 #include "common/setup_after.h"
@@ -65,7 +65,7 @@ namespace pvpgn
 		extern int d2gslist_create(void)
 		{
 			d2gslist_head = list_create();
-			return d2gslist_reload(prefs_get_d2gs_list());
+			return d2gslist_reload(pvpgn::d2cs::prefs_v3::gameservlist());
 		}
 
 		extern int d2gslist_reload(char const * gslist)
@@ -368,11 +368,11 @@ namespace pvpgn
 
 			ASSERT(c, 0);
 			sessionnum = d2cs_conn_get_sessionnum(c);
-			checksum = prefs_get_d2gs_checksum();
+			checksum = pvpgn::d2cs::prefs_v3::d2gs_checksum();
 			port = d2cs_conn_get_port(c);
 			addr = d2cs_conn_get_addr(c);
-			realmname = prefs_get_realmname();
-			password = prefs_get_d2gs_password();
+			realmname = pvpgn::d2cs::prefs_v3::realmname();
+			password = pvpgn::d2cs::prefs_v3::d2gs_password();
 
 			len = std::strlen(realmname);
 			for (i = 0; i < len; i++) {
@@ -434,7 +434,7 @@ namespace pvpgn
 			/* FIXME: sequence number not set */
 			bn_int_set(&packet->u.d2cs_d2gs.h.seqno, 0);
 			bn_int_set(&packet->u.d2cs_d2gs_control.cmd, D2CS_D2GS_CONTROL_CMD_RESTART);
-			bn_int_set(&packet->u.d2cs_d2gs_control.value, prefs_get_d2gs_restart_delay());
+			bn_int_set(&packet->u.d2cs_d2gs_control.value, pvpgn::d2cs::prefs_v3::d2gs_restart_delay());
 
 			BEGIN_LIST_TRAVERSE_DATA(d2gslist_head, gs, t_d2gs)
 			{

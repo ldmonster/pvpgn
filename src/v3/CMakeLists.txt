@@ -266,6 +266,8 @@ if(PVPGN_V3_WITH_TOMLPP)
         SOURCES
             infra/config/src/server_config.cpp
             infra/config/src/config_watcher.cpp
+            infra/config/src/d2cs_server_config.cpp
+            infra/config/src/d2dbs_server_config.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/infra/config/include
         PUBLIC_DEPS
@@ -682,6 +684,7 @@ pvpgn_v3_add_library(application_realm
     SOURCES
         application/realm/src/character_lock.cpp
         application/realm/src/gs_queue.cpp
+        application/realm/src/realm_list.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/realm/include
     PUBLIC_DEPS
@@ -882,6 +885,71 @@ pvpgn_v3_add_library(application_init
         protocol_bnet
 )
 
+# ---- application/bnet_packet_pump (R179.a scaffold) --------------------
+#
+# Pure-C++ lifecycle FSM + ConnClass enum for the future v3 bnet
+# packet pump. Headers only at this stage; a placeholder .cpp
+# keeps the static lib non-empty. Future rounds (R179.c+) add the
+# driver code that consumes `protocol/bnet/init_codec.hpp` and
+# replaces the relocated `handle_init_packet` body.
+pvpgn_v3_add_library(application_bnet_packet_pump
+    STATIC
+    SOURCES
+        application/bnet_packet_pump/src/lifecycle_placeholder.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/bnet_packet_pump/include
+    PUBLIC_DEPS
+        core
+        protocol_bnet
+        application_init
+)
+
+# ---- application/email_management (R169.d skeleton) --------------------
+#
+# Interface-only module for the `handle_changeemail` /
+# `handle_setemail` / `handle_getpassword` families. R169.d ships
+# headers + placeholder TU only; R170 lands the real dispatcher
+# logic alongside the legacy strangler bridges.
+pvpgn_v3_add_library(application_email_management
+    STATIC
+    SOURCES
+        application/email_management/src/email_change.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/email_management/include
+    PUBLIC_DEPS
+        core
+)
+
+# ---- application/ads (R170.b skeleton) ---------------------------------
+#
+# Interface-only module for `_client_adreq` / `_client_adack` /
+# `_client_adclick` / `_client_adclick2`. Skeleton only; impl lands
+# once AdBannerList is hidden behind a repository interface.
+pvpgn_v3_add_library(application_ads
+    STATIC
+    SOURCES
+        application/ads/src/ad_pick.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/ads/include
+    PUBLIC_DEPS
+        core
+)
+
+# ---- application/anongame_lobby (R170.d skeleton) ----------------------
+#
+# Interface-only module for the FindAnonGame lobby queue +
+# bracket-fill promotion. Impl lands once anongame state is moved
+# behind a queue repository interface.
+pvpgn_v3_add_library(application_anongame_lobby
+    STATIC
+    SOURCES
+        application/anongame_lobby/src/lobby.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/anongame_lobby/include
+    PUBLIC_DEPS
+        core
+)
+
 # ---- infra/legacy_config (parse legacy bnetd .conf files) ---------------
 #
 # Bridge adapters that convert legacy bnetd config-file dialects into the
@@ -998,7 +1066,7 @@ pvpgn_v3_add_library(infra_session
 # to the v3 `IPasswordHasher` port. Linked against the legacy
 # `common` library so we never reimplement the algorithm.
 
-if(TARGET common)
+if(PVPGN_BUILD_LEGACY)
     pvpgn_v3_add_library(infra_legacy_crypto
         STATIC
         SOURCES
@@ -1077,6 +1145,9 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/d2_character_dispatch_bridge.cpp
         integration/legacy_bnetd/src/telemetry_dispatch_bridge.cpp
         integration/legacy_bnetd/src/ad_dispatch_bridge.cpp
+        integration/legacy_bnetd/src/ads_bridge.cpp
+        integration/legacy_bnetd/src/realm_list_bridge.cpp
+        integration/legacy_bnetd/src/anongame_lobby_bridge.cpp
         integration/legacy_bnetd/src/progident_dispatch_bridge.cpp
         integration/legacy_bnetd/src/gameport_dispatch_bridge.cpp
         integration/legacy_bnetd/src/cdkey_dispatch_bridge.cpp
@@ -1145,6 +1216,8 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         application_chat
         application_i18n
         application_init
+        application_ads
+        application_realm
         infra_legacy_config
         protocol_common
         protocol_bnet
@@ -1179,6 +1252,7 @@ pvpgn_v3_add_library(integration_legacy_d2cs
         integration/legacy_d2cs/src/send_ladderreply_bridge.cpp
         integration/legacy_d2cs/src/send_charlistreply_bridge.cpp
         integration/legacy_d2cs/src/send_outbound_obs_bridges.cpp
+        integration/legacy_d2cs/src/d2cs_prefs_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2cs/include
     PUBLIC_DEPS
@@ -1186,6 +1260,7 @@ pvpgn_v3_add_library(integration_legacy_d2cs
         protocol_common
         protocol_d2cs
         protocol_d2gs
+        $<$<TARGET_EXISTS:infra_config>:infra_config>
 )
 
 # ---- integration/legacy_d2cs/linked (real d2cs_legacy hookup) -----------
@@ -1228,12 +1303,14 @@ pvpgn_v3_add_library(integration_legacy_d2dbs
     SOURCES
         integration/legacy_d2dbs/src/send_packet_bridge.cpp
         integration/legacy_d2dbs/src/send_echorequest_bridge.cpp
+        integration/legacy_d2dbs/src/d2dbs_prefs_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2dbs/include
     PUBLIC_DEPS
         core
         protocol_common
         protocol_d2dbs
+        $<$<TARGET_EXISTS:infra_config>:infra_config>
 )
 
 # ---- integration/legacy_d2dbs/linked (real d2dbs_legacy hookup) --------
@@ -1296,6 +1373,9 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             integration/legacy_bnetd/src/legacy_bnet_frame_router_link.cpp
             integration/legacy_bnetd/src/send_packet_bridge_link.cpp
             integration/legacy_bnetd/src/init_conn_bridge_link.cpp
+            integration/legacy_bnetd/src/init_packet_dispatch_link.cpp
+            integration/legacy_bnetd/src/ads_bridge_link.cpp
+            integration/legacy_bnetd/src/realm_list_bridge_link.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
         PUBLIC_DEPS
@@ -1308,6 +1388,7 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             application_chat
             application_i18n
             application_auth
+            application_bnet_packet_pump
             infra_inmemory
             infra_legacy_crypto
         DEPS

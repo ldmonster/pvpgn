@@ -32,7 +32,7 @@
 #include "game.h"
 #include "bnetd.h"
 #include "serverqueue.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "d2ladder.h"
 #include "d2charfile.h"
 #include "d2charlist.h"
@@ -231,7 +231,7 @@ static int on_client_createcharreq(t_connection * c, t_packet * packet)
 	chclass=bn_short_get(packet->u.client_d2cs_createcharreq.chclass);
 	status=bn_short_get(packet->u.client_d2cs_createcharreq.status);
 
-	std::vector<char> path_buf(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	std::vector<char> path_buf(std::strlen(pvpgn::d2cs::prefs_v3::charinfo_dir())+1+std::strlen(account)+1);
 	path = path_buf.data();
 	d2char_get_infodir_name(path,account);
 	{
@@ -547,7 +547,7 @@ static int on_client_gamelistreq(t_connection * c, t_packet * packet)
 	/* if (seqno%2) return 0; */
 	count=0;
 	now=std::time(NULL);
-	maxlifetime=prefs_get_game_maxlifetime();
+	maxlifetime=pvpgn::d2cs::prefs_v3::game_maxlifetime();
 
 	elem=start_elem=gamelist_get_curr_elem();
 	if (!elem) elem=list_get_first_const(d2cs_gamelist());
@@ -564,10 +564,10 @@ static int on_client_gamelistreq(t_connection * c, t_packet * packet)
 		}
 		if (maxlifetime && (now-game->create_time>maxlifetime)) continue;
 		if (!game_get_currchar(game)) continue;
-		if (!prefs_allow_gamelist_showall()) {
+		if (!pvpgn::d2cs::prefs_v3::allow_gamelist_showall()) {
 			if (conn_get_charinfo_difficulty(c)!=game_get_gameflag_difficulty(game)) continue;
 		}
-		if (prefs_hide_pass_games())
+		if (pvpgn::d2cs::prefs_v3::hide_pass_games())
 			if (d2cs_game_get_pass(game)) continue;
 
 		if (d2cs_try_joingame(c,game,"")!=D2CS_CLIENT_JOINGAMEREPLY_SUCCEED) continue;
@@ -591,14 +591,14 @@ static int on_client_gamelistreq(t_connection * c, t_packet * packet)
 			        /*terminator=*/0) == 1) {
 				packet_del_ref(rpacket);
 				count++;
-				if (prefs_get_maxgamelist() && count>=prefs_get_maxgamelist()) break;
+				if (pvpgn::d2cs::prefs_v3::maxgamelist() && count>=pvpgn::d2cs::prefs_v3::maxgamelist()) break;
 				continue;
 			}
 #endif
 			conn_push_outqueue(c,rpacket);
 			packet_del_ref(rpacket);
 			count++;
-			if (prefs_get_maxgamelist() && count>=prefs_get_maxgamelist()) break;
+			if (pvpgn::d2cs::prefs_v3::maxgamelist() && count>=pvpgn::d2cs::prefs_v3::maxgamelist()) break;
 		}
 	}
 	gamelist_set_curr_elem(elem);
@@ -743,7 +743,7 @@ static int on_client_charloginreq(t_connection * c, t_packet * packet)
 		eventlog(eventlog_level_error,__FUNCTION__,"no bnetd connection available,character login rejected");
 		return -1;
 	}
-	expire_time = prefs_get_char_expire_time();
+	expire_time = pvpgn::d2cs::prefs_v3::char_expire_time();
 	if (expire_time && (std::time(NULL) > bn_int_get(data.header.last_time) + expire_time)) {
 		t_packet * rpacket;
 
@@ -850,7 +850,7 @@ static int d2cs_send_client_ladder(t_connection * c, unsigned char type, unsigne
 	unsigned int			i, n, curr_pos;
 
 	start_pos=from;
-	count=prefs_get_ladderlist_count();
+	count=pvpgn::d2cs::prefs_v3::ladderlist_count();
 	if (d2ladder_get_ladder(&start_pos,&count,type,&ladderinfo)<0) {
 		eventlog(eventlog_level_error,__FUNCTION__,"error get ladder for type {} start_pos {}",type,from);
 		return 0;
@@ -916,7 +916,7 @@ static int on_client_motdreq(t_connection * c, t_packet * packet)
 	    return -1;
 
 	/* client will crash if motd is too long */
-	std::string motd(prefs_get_motd() ? prefs_get_motd() : "");
+	std::string motd(pvpgn::d2cs::prefs_v3::motd() ? pvpgn::d2cs::prefs_v3::motd() : "");
 	if (motd.size() > MAX_MOTD_LENGTH) {
 		WARN2("motd length ({}) exceeds maximun value ({})", (int)motd.size(), MAX_MOTD_LENGTH);
 		motd.resize(MAX_MOTD_LENGTH);
@@ -993,7 +993,7 @@ static int on_client_charladderreq(t_connection * c, t_packet * packet)
 		}
 		return 0;
 	}
-	pos -= prefs_get_ladderlist_count()/2;
+	pos -= pvpgn::d2cs::prefs_v3::ladderlist_count()/2;
 	if (pos < 0) pos=0;
 	d2cs_send_client_ladder(c,type,pos);
 	return 0;
@@ -1017,14 +1017,14 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 		eventlog(eventlog_level_error,__FUNCTION__,"missing account for connection");
 		return -1;
 	}
-	std::vector<char> path_buf(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	std::vector<char> path_buf(std::strlen(pvpgn::d2cs::prefs_v3::charinfo_dir())+1+std::strlen(account)+1);
 	path = path_buf.data();
-	charlist_sort_order = prefs_get_charlist_sort_order();
+	charlist_sort_order = pvpgn::d2cs::prefs_v3::charlist_sort_order();
 
 	elist_init(&charlist_head);
 
 	d2char_get_infodir_name(path,account);
-	maxchar=prefs_get_maxchar();
+	maxchar=pvpgn::d2cs::prefs_v3::maxchar();
 #ifdef PVPGN_V3_D2CS_INTEGRATION
 	pvpgn_v3_d2cs_obs_charlistreply(c);
 #endif
@@ -1066,7 +1066,7 @@ static int on_client_charlistreq(t_connection * c, t_packet * packet)
 						n++;
 						if (n >= maxchar) break;
 					}
-					if (prefs_allow_newchar() && (n < maxchar)) {
+					if (pvpgn::d2cs::prefs_v3::allow_newchar() && (n < maxchar)) {
 						bn_short_set(&rpacket->u.d2cs_client_charlistreply.maxchar, maxchar);
 					}
 					else {
@@ -1134,15 +1134,15 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 		eventlog(eventlog_level_error,__FUNCTION__,"missing account for connection");
 		return -1;
 	}
-	std::vector<char> path_buf(std::strlen(prefs_get_charinfo_dir())+1+std::strlen(account)+1);
+	std::vector<char> path_buf(std::strlen(pvpgn::d2cs::prefs_v3::charinfo_dir())+1+std::strlen(account)+1);
 	path = path_buf.data();
-	charlist_sort_order = prefs_get_charlist_sort_order();
+	charlist_sort_order = pvpgn::d2cs::prefs_v3::charlist_sort_order();
 
 	elist_init(&charlist_head);
 
 	d2char_get_infodir_name(path,account);
-	if (prefs_allow_newchar())
-		maxchar=prefs_get_maxchar();
+	if (pvpgn::d2cs::prefs_v3::allow_newchar())
+		maxchar=pvpgn::d2cs::prefs_v3::maxchar();
 	else
 		maxchar=0;
 
@@ -1172,7 +1172,7 @@ static int on_client_charlistreq_110(t_connection * c, t_packet * packet)
 						retry = false;
 					}
 				} else {
-					exp_time = prefs_get_char_expire_time();
+					exp_time = pvpgn::d2cs::prefs_v3::char_expire_time();
 					while (auto entry = dir::read_directory(*diropt)) {
 						std::string charname_str = entry->name.string();
 						charname = charname_str.c_str();
@@ -1331,7 +1331,7 @@ static unsigned int d2cs_try_joingame(t_connection const * c, t_game const * gam
 		reply=D2CS_CLIENT_JOINGAMEREPLY_HARDCORE_SOFTCORE;
 	} else if (conn_get_charinfo_difficulty(c) < game_get_gameflag_difficulty(game))  {
 		reply=D2CS_CLIENT_JOINGAMEREPLY_NORMAL_NIGHTMARE;
-	} else if (prefs_allow_gamelimit()) {
+	} else if (pvpgn::d2cs::prefs_v3::allow_gamelimit()) {
 		if (game_get_maxchar(game) <= game_get_currchar(game)) {
 			reply=D2CS_CLIENT_JOINGAMEREPLY_GAME_FULL;
 		} else if (conn_get_charinfo_level(c) > game_get_maxlevel(game)) {

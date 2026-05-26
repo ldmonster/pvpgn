@@ -41,4 +41,20 @@ void install_send_packet_handler();
 /// handler is to delegate to v3.
 void install_init_conn_apply_handler();
 
+/// Installs the legacy-bnetd implementation of the v3 ads
+/// dispatchers (`pvpgn_v3_ads_pick_apply` /
+/// `pvpgn_v3_ads_click_apply`). Backed by the legacy `AdBannerList`
+/// global; once registered the legacy `_client_adreq` /
+/// `_client_adclick2` handlers may delegate to v3 instead of
+/// consulting `AdBannerList` directly. No-op on second call.
+void install_ads_handlers();
+
+/// Installs the legacy-bnetd implementation of the v3 realm-list
+/// dispatcher (`pvpgn_v3_realm_list_apply`). Backed by the legacy
+/// `realmlist()` global; once registered the legacy
+/// `_client_realmlistreq` / `_client_realmlistreq110` handlers may
+/// delegate to v3 instead of iterating `realmlist()` and building
+/// the entry array themselves. No-op on second call.
+void install_realm_list_handler();
+
 }  // namespace pvpgn::integration::legacy_bnetd

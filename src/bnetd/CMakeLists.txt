@@ -21,12 +21,11 @@ set(BNETD_LIB_SOURCES
 	game_conv.h game.cpp game.h handle_anongame.cpp handle_anongame.h
 	handle_apireg.cpp handle_apireg.h handle_bnet.cpp handle_bnet.h
 	handle_bot.cpp handle_bot.h handle_d2cs.cpp handle_d2cs.h
-	handle_init.cpp handle_init.h
 	handlers.h handle_telnet.cpp handle_telnet.h handle_udp.cpp
 	handle_udp.h handle_wol.cpp handle_wol.h helpfile.cpp helpfile.h
 	ipban.cpp ipban.h irc.cpp irc.h ladder_calc.cpp ladder_calc.h ladder.cpp
 	ladder.h mail.cpp mail.h message.cpp message.h news.cpp news.h
-	output.cpp output.h prefs.cpp prefs.h quota.h realm.cpp realm.h
+	output.cpp output.h quota.h realm.cpp realm.h
 	runprog.cpp runprog.h server.cpp server.h sql_common.cpp sql_common.h
 	sql_dbcreator.cpp sql_dbcreator.h sql_mysql.cpp sql_mysql.h sql_odbc.cpp
 	sql_odbc.h sql_pgsql.cpp sql_pgsql.h sql_sqlite3.cpp sql_sqlite3.h
@@ -57,6 +56,10 @@ set(BNETD_GUI_RESOURCES
   ../win32/resource.h ../win32/resource.rc)
 
 # ---- bnetd_legacy: the strangler-fig handle ----------------------------
+# R165: legacy `prefs.cpp` / `prefs.h` deleted; v3 TOML loader
+# (`pvpgn_v3_prefs_load_toml` in `integration_legacy_bnetd_linked`) is
+# the sole config source. The `prefs_v3` shim now compiles to a direct
+# bridge call unconditionally.
 add_library(bnetd_legacy STATIC ${BNETD_LIB_SOURCES})
 target_include_directories(bnetd_legacy
     PUBLIC

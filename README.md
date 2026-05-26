@@ -18,8 +18,12 @@ PvPGN is a free and open source cross-platform server software that supports Bat
 
 [Deleaker](http://www.deleaker.com/) helps us find memory leaks.
 
+## Configuration
+
+When built with `PVPGN_BUILD_V3=ON`, **`bnetd.toml`** (and `d2cs.toml` / `d2dbs.toml`) is the primary configuration file. The legacy `*.conf` parsers are retired from the v3 install; see [docs/toml-migration.md](docs/toml-migration.md) for a side-by-side `.conf` -> `.toml` walkthrough.
+
 ## Tracking
-By default, tracking is enabled and is only used for the purpose of sending informational data (e.g. server description, homepage, uptime, amount of users) to tracking servers. To disable tracking, set ````track = 0```` in ````conf/bnetd.conf````.
+By default, tracking is enabled and is only used for the purpose of sending informational data (e.g. server description, homepage, uptime, amount of users) to tracking servers. To disable tracking, set ````track = 0```` in ````conf/bnetd.toml````.
 
 ## Supported Clients
 - **WarCraft 2: Battle.net Edition**: 2.02a, 2.02b
@@ -48,7 +52,7 @@ By default, tracking is enabled and is only used for the purpose of sending info
 
 ## Support
 [Create an issue](https://github.com/pvpgn/pvpgn-server/issues) if you have any questions, suggestions, or anything else to say about PvPGN-PRO. Please note that D2GS is not part of the PvPGN project and is therefore unsupported here.
-Set `loglevels = fatal,error,warn,info,debug,trace` in `bnetd.conf` before obtaining logs and posting them.
+Set `loglevels = "fatal,error,warn,info,debug,trace"` in `bnetd.toml` (`[log]` table) before obtaining logs and posting them.
 
 ## Development
 Submit pull requests to contribute to this project. Utilize C++11 features and adhere to the [C++ Core Guidelines](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md) whenever possible.

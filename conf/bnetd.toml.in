@@ -202,20 +202,9 @@ hide_addr                = false
 # Log private channel messages to chanlogdir?
 chanlog                  = false
 
-# Flood-control quota
-quota                    = true
-quota_lines              = 5    # lines per quota_time seconds (1–100)
-quota_time               = 5    # seconds (1–60)
-quota_wrapline           = 40   # virtual wrap column (1–256)
-quota_maxline            = 200  # hard line-length limit (1–256)
-quota_dobae              = 10   # lines before disconnect (1–100)
-
 # Mail
 mail_support             = true
 mail_quota               = 5
-
-# Channel-log notice shown to users entering a logged channel.
-log_notice               = "*** Please note this channel is logged! ***"
 
 # Brute-force password-fail banning (0 = disabled).
 passfail_count           = 0
@@ -367,14 +356,34 @@ channel_default_private = 0
 min_invites             = 2
 
 ##############################################################################
-# [command_log]  — User command logging                                     #
+# [messages]  -- Chat quota / flood control                                 #
+##############################################################################
+
+[messages]
+# Master toggle for chat flood-control quota.
+quota                    = true
+# Maximum lines a user may send within `quota_time` seconds (1-100).
+quota_lines              = 5
+# Window in seconds for the line quota (1-60).
+quota_time               = 5
+# Virtual wrap column (1-256). Lines wider than this count as multiple.
+quota_wrapline           = 40
+# Hard line-length limit (1-256). Longer lines are rejected.
+quota_maxline            = 200
+# Lines beyond `quota_lines` before disconnect (1-100).
+quota_dobae              = 7
+
+##############################################################################
+# [command_log]  -- User command logging                                    #
 ##############################################################################
 
 [command_log]
 # Log user commands to files in userlogdir?
-enabled        = true
+log_commands       = true
 # Log commands issued by users in these command groups (global ops/admins
 # are always included).
-groups         = "2345678"
+log_command_groups = "2345678"
 # Comma-separated list of commands to log (empty = log all commands).
-command_list   = ""
+log_command_list   = ""
+# Notice broadcast on channels with command-logging enabled.
+log_notice         = "*** Please note this channel is logged! ***"

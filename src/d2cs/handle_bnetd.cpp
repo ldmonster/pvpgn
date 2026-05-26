@@ -28,7 +28,7 @@
 #include "connection.h"
 */
 #include "version.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "serverqueue.h"
 #include "game.h"
 #include "common/setup_after.h"
@@ -125,7 +125,7 @@ namespace pvpgn
 			if (pvpgn_v3_d2cs_send_authreply_bnetd(c,
 			        1u,
 			        static_cast<unsigned int>(D2CS_VERSION_NUMBER),
-			        prefs_get_realmname() ? prefs_get_realmname() : "") == 1) {
+			        pvpgn::d2cs::prefs_v3::realmname() ? pvpgn::d2cs::prefs_v3::realmname() : "") == 1) {
 				return 0;
 			}
 #endif
@@ -134,7 +134,7 @@ namespace pvpgn
 				packet_set_type(rpacket, D2CS_BNETD_AUTHREPLY);
 				bn_int_set(&rpacket->u.d2cs_bnetd_authreply.h.seqno, 1);
 				bn_int_set(&rpacket->u.d2cs_bnetd_authreply.version, D2CS_VERSION_NUMBER);
-				packet_append_string(rpacket, prefs_get_realmname());
+				packet_append_string(rpacket, pvpgn::d2cs::prefs_v3::realmname());
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}

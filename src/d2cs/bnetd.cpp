@@ -22,7 +22,7 @@
 #include <ctime>
 
 #include "common/eventlog.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "s2s.h"
 #include "handle_bnetd.h"
 #include "common/setup_after.h"
@@ -46,7 +46,7 @@ namespace pvpgn
 
 			if (bnetd_connection) {
 				if (d2cs_conn_get_state(bnetd_connection) == conn_state_connecting) {
-					if (std::time(nullptr) - prev_connecting_checktime > prefs_get_s2s_timeout()) {
+					if (std::time(nullptr) - prev_connecting_checktime > pvpgn::d2cs::prefs_v3::s2s_timeout()) {
 						eventlog(eventlog_level_warn, __FUNCTION__, "connection to bnetd s2s timeout");
 						d2cs_conn_set_state(bnetd_connection, conn_state_destroy);
 						return -1;
@@ -54,7 +54,7 @@ namespace pvpgn
 				}
 				return 0;
 			}
-			if (!(bnetd_connection = s2s_create(prefs_get_bnetdaddr(), BNETD_SERV_PORT, conn_class_bnetd))) {
+			if (!(bnetd_connection = s2s_create(pvpgn::d2cs::prefs_v3::bnetdaddr(), BNETD_SERV_PORT, conn_class_bnetd))) {
 				return -1;
 			}
 			if (d2cs_conn_get_state(bnetd_connection) == conn_state_init) {

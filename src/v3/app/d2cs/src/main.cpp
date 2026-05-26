@@ -106,7 +106,14 @@ static CliArgs parse_args(int argc, char* argv[]) {
                 "  --listen,   -l <addr>    Listen address (default 0.0.0.0)\n"
                 "  --log-level    <level>   Log level (default info)\n"
                 "  --threads,  -t <n>       Worker threads (default hw_concurrency)\n"
+                "  --version,  -V           Print version and exit\n"
                 "  --help,     -h           Show this help\n";
+            std::exit(0);
+        } else if (arg == "--version" || arg == "-V") {
+#ifndef PVPGN_VERSION
+#  define PVPGN_VERSION "unknown"
+#endif
+            std::cout << "pvpgn_v3_d2cs " << PVPGN_VERSION << "\n";
             std::exit(0);
         }
     }

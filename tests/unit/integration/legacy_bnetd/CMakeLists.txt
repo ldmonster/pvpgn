@@ -38,6 +38,18 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_init_conn_bridge
     SOURCES init_conn_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
 
+pvpgn_v3_add_test(test_integration_legacy_bnetd_ads_bridge
+    SOURCES ads_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_realm_list_bridge
+    SOURCES realm_list_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+pvpgn_v3_add_test(test_integration_legacy_bnetd_anongame_lobby_bridge
+    SOURCES anongame_lobby_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
 pvpgn_v3_add_test(test_integration_legacy_bnetd_send_authreq1_server_bridge
     SOURCES send_authreq1_server_bridge_test.cpp
     DEPS    integration_legacy_bnetd)

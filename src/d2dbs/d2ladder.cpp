@@ -27,7 +27,7 @@
 #include "compat/rename.h"
 #include "common/eventlog.h"
 #include "common/tag.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -76,7 +76,7 @@ namespace pvpgn
 			chclass = pcharladderinfo->chclass;
 			status = pcharladderinfo->status;
 
-			if (prefs_get_ladder_chars_only() && (!charstatus_get_ladder(status)))
+			if (pvpgn::d2dbs::prefs_v3::ladder_chars_only() && (!charstatus_get_ladder(status)))
 				return -1;
 
 			hardcore = charstatus_get_hardcore(status);
@@ -174,7 +174,7 @@ namespace pvpgn
 			if (!d2ladder || !info) return -1;
 
 			// only allow if the experience threshold is reached
-			if (info->experience < prefs_get_ladderupdate_threshold()) return -1;
+			if (info->experience < pvpgn::d2dbs::prefs_v3::ladderupdate_threshold()) return -1;
 
 			i = d2ladder->len;
 			while (i--) {
@@ -303,14 +303,14 @@ namespace pvpgn
 		{
 			d2ladder_change_count = 0;
 			d2ladder_maxtype = 0;
-			d2ladder_ladder_file = new char[std::strlen(d2dbs_prefs_get_ladder_dir()) + 1 +
+			d2ladder_ladder_file = new char[std::strlen(pvpgn::d2dbs::prefs_v3::ladder_dir()) + 1 +
 				std::strlen(LADDER_FILE_PREFIX) + 1 + std::strlen(CLIENTTAG_DIABLO2DV) + 1 + 10];
-			d2ladder_backup_file = new char[std::strlen(d2dbs_prefs_get_ladder_dir()) + 1 +
+			d2ladder_backup_file = new char[std::strlen(pvpgn::d2dbs::prefs_v3::ladder_dir()) + 1 +
 				std::strlen(LADDER_BACKUP_PREFIX) + 1 + std::strlen(CLIENTTAG_DIABLO2DV) + 1 + 10];
-			std::sprintf(d2ladder_ladder_file, "%s/%s.%s", d2dbs_prefs_get_ladder_dir(), \
+			std::sprintf(d2ladder_ladder_file, "%s/%s.%s", pvpgn::d2dbs::prefs_v3::ladder_dir(), \
 				LADDER_FILE_PREFIX, CLIENTTAG_DIABLO2DV);
 
-			std::sprintf(d2ladder_backup_file, "%s/%s.%s", d2dbs_prefs_get_ladder_dir(), \
+			std::sprintf(d2ladder_backup_file, "%s/%s.%s", pvpgn::d2dbs::prefs_v3::ladder_dir(), \
 				LADDER_BACKUP_PREFIX, CLIENTTAG_DIABLO2DV);
 
 			if (d2ladderlist_init() < 0) {
@@ -664,9 +664,9 @@ namespace pvpgn
 			}
 
 			// aaron: add extra output for XML ladder here --->
-			if (d2dbs_prefs_get_XML_output_ladder())
+			if (pvpgn::d2dbs::prefs_v3::XML_output_ladder())
 			{
-				std::string xml_filename(d2dbs_prefs_get_ladder_dir() + std::string("/") + XMLname);
+				std::string xml_filename(pvpgn::d2dbs::prefs_v3::ladder_dir() + std::string("/") + XMLname);
 				XMLfile = std::fopen(xml_filename.c_str(), "w");
 				if (XMLfile)
 				{

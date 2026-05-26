@@ -130,10 +130,14 @@ Alternatively, you can use separate configuration files for each service:
 ./pvpgn --config-dir ./conf/
 ```
 
-The directory should contain:
-- `bnetd.conf`
-- `d2cs.conf`
-- `d2dbs.conf`
+The directory should contain (with `PVPGN_BUILD_V3=ON`, the only
+supported build):
+- `bnetd.toml`
+- `d2cs.toml`
+- `d2dbs.toml`
+
+See [toml-migration.md](toml-migration.md) for a `.conf` -> `.toml`
+walkthrough if you are upgrading from a legacy install.
 
 ## Service Discovery
 
@@ -212,9 +216,9 @@ Default service endpoints registered on startup:
 
 2. Run each service separately:
    ```bash
-   ./bnetd --config conf/bnetd.conf &
-   ./d2cs --config conf/d2cs.conf &
-   ./d2dbs --config conf/d2dbs.conf &
+   ./bnetd --config conf/bnetd.toml &
+   ./d2cs --config conf/d2cs.toml &
+   ./d2dbs --config conf/d2dbs.toml &
    ```
 
 3. Services discover each other via DNS or configuration

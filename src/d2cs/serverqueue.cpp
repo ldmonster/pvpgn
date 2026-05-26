@@ -26,7 +26,7 @@
 #include "common/packet.h"
 #include "common/list.h"
 */
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -75,7 +75,7 @@ extern int sqlist_check_timeout(void)
 	now=std::time(NULL);
 	BEGIN_LIST_TRAVERSE_DATA(sqlist_head, sq, t_sq)
 	{
-		if (now - sq->ctime > prefs_get_sq_timeout()) {
+		if (now - sq->ctime > pvpgn::d2cs::prefs_v3::sq_timeout()) {
 			eventlog(eventlog_level_info,__FUNCTION__,"destroying expired server queue {}",sq->seqno);
 			sq_destroy(sq,&curr_elem_);
 		}

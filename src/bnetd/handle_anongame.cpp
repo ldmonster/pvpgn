@@ -39,6 +39,7 @@
 #include "channel.h"
 #include "common/setup_after.h"
 #include "icons.h"
+#include "prefs_v3_shim.h"
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 // Observation bridge for SID_FINDANONGAME (0x44) dispatch.
@@ -574,7 +575,7 @@ namespace pvpgn
 				// if custom stats is enabled then set a custom client icon by player rating
 				// do not override user selected icon if any
 				bool assignedCustomIcon = false;
-				if (!uicon && prefs_get_custom_icons() == 1 && customicons_allowed_by_client(clienttag))
+				if (!uicon && prefs_v3::custom_icons() == 1 && customicons_allowed_by_client(clienttag))
 				{
 					if (t_icon_info * icon = customicons_get_icon_by_account(acc, clienttag))
 					{
@@ -653,7 +654,7 @@ namespace pvpgn
 			t_clienttag clienttag = conn_get_clienttag(c);
 
 			// do nothing when custom icon enabled and exists
-			if (prefs_get_custom_icons() == 1 && customicons_allowed_by_client(clienttag) && customicons_get_icon_by_account(account, clienttag))
+			if (prefs_v3::custom_icons() == 1 && customicons_allowed_by_client(clienttag) && customicons_get_icon_by_account(account, clienttag))
 				return 0;
 
 			/*FIXME: In this case we do not get a 'count' but insted of it we get the icon

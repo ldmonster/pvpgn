@@ -171,7 +171,7 @@
 7	/commandgroups /cg
 7	/clearstats
 
-8	/shutdown /rehash /find /save
+8	/shutdown /rehash /find /save /config
 
 
 #	//////////////////////////////////////

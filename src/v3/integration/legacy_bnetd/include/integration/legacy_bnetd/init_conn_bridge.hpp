@@ -84,4 +84,29 @@ int pvpgn_v3_init_conn_decide(std::uint8_t cclass,
 int pvpgn_v3_init_conn_apply(void* conn_ptr,
                              std::uint8_t cclass) noexcept;
 
+/// R169.a: Extended decide that also takes the rate-limit and
+/// realmlist context. `conn_count` is the current connection count
+/// from the same IP, `max_conns_per_ip` is the configured cap (0 to
+/// disable), `d2cs_ip_allowed` is non-zero iff the source IP is in
+/// the realm list. Returns the same accept/reject classification as
+/// the non-ex variant. Existing callers can keep using the non-ex
+/// form -- it forwards to this one with conservative defaults
+/// (rate-limit disabled, d2cs allowed).
+int pvpgn_v3_init_conn_decide_ex(std::uint8_t cclass,
+                                 unsigned int conn_count,
+                                 unsigned int max_conns_per_ip,
+                                 int d2cs_ip_allowed,
+                                 std::uint8_t* out_decision) noexcept;
+
+/// R169.a: Extended apply that also takes the rate-limit and
+/// realmlist context. Returns -1 when the dispatcher rejects on
+/// rate-limit (`kRateLimited`) or realmlist (`kD2csIpDenied`) so the
+/// caller can close the connection without invoking the apply
+/// handler. Otherwise behaves identically to the non-ex variant.
+int pvpgn_v3_init_conn_apply_ex(void* conn_ptr,
+                                std::uint8_t cclass,
+                                unsigned int conn_count,
+                                unsigned int max_conns_per_ip,
+                                int d2cs_ip_allowed) noexcept;
+
 }  // extern "C"

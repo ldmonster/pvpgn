@@ -489,7 +489,7 @@ namespace pvpgn
 
 			/* please don't remove this notice */
 			if (channel->log)
-				message_send_text(connection, message_type_info, connection, prefs_get_log_notice());
+				message_send_text(connection, message_type_info, connection, prefs_v3::log_notice());
 
 #ifdef WITH_LUA
 			lua_handle_channel(channel, connection, NULL, message_type_null, luaevent_channel_userjoin);

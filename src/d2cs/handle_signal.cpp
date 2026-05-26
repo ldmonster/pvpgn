@@ -26,7 +26,7 @@
 
 #include "common/eventlog.h"
 #include "common/trans.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "cmdline.h"
 #include "d2gs.h"
 #include "d2ladder.h"
@@ -70,9 +70,9 @@ extern int handle_signal(void)
 		signal_data.do_quit=0;
 		now=std::time(NULL);
 		if (!signal_data.exit_time) {
-			signal_data.exit_time=now+d2cs_prefs_get_shutdown_delay();
+			signal_data.exit_time=now+pvpgn::d2cs::prefs_v3::shutdown_delay();
 		} else {
-			signal_data.exit_time-=d2cs_prefs_get_shutdown_decr();
+			signal_data.exit_time-=pvpgn::d2cs::prefs_v3::shutdown_decr();
 		}
 		eventlog(eventlog_level_info,__FUNCTION__,"the server is going to shutdown in {} minutes",(signal_data.exit_time-now)/60);
 	}
@@ -87,20 +87,45 @@ extern int handle_signal(void)
 	if (signal_data.reload_config) {
 		signal_data.reload_config=0;
 		eventlog(eventlog_level_info,__FUNCTION__,"reloading configuartion file due to std::signal");
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+		{
+			/* R155: reload the v3 TOML snapshot instead of the legacy
+			 * parser. Derive the .toml path from the cmdline .conf
+			 * path (same scheme as startup). The bridge installs a
+			 * defaults snapshot on parse failure; treat that as an
+			 * error so the operator sees their typo. */
+			std::string toml_path = cmdline_get_preffile();
+			auto dot = toml_path.rfind('.');
+			auto sep = toml_path.find_last_of("/\\");
+			if (dot != std::string::npos && (sep == std::string::npos || dot > sep))
+				toml_path.replace(dot, std::string::npos, ".toml");
+			else
+				toml_path += ".toml";
+			if (pvpgn_v3_d2cs_prefs_load_toml(toml_path.c_str()) < 0) {
+				eventlog(eventlog_level_error,__FUNCTION__,"error reload v3 TOML config '{}',exitting",toml_path);
+				return -1;
+			}
+			eventlog(eventlog_level_info,__FUNCTION__,"v3 TOML config snapshot after reload:");
+			pvpgn_v3_d2cs_prefs_dump(nullptr, [](void*, const char* line) {
+				eventlog(eventlog_level_info, "d2cs_config", "  {}", line);
+			});
+		}
+#else
 		if (prefs_reload(cmdline_get_preffile())<0) {
 			eventlog(eventlog_level_error,__FUNCTION__,"error reload configuration file,exitting");
 			return -1;
 		}
-		if (d2gslist_reload(prefs_get_d2gs_list())<0) {
+#endif
+		if (d2gslist_reload(pvpgn::d2cs::prefs_v3::gameservlist())<0) {
 			eventlog(eventlog_level_error,__FUNCTION__,"error reloading game server list,exitting");
 			return -1;
 		}
-		if (trans_reload(d2cs_prefs_get_transfile(),TRANS_D2CS)<0) {
+		if (trans_reload(pvpgn::d2cs::prefs_v3::transfile(),TRANS_D2CS)<0) {
 	    		eventlog(eventlog_level_error,__FUNCTION__,"could not reload trans list");
 		}
 
         eventlog_clear_level();
-        if ((levels = d2cs_prefs_get_loglevels()))
+        if ((levels = pvpgn::d2cs::prefs_v3::loglevels()))
         {
             std::string temp(levels);
             tok = std::strtok(temp.data(),","); /* std::strtok modifies the string it is passed */
@@ -115,7 +140,7 @@ extern int handle_signal(void)
 #ifdef DO_DAEMONIZE
 		if (!cmdline_get_foreground())
 #endif
-			eventlog_open(d2cs_prefs_get_logfile());
+			eventlog_open(pvpgn::d2cs::prefs_v3::logfile());
 	}
 	if (signal_data.reload_ladder) {
 		signal_data.reload_ladder=0;

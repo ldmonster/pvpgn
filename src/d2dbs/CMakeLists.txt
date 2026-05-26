@@ -7,13 +7,16 @@
 set(D2DBS_LIB_SOURCES
 	charlock.cpp charlock.h cmdline.cpp cmdline.h d2ladder.cpp d2ladder.h 
 	dbsdupecheck.cpp dbsdupecheck.h dbserver.cpp dbserver.h dbspacket.cpp 
-	dbspacket.h handle_signal.cpp handle_signal.h prefs.cpp prefs.h 
+	dbspacket.h handle_signal.cpp handle_signal.h 
 	setup.h version.h)
 
 set(D2DBS_EXE_SOURCES
 	main.cpp
 	../win32/d2dbs_winmain.cpp ../win32/d2dbs_resource.h
 	../win32/d2dbs_resource.rc)
+
+# R165: legacy `prefs.cpp` / `prefs.h` deleted; v3 TOML loader
+# (`pvpgn_v3_d2dbs_prefs_load_toml`) is the sole config source.
 
 add_library(d2dbs_legacy STATIC ${D2DBS_LIB_SOURCES})
 target_include_directories(d2dbs_legacy

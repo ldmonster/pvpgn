@@ -369,7 +369,22 @@ void parse_command_log(const Config& cfg, ServerConfig& sc)
         sc.command_log.log_commands       = sec->get_or<bool>("log_commands",             sc.command_log.log_commands);
         sc.command_log.log_command_groups = sec->get_or<std::string>("log_command_groups", sc.command_log.log_command_groups);
         sc.command_log.log_command_list   = sec->get_or<std::string>("log_command_list",   sc.command_log.log_command_list);
-        sc.command_log.log_notice         = sec->get_or<bool>("log_notice",               sc.command_log.log_notice);
+        sc.command_log.log_notice         = sec->get_or<std::string>("log_notice",         sc.command_log.log_notice);
+    }
+}
+
+void parse_messages(const Config& cfg, ServerConfig& sc)
+{
+    auto u32 = [](const Config& s, std::string_view k, std::uint32_t def) -> std::uint32_t {
+        return static_cast<std::uint32_t>(s.get_or<std::int64_t>(k, static_cast<std::int64_t>(def)));
+    };
+    if (auto sec = cfg.section("messages")) {
+        sc.messages.quota          = sec->get_or<bool>("quota",                  sc.messages.quota);
+        sc.messages.quota_lines    = u32(*sec, "quota_lines",    sc.messages.quota_lines);
+        sc.messages.quota_time     = u32(*sec, "quota_time",     sc.messages.quota_time);
+        sc.messages.quota_wrapline = u32(*sec, "quota_wrapline", sc.messages.quota_wrapline);
+        sc.messages.quota_maxline  = u32(*sec, "quota_maxline",  sc.messages.quota_maxline);
+        sc.messages.quota_dobae    = u32(*sec, "quota_dobae",    sc.messages.quota_dobae);
     }
 }
 
@@ -402,6 +417,7 @@ ServerConfig from_config(const Config& cfg)
     parse_status(cfg, sc);
     parse_clan(cfg, sc);
     parse_command_log(cfg, sc);
+    parse_messages(cfg, sc);
 
     return sc;
 }

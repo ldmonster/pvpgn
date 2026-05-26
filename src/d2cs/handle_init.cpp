@@ -24,7 +24,7 @@
 #include "common/init_protocol.h"
 #include "d2gs.h"
 #include "handle_d2gs.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -66,7 +66,7 @@ static int on_d2gs_initconn(t_connection * c)
 	eventlog(eventlog_level_info,__FUNCTION__,"[{}] client initiated d2gs connection",d2cs_conn_get_socket(c));
 	if (!(gs=d2gslist_find_gs_by_ip(d2cs_conn_get_addr(c)))) {
 		// reload list and see if any dns addy's has changed
-		if (d2gslist_reload(prefs_get_d2gs_list())<0) {
+		if (d2gslist_reload(pvpgn::d2cs::prefs_v3::gameservlist())<0) {
 			eventlog(eventlog_level_error,__FUNCTION__,"error reloading game server list,exitting");
 			return -1;
 		}

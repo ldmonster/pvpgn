@@ -85,11 +85,11 @@ If in the list of available drivers you see mysql/pgsql then all is fine.
 configure PvPGN and tell to use your chosen storage type (default PvPGN uses 
 plain files, the "file" driver).
 
-You will need to locate the file bnetd.conf and edit it (note that in the 
-configuration files all characters that follows a first # character on a line 
-are ignored, they are comments). Find the line storage_path (which is not 
-commented) in the bnetd.conf file. Edit it to use your chosen storage type as 
-in the examples in the config file which I paste them here:
+You will need to locate the file bnetd.toml and edit it (TOML comments use 
+# at the start of a line; the legacy bnetd.conf format is no longer parsed
+by the v3 binary -- see docs/toml-migration.md if you are upgrading).
+Find the `storage_path =` line under `[files]` (or `[storage]`) and edit
+it to use your chosen storage type as in the examples below:
 
 Syntax:
 - for plain file driver:
@@ -152,7 +152,7 @@ compiled in. Go to step 2 of this document.
 
 Q: I see something like this in the logs "no known driver specified(<text>)", 
 where <text> is not the driver I want, what should I do ?
-A: Somehow you did not configured in bnetd.conf to use your chosen driver . 
+A: Somehow you did not configured in bnetd.toml to use your chosen driver . 
 Please see step 3 of this document. Make sure to have a SINGLE UNCOMMENTED 
 storage_path line (a SINGLE line which starts with storage_path and which DOESNT 
 have a # character in front of it)

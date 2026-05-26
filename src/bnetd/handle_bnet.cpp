@@ -367,6 +367,15 @@ extern "C" int pvpgn_v3_send_realmlistlegacyreply(
     void*                                     conn_ptr,
     struct pvpgn_v3_realm_legacy_entry const* entries,
     unsigned int                              count) noexcept;
+// R172.d: authoritative realm-list dispatcher. The handler walks
+// `realmlist()` via `IRealmRepository`, runs the application
+// `dispatch_realm_list`, and ships the reply through the
+// `pvpgn_v3_send_realmlist{,legacy}reply` bridges above. Returns:
+//   1  -> reply sent (handler installed + succeeded);
+//   0  -> handler installed but send failed (do NOT fall back);
+//   -1 -> no handler installed (fall back to legacy emit).
+extern "C" int pvpgn_v3_realm_list_apply(void* conn_ptr,
+                                          int   legacy_format) noexcept;
 // Strangler-fig hook for SERVER_CLANINFOREPLY (SID_CLANINFO, 0x82).
 // Covers the 1 packet_create site in _client_claninforeq.
 extern "C" int pvpgn_v3_send_claninforeply(void*        conn_ptr,
@@ -417,6 +426,28 @@ extern "C" int pvpgn_v3_send_adreply(void*                conn_ptr,
 extern "C" int pvpgn_v3_send_adclick2reply(void*        conn_ptr,
                                             unsigned int adid,
                                             char const*  link) noexcept;
+// R171.c: v3 ads dispatchers. Backed by `AdBannerList` once the
+// linked half of integration_legacy_bnetd is in the build.
+struct PvpgnV3AdPickOut {
+    int          found;
+    unsigned int id;
+    unsigned int extension_tag;
+    char         filename[256];
+    char         url[1024];
+};
+struct PvpgnV3AdClickOut {
+    int          accepted;
+    unsigned int id;
+    char         click_url[1024];
+};
+extern "C" int pvpgn_v3_ads_pick_apply(unsigned int client_tag,
+                                       unsigned int lang_tag,
+                                       unsigned int prev_ad_id,
+                                       PvpgnV3AdPickOut* out) noexcept;
+extern "C" int pvpgn_v3_ads_click_apply(unsigned int client_tag,
+                                        unsigned int lang_tag,
+                                        unsigned int ad_id,
+                                        PvpgnV3AdClickOut* out) noexcept;
 extern "C" int pvpgn_v3_send_playerinforeply(void*       conn_ptr,
                                               char const* account_name,
                                               char const* player_info,
@@ -4073,31 +4104,15 @@ namespace pvpgn
 			}
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
+			// R172.d: when the v3 realm-list handler is installed it
+			// owns the entire emit path (walks `realmlist()`, runs
+			// the application `dispatch_realm_list`, and ships the
+			// reply through `pvpgn_v3_send_realmlistlegacyreply`).
+			// rc >= 0 is authoritative; rc == -1 falls through to
+			// the legacy loop below.
 			{
-				// Build entry array from active realms for the v3 bridge.
-				std::vector<pvpgn_v3_realm_legacy_entry> v3entries;
-				{
-					for (t_realm const *realm : realmlist()) {
-						if (!realm_get_active(realm))
-							continue;
-						pvpgn_v3_realm_legacy_entry e;
-						e.unknown3    = SERVER_REALMLISTREPLY_DATA_UNKNOWN3;
-						e.unknown4    = SERVER_REALMLISTREPLY_DATA_UNKNOWN4;
-						e.unknown5    = SERVER_REALMLISTREPLY_DATA_UNKNOWN5;
-						e.unknown6    = SERVER_REALMLISTREPLY_DATA_UNKNOWN6;
-						e.unknown7    = SERVER_REALMLISTREPLY_DATA_UNKNOWN7;
-						e.unknown8    = SERVER_REALMLISTREPLY_DATA_UNKNOWN8;
-						e.unknown9    = SERVER_REALMLISTREPLY_DATA_UNKNOWN9;
-						e.name        = realm_get_name(realm);
-						e.description = realm_get_description(realm);
-						v3entries.push_back(e);
-					}
-				}
-				int v3rc = pvpgn_v3_send_realmlistlegacyreply(
-				    c,
-				    v3entries.empty() ? nullptr : v3entries.data(),
-				    static_cast<unsigned int>(v3entries.size()));
-				if (v3rc == 1) {
+				int v3rc = pvpgn_v3_realm_list_apply(c, /*legacy_format=*/1);
+				if (v3rc >= 0) {
 					return 0;
 				}
 			}
@@ -4146,25 +4161,10 @@ namespace pvpgn
 			}
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
+			// R172.d: see the matching block in `_client_realmlistreq`.
 			{
-				// Build entry array from active realms for the v3 bridge.
-				std::vector<pvpgn_v3_realm_entry> v3entries;
-				{
-					for (t_realm const *realm : realmlist()) {
-						if (!realm_get_active(realm))
-							continue;
-						pvpgn_v3_realm_entry e;
-						e.unknown     = SERVER_REALMLISTREPLY_110_DATA_UNKNOWN1;
-						e.name        = realm_get_name(realm);
-						e.description = realm_get_description(realm);
-						v3entries.push_back(e);
-					}
-				}
-				int v3rc = pvpgn_v3_send_realmlistreply(
-				    c,
-				    v3entries.empty() ? nullptr : v3entries.data(),
-				    static_cast<unsigned int>(v3entries.size()));
-				if (v3rc == 1) {
+				int v3rc = pvpgn_v3_realm_list_apply(c, /*legacy_format=*/0);
+				if (v3rc >= 0) {
 					return 0;
 				}
 			}
@@ -4663,6 +4663,51 @@ namespace pvpgn
 				bn_int_get(packet->u.client_adreq.clienttag), bn_int_get(packet->u.client_adreq.prev_adid), bn_int_get(packet->u.client_adreq.ticks));
 			*/
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// R171.c/e: v3 ads dispatcher is authoritative when a
+			// handler is installed (return >= 0). Falls through to
+			// legacy `AdBannerList.pick` only when the bridge
+			// reports "no handler" (-1).
+			{
+				PvpgnV3AdPickOut v3out{};
+				int const rc = pvpgn_v3_ads_pick_apply(
+				    static_cast<unsigned int>(conn_get_clienttag(c)),
+				    static_cast<unsigned int>(conn_get_gamelang(c)),
+				    bn_int_get(packet->u.client_adreq.prev_adid),
+				    &v3out);
+				if (rc >= 0) {
+					if (v3out.found == 0) {
+						return 0;
+					}
+					t_packet* const rpacket = packet_create(packet_class_bnet);
+					if (!rpacket) {
+						eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
+						return -1;
+					}
+					packet_set_size(rpacket, sizeof(t_server_adreply));
+					packet_set_type(rpacket, SERVER_ADREPLY);
+					bn_int_set(&rpacket->u.server_adreply.adid, v3out.id);
+					bn_int_set(&rpacket->u.server_adreply.extensiontag, v3out.extension_tag);
+					file_to_mod_time(c, v3out.filename, &rpacket->u.server_adreply.timestamp);
+					packet_append_string(rpacket, v3out.filename);
+					packet_append_string(rpacket, v3out.url);
+					if (pvpgn_v3_send_adreply(c,
+					        v3out.id,
+					        v3out.extension_tag,
+					        bn_long_get(rpacket->u.server_adreply.timestamp),
+					        v3out.filename,
+					        v3out.url) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+					return 0;
+				}
+				// rc == -1: no handler installed; fall through to legacy.
+			}
+#endif
+
 			const AdBanner* ad = AdBannerList.pick(conn_get_clienttag(c), conn_get_gamelang(c), bn_int_get(packet->u.client_adreq.prev_adid));
 			if (!ad)
 			{
@@ -4747,6 +4792,38 @@ namespace pvpgn
 			}
 
 			eventlog(eventlog_level_trace, __FUNCTION__, "[{}] ad click2 for adid 0x{:04x} from \"{}\"", conn_get_socket(c), bn_int_get(packet->u.client_adclick2.adid), conn_get_username(c));
+
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			// R171.c/e: v3 click dispatcher authoritative when installed.
+			{
+				PvpgnV3AdClickOut v3out{};
+				int const rc = pvpgn_v3_ads_click_apply(
+				    static_cast<unsigned int>(conn_get_clienttag(c)),
+				    static_cast<unsigned int>(conn_get_gamelang(c)),
+				    bn_int_get(packet->u.client_adclick2.adid),
+				    &v3out);
+				if (rc >= 0) {
+					if (v3out.accepted == 0) return 0;
+					t_packet* const rpacket = packet_create(packet_class_bnet);
+					if (!rpacket) {
+						eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
+						return -1;
+					}
+					packet_set_size(rpacket, sizeof(t_server_adclickreply2));
+					packet_set_type(rpacket, SERVER_ADCLICKREPLY2);
+					bn_int_set(&rpacket->u.server_adclickreply2.adid, v3out.id);
+					packet_append_string(rpacket, v3out.click_url);
+					if (pvpgn_v3_send_adclick2reply(c, v3out.id, v3out.click_url) == 1) {
+						packet_del_ref(rpacket);
+						return 0;
+					}
+					conn_push_outqueue(c, rpacket);
+					packet_del_ref(rpacket);
+					return 0;
+				}
+				// rc == -1: no handler installed; fall through to legacy.
+			}
+#endif
 
 			const AdBanner* const ad = AdBannerList.find(conn_get_clienttag(c), conn_get_gamelang(c), bn_int_get(packet->u.client_adclick2.adid));
 			if (!ad)

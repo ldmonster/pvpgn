@@ -125,6 +125,9 @@ maxgamelist = 20
 # false = only show games matching character difficulty.
 gamelist_showall = false
 
+# Hide password-protected games from the join-game list?
+hide_pass_games = false
+
 # Maximum idle time in seconds (0 = unlimited).
 idletime = 3600
 
@@ -170,7 +173,7 @@ d2gs_password = ""
 game_maxlifetime = 0
 
 # Maximum character level allowed in this realm (255 = no limit).
-# game_maxlevel = 255
+game_maxlevel = 255
 
 # Automatically destroy a game after this many seconds idle (0 = never).
 max_game_idletime = 0
@@ -199,3 +202,6 @@ ladder_start_time = ""
 
 # Number of days before a character expires (0 = unlimited).
 char_expire_day = 0
+
+# Number of top entries kept per ladder list (0 = unlimited).
+ladderlist_count = 0

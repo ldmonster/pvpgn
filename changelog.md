@@ -1,19 +1,223 @@
+### R183.a -- PacketPumpDriver becomes AUTHORITATIVE for init verdict; legacy bridge demoted to side-effect runner + parity shadow
+- src/v3/integration/legacy_bnetd/src/init_packet_dispatch_link.cpp: flipped the init-verdict authority. The v3 `PacketPumpDriver` (now policy-aware after R182.a) computes the return value of `handle_init_packet`; the legacy bridge `pvpgn_v3_init_conn_apply_ex` is still called for its side effects on `t_connection` (`conn_set_class`, realmlist hookup, response packets that the pure-C++ driver does not yet emit), but its return value is no longer the source of truth -- it is consumed only by the parity check. The parity check itself was upgraded from asymmetric (only logged when driver rejected and legacy accepted) to **bidirectional**: any disagreement between `driver_rc` and `legacy_rc` emits one `eventlog_level_warn` with both verdicts and the `FeedOutcome` enumerator name so the cutover arc has a real signal if the two paths ever drift. Because both paths consult `application/init/dispatch_init_conn` against identical policy inputs they MUST agree by construction; the parity log is a tripwire, not an expected-noise channel.
+- This is R183.a -- a small but load-bearing flip. The next milestone (R184+) is teaching the driver to produce the side effects the legacy bridge still owns (set class on the connection, send the right server-side init response, plumb realmlist) so the legacy bridge can be retired entirely and `init_packet_dispatch_link.cpp` becomes a pure driver wrapper.
+- DEFERRED to R184 (carry-over of R183.b/c/e the user selected this round but R183.a was the load-bearing flip): R183.b (`_client_findadreq` / ads_bridge linked adapter -- ~150 lines, carry-over from R181/R182), R183.c (anongame_lobby linked adapter -- ~200 lines, carry-over from R181/R182), R183.e (d2cs `handle_init.cpp` relocation -- still blocked by `WITH_D2CS=OFF` in v3-test pipeline). Also still deferred: R183.f (bnetd_legacy cleanup -- audit blocked).
+- Docker verified: --target v3-test image `pvpgn-v3-test:r183` sha256:8a71fc14aed158d841dc995665fa264427719fe5957d537d521ee33fc0dc657c (174 "All tests passed" lines, identical to R182 -- this is a pure flip with no new tests); --target v3-runtime image `pvpgn-v3-runtime:r183` sha256:c2d1885292177222872bb29a7d37b582d3710629fc73feb46671c3998322f8ed. Both stages green.
+
+### R182.a -- application/bnet_packet_pump policy-aware feed overload + driver wired to dispatch_init_conn
+- src/v3/application/bnet_packet_pump/include/application/bnet_packet_pump/driver.hpp: extended the driver to consume `application/init`'s `dispatch_init_conn` BEFORE the cclass-byte FSM step, so the driver now models per-IP rate-limit and the D2CS_BNETD realmlist gate in addition to byte recognition. Specifically: (1) added `#include "application/init/init_conn_dispatch.hpp"`; (2) extended `enum class FeedOutcome` with `kRateLimited = 5` and `kD2csIpDenied = 6`, and the `to_string` overload accordingly; (3) added `struct PumpPolicy { unsigned int conn_count = 0; unsigned int max_conns_per_ip = 0; bool d2cs_ip_allowed = true; }` -- a default-constructed `PumpPolicy` (or one with `max_conns_per_ip == 0`) disables the rate-limit gate and keeps `d2cs_ip_allowed = true`, so byte-only callers see no behavioural change; (4) `feed(span)` now delegates to `feed(span, PumpPolicy{})`; (5) the new 2-arg `feed(span, PumpPolicy)` calls `parse_client_initconn`, then `dispatch_init_conn(InitConnRequest{cclass, conn_count, max_conns_per_ip, d2cs_ip_allowed})`. `InitDecision::kRateLimited` -> state goes to `kRejected`, returns `FeedOutcome::kRateLimited`. `InitDecision::kD2csIpDenied` -> same, returns `FeedOutcome::kD2csIpDenied`. Other verdicts (`kRejected` / `kBnet` / `kFile` / `kBot` / `kTelnet` / `kD2csBnetd`) fall through to the existing `step_on_cclass_byte` so the FSM stays the source of truth for byte recognition.
+- src/v3/CMakeLists.txt: added `application_init` to `application_bnet_packet_pump`'s PUBLIC_DEPS so the new include resolves at compile time. (The dep is purely header-level; `application_init` only pulls `core`, which `application_bnet_packet_pump` already had.)
+- src/v3/integration/legacy_bnetd/src/init_packet_dispatch_link.cpp: updated the R181.c advisory shadow-trace to feed the full policy through the driver too. The anonymous-namespace `pump_observe_cclass` helper now takes `conn_count` / `max_conns_per_ip` / `d2cs_ip_allowed` and constructs a `PumpPolicy` for the driver. `handle_init_packet` computes those values once (they're already needed by `pvpgn_v3_init_conn_apply_ex`) and shares them with both the driver-shadow call and the authoritative call. The asymmetric parity check stays in place but is now load-bearing -- with policy modelled, the driver SHOULD agree with the legacy verdict in all accept cases, so any future `kRateLimited` / `kD2csIpDenied` / `kRejected` outcome from the driver while legacy accepts is a real regression signal. The eventlog message was updated to read "v3 pump did not accept ... (outcome {})" with `to_string(FeedOutcome)` so the parity reason is visible in the log.
+- tests/unit/application/bnet_packet_pump/driver_test.cpp: extended `to_string` coverage with `kRateLimited` / `kD2csIpDenied`, and added 7 new cases for the policy-aware overload: (i) default `PumpPolicy{}` preserves byte-only semantics for `kClassBnet`; (ii) rate-limit exceeded (`conn_count=10`, `max_conns_per_ip=5`) -> `kRateLimited`, driver becomes terminal; (iii) `kClassD2csBnetd` is exempt from rate-limit (legacy contract); (iv) `kClassD2csBnetd` with `d2cs_ip_allowed=false` -> `kD2csIpDenied`; (v) `d2cs_ip_allowed=false` has no effect on non-D2CS classes; (vi) `conn_count == max_conns_per_ip` is allowed (strict `>` semantics); (vii) `max_conns_per_ip == 0` disables the rate-limit gate entirely.
+- This is R182.a. The driver is now a faithful pure-C++ replica of the legacy/v3 init verdict including policy, which sets up R183.c (promote driver to authoritative -- legacy/v3 becomes the shadow, then init_packet_dispatch_link.cpp can be retired).
+- DEFERRED to R183 (carry-over of R182.b + R182.c the user selected this round but R182.a was the load-bearing step): R182.b (`_client_findadreq` v3 path / ads_bridge linked adapter), R182.c (anongame_lobby linked adapter). Also still deferred from R181: R181.e (d2cs `handle_init.cpp` relocation -- `WITH_D2CS=OFF` blocked) and R181.f (bnetd_legacy cleanup -- still on audit).
+- Docker verified: --target v3-test image `pvpgn-v3-test:r182` sha256:0043800b38d2e346dd70b0f1c44f586ef114efe50c87484ae5c38a294f3ed37f (174 "All tests passed" lines -- same count as R181; the 7 new driver cases land inside the existing `test_application_bnet_packet_pump_driver` binary, which now reports more cases per its summary line but the per-binary "All tests passed" count is unchanged); --target v3-runtime image `pvpgn-v3-runtime:r182` sha256:b3b4b4c408a5153360353e976320862c233736be8f0f83234d35e138ad702e9f (`application_init` link-in via `application_bnet_packet_pump` is clean). Both stages green.
+
+### R181.c -- wire PacketPumpDriver into init_packet_dispatch_link (advisory)
+- src/v3/integration/legacy_bnetd/src/init_packet_dispatch_link.cpp: added an advisory shadow-trace through the v3 `PacketPumpDriver` (R180.c). Before the existing authoritative `pvpgn_v3_init_conn_apply_ex` call, the file now constructs a fresh `PacketPumpDriver`, feeds it the single cclass byte, and records the `FeedOutcome`. After the legacy/v3 verdict, an asymmetric parity check fires only when the driver REJECTED a byte that legacy ACCEPTED -- emitting one `eventlog_level_warn` line so the future packet-pump cutover (R182+) has an early warning if the driver is missing a cclass mapping. The inverse direction (driver accepts, legacy rejects on rate-limit / realm-list policy) stays silent because the driver doesn't model policy. Runtime contract is unchanged: the function still returns `(v3_rc == 1) ? 0 : -1`.
+- src/v3/CMakeLists.txt: added `application_bnet_packet_pump` to `integration_legacy_bnetd_linked`'s PUBLIC_DEPS so the linked half can resolve `application/bnet_packet_pump/driver.hpp`. The dep is additive (`application_bnet_packet_pump` only depends on `core` + `protocol_bnet`, both of which `integration_legacy_bnetd_linked` already pulls in transitively), so there's no link-order risk.
+- This is the deliberate first step of R181.c: get the v3 driver onto the hot init path in a no-op way, so subsequent rounds can promote its verdict from advisory to authoritative without touching the call site again. Once R182 also models rate-limit + realm-list policy in the driver, the legacy comparison can be inverted (driver becomes authoritative; `pvpgn_v3_init_conn_apply_ex` becomes the shadow), and the round after that retires `init_packet_dispatch_link.cpp`'s body entirely.
+- DEFERRED to R182 (carry-over of all 4 unselected R181 items + the cutover step): R181.a (`_client_findadreq` v3 path), R181.b (anongame_lobby linked adapter), R181.e (d2cs `handle_init.cpp` relocation -- still blocked by `WITH_D2CS=OFF` in v3-test pipeline), R181.f (bnetd_legacy cleanup -- still blocked on audit), plus R182.a (promote driver from advisory to authoritative once it models policy).
+- Docker verified: --target v3-test image `pvpgn-v3-test:r181` sha256:e235fe3ee33921326dde5544d94468386eca8070f9959a51499ce01e9a1c0e9b (174 "All tests passed" lines, identical to R180 -- no new tests this round; the driver is exercised through its own tests which already shipped in R180.c); --target v3-runtime image `pvpgn-v3-runtime:r181` sha256:77e156dc6cbbb9697d3a0ca0be69600f3214c669bb28d44a0abc07a001c31e61 (the `application_bnet_packet_pump` static lib links cleanly into the integration-linked half + `pvpgn_v3_bnetd`). Both stages green.
+
+### R180 -- application/bnet_packet_pump driver class (pure-C++)
+- src/v3/application/bnet_packet_pump/include/application/bnet_packet_pump/driver.hpp: NEW. `class PacketPumpDriver` owns one `Lifecycle` per connection and exposes a single `constexpr FeedOutcome feed(std::span<const std::byte>)` entry. In `kAwaitingInit` the driver parses the frame via `protocol::bnet::init::parse_client_initconn`, drives the FSM with `step_on_cclass_byte`, and reports `kAccepted` / `kRejected` / `kMalformed`. In `kDispatching` it returns `kAlreadyOpen` so callers hand off to the per-class handler. In `kRejected` / `kClosed` it returns `kClosed`. Adds `close()` (idempotent terminal), plus `state()`, `class_now()`, `is_open()`, `is_closed()`, `is_rejected()` accessors. `enum class FeedOutcome { kAccepted, kRejected, kAlreadyOpen, kMalformed, kClosed }` + `to_string` overload.
+- tests/unit/application/bnet_packet_pump/driver_test.cpp + CMakeLists.txt: NEW, 10 cases / ~40 assertions: fresh-driver default state, `kClassBnet` opens with `ConnClass::kBnet`, unknown cclass rejects, empty buffer is `kMalformed` and preserves state, two-byte buffer same, post-open further feeds return `kAlreadyOpen` (class not mutated), post-reject feeds return `kClosed`, `close()` is idempotent + terminal, every documented `kClass*` value opens with the right `ConnClass`, `FeedOutcome::to_string` covers every enumerator.
+- Dockerfile.v3: added `test_application_bnet_packet_pump_driver` to build target list + test pipeline. (First attempt accidentally appended to the test pipeline instead of the build target list; corrected in the same round.)
+- This is R180.c -- the next milestone of the v3 packet-pump effort. With `parse_client_initconn` (R177.b), the `Lifecycle` FSM + `ConnClass` enum (R179.a), and now the driver class, the v3 side has end-to-end logic for the init-byte handshake without any legacy types. The next milestone (R181+) is wiring `PacketPumpDriver` into `legacy_bnet_frame_router_link.cpp` as the source of truth for the init handshake, then retiring `init_packet_dispatch_link.cpp`'s body.
+- DEFERRED to R181: R180.a (ads_bridge linked adapter + `_client_findadreq` -- unrelated pivot, ~150 lines; carry-over from R179 too); R180.b (anongame_lobby linked adapter -- ~200 lines consuming R174 bridge + R175 game_type table; carry-over from R179 too). Both selected by user but R180.c lands the load-bearing scaffold piece; the linked adapters are well-scoped follow-ups for dedicated rounds.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r180` sha256:18c055d3921e0aa4800668064e8d8e757ae465b458c35c23185cd1aa34e1a20c (174 "All tests passed" lines, +1 from R179); --target v3-runtime image `pvpgn-v3-runtime:r180` sha256:ac6ab5a620dc3615003b501dd488f0cca41e25a67f9da96c1089e9f76a2a8a0c. Both stages green -- pure header-only addition.
+
+### R179 -- application/bnet_packet_pump lifecycle FSM scaffold
+- src/v3/application/bnet_packet_pump/include/application/bnet_packet_pump/conn_class.hpp: NEW. `enum class ConnClass : std::uint8_t` mirroring the legacy `conn_class_*` family (`kNone`, `kInit`, `kBnet`, `kFile`, `kBot`, `kTelnet`, `kIrc`, `kD2cs`, `kD2csBnetd`, `kW3route`, `kWol`, `kWolGameres`, `kWgameres`, `kWserv`, `kApiReg`, `kAuthReq`) plus a `constexpr std::string_view to_string(ConnClass)` for log lines.
+- src/v3/application/bnet_packet_pump/include/application/bnet_packet_pump/lifecycle.hpp: NEW. `enum class Lifecycle : std::uint8_t { kAwaitingInit, kDispatching, kRejected, kClosed }`, `constexpr std::optional<ConnClass> conn_class_from_cclass_byte(std::uint8_t)` consuming the `protocol::bnet::init::kClass*` constants directly (no `init_protocol.h` legacy dependency), and a pure `constexpr LifecycleStep step_on_cclass_byte(Lifecycle, std::uint8_t)` that drives the FSM with one byte. `step_on_cclass_byte` returns `{kDispatching, mapped_class}` for known bytes, `{kRejected, kNone}` for unknown, and is a no-op preserving state in every state other than `kAwaitingInit`.
+- src/v3/application/bnet_packet_pump/src/lifecycle_placeholder.cpp: NEW. Single sentinel constant so the static lib has at least one object file (MSVC / Ninja). All real scaffold logic lives in the headers (header-only `constexpr`).
+- src/v3/CMakeLists.txt: added `pvpgn_v3_add_library(application_bnet_packet_pump STATIC ... PUBLIC_DEPS core protocol_bnet)` right after `application_init`. The dependency on `protocol_bnet` (for `protocol/bnet/init_wire_types.hpp`'s `kClass*` constants) is the only inbound edge; nothing depends on `application_bnet_packet_pump` yet -- it's a leaf scaffold.
+- tests/unit/application/bnet_packet_pump/lifecycle_test.cpp + CMakeLists.txt: NEW. 6 cases / ~310 assertions: golden `Bnet` mapping, every documented `kClass*` mapping, single unknown byte rejection, exhaustive 0x00..0xFF scan (asserts every non-known byte routes to `kRejected`), no-op behaviour for non-`kAwaitingInit` states, and `to_string` coverage of every enumerator.
+- tests/unit/application/CMakeLists.txt: added `if(TARGET application_bnet_packet_pump) add_subdirectory(bnet_packet_pump) endif()`.
+- Dockerfile.v3: added `test_application_bnet_packet_pump_lifecycle` to build target list + test pipeline.
+- This is R179.a -- the foundation scaffold for the v3 packet pump. With the FSM, the codec (R177.b), and the relocated `handle_init_packet` shim (R176), the path to ultimately retiring `init_packet_dispatch_link.cpp` is now: future round writes a driver that ties `LifecycleStep` together with `parse_client_initconn` and the per-class handlers, then `legacy_bnet_frame_router_link.cpp` dispatches off `LifecycleStep` directly instead of via the relocated shim.
+- DEFERRED to R180: R179.b (ads_bridge linked adapter + `_client_findadreq` -- unrelated pivot, ~150 lines); R179.c (anongame_lobby linked adapter -- ~200 lines consuming R174 bridge + R175 game_type table). Both were selected by user but R179.a is load-bearing and consumes the round's complexity budget. The other two are documented work units that fit cleanly in R180/R181.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r179` sha256:eac3b791feb90a8f7e708bd8459273c3e9ee9f668b6b4b1b7e4c41dd0b4c3e41 (173 "All tests passed" lines, +1 from R178); --target v3-runtime image `pvpgn-v3-runtime:r179` sha256:f0db94ce88f6b709fc2c1490dc14f74ab09fc64f4a512e0f092db565eaa440a8. Both stages green -- header-only scaffold, no link-order risk.
+
+### R178 -- retire `src/bnetd/handle_init.h` (final step of the init-packet effort)
+- src/bnetd/handle_init.h: DELETED. The header was a 5-line forward declaration of `pvpgn::bnetd::handle_init_packet`; with `handle_init.cpp` already moved to `integration_legacy_bnetd_linked` (R176) and a v3 codec landed (R177.b), the header has no more reason to live in `bnetd_legacy`.
+- src/bnetd/server.cpp: removed `#include "handle_init.h"` from the include block (line 70 area); added an inline forward declaration `extern int handle_init_packet(t_connection*, t_packet const* const)` at the top of the `pvpgn::bnetd` namespace (right after the namespace open). Call site at line ~990 unchanged.
+- src/v3/integration/legacy_bnetd/src/legacy_bnet_frame_router_link.cpp: removed `#include "bnetd/handle_init.h"` (was in the `setup_before` / `setup_after` bracket); replaced with an inline namespace-qualified forward declaration outside the bracket so the file no longer drags a legacy header through the v3 include path. Call site at line ~81 unchanged.
+- src/v3/integration/legacy_bnetd/src/init_packet_dispatch_link.cpp: removed `#include "handle_init.h"` -- the file defines `handle_init_packet` itself, so no separate declaration is needed.
+- src/bnetd/CMakeLists.txt: dropped `handle_init.h` from the `bnetd_legacy` public header list.
+- This completes the long-deferred R171.f / R172.f / R173.f / R174.d / R175.d / R176-tail "retire init handler" effort. The init-packet entry point is now:
+  1. `server.cpp:990` (in `bnetd_legacy`) and `legacy_bnet_frame_router_link.cpp:81` (in `integration_legacy_bnetd_linked`) dispatch by forward decl;
+  2. `init_packet_dispatch_link.cpp` (in `integration_legacy_bnetd_linked`) defines `handle_init_packet`, which is a thin shim over `pvpgn_v3_init_conn_apply_ex`;
+  3. `pvpgn_v3_init_conn_apply_ex` (R169.a) is the authoritative apply hook calling into `application/init/init_conn_dispatch`. The legacy `src/bnetd/handle_init.{cpp,h}` are both gone.
+- DEFERRED to R179: R178.c (v3 packet-pump refactor proper -- lifecycle FSM + class dispatch table consuming `parse_client_initconn` directly so the relocated `handle_init_packet` body itself becomes obsolete), R178.d (ads_bridge linked + `_client_findadreq`), R178.e (anongame_lobby linked adapter), R178.f (handle_bnet.cpp audit -- research-only), R178.g (legacy-handler cleanup -- depends on f). R178.c+ are the only path to ultimately deleting `init_packet_dispatch_link.cpp` too; that's at least one more multi-round arc.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r178` sha256:bd661f9e0b7886e44aafcdc2861acf8263cf377e7edda829e6ecdbf8d2b318bd (172 "All tests passed" lines -- identical to R177); --target v3-runtime image `pvpgn-v3-runtime:r178` sha256:a790e5abf093f733652825645059312e0f5b95a6ff304ac39b625d5a2684ef5b. Both stages green confirms the inline forward decls bind to the relocated symbol exactly as the deleted header did.
+
+### R177 -- protocol/bnet init-conn codec (pure-C++ parse/encode)
+- src/v3/protocol/bnet/include/protocol/bnet/init_codec.hpp: NEW. Pure-C++ wire codec for the single-byte `ClientInitConn` packet. Adds `constexpr std::size_t kClientInitConnSize = 1`, `constexpr std::optional<ClientInitConn> parse_client_initconn(std::span<const std::byte>)` plus a `std::span<const std::uint8_t>` overload so callers reading from legacy `unsigned char*` buffers don't reinterpret_cast, and `constexpr std::array<std::byte, 1> encode_client_initconn(ClientInitConn)`. Parser enforces framing only (rejects empty / >1-byte buffers); cclass-value policy lives in `application/init/init_conn_dispatch`.
+- tests/unit/protocol/bnet/init_codec_test.cpp: NEW, 8 cases / ~795 assertions. Covers: size constant, parse via `std::byte` and `std::uint8_t` spans, rejects empty + multi-byte buffers, full 0x00..0xFF byte-space parses (parser is policy-free), encode produces the cclass byte, encode/parse roundtrip across all 256 values, and an explicit roundtrip per documented `kClass*` constant.
+- tests/unit/protocol/bnet/CMakeLists.txt: added `test_protocol_bnet_init_codec` (DEPS protocol_bnet).
+- Dockerfile.v3: added `test_protocol_bnet_init_codec` to the build-target list and to the test-run pipeline.
+- This is partial delivery of R171.f / R172.f / R173.f / R174.d / R175.d / R176-tail (the long-deferred "new `protocol/bnet/init_packet` module + `server.cpp:992` packet-pump refactor"). R177.b delivers the foundation: a pure-C++ codec that the v3 packet pump (R177.c, future) can dispatch off of without touching `t_client_initconn` or `bn_byte_get`. The existing `init_wire_types.hpp` (struct + class constants) is now joined by a real codec, so application-layer dispatch can be written next round in pure C++.
+- DEFERRED to R178: (a) swap `server.cpp:990` / `legacy_bnet_frame_router_link.cpp:81` from `pvpgn::bnetd::handle_init_packet` to a v3-native dispatch using `parse_client_initconn` -- now mechanically possible because the codec exists; (c) v3 packet-pump refactor -- still multi-round (lifecycle FSM + packet-class dispatch table); (d) ads_bridge linked adapter + `_client_findadreq` -- unrelated pivot, ~150 lines; (e) anongame_lobby linked adapter -- ~200 lines; (f) handle_bnet.cpp audit -- research-only task, won't fit alongside code work; (g) legacy-handler cleanup -- needs the audit (f) first to know what's safe to drop.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r177` sha256:39d5665c2d37e8674d45cd2a425a0faed47a51ddbae9991f6eb61a8f6af5abe5 (172 "All tests passed" lines, +1 from R176); --target v3-runtime image `pvpgn-v3-runtime:r177` sha256:001802f1cc6e14b025bbeae84cf5e45f4ca21a7bfaca41882d7507432a148cde. Both stages green -- pure header-only addition, no link-order or ABI risk.
+
+### R176 -- retire `src/bnetd/handle_init.cpp` (move body to integration_legacy_bnetd_linked)
+- src/bnetd/handle_init.cpp: DELETED. The 105-line file (which since R170.e was already a thin shim over `pvpgn_v3_init_conn_apply_ex`) is removed from `bnetd_legacy`. Header `src/bnetd/handle_init.h` is kept -- it still declares `extern int handle_init_packet(t_connection*, t_packet const*)` so `server.cpp:990` and `legacy_bnet_frame_router_link.cpp` continue to dispatch into init-class connections unchanged.
+- src/v3/integration/legacy_bnetd/src/init_packet_dispatch_link.cpp: NEW. Receives the entire body verbatim -- same `pvpgn::bnetd::handle_init_packet` symbol, same signature, same validation gates (NULL conn / NULL packet / wrong packet class / wrong packet type), same forward declaration of `pvpgn_v3_init_conn_apply_ex`, same return-value semantics (v3 rc==1 -> 0, else -1). Includes `prefs_v3_shim.h` / `connection.h` / `realm.h` / `handle_d2cs.h` through the legacy header bracket pattern (`common/setup_before.h` ... `common/setup_after.h`) which is allowed only in `integration_legacy_bnetd_linked`.
+- src/bnetd/CMakeLists.txt: dropped `handle_init.cpp` from the `bnetd_legacy` sources list (kept `handle_init.h` -- still in the public header set).
+- src/v3/CMakeLists.txt: added `integration/legacy_bnetd/src/init_packet_dispatch_link.cpp` to the `integration_legacy_bnetd_linked` SOURCES (after `init_conn_bridge_link.cpp`).
+- This is a partial step toward R171.f / R172.f / R173.f / R174.d / R175.d: the long-deferred "new `protocol/bnet/init_packet` module + `server.cpp:992` packet-pump refactor". That full effort still requires extracting framing/parsing from `init_protocol.h` into a `protocol/bnet/init_packet` library and reworking the packet pump to dispatch into application/init directly. This round delivers the file-deletion part of the goal (handle_init.cpp gone from bnetd_legacy) without changing any wire-level behaviour: the symbol moves, every call site keeps working, and the only line of code that changed semantically is the file path of the .o.
+- DEFERRED to a future round (final stage of the init-packet effort): retire `src/bnetd/handle_init.h` as well -- requires changing `server.cpp:990` and `legacy_bnet_frame_router_link.cpp:81` to call into a v3 header instead of the `pvpgn::bnetd::handle_init_packet` forward decl, then dropping the .h. Mechanical change but needs its own verification pass.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r176` sha256:0749792838142617524ae1b76f2d2c7695e743c2d7bf0d3a459d2e25b831c595 (171 "All tests passed" lines, identical to R175 -- no new tests, only source relocation); --target v3-runtime image `pvpgn-v3-runtime:r176` sha256:a8a6a7c14c0270408d2b9c9122ca970661c95b20431cf01d4a79b1fdbffbfe9b (`pvpgn_v3_bnetd` links + installs cleanly with the relocated `handle_init_packet`). Both stages green confirms there are no link-order regressions and no ODR violations.
+
+
+### R175 -- application/anongame_lobby bracket-size lookup (mirror of legacy `_anongame_totalplayers`)
+- src/v3/application/anongame_lobby/include/application/anongame_lobby/game_type.hpp: new pure-C++ header. `enum class GameType : uint32_t` repeats the `ANONGAME_TYPE_*` constants from `src/common/anongame_protocol.h` (1v1 / 2v2 / ... / AT_2v2v2) so the application layer does NOT include any legacy header (layering rule preserved). `constexpr std::uint8_t bracket_size_for_game_type(uint32_t)` mirrors legacy `_anongame_totalplayers` in `src/bnetd/anongame.cpp` -- returns 2 / 4 / 6 / 8 / 9 / 10 / 12 for the supported gametype families, 0 for `kTournament` (dynamic; legacy adapter overrides via `tournament_get_totalplayers()`) and 0 for any unknown value.
+- tests/unit/application/anongame_lobby/{CMakeLists.txt,game_type_test.cpp}: new Catch2 binary `test_application_anongame_lobby_game_type` with 8 cases covering every bracket-size class (1v1->2, 2v2-family->4, 3v3-family->6, 4v4-family->8, 3v3v3->9, 5v5->10, 6v6-family->12), Tournament->0 (dynamic sentinel), and unknown game types (18 / 100 / 0xFFFFFFFF) -> 0.
+- Dockerfile.v3: added `test_application_anongame_lobby_game_type` to v3-test build target list + test pipeline (after the existing `test_application_anongame_lobby`).
+- This unblocks future `IAnonGameLobbyRepository::bracket_size_for(uint32_t)` legacy adapter (R175.a deferred): the adapter can simply delegate to `bracket_size_for_game_type` and special-case the tournament path against `tournament_get_totalplayers()`.
+- R175.a -- DEFERRED. Scoped as "linked-half `IAnonGameLobbyRepository` adapter over legacy `anongame_queue` global + `install_anongame_lobby_handler()` wiring". Blocking: legacy `_anongame_queue` is a 300-line gametype-dependent state machine reading a file-static `players[QUEUES_MAX][PLAYERS_MAX]` array; building a faithful adapter requires exposing several internal helpers (`_anongame_totalplayers`, level/skill matching, map_prefs intersection, AT-vs-PG flag) as public symbols first. This round delivers the smallest piece -- the bracket-size table -- as a foundation. Real adapter is queued for R176+.
+- R175.b -- DEFERRED. Depends on R175.a. Refactor of `_client_findanongame` / `_client_anongame_search` (~200 lines).
+- R175.c -- DEFERRED. End-to-end admit-cycle integration tests depend on R175.a's wired adapter.
+- R175.d -- DEFERRED. `protocol/bnet/init_packet` module + `server.cpp:992` packet-pump refactor remains its own dedicated round.
+- R175.e -- DEFERRED. `infra/legacy_charfile` `ICharacterRepository` adapter is multi-day work; queued.
+- R175.f -- DEFERRED. `application/realm/realm_session` does not have a legacy `realm_session_t` to mirror (verified by grep) -- it would be net-new infrastructure rather than a strangler-fig extraction. Re-scoping required before tackling.
+- R175.g -- DEFERRED. `handle_bnet.cpp` audit is a research / proposal task; will run when next round's selection narrows.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r175` sha256:1a9fed67386f0b81dd1ec9f73b76c5acef720ef87efcc80b769002918ab3404d (171 "All tests passed" lines, +1 new `test_application_anongame_lobby_game_type` versus R174's 170). v3-runtime not rebuilt: only application/ pure-C++ headers + tests were added; the linked half + `bnetd_legacy` are unchanged from R172.
+
+
+### R174 -- anongame_lobby bridge (base half) + ABI tests
+- src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/anongame_lobby_bridge.hpp (R174.a base): new C ABI `int pvpgn_v3_anongame_lobby_apply(void* conn_ptr, unsigned game_type) noexcept` returning 1 (admitted) / 0 (handler installed but failed) / -1 (no handler, caller falls back to legacy `_anongame_queue`). Mirrors the realm_list / ads / init_conn bridge pattern -- atomic handler pointer with acquire/release ordering, idempotent install hook, namespace `pvpgn::integration::legacy_bnetd`. Handler signature `AnonGameLobbyHandler = int(*)(void*, unsigned)`.
+- src/v3/integration/legacy_bnetd/src/anongame_lobby_bridge.cpp: implementation. `install_legacy_anongame_lobby_handler()` is intentionally a stage-1 no-op -- the legacy adapter over the `anongame_queue` global is deferred to stage 2 (next round). With no handler installed the extern "C" entry returns -1 so every existing call site continues falling back to legacy code.
+- src/v3/CMakeLists.txt: added `integration/legacy_bnetd/src/anongame_lobby_bridge.cpp` to `integration_legacy_bnetd` SOURCES (after `realm_list_bridge.cpp`).
+- tests/unit/integration/legacy_bnetd/{CMakeLists.txt,anongame_lobby_bridge_test.cpp} (R174.c-partial): new Catch2 binary `test_integration_legacy_bnetd_anongame_lobby_bridge` with 7 cases / ~25 assertions covering: no-handler returns -1 (and the handler is NOT invoked); null-conn-with-handler returns 0 without invoking the handler; conn_ptr + game_type forwarding; rc=0 propagation (send/encode failure); `get_anongame_lobby_handler` reflects last `set`; stage-1 `install_legacy_anongame_lobby_handler` is a verified no-op (handler still null after install, ABI still returns -1); install hook is idempotent.
+- Dockerfile.v3: added `test_integration_legacy_bnetd_anongame_lobby_bridge` to v3-test build target list and test pipeline.
+- R174.b -- DEFERRED to R175. Scoped as "refactor `_client_findanongame` / `_client_anongame_search` in `src/bnetd/anongame.cpp` to dispatch through `pvpgn_v3_anongame_lobby_apply` first; on rc==-1 fall back to legacy `_anongame_queue` loop". Blocking on a real `IAnonGameLobbyRepository` legacy adapter (~80 lines) over the `anongame_queue` global (intrusive list keyed by gametype) + gametype-specific bracket-size resolution from `anongame_infos.cpp` + game-spawn / send_anongame_found wiring -- combined ~200 lines of carefully-staged change across legacy headers. Tackling it in the same round as the base bridge would push past the round's verification budget. The base bridge is harmless to merge alone: with no handler installed every existing call site keeps the legacy behaviour.
+- R174.c -- PARTIAL. The ABI-level integration tests are in place this round (7 cases). The end-to-end "handler installed + admit cycle through legacy queue" tests defer to R175 alongside R174.b (they require the linked adapter to exist).
+- R174.d / R174.e / R174.f / R174.g -- NOT TOUCHED this round. The R174 multiSelect picked everything; with the base bridge + tests done, the remaining options (handle_init protocol module, infra/legacy_charfile adapter, application/realm/realm_session skeleton, handle_bnet audit) are queued for explicit selection in the R175 dialog rather than rushed past the verification budget here.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r174` sha256:cdd72124ab4c5685c11752b66dd62cd12a5ed5b81fff912e25c5470285550369 (170 "All tests passed" lines, +1 new `test_integration_legacy_bnetd_anongame_lobby_bridge` versus R173's 169). v3-runtime not rebuilt: the new bridge has no handler installed and is not wired from `bnetd_legacy`, so the linked half / runtime image is functionally unchanged from R172.
+
+
+### R173 -- application/anongame_lobby real dispatcher + IAnonGameLobbyRepository
+- src/v3/application/anongame_lobby/src/lobby.cpp (R173.a): replaced the R170.d placeholder `dispatch_admit` with the real decision function. Mirrors the legacy `src/bnetd/anongame.cpp:_anongame_queue` simpler paths: `bracket_size < 2` -> `kRejected`; `entrant.account_id == 0` -> `kRejected`; `account_id` already in `current_queue` -> `kDuplicate` (legacy queue is a set keyed by account_id per gametype); `current_queue.size() + 1 == bracket_size` -> `kPromoted` with `promoted_party = current_queue ++ entrant` in FIFO order; queue would overflow -> `kRejected`; else `kQueued`. Stateless / pure -- caller drives `IAnonGameLobbyRepository::add` after `kQueued` and `remove_party(promoted_party)` after `kPromoted`. Bracket sizes covered: 2 (1v1), 4 (2v2 / FFA-4), 8 (4v4 / FFA-8). NOT covered yet: gametype-specific tier filtering, anongame_arranged AT vs PG flag, map_prefs intersection -- those depend on `anongame_infos` config and will move in alongside `R173.c` once the lobby bridge wires up.
+- src/v3/application/anongame_lobby/include/application/anongame_lobby/lobby_repository.hpp (R173.b): new `IAnonGameLobbyRepository` interface so the dispatcher can stay agnostic of legacy `anongame_queue` globals. Methods: `queue_for(game_type) -> std::vector<LobbyEntry>` (snapshot by value -- avoids concurrent-mutation hazards), `bracket_size_for(game_type) -> uint8_t` (resolves from `anongame_infos` in the legacy adapter), `add(LobbyEntry)`, `remove_party(span<LobbyEntry>)`. Header-only; legacy adapter is part of the deferred R174.c bridge work.
+- tests/unit/application/anongame_lobby/{CMakeLists.txt,lobby_test.cpp} (R173.a): new Catch2 binary `test_application_anongame_lobby` with 9 cases covering: bracket_size<2 / ==1 rejected; account_id==0 rejected; empty queue queued; queue-of-1 + bracket=2 promoted; duplicate account_id; bracket=4 FIFO fill (3x queued + 1 promoted) using `StaticLobbyRepository` test double driving a full admit/promote cycle; overflow rejected; bracket=8 with 7 waiting promoted preserving all entrants; promoted_party preserves client_tag + skill_level metadata.
+- tests/unit/application/CMakeLists.txt: added `anongame_lobby` subdirectory gated on `TARGET application_anongame_lobby`.
+- Dockerfile.v3: added `test_application_anongame_lobby` to the v3-test build target list and test-run pipeline.
+- R173.c -- DEFERRED to R174. Scoped as "anongame_lobby bridge + wire `_client_findanongame` / `_client_anongame_search` through it". Requires: new `anongame_lobby_bridge.{hpp,cpp}` base + linked, an `IAnonGameLobbyRepository` adapter over `anongame_queue` global, gametype-specific bracket-size resolution (currently inside `anongame_infos.cpp`), and refactor of two legacy handlers that today read/write `anongame_queue` directly across ~150 lines. Multi-day work; doesn't fit alongside dispatcher impl in one round.
+- R173.d -- DEFERRED to R174 alongside R173.c (integration tests are written against the bridge that R173.c builds).
+- R173.e -- DEFERRED. Scoped as "enable `create_character.cpp` / `delete_character.cpp` / `list_characters.cpp` / `load_character.cpp` / `save_character.cpp` / `join_game_server.cpp` in the realm CMake". Blocking: these depend on `ICharacterRepository` / `ICharacterListRepository` adapters that don't yet have non-mock implementations. Adding the sources without adapters would build but the use-cases would have no real persistence wiring. Sequence is: first build infra/legacy_charfile (or similar) repository implementations, then enable the use-cases. Queued for a later round.
+- R173.f -- DEFERRED again (same as R171.f / R172.f). Multi-round protocol-layer effort: new `protocol/bnet/init_packet` module + `src/bnetd/server.cpp:992` packet-pump refactor so `handle_init.cpp` can be removed from CMake entirely. Should be its own dedicated round (R175?) with no other concurrent work.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r173` sha256:9670acaa26de4c040ba6d01cf1507f663e9b13ffa9d41e01e4c52cecd601c6ed (169 "All tests passed" lines, +1 new test_application_anongame_lobby versus R172's 168). v3-runtime not rebuilt: the linked half is unchanged this round (only application_anongame_lobby's pure-C++ skeleton was replaced + a new pure-C++ header was added; nothing in `integration_legacy_bnetd_linked` was touched).
+
+
+### R172 -- application/realm realm-list dispatcher + IRealmRepository + handle_bnet realm-list handlers v3-authoritative
+- src/v3/application/realm/include/application/realm/realm_list.hpp (R172.a + R172.c): new `RealmListing{id,name,description,active}` value object, `IRealmRepository` port (single method `list_all()` returning a snapshot), `RealmListResponse{active_entries}` and the `dispatch_realm_list(IRealmRepository const&)` free function. Pure C++; no dependency on legacy bnetd globals. The legacy adapter (in `integration_legacy_bnetd_linked`) walks `realmlist()` and feeds the repository interface; future TOML/SQL backends can drop in without touching the dispatcher.
+- src/v3/application/realm/src/realm_list.cpp (R172.a): trivial filter -- `dispatch_realm_list` reserves `all.size()` and moves only entries with `active == true` into the response, preserving repository order (legacy semantics). Registered in `src/v3/CMakeLists.txt:application_realm` (the orphan `src/v3/application/realm/CMakeLists.txt` was also updated for documentation but is not used by the build; the actual sources list lives at `src/v3/CMakeLists.txt:application_realm`).
+- src/v3/application/realm/CMakeLists.txt (R172.b): added `realm_list.cpp` and the missing `realm_list.hpp` header to this file too; this file is currently orphaned (no `add_subdirectory(application/realm)` reaches it), but kept in sync with the live build for future consolidation. R172.b option text was "add real implementation for join_game_server" -- on inspection that file already has real implementation (see `application/realm/src/join_game_server.cpp` 67 lines) and just isn't enabled in CMake; deferred to a future round once `ICharacterRepository` has a real (non-mock) adapter.
+- src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/realm_list_bridge.hpp + src/realm_list_bridge.cpp (R172.d base): new C ABI surface `pvpgn_v3_realm_list_apply(void* conn_ptr, int legacy_format)` returning 1 (sent), 0 (handler-installed but send failed, do NOT fall back) or -1 (no handler, fall back to legacy). Atomic `RealmListHandler` storage with `set_realm_list_handler` / `get_realm_list_handler` to support deterministic test reset; mirrors the init_conn + ads bridge pattern.
+- src/v3/integration/legacy_bnetd/src/realm_list_bridge_link.cpp (R172.d linked): `LegacyRealmRepository` is an `IRealmRepository` adapter over `pvpgn::bnetd::realmlist()` that copies `realm_get_name` / `realm_get_description` / `realm_get_active` into `RealmListing` (strings owned so the snapshot survives `realmlist()` mutations). `legacy_realm_list_handler` runs `dispatch_realm_list` then ships the reply through the existing `pvpgn_v3_send_realmlistreply` / `pvpgn_v3_send_realmlistlegacyreply` bridges, choosing the wire format from the `legacy_format` flag. The `SERVER_REALMLISTREPLY*_DATA_UNKNOWN*` constants are duplicated here as `#ifndef` fallbacks so the linked TU compiles even if the legacy header search order doesn't surface them.
+- src/v3/integration/legacy_bnetd/{include,src}/.../install_v3_handlers.{hpp,cpp} (R172.d): added `install_realm_list_handler()` following the same atomic-CAS idempotent pattern as `install_ads_handlers`. `src/bnetd/server.cpp` calls it from the `PVPGN_V3_BNETD_INTEGRATION` block right after `install_ads_handlers()`.
+- src/bnetd/handle_bnet.cpp (R172.d): `_client_realmlistreq` and `_client_realmlistreq110` now dispatch through `pvpgn_v3_realm_list_apply(c, legacy_format=1/0)` first under `PVPGN_V3_BNETD_INTEGRATION`. rc >= 0 is authoritative (return 0 either way -- rc==0 means the handler reported send-failure and the connection is already in a bad state; rc==1 means the reply was sent). rc == -1 falls back to the legacy `for(realmlist()) emit` loop. The previous v3 path that built a `std::vector<pvpgn_v3_realm_{legacy_,}entry>` inline and called the send bridge directly is gone -- that responsibility now lives in `realm_list_bridge_link.cpp`.
+- src/v3/CMakeLists.txt: added `application/realm/src/realm_list.cpp` to `application_realm` SOURCES; added `integration/legacy_bnetd/src/realm_list_bridge.cpp` to `integration_legacy_bnetd` SOURCES; added `application_realm` to `integration_legacy_bnetd` PUBLIC_DEPS (after `application_ads`); added `integration/legacy_bnetd/src/realm_list_bridge_link.cpp` to `integration_legacy_bnetd_linked` SOURCES after `ads_bridge_link.cpp`.
+- tests/unit/application/realm/realm_list_test.cpp + CMakeLists.txt (R172.a): new Catch2 binary `application_realm_realm_list_test` with 6 cases / ~17 assertions covering empty repo, all-inactive, mixed active+inactive (order preservation), full metadata pass-through, single active, single inactive. `StaticRealmRepo` test double is a stock `std::vector<RealmListing>` snapshot.
+- tests/unit/integration/legacy_bnetd/realm_list_bridge_test.cpp + CMakeLists.txt (R172.e): new `test_integration_legacy_bnetd_realm_list_bridge` with 6 cases covering no-handler-returns-minus-one (legacy fallback contract), null-conn-with-handler returns 0 (and DOES NOT invoke the handler), legacy_format=1 forwarding + rc=1, legacy_format=0 forwarding + rc=1, rc=0 propagation (send-failure), and `get_realm_list_handler` reflects `set_realm_list_handler`.
+- Dockerfile.v3: added `application_realm_realm_list_test` and `test_integration_legacy_bnetd_realm_list_bridge` to the v3-test build target list and the test-run pipeline.
+- R172.f -- DEFERRED again. Same scope as R171.f: a new `protocol/bnet/init_packet` module + refactor of `src/bnetd/server.cpp:992` packet pump to dispatch through it so `handle_init.cpp` can be removed from CMake entirely. This is a multi-round effort touching the protocol layer and the connection accept path; it doesn't fit alongside dispatcher-style refactoring. Recommended as the sole work unit for R173 if the user wants to attack it next.
+- Docker verified: --target v3-test image `pvpgn-v3-test:r172` sha256:1b87e0c0002a2e573fe31f69c9d3d9ab2b2f5a62f6739d35eda5b2e12aa92ef5 (168 "All tests passed" lines, +1 application_realm_realm_list_test, +1 test_integration_legacy_bnetd_realm_list_bridge versus R171's 166) and --target v3-runtime image `pvpgn-v3-runtime:r172` sha256:7d551b00234dc6dc3383f316db15e68bd25fb0eaac555c5dd4dcb2831a3e5f20 (`pvpgn_v3_bnetd` builds + installs cleanly with the new linked bridge).
+
+
+### R171 -- application/ads real impl + bridge + handle_bnet ad handlers v3-authoritative
+- src/v3/application/ads/src/ad_pick.cpp (R171.a): replaced the R170.b placeholder with the real `dispatch_ad_pick` + `dispatch_ad_click` logic. Mirrors the legacy `AdBannerSelector::pick` semantics: client_tag/lang_tag matching with 0 == wildcard; `selection_hint != 0` selects `filtered[hint % size]` (legacy WAR3 random path, made test-deterministic); otherwise sequence-after-prev_ad_id with wrap-to-first when prev matches the last filtered entry. Click dispatcher matches by id with client_tag (wildcard-aware) and returns `click_url` (falls back to `url` when click_url is empty). Extension-tag filtering (MNG vs non-MNG) stays in the bridge -- it depends on legacy `EXTENSIONTAG_MNG` and game-specific client tags that don't belong in the application layer. `AdCandidate` now owns its strings (`std::string`) so the dispatcher can return the chosen banner by value without lifetime contracts on the caller.
+- src/v3/application/ads/include/application/ads/ads_repository.hpp (R171.b): new `IAdsRepository` interface so the application layer can stay decoupled from the legacy `AdBannerList` global. Methods `list_for(client_tag, lang_tag)` (pre-filtered candidate pool) and `find_by_id(client_tag, lang_tag, ad_id)` (single-banner lookup for clicks). Currently implemented inline inside `integration_legacy_bnetd_linked` as a free-function adapter over `AdBannerList::for_each` (which is newly exposed) -- a future round may pull this out into its own infra class once a non-legacy source (TOML, SQL, etc.) is needed.
+- tests/unit/application/ads/ads_test.cpp + CMakeLists.txt (R171.a): new Catch2 binary `test_application_ads` with 11 test cases / ~30 assertions covering: empty pool, client_tag filter with wildcard, lang_tag filter with wildcard, no-candidate-matches, prev_ad_id sequence (prev=mid/last/unknown), selection_hint override, single-candidate fast path, click rejects ad_id==0, click rejects unknown id, click accepts (explicit + wildcard + url-fallback), click rejects when client_tag mismatches non-wildcard ad.
+- src/bnetd/adbanner.h (R171.b): added `template <typename F> void for_each(F&& fn) const` to `AdBannerSelector` so the v3 bridge can enumerate banners without becoming a friend or breaking encapsulation of `m_banners`.
+- src/v3/integration/legacy_bnetd/{include,src}/.../ads_bridge.{hpp,cpp} (R171.c base): new C ABI surface `pvpgn_v3_ads_pick_apply(client_tag, lang_tag, prev_ad_id, PvpgnV3AdPickOut*)` and `pvpgn_v3_ads_click_apply(client_tag, lang_tag, ad_id, PvpgnV3AdClickOut*)`. Out-structs are POD with fixed-size character buffers (256 for filename, 1024 for url / click_url) so the C boundary has no lifetime headaches. Returns 1 / 0 / -1 (chose-banner / no-banner-or-unknown-ad / no-handler-installed) -- the third value lets legacy code fall back to `AdBannerList` if v3 hasn't registered yet. Handler-pointer state is `std::atomic<>` for the same lock-free swap semantics as the init_conn bridge.
+- src/v3/integration/legacy_bnetd/src/ads_bridge_link.cpp (R171.c linked): legacy-aware handlers `legacy_ads_pick` / `legacy_ads_click` that enumerate `AdBannerList` via the new `for_each`, apply the MNG/non-MNG extension filter inline (since `EXTENSIONTAG_MNG` is a legacy `tag.h` symbol), build a `std::vector<AdCandidate>` and call the application dispatchers. `install_legacy_ads_handlers()` registers both via `set_ads_pick_handler` / `set_ads_click_handler`.
+- src/v3/integration/legacy_bnetd/{include,src}/.../install_v3_handlers.{hpp,cpp} (R171.c): added `install_ads_handlers()` mirroring the `install_init_conn_apply_handler` idempotent compare-exchange-strong pattern. `src/bnetd/server.cpp:2122` now calls it right after `install_init_conn_apply_handler()` under `PVPGN_V3_BNETD_INTEGRATION`.
+- src/bnetd/handle_bnet.cpp (R171.c+e): `_client_adreq` and `_client_adclick2` now invoke the v3 bridge first under `PVPGN_V3_BNETD_INTEGRATION`. When the bridge returns rc >= 0 (handler installed) it is authoritative: rc==0 short-circuits to "no banner / unknown click", rc==1 builds the reply packet from the v3 out-struct's id / extension_tag / filename / url / click_url, then forwards through `pvpgn_v3_send_adreply` / `pvpgn_v3_send_adclick2reply` exactly like the legacy path. Rc == -1 falls through to the legacy `AdBannerList.pick` / `AdBannerList.find` path -- preserves behaviour for builds without the linked half installed. `_client_adack` and `_client_adclick` are left unchanged (they don't read `AdBannerList`).
+- tests/unit/integration/legacy_bnetd/ads_bridge_test.cpp + CMakeLists.txt (R171.d): new `test_integration_legacy_bnetd_ads_bridge` covering 7 cases: pick_apply -1 without handler, click_apply -1 without handler, pick forwards all 3 args and copies out-struct data, pick rc=0 yields found=0, click forwards args and copies click_url, click rc=0 yields accepted=0, null-out-pointer returns -1 even with handler.
+- src/v3/CMakeLists.txt: added `ads_bridge.cpp` to `integration_legacy_bnetd`, added `ads_bridge_link.cpp` to `integration_legacy_bnetd_linked`, and added `application_ads` to the public deps of `integration_legacy_bnetd`.
+- Dockerfile.v3: added `test_application_ads` and `test_integration_legacy_bnetd_ads_bridge` to the build target list and the v3-test execution pipeline.
+- R171.f -- DEFERRED. Scoped as "tackle R169.c blocker: add a v3 protocol/bnet/init packet bridge so handle_init.cpp can be removed from CMake entirely". The required work is non-trivial: a new `protocol/bnet/init_packet` module that owns the `CLIENT_INITCONN` byte-1 read + dispatcher invocation, plus a refactor of `src/bnetd/server.cpp:992` packet-pump to dispatch through that module instead of calling `handle_init_packet`. Recommending this be R172.x (after R172 realm gap-fill); audit doc updated.
+- Docker verified: --target v3-test (166+ Catch2 binaries pass, including +11 application_ads + +7 ads bridge cases) and --target v3-runtime (`pvpgn_v3_bnetd` builds + installs cleanly).
+
+
+### R170 -- email_management impl + ads/anongame_lobby skeletons + handle_init.cpp shim
+- src/v3/application/email_management/src/email_change.cpp (R170.a): real implementation of `dispatch_email_change` and `dispatch_password_recovery`, replacing the R169.d placeholders. Covers the legacy `_client_setemailreply` (set-when-unset), `_client_changeemailreq` (replace), and `_client_getpasswordreq` (recovery) validation logic from `src/bnetd/handle_bnet.cpp:7118-7220`. Case-insensitive email matching matches the legacy `strcasecmp(email, oldaddr)` check; syntactic validation requires non-empty local part, exactly one `@`, domain with at least one `.`. Token resolution for password recovery stays caller-side (dispatcher returns `kAccepted` only; caller fills `token_to_deliver`). 13 new test cases in `tests/unit/application/email_management/email_management_test.cpp` covering set/replace/disabled paths, case-insensitive matching, invalid email shapes, feature-disabled, missing-stored-email, and mismatch-as-indistinguishable-from-no-account.
+- src/v3/application/ads/ (R170.b skeleton): new `application_ads` library with interface-only headers `ad_pick.hpp` (AdCandidate, AdPickRequest/Response with caller-resolved candidate span, AdClickRequest/Response, AdClickStatus enum). Placeholder TU returns "no chosen banner" / "kUnknownAd" unconditionally. Real implementation deferred to R171 once `AdBannerList` is hidden behind a repository interface.
+- src/v3/application/anongame_lobby/ (R170.d skeleton): new `application_anongame_lobby` library with `lobby.hpp` defining `LobbyEntry`, `LobbyAdmitRequest/Response`, and `LobbyAdmitStatus { kQueued, kPromoted, kDuplicate, kRejected }`. Caller-resolved queue snapshot + bracket size; placeholder TU returns kRejected. Real implementation deferred to R173.
+- src/bnetd/handle_init.cpp (R170.e): shrunk from 247 lines to 105 lines. Under `PVPGN_V3_BNETD_INTEGRATION` the entire body is now packet validation + a single call to `pvpgn_v3_init_conn_apply_ex` (returns 0 on v3_rc==1 else -1). The R169.b unreachable-fallback log was removed (R168.a guarantees the bridge already returns -1 for any failure). The legacy cclass switch is gone; non-v3 builds emit a `#error` because `prefs_v3_shim.h` already requires the v3 bridge.
+- R170.c NOTE: scoped as "scaffold application/realm" but module already exists with 11 headers (create_character, delete_character, list_characters, load_character, save_character, join_game_server, gs_queue, character_list_repository, character_lock, character_persistence, d2_ladder_repository). Round skipped; R172 becomes realm gap-filling instead of scaffolding.
+- src/v3/CMakeLists.txt: registered `application_email_management` (R169.d), `application_ads` (R170.b), and `application_anongame_lobby` (R170.d) static libraries (all PUBLIC_DEPS: core only -- application-layer hygiene preserved).
+- tests/unit/application/CMakeLists.txt: added `email_management` subdirectory. `tests/unit/application/email_management/{CMakeLists.txt,email_management_test.cpp}` created.
+- Dockerfile.v3: added `test_application_email_management` to the v3-test target list and to the test-run pipeline.
+- plans/phase3b-handle-bnet-audit.md (R170.f): deduplicated the R169.c follow-up section (was inadvertently appended twice in R169). Added "R170 progress" section recording the R170.a-f outcomes and proposing the updated R171-R179 round assignment (R171 = ads impl, R172 = realm gap-filling, R173 = anongame_lobby impl, R174 = game lifecycle, R175 = clan, R176 = misc, R177 = chat parser, R178 = handle_bnet central-switch retirement, R179 = file deletion).
+- Docker verified: --target v3-test (all suites green, +13 new email_management cases) and --target v3-runtime (pvpgn_v3_bnetd still builds + installed).
+
+
+### R169 -- init_conn bridge ABI extension + legacy switch gating + email_management skeleton + v3-runtime hardening
+- src/v3/integration/legacy_bnetd/include/integration/legacy_bnetd/init_conn_bridge.hpp + src/init_conn_bridge.cpp (R169.a): added extended ABI `pvpgn_v3_init_conn_decide_ex(cclass, conn_count, max_conns_per_ip, d2cs_ip_allowed, out*)` and `pvpgn_v3_init_conn_apply_ex(conn_ptr, cclass, conn_count, max_conns_per_ip, d2cs_ip_allowed)`. The _ex variants pass real connlist + prefs + realmlist values through to the v3 dispatcher so rate-limit and realmlist-deny branches actually fire on real connections. _apply_ex returns -1 for kRateLimited / kD2csIpDenied (authoritative close) and -1 for NULL handler (was -1 already from R168.a). Original _decide / _apply preserved as thin wrappers that pass conservative defaults.
+- src/bnetd/handle_init.cpp (R169.a wire-in + R169.b gating): forward-declared the new _ex extern "C" symbols; replaced the existing `pvpgn_v3_init_conn_decide` and `pvpgn_v3_init_conn_apply` calls with the _ex variants populated from `connlist_count_connections(conn_get_addr(c))`, `prefs_v3::max_conns_per_IP()`, and `realmlist_find_realm_by_ip(conn_get_addr(c)) != nullptr`. Under `PVPGN_V3_BNETD_INTEGRATION` the legacy cclass switch (BNET/FILE/BOT/TELNET/D2CS_BNETD/ENC/LOCALMACHINE branches) is now wrapped in `#ifndef PVPGN_V3_BNETD_INTEGRATION` -- the v3 dispatcher is authoritative, so an unreached fallback logs an error and returns -1. R169.c (file deletion from CMake) deferred: `handle_init_packet` is still called from `server.cpp:992` packet pump; see plans/phase3b-handle-bnet-audit.md for the staged removal plan.
+- tests/unit/integration/legacy_bnetd/init_conn_bridge_test.cpp: updated the no-handler test to expect -1 (matches R168.a); added 7 new R169.a cases covering decide_ex defaults parity with decide, rate-limit kRateLimited, D2CS exempt from rate-limit, D2CS realmlist deny kD2csIpDenied, apply_ex rate-limit returns -1 without invoking handler, apply_ex D2CS realmlist deny returns -1 without invoking handler, and apply_ex success path forwards verbatim.
+- src/v3/application/email_management/ (R169.d skeleton): new application module `application_email_management` with interface-only headers `email_change.hpp` (EmailChangeRequest / EmailChangeResponse / EmailChangeStatus enum with kAccepted/kCurrentMismatch/kNewInvalid/kRejected) and `password_recovery.hpp` (PasswordRecoveryRequest / PasswordRecoveryResponse / PasswordRecoveryStatus enum with kAccepted/kRejected/kDisabled). Placeholder TU `src/email_change.cpp` returns kRejected unconditionally so callers wired ahead of R170 fail closed. Registered in `src/v3/CMakeLists.txt` (PUBLIC_DEPS: core only -- application layer hygiene).
+- src/v3/app/bnetd/src/main.cpp (R169.e -Werror cleanup): rewrote `TcpConnectionContext::send_packet` to pre-size the buffer + index-write instead of `reserve()+push_back()+insert()`. The reserve+push_back pattern tripped gcc 15's `-Werror=free-nonheap-object` false positive at -O2. Added `<algorithm>` for `std::copy`. The `v3-runtime` Dockerfile stage now builds `pvpgn_v3_bnetd` cleanly -- soft-fail guard kept for safety but no longer triggers.
+- plans/phase3b-handle-bnet-audit.md: appended R169.c follow-up note documenting the `server.cpp:992` packet-pump prerequisite and proposing R171.x (shrink handle_init.cpp to a shim) + R175.x (full deletion) as the staged removal plan.
+- Docker verified: --target v3-test (all Catch2 suites green, +7 new cases) and --target v3-runtime (pvpgn_v3_bnetd built + installed to /usr/local/bin).
+
+
+### R168 -- snapshot lifetime hardening + init dispatch enhancements + v3-runtime preview
+- src/v3/integration/legacy_{bnetd,d2cs,d2dbs}/src/*prefs_bridge.cpp: added "LIFETIME WARNING (R168)" comment block above each string-section docu-menting that returned const char* is valid only until the next atomic swap (SIGHUP reload). Three files annotated.
+- src/v3/integration/legacy_bnetd/src/init_conn_bridge.cpp (R168.a): pvpgn_v3_init_conn_apply now returns -1 (was 0) when no handler is installed for an accepted cclass, and logs once via core::log_msg. Makes startup wiring bugs visible instead of silently falling through to legacy. Reused the std::atomic_flag warn-once pattern.
+- src/v3/application/init/include/application/init/init_conn_dispatch.hpp (R168.b + R168.c): InitConnRequest gained conn_count + max_conns_per_ip (rate limit, R168.b) and d2cs_ip_allowed (realmlist gate, R168.c). InitDecision gained kRateLimited (5) and kD2csIpDenied (6). Dispatcher checks rate-limit first, then realmlist gate, then class-based decision.
+- tests/unit/application/init/init_conn_dispatch_test.cpp: +10 new test cases (rate-limit: disabled/under/at-cap/over/D2CS-exempt/precedes-class; realmlist: D2CS-allowed/disallowed/non-D2CS-irrelevant/precedence). Total now 26 test cases.
+- tests/unit/integration/legacy_bnetd/init_conn_bridge_test.cpp: updated existing no-handler test case to expect -1 (was 0), renamed to reflect R168.a semantics.
+- Dockerfile.v3: added v3-runtime preview stage (soft-fail). Configures + attempts to build pvpgn_v3_bnetd; on failure logs "PREVIEW: ... skipped (expected during Phase 3 work)" and continues so the stage stays usable while main.cpp is hardened. CMD prints --version when the binary is present, otherwise a stub message. Removes the L1.a blocker without forcing Phase 3.A to land first.
+- plans/phase3b-handle-bnet-audit.md: scoping document for handle_bnet.cpp retirement. ~6470 lines, ~95 _client_* handlers grouped into 13 families mapped to existing v3 application modules + bridges. Identifies 4 modules with bridges but missing application logic (email_management, ads, realm, anongame_lobby) and proposes 9 sub-rounds (R170 - R178) to fully retire the file.
+- Docker v3-test green; no regressions. v3-runtime stage builds and tags pvpgn:v3-runtime image (with soft-fail message).
+
+### R167 -- v3 binary smoke tests + Phase 3 scoping
+- src/v3/app/bnetd/main.cpp and src/v3/app/d2cs/main.cpp: added --version / -V flag (prints PVPGN_VERSION).
+- src/v3/app/bnetd/CMakeLists.txt and .../d2cs/CMakeLists.txt: PVPGN_VERSION compile-def + CTest smoke tests (--help, --version) under BUILD_TESTING guard.
+- plans/snapshot-lifetime-audit.md: full audit of all 39 prefs_v3::* call sites in src/bnetd/. Zero D-class hazards found -- every string-returning accessor is consumed immediately or copied into an owning container (std::string / sv_strdup / memcpy).
+- plans/phase3a-handle-init-audit.md: kickoff audit of handle_init.cpp (230 lines, 6 cclass branches). The v3 strangler hook (pvpgn_v3_init_conn_apply) is dispatch-ready. Identified 4 blockers to deletion + suggested R168/R169 work units.
+- plans/l1-cutover-scope.md: scope for adding a v3-runtime stage to Dockerfile.v3 to replace the legacy bnetd image. Identifies 5 prerequisites (feature parity, storage backend, telnet admin, signal handling, healthcheck) and a 5-sub-stage plan.
+- Docker v3-test green; no regressions.
+### R166 -- conf templates retired + planning docs
+- conf/*.conf.in and *.conf.win32 templates DELETED. conf/CMakeLists.txt cleaned up: bnetd.toml / d2cs.toml / d2dbs.toml are the sole shipped configs (no PVPGN_BUILD_V3 gate -- v3 is default-on since R165).
+- docs/ swept for legacy .conf references: bnmotd.md, fdwatch.txt, storage.txt and single-binary-mode.md updated to point at .toml.
+- plans/phase3-plan.md: handler-by-handler retirement roadmap for the legacy bnetd / d2cs / d2dbs code paths.
+- plans/legacy-retirement-scope.md: staged plan for retiring PVPGN_BUILD_LEGACY (L0-L5 gates, each one round).
+- plans/snapshot-lifetime-scope.md: documents the residual const char* lifetime hazard the R165 atomic swap does not fix, with four mitigation options ranked by invasiveness.
+### Step 11 closeout (R165) -- legacy prefs retired
+- Deleted src/{bnetd,d2cs,d2dbs}/prefs.cpp + prefs.h. v3 TOML loader (pvpgn_v3_*_prefs_load_toml) is the sole config source.
+- src/bnetd/server.cpp restart_mode_all branch gated under PVPGN_V3_BNETD_INTEGRATION; SIGHUP-restart reloads the TOML snapshot.
+- Bridge globals converted to std::atomic<std::shared_ptr<...LegacyPrefs>>: SIGHUP reload is race-free with concurrent readers.
+- PVPGN_BUILD_V3 defaults to ON. PVPGN_BUILD_LEGACY stays default-on for transitional setups.
+- docs/single-binary-mode.md and README.md now reference *.toml; toml-migration.md is the upgrade guide.
+### Step 11 -- TOML migration polish (R163/R164)
+- conf/CMakeLists.txt: under PVPGN_BUILD_V3 only ship .toml files; legacy .conf siblings retired from install.
+- infra/config: added shared format_dump(LegacyPrefs/D2csLegacyPrefs/D2dbsLegacyPrefs) -> vector<string> formatter (prefs_dump.hpp) backing the bnetd /config command, d2cs/d2dbs SIGHUP eventlog snapshots, and future operator views.
+- d2cs/d2dbs: SIGHUP reload now eventlogs a full TOML-shaped snapshot of the active prefs (via pvpgn_v3_d2cs_prefs_dump / pvpgn_v3_d2dbs_prefs_dump bridge entry points) so operators get the same visibility bnetd's /config gives.
+- Catch2: new test_infra_config_prefs_dump (4 cases, 46 assertions) covering all three services + section separators; wired into Dockerfile.v3 v3-test target.
+- prefs_v3_shim.h: flattened across bnetd (1151->615 lines), d2cs (505->273) and d2dbs (208->120) -- the non-v3 fallback branch is gone, integration_legacy_<svc>_linked is now the sole prefs source under PVPGN_V3_*_INTEGRATION.
 
 
 ### 2026-05-12  Phase 0 kickoff
 - Added `.editorconfig`, `.clang-format`, `.clang-tidy`.
 - Added `CMakePresets.json` with `dev-debug`, `dev-release`, `dev-asan`, `ci-coverage` presets (all enabling `PVPGN_BUILD_V3`).
-- Added root CMake option `PVPGN_BUILD_V3` (default OFF) — legacy build remains the default and is untouched.
+- Added root CMake option `PVPGN_BUILD_V3` (default OFF) вЂ” legacy build remains the default and is untouched.
 - Created `src/v3/` sub-tree with its own `CMakeLists.txt` enforcing C++20 + warnings; pulls Catch2 v3 via `FetchContent` when `PVPGN_BUILD_TESTS=ON`.
 - Implemented header-only `core/` library:
-  - `result.hpp` — `Result<T,E>` / `Status` (no exceptions, no Boost dependency).
-  - `error.hpp` — generic `StatusCode` enum + free helpers.
-  - `strong_typedef.hpp` — opaque integer/string wrappers (`STRONG_TYPEDEF` macro + `StrongId<Tag,Underlying>`).
-  - `bytes.hpp` — `ByteSpan`/`ByteView`, hex encoding/decoding.
-  - `endian.hpp` — `read_le<T>` / `write_le<T>` / `read_be<T>` / `write_be<T>` with bounded checks.
-  - `clock.hpp` — `IClock`, `SystemClock`, `ManualClock`.
-  - `logging.hpp` — minimal `ILogger`, `NullLogger`, `ConsoleLogger`; spdlog adapter is a Phase-1 task.
-  - `version.hpp` — semver constant + build metadata.
+  - `result.hpp` вЂ” `Result<T,E>` / `Status` (no exceptions, no Boost dependency).
+  - `error.hpp` вЂ” generic `StatusCode` enum + free helpers.
+  - `strong_typedef.hpp` вЂ” opaque integer/string wrappers (`STRONG_TYPEDEF` macro + `StrongId<Tag,Underlying>`).
+  - `bytes.hpp` вЂ” `ByteSpan`/`ByteView`, hex encoding/decoding.
+  - `endian.hpp` вЂ” `read_le<T>` / `write_le<T>` / `read_be<T>` / `write_be<T>` with bounded checks.
+  - `clock.hpp` вЂ” `IClock`, `SystemClock`, `ManualClock`.
+  - `logging.hpp` вЂ” minimal `ILogger`, `NullLogger`, `ConsoleLogger`; spdlog adapter is a Phase-1 task.
+  - `version.hpp` вЂ” semver constant + build metadata.
 - Added Catch2 v3 unit tests covering all of the above (`tests/unit/core/`).
 - Verified: `cmake --preset dev-debug && cmake --build --preset dev-debug && ctest --preset dev-debug` is green (see below).
 
@@ -26,66 +230,66 @@
 - Confirmed legacy build still builds bnetd/d2cs/d2dbs/bntrackd/bnpass + client tools
   with no changes (`build/legacy`, defaults).
 - Fixes applied during integration:
-  * `tests/unit/CMakeLists.txt` — `add_subdirectory(core)` (relative path).
+  * `tests/unit/CMakeLists.txt` вЂ” `add_subdirectory(core)` (relative path).
   * Catch2 targets marked `SYSTEM TRUE` so strict warnings (`-Wnon-virtual-dtor`,
     `-Wold-style-cast`) don't fire on Catch2 internals.
   * `Result<T,E>` static_asserts `T != E` (variant constraint); test updated to
     use `Result<int, std::string>` for `map_error`.
 
-### 2026-05-12  Phase 1 — logging, config, event-bus, scheduler
+### 2026-05-12  Phase 1 вЂ” logging, config, event-bus, scheduler
 - Added FetchContent pins in `src/v3/CMakeLists.txt`:
   * **spdlog v1.14.1** (behind `PVPGN_V3_WITH_SPDLOG`, default ON).
   * **toml++ v3.4.0** (behind `PVPGN_V3_WITH_TOMLPP`, default ON).
   Both targets marked `SYSTEM` to keep our `-Werror` strict warnings clean.
 - New header-only `core/` additions:
-  * `event_bus.hpp` — type-keyed in-process pub/sub. RAII `Subscription`,
+  * `event_bus.hpp` вЂ” type-keyed in-process pub/sub. RAII `Subscription`,
     `std::shared_mutex`-protected channel map, throw-safe publish.
-  * `scheduler.hpp` — `IScheduler` interface + deterministic `ManualScheduler`
+  * `scheduler.hpp` вЂ” `IScheduler` interface + deterministic `ManualScheduler`
     (Asio-backed production impl is Phase 2).
-  * `format.hpp` — `std::format`-style `LOG_TRACE..LOG_CRITICAL` macros that
+  * `format.hpp` вЂ” `std::format`-style `LOG_TRACE..LOG_CRITICAL` macros that
     forward to `core::default_logger()`. Compile-time strip via
     `PVPGN_V3_LOG_LEVEL`.
 - New `src/v3/infra/` modules:
-  * `infra/log` (`SpdlogLogger`, `make_spdlog_logger`) — installs colour
+  * `infra/log` (`SpdlogLogger`, `make_spdlog_logger`) вЂ” installs colour
     stdout sink + optional rotating file sink; bridges `core::ILogger`
     onto spdlog. Pattern `%Y-%m-%dT%H:%M:%S.%e %^%l%$ %v`.
-  * `infra/config` — `ServerConfig`, `LogConfig`, `StorageConfig`,
+  * `infra/config` вЂ” `ServerConfig`, `LogConfig`, `StorageConfig`,
     `NetworkConfig`; `parse_server_config()` / `load_server_config()` return
     `Result<ServerConfig, core::Error>` (no exceptions to callers).
     Recognised sections: `[server]`, `[network]`, `[log]`, `[storage]`.
 - 18 new Catch2 test cases:
-  * `tests/unit/core/event_bus_test.cpp` (5 cases — single/multi sub, type
+  * `tests/unit/core/event_bus_test.cpp` (5 cases вЂ” single/multi sub, type
     isolation, RAII unsubscribe, throwing-subscriber isolation).
-  * `tests/unit/core/scheduler_test.cpp` (3 cases — fire on deadline, cancel,
+  * `tests/unit/core/scheduler_test.cpp` (3 cases вЂ” fire on deadline, cancel,
     ordering of multiple timers).
-  * `tests/unit/core/format_test.cpp` (2 cases — formatting macros + level
+  * `tests/unit/core/format_test.cpp` (2 cases вЂ” formatting macros + level
     filtering).
-  * `tests/unit/infra/log/spdlog_logger_test.cpp` (3 cases — stdout sink,
+  * `tests/unit/infra/log/spdlog_logger_test.cpp` (3 cases вЂ” stdout sink,
     rotating file sink writes, runtime level changes).
-  * `tests/unit/infra/config/server_config_test.cpp` (5 cases — defaults,
-    full TOML round-trip, syntax error → `InvalidArgument`, missing file →
+  * `tests/unit/infra/config/server_config_test.cpp` (5 cases вЂ” defaults,
+    full TOML round-trip, syntax error в†’ `InvalidArgument`, missing file в†’
     `NotFound`, disk load).
 - Verified: **43/43 tests pass** (`ctest --test-dir build/v3 --output-on-failure`).
 - Legacy build still green and unchanged (no recompile needed).
 - Issues fixed during integration:
-  * `PVPGN_V3_LOG(level, ...)` macro renamed parameter to `lvl_` — the C
+  * `PVPGN_V3_LOG(level, ...)` macro renamed parameter to `lvl_` вЂ” the C
     preprocessor was substituting `level` inside `default_logger().level()`
     producing `LogLevel::Info()` garbage. Lesson recorded in repo memory.
   * toml++ `value_or<T>` takes `T&&`; rewrote call sites to pass rvalue
     defaults explicitly (`std::size_t{cfg.log.rotate_size}`) so GCC 13
     doesn't reject lvalue-to-rvalue-ref bindings.
 
-### 2026-05-12  Phase 4 kick-off — protocol common layer
+### 2026-05-12  Phase 4 kick-off вЂ” protocol common layer
 - New header-only library `protocol_common` under `src/v3/protocol/common/`:
-  * `packet.hpp` — `BnetHeader` (marker/code/size, 4 bytes LE),
+  * `packet.hpp` вЂ” `BnetHeader` (marker/code/size, 4 bytes LE),
     `parse_bnet_header()`, `write_bnet_header()`, `parse_packet()`
     (returns `{Packet, consumed}` or `OutOfRange` when incomplete so the
     caller can wait for more bytes).
-  * `reader.hpp` — `Reader` over a `core::ByteView`; bounded
+  * `reader.hpp` вЂ” `Reader` over a `core::ByteView`; bounded
     `read_le<T>`, `read_be<T>`, `read_bytes`, `read_cstring`, `skip`.
     On OOB returns `core::Error{OutOfRange}` **without** advancing the
     cursor (replay/fuzz-friendly).
-  * `writer.hpp` — growing `std::vector<std::byte>` buffer with
+  * `writer.hpp` вЂ” growing `std::vector<std::byte>` buffer with
     `write_u8/le/be/bytes/cstring`, `begin_bnet_packet(code)` +
     `finalize_bnet_packet()` to back-patch the 16-bit size field.
 - Wired as `INTERFACE` library in `src/v3/CMakeLists.txt`
@@ -93,7 +297,7 @@
 - 18 new Catch2 cases in `tests/unit/protocol/common/` covering:
   header parse/write round-trip, marker/size validation, partial-buffer
   framing, LE/BE int reads, NUL-string parsing, OOB safety,
-  Writer round-trip via parse_packet → Reader, `take()` semantics.
+  Writer round-trip via parse_packet в†’ Reader, `take()` semantics.
 - Issues fixed:
   * `short_()` helper originally returned `Result<ByteView>` which
     couldn't convert into `Result<uint16_t>` etc. Changed it to return
@@ -104,25 +308,25 @@
     `std::string{view} == "..."`. Added to repo memory.
 - Verified: **61/61 tests pass** (`ctest --test-dir build/v3`).
 
-### 2026-05-12  Phase 4 — first bnet codec (SID_NULL / SID_PING / SID_AUTH_INFO)
+### 2026-05-12  Phase 4 вЂ” first bnet codec (SID_NULL / SID_PING / SID_AUTH_INFO)
 - New static library `protocol_bnet` under `src/v3/protocol/bnet/`:
-  * `messages.hpp` — value-type messages (`Null`, `Ping`, `AuthInfo`)
+  * `messages.hpp` вЂ” value-type messages (`Null`, `Ping`, `AuthInfo`)
     and `ClientMessage` / `ServerMessage` variants. No domain types,
     no I/O.
-  * `codec.hpp` / `codec.cpp` — pure `decode_client(Packet)` /
+  * `codec.hpp` / `codec.cpp` вЂ” pure `decode_client(Packet)` /
     `decode_server(Packet)` returning `Result<Variant>` and overloaded
     free `encode(Writer&, const Msg&)` returning `Status<>`. Unknown
-    SID codes → `Unimplemented`; short/malformed payloads → the
+    SID codes в†’ `Unimplemented`; short/malformed payloads в†’ the
     underlying `Reader` error (`OutOfRange` / `InvalidArgument`).
 - Wire-format parity with legacy `bnet_protocol.h`:
-  * SID_NULL  → `FF 00 04 00`
-  * SID_PING  → `FF 25 08 00 <ticks LE>`
-  * SID_AUTH_INFO → header + 9 × u32 LE + 2 × NUL-string
+  * SID_NULL  в†’ `FF 00 04 00`
+  * SID_PING  в†’ `FF 25 08 00 <ticks LE>`
+  * SID_AUTH_INFO в†’ header + 9 Г— u32 LE + 2 Г— NUL-string
 - 10 new Catch2 cases under `tests/unit/protocol/bnet/`:
-  * Round-trip via real wire bytes (`encode` → `parse_packet` →
+  * Round-trip via real wire bytes (`encode` в†’ `parse_packet` в†’
     `decode_client`) for `Null`, `Ping` (both client + server),
     `AuthInfo` (with realistic `IX86`/`SEXP` tag values).
-  * Byte-exact wire snapshots (`FF 00 04 00`, `FF 25 08 00 …`).
+  * Byte-exact wire snapshots (`FF 00 04 00`, `FF 25 08 00 вЂ¦`).
   * Negative cases: unknown SID code, SID_NULL with extra body,
     SID_PING with short body, SID_AUTH_INFO with unterminated string.
 - Verified: **71/71 tests pass** (`ctest --test-dir build/v3`).
@@ -130,48 +334,48 @@
 
 ### 2026-05-12  Phase 1 close-out + Phase 2 network spine
 - **Phase 1 finish (additive, no legacy touches)**
-  * `infra/config/legacy_prefs.hpp` — `LegacyPrefs` value type that mirrors
+  * `infra/config/legacy_prefs.hpp` вЂ” `LegacyPrefs` value type that mirrors
     the legacy `prefs_get_*` accessor surface (`servername()`, `bind_addr()`,
     `port()`, `script_dir()`, `storage_*()`, `log_*()`) on top of a typed
     `ServerConfig`. Cached `std::string` views for `path` fields keep the
     accessors `string_view`-clean on Linux *and* Windows. `make_legacy_prefs()`
     returns a `shared_ptr` snapshot suitable for atomic hot-reload swap.
-  * `protocol/common/replay.hpp` — generic
+  * `protocol/common/replay.hpp` вЂ” generic
     `replay<Decoded>(ByteView, DecodeFn) -> Result<ReplayResult<Decoded>>`.
     Iterates `parse_packet`, decodes each frame via the supplied codec, and
     surfaces partial-tail bytes through `stats.bytes_trailing` (any other
     decode error propagates). Designed for golden-tests, shadow-mode parity
     checks, and libFuzzer entry points.
-  * Deferred to per-module migrations (per plan §15.1 "no big bang"):
-    `IClock` routing into legacy globals, `eventlog→LOG_*` sweep,
+  * Deferred to per-module migrations (per plan В§15.1 "no big bang"):
+    `IClock` routing into legacy globals, `eventlogв†’LOG_*` sweep,
     `xalloc/xstr/scoped_ptr` mass migration. Legacy code remains untouched.
-- **Phase 2 — Asio network spine**
-  * `src/v3/CMakeLists.txt` — new `PVPGN_V3_WITH_BOOST` option (default ON) +
+- **Phase 2 вЂ” Asio network spine**
+  * `src/v3/CMakeLists.txt` вЂ” new `PVPGN_V3_WITH_BOOST` option (default ON) +
     `PVPGN_V3_WITH_FIBER` option (default OFF). Calls
     `find_package(Boost 1.75 REQUIRED COMPONENTS system [fiber context])`;
     on Ubuntu 24.04 picks up the system Boost 1.83 packages.
   * New static library **`infra_net`** under `src/v3/infra/net/`:
-    - `io_runtime.hpp/.cpp` — owns one `asio::io_context`, an
+    - `io_runtime.hpp/.cpp` вЂ” owns one `asio::io_context`, an
       `executor_work_guard`, a worker thread pool, and an `asio::signal_set`.
       `run(threads)` spawns workers; `stop()` cancels signals, drops the work
       guard, stops the context, and joins workers. `install_signal_handlers`
       wires graceful shutdown on SIGINT/SIGTERM.
-    - `tcp_session.hpp/.cpp` — `shared_from_this` session that owns a
+    - `tcp_session.hpp/.cpp` вЂ” `shared_from_this` session that owns a
       `tcp::socket` plus an `asio::strand`. Read loop calls
       `async_read_some` into a 4 KiB scratch and forwards via `on_bytes`.
       Write path is a strand-serialised deque with at most one in-flight
       `async_write`. `close()` is idempotent and triggers `on_close`.
-    - `tcp_acceptor.hpp/.cpp` — opens/binds/listens (incl. `SO_REUSEADDR`),
+    - `tcp_acceptor.hpp/.cpp` вЂ” opens/binds/listens (incl. `SO_REUSEADDR`),
       then loops `async_accept` and hands accepted sockets to a
       `SessionFactory`. Two `listen()` overloads (raw endpoint vs.
       `host:port` string); both return the bound endpoint so port-0 tests
       can discover the assigned port. Errors map to `core::StatusCode`.
-    - `fiber.hpp` — header-only optional helper compiled only when
+    - `fiber.hpp` вЂ” header-only optional helper compiled only when
       `PVPGN_V3_WITH_FIBER=ON`: `spawn_on(IoRuntime&, F)`, `yield()`,
       `sleep_for()` re-exports.
   * New tests `tests/unit/infra/net/echo_test.cpp` (3 cases): end-to-end
     loopback echo with a real synchronous Asio client; `IoRuntime::post`
-    executes off-thread; invalid bind address → `InvalidArgument`.
+    executes off-thread; invalid bind address в†’ `InvalidArgument`.
   * New tests `tests/unit/infra/config/legacy_prefs_test.cpp` (1 case):
     full surface coverage of the prefs adapter.
   * New tests `tests/unit/protocol/common/replay_test.cpp` (4 cases):
@@ -192,60 +396,60 @@
 - Verified: **79/79 tests pass** (`ctest --test-dir build/v3 --output-on-failure`).
   Legacy build still `ninja: no work to do.`
 
-### 2026-05-12  Phase 3 kick-off — shared value objects + Account aggregate
+### 2026-05-12  Phase 3 kick-off вЂ” shared value objects + Account aggregate
 - New header-only **`domain_shared`** INTERFACE library under
   `src/v3/domain/shared/`:
-  * `ids.hpp` — `AccountId`, `ChannelId`, `GameId`, `ClanId`, `TeamId`
+  * `ids.hpp` вЂ” `AccountId`, `ChannelId`, `GameId`, `ClanId`, `TeamId`
     via `core::StrongId<Tag,u32>` (cross-aggregate refs are *always* IDs,
-    never pointer aliases per plan §3.1).
-  * `client_tag.hpp` — `ClientTag` validates 4-byte printable ASCII.
+    never pointer aliases per plan В§3.1).
+  * `client_tag.hpp` вЂ” `ClientTag` validates 4-byte printable ASCII.
     Stored in human-readable order; `packed_be()` matches the BNet
-    wire byte order (`STAR` → `0x53544152`).
-  * `user_name.hpp` — `UserName` enforces the legacy `account_check_name`
+    wire byte order (`STAR` в†’ `0x53544152`).
+  * `user_name.hpp` вЂ” `UserName` enforces the legacy `account_check_name`
     rule (2..15, `[a-zA-Z0-9_.\-]`, leading letter) at construction.
     Two-string storage: `display_` preserves casing, `canonical_` is
     lower-case for `operator==` / hashing.
-  * `locale.hpp` — `Locale::parse_or_default()` returns `enUS` for
+  * `locale.hpp` вЂ” `Locale::parse_or_default()` returns `enUS` for
     garbage input; domain code never throws.
-  * `bn_hash.hpp` — 20-byte Broken-SHA-1 output. `equals_constant_time()`
-    is the only equality operator — login is attacker-facing.
-  * `ip_address.hpp` — Variant of `array<u8,4>` / `array<u8,16>`.
-    Pure parser for dotted-quad + full-form IPv6 (no `::` compression —
+  * `bn_hash.hpp` вЂ” 20-byte Broken-SHA-1 output. `equals_constant_time()`
+    is the only equality operator вЂ” login is attacker-facing.
+  * `ip_address.hpp` вЂ” Variant of `array<u8,4>` / `array<u8,16>`.
+    Pure parser for dotted-quad + full-form IPv6 (no `::` compression вЂ”
     keeps the parser tiny). DNS lives in `infra/net`, not here.
-  * `ban.hpp` — `Ban{scope, reason, issuer, issued_at, expires_at}`
+  * `ban.hpp` вЂ” `Ban{scope, reason, issuer, issued_at, expires_at}`
     plus `active_at(SystemTime)` predicate. Stays a value type so the
     Account aggregate can own it directly.
-  * `events.hpp` — `DomainEvent` variant. First eight identity events
+  * `events.hpp` вЂ” `DomainEvent` variant. First eight identity events
     land here: `AccountCreated`, `UserLoggedIn`, `UserLoginRejected`
     (with `Reason` enum), `UserLoggedOut`, `AccountPasswordChanged`,
     `AccountCommandGroupGranted`, `AccountBanned`, `AccountUnbanned`.
 - New header-only **`domain_identity`** INTERFACE library under
   `src/v3/domain/identity/`:
-  * `account.hpp` — `Account` aggregate.
+  * `account.hpp` вЂ” `Account` aggregate.
     - `create(id, name, hash, locale)` factory returning `Result<Account>`
       + emitting `AccountCreated`.
     - `rehydrate(...)` repository constructor that emits **no** events.
-    - `login(candidate_hash, ip, tag, now)` — checks `locked_`, then
+    - `login(candidate_hash, ip, tag, now)` вЂ” checks `locked_`, then
       `ban_.active_at(now)`, then constant-time hash compare; emits
       exactly one of `UserLoggedIn` / `UserLoginRejected`; auto-clears
       expired bans (emitting `AccountUnbanned`).
     - `change_password`, `apply_ban`, `clear_ban`, `grant_command_group`
-      (idempotent — no duplicate event when already granted),
+      (idempotent вЂ” no duplicate event when already granted),
       `revoke_command_group`, `lock`, `unlock`.
     - `CommandGroupMask` (8-bit `std::bitset`) with `is_admin()` set
-      iff group 7 or 8 is granted — preserves legacy semantics.
+      iff group 7 or 8 is granted вЂ” preserves legacy semantics.
     - `drain_events()` moves the pending event buffer out for the
       Application layer to publish.
 - CMake: two new `pvpgn_v3_add_library` blocks (`domain_shared`,
   `domain_identity`); both INTERFACE; depend on `core`.
 - 18 new Catch2 cases:
-  * `tests/unit/domain/shared/value_objects_test.cpp` (9 cases —
+  * `tests/unit/domain/shared/value_objects_test.cpp` (9 cases вЂ”
     `ClientTag`, `UserName` validity / case-insensitive equality,
     `Locale` fallback, `BNHash` size + constant-time equality, `IpAddress`
     v4 + v6 happy / sad).
-  * `tests/unit/domain/identity/account_test.cpp` (9 cases — `create`
+  * `tests/unit/domain/identity/account_test.cpp` (9 cases вЂ” `create`
     emits `AccountCreated`; successful login emits `UserLoggedIn`;
-    wrong hash → `InvalidCredentials`; active ban blocks even with
+    wrong hash в†’ `InvalidCredentials`; active ban blocks even with
     correct hash; expired ban auto-clears and login proceeds (two
     events: `AccountUnbanned` then `UserLoggedIn`); lock blocks login;
     `grant_command_group` idempotent + admin detection;
@@ -257,7 +461,7 @@
     hoisted to `pvpgn::core::SystemTime` / `MonotonicTime`. The
     `IClock` aliases now forward to the namespace-scope names.
     GCC's "error recovery" silently replaced the unknown type with
-    `int` — the diagnostics blamed test callers; lesson recorded.
+    `int` вЂ” the diagnostics blamed test callers; lesson recorded.
   * `std::bitset::set/reset/test/any` are not `constexpr` until C++23.
     Removed `constexpr` from `CommandGroupMask` mutators/queries while
     keeping the default constructor `constexpr`.
@@ -270,47 +474,47 @@
 - Verified: **97/97 tests pass** (`ctest --test-dir build/v3
   --output-on-failure`). Legacy build still `ninja: no work to do.`
 
-### 2026-05-12 (cont.)  Phase 3 — five aggregates land, 26 events
+### 2026-05-12 (cont.)  Phase 3 вЂ” five aggregates land, 26 events
 - New header-only INTERFACE libraries under `src/v3/domain/`:
-  * **`domain_chat`** — `chat::Channel` aggregate. `ChannelFlags`
+  * **`domain_chat`** вЂ” `chat::Channel` aggregate. `ChannelFlags`
     bitset collapses the legacy `channel_flags_*` enum into a single
     `std::bitset<8>` (Public/Permanent/Moderated/Restricted/Silent/
     System/AllowBots/Locked). `ChannelPolicy { flags, max_members,
     client }` is the construction-time invariant set. Members are an
-    `AccountId`-keyed `std::unordered_map` — no `t_connection*` aliases.
+    `AccountId`-keyed `std::unordered_map` вЂ” no `t_connection*` aliases.
     `admit/leave/post/kick/set_topic` emit
     `ChannelJoined/Left/MessageSent/MemberKicked/TopicChanged`
     or `ChannelJoinRejected{Full|Banned|WrongClientTag|Locked}`.
     `admit` is idempotent; `kick` adds the target to the banlist
     (legacy behaviour preserved).
-  * **`domain_social`** — `FriendList` (25-cap, self-rejection,
+  * **`domain_social`** вЂ” `FriendList` (25-cap, self-rejection,
     idempotent add) + `Clan` aggregate. `Clan::create` validates 2..4
     printable-ASCII tag and 1..25 name, seats the founder as
     `Chieftain`, and emits both `ClanCreated` and `ClanMemberJoined`.
     Ranks: Chieftain/Shaman/Grunt/Peon; 250-member cap from legacy.
-  * **`domain_gameplay`** — `Game` aggregate with deterministic FSM
-    `Open → InProgress → Reporting → Finalized`. `host(...)` validates
+  * **`domain_gameplay`** вЂ” `Game` aggregate with deterministic FSM
+    `Open в†’ InProgress в†’ Reporting в†’ Finalized`. `host(...)` validates
     descriptor and seats host as the first player; `start` is
     host-only; `finalize(results, now)` emits `GameEnded` carrying a
     full `MatchReport` consumable by the ladder service. Wall-clock is
-    always caller-supplied — no `std::chrono::system_clock::now()`.
-  * **`domain_ladder`** — `LadderCalculator` pure stateless service.
+    always caller-supplied вЂ” no `std::chrono::system_clock::now()`.
+  * **`domain_ladder`** вЂ” `LadderCalculator` pure stateless service.
     Elo with a configurable `LadderRules { k_factor,
     disconnect_is_loss }` per client-tag (defaults match W3 K=32; SC
     typically passes K=16). Each player's expected score is computed
     against the *opponent* mean (self excluded), so 1v1 underdogs
-    gain more rating than favourites. `disconnect → loss` is the
+    gain more rating than favourites. `disconnect в†’ loss` is the
     default (matches legacy `ladder_calc.cpp`).
-  * **`domain_moderation`** — `IpBanList` aggregate. `add` is
+  * **`domain_moderation`** вЂ” `IpBanList` aggregate. `add` is
     idempotent on duplicate IP (replaces older entry, emits
     `IpBanAdded`). `blocks(ip, now)` honours `expires_at`.
     `prune_expired(now)` drops stale rows and emits `IpBanRemoved`
     per drop. CIDR ranges deferred to a follow-up commit.
 - New shared value objects (consumed by `events::DomainEvent`):
-  * `domain/shared/chat_message.hpp` — `ChatMessage` bounded
+  * `domain/shared/chat_message.hpp` вЂ” `ChatMessage` bounded
     (1..223 bytes, no `\n\r\0`) via `create()` returning
     `Result<ChatMessage>`.
-  * `domain/shared/match_report.hpp` — `MatchOutcome` enum
+  * `domain/shared/match_report.hpp` вЂ” `MatchOutcome` enum
     (Win/Loss/Draw/Disconnect), `PlayerResult`, `MatchReport
     { game, client, results, finished_at }`.
 - `domain/shared/events.hpp` grew from **8** to **26** alternatives:
@@ -328,8 +532,8 @@
   shape, and Elo math.
 - **Fixes during integration**
   * `Clan::find_(AccountId)` declared with `auto` deduction was used
-    by `contains()` before the body was visible — GCC rejected
-    ("use of 'auto …' before deduction"). Split into
+    by `contains()` before the body was visible вЂ” GCC rejected
+    ("use of 'auto вЂ¦' before deduction"). Split into
     `find_mut_`/`find_const_` with explicit `iterator` return types.
   * Initial `LadderCalculator` averaged across **all** entries,
     making 1v1 self-only `entries` slices produce identical rating
@@ -339,27 +543,27 @@
 - Verified: **123/123 tests pass** (`ctest --test-dir build/v3
   --output-on-failure`). Legacy build still untouched.
 
-### 2026-05-12 (cont. 2)  Phase 3 — remaining aggregates land, 142/142
+### 2026-05-12 (cont. 2)  Phase 3 вЂ” remaining aggregates land, 142/142
 - New header-only INTERFACE libraries:
-  * **`domain_matchmaking`** — `AnonGameQueue` (FIFO with idempotent
+  * **`domain_matchmaking`** вЂ” `AnonGameQueue` (FIFO with idempotent
     enqueue, `can_match()` predicate, `match(GameId)` pulls
     `2*team_size` oldest entries and emits `AnonGameMatched`) and
-    `Tournament` (single-elim scheduler, ≥2 participants, emits
+    `Tournament` (single-elim scheduler, в‰Ґ2 participants, emits
     `TournamentScheduled`).
-  * **`domain_realm`** — `Realm` aggregate carrying a vector of
+  * **`domain_realm`** вЂ” `Realm` aggregate carrying a vector of
     `Character` values; 16-char name limit, case-insensitive
     uniqueness, one-way `unregister` emitting `RealmUnregistered`.
     Replaces legacy `bnetd/realm.cpp` + `d2cs/d2charfile.cpp`
     invariants (storage adapters land in Phase 5).
 - New aggregates added to existing libraries:
-  * `social::Team` (`domain_social`) — fixed roster of 2..4 unique
+  * `social::Team` (`domain_social`) вЂ” fixed roster of 2..4 unique
     members for W3 AT ladder. Immutable after creation; `disband()`
     is one-way and idempotent.
-  * `moderation::Quota` (`domain_moderation`) — sliding-window rate
+  * `moderation::Quota` (`domain_moderation`) вЂ” sliding-window rate
     limiter. `record(now)` returns `Allowed`/`Throttled`/`Muted`;
     once limit is exceeded the account is muted for `policy.mute_for`
     and the limiter emits `AccountQuotaExceeded`. Mute auto-lifts.
-  * `identity::AttributeMap` (`domain_identity`) — typed wrapper over
+  * `identity::AttributeMap` (`domain_identity`) вЂ” typed wrapper over
     the legacy `BNET\acct\*` stringly-typed bag. Idempotent on
     same-value writes; emits `AccountAttributeChanged` only on
     real changes; `rehydrate()` is silent.
@@ -368,7 +572,7 @@
     `range_count()`.
   * `blocks(ip, now)` now also walks the range table with a
     bit-prefix comparator that handles both v4 and v6 (no `::`
-    compression needed — we already store full octets/groups).
+    compression needed вЂ” we already store full octets/groups).
   * `prune_expired()` covers ranges too.
 - `events::DomainEvent` variant grew from **26** to **40**
   alternatives. New events: `IpBanRangeAdded`, `IpBanRangeRemoved`,
@@ -392,120 +596,120 @@
 - Verified: **142/142 tests pass** (`ctest --test-dir build/v3
   --output-on-failure`). Legacy build still untouched.
 
-### 2026-05-12 (cont. 3)  Phase 4 — protocol decoupling progresses
-- BNet codec extended from 3 SIDs to 9 (10 wire codes — LOGONRESPONSE2
+### 2026-05-12 (cont. 3)  Phase 4 вЂ” protocol decoupling progresses
+- BNet codec extended from 3 SIDs to 9 (10 wire codes вЂ” LOGONRESPONSE2
   shares 0x3A for both directions). New messages all carry strict
   round-trip tests:
-  * `SID_LOGONRESPONSE2` (0x3A) — client (`LogonResponse2` with 5×u32
+  * `SID_LOGONRESPONSE2` (0x3A) вЂ” client (`LogonResponse2` with 5Г—u32
     SHA-1 hash) and server reply (`LogonResponse2Reply`, tolerant of
     optional reason string).
   * `SID_AUTH_CHECK` (0x51) reply (`AuthCheckReply`).
   * `SID_JOINCHANNEL` (0x0C), `SID_ENTERCHAT` (0x0A) both directions,
     `SID_CHATCOMMAND` (0x0E), `SID_CHATEVENT` (0x0F).
 - New header-only-with-impl library **`protocol_irc`** (`src/v3/protocol/irc/`):
-  * `try_parse_line(buf)` — streaming framer; finds first CRLF (or
+  * `try_parse_line(buf)` вЂ” streaming framer; finds first CRLF (or
     bare LF, for legacy clients) and returns `{line, consumed}`. Pure;
     `OutOfRange` means "wait for more bytes".
-  * `decode(line)` — tokenises into `irc::Message{prefix, command,
+  * `decode(line)` вЂ” tokenises into `irc::Message{prefix, command,
     params}`. Trailing param prefixed with ':' captures spaces;
     commands are upper-cased ASCII for case-folded compare.
-  * `encode(msg)` / `encode_to_string(msg)` — emits CRLF-terminated
+  * `encode(msg)` / `encode_to_string(msg)` вЂ” emits CRLF-terminated
     wire bytes; auto-marks the last param as trailing when it contains
     spaces, starts with ':', or is empty.
 - CMake: added `protocol_irc` STATIC library wired into `src/v3/`;
   `tests/unit/protocol/irc/` registered under `tests/unit/protocol/`.
 - 18 new Catch2 cases:
-  * BNet: 8 cases — LOGONRESPONSE2 client/server (with + without
+  * BNet: 8 cases вЂ” LOGONRESPONSE2 client/server (with + without
     reason), JOINCHANNEL, ENTERCHAT both, CHATCOMMAND, CHATEVENT,
     AUTH_CHECK reply.
-  * IRC: 10 cases — CRLF framing, bare-LF tolerance, `OutOfRange`
+  * IRC: 10 cases вЂ” CRLF framing, bare-LF tolerance, `OutOfRange`
     when truncated, PRIVMSG with prefix+trailing, lowercase commands
     folded, empty/prefix-only rejected, round-trip encode/decode,
     trailing-marker rules for ':'-prefixed/empty last params,
     empty-command rejection.
 - Verified: **160/160 tests pass** (was 142/142 after Phase 3).
 
-### 2026-05-12 (cont. 4)  Phase 4 — per-protocol FSM skeletons land
+### 2026-05-12 (cont. 4)  Phase 4 вЂ” per-protocol FSM skeletons land
 - **`protocol::bnet::BnetFsm`** + **`ISessionContext`** abstraction.
-  States `Init → AuthInfoReceived → LoggedIn → InChat → Closing`.
+  States `Init в†’ AuthInfoReceived в†’ LoggedIn в†’ InChat в†’ Closing`.
   `handle(ClientMessage)` dispatches via `std::visit`; out-of-order
   packets transition to `Closing` and return `InvalidArgument`. The
-  FSM only orchestrates the wire dance — real domain mutations
+  FSM only orchestrates the wire dance вЂ” real domain mutations
   (version-check, account lookup, channel join) are deferred to
   Phase 5 (the seams are explicit in the source as `Phase-5 hooks`).
 - **`protocol::irc::IrcFsm`** + **`ISessionContext`** with
-  `server_name()`. States `Greeting → Registered → InChannel →
+  `server_name()`. States `Greeting в†’ Registered в†’ InChannel в†’
   Closing`. Emits the canonical numerics
   001/421/431/451/461 and answers PING with PONG; JOIN echoes
   membership with the user's prefix and follows up with 366
   RPL_ENDOFNAMES. QUIT closes the session.
 - CMake: added `protocol/bnet/src/fsm.cpp` and
   `protocol/irc/src/fsm.cpp` to their respective static libs. No new
-  public targets — both FSMs ship inside `protocol_bnet` /
+  public targets вЂ” both FSMs ship inside `protocol_bnet` /
   `protocol_irc`.
 - 15 new Catch2 cases covering both FSMs with a `FakeContext` that
   captures outbound messages:
   * BNet: PING mirror in Init; AUTH_INFO transitions + reply; AUTH_INFO
-    out-of-order closes; full happy path Init→InChat; empty-username
+    out-of-order closes; full happy path Initв†’InChat; empty-username
     LOGONRESPONSE2 fails with result 0x01 and no transition;
     JOINCHANNEL before ENTERCHAT closes.
   * IRC: NICK alone is silent; NICK+USER triggers 001 RPL_WELCOME;
-    NICK with no nickname → 431; USER with too few params → 461;
-    PING → PONG mirroring cookie; PRIVMSG before registration → 451;
-    JOIN echoes + 366; unknown command → 421; QUIT closes.
+    NICK with no nickname в†’ 431; USER with too few params в†’ 461;
+    PING в†’ PONG mirroring cookie; PRIVMSG before registration в†’ 451;
+    JOIN echoes + 366; unknown command в†’ 421; QUIT closes.
 - **Test count: 175/175 pass** (was 160/160).
-- Catch2 string_view link-bug bit us once more in the IRC FSM test —
+- Catch2 string_view link-bug bit us once more in the IRC FSM test вЂ”
   wrapped `f.channel() == "#pvpgn"` in `std::string{...}`.
 
-### 2026-05-12 (cont. 5)  Phase 4 — UDP + telnet + file + d2cs codecs
+### 2026-05-12 (cont. 5)  Phase 4 вЂ” UDP + telnet + file + d2cs codecs
 - Four new `STATIC` libraries under `src/v3/protocol/`:
-  * **`protocol_udp`** — connection-less. Reads first u32 type then a
+  * **`protocol_udp`** вЂ” connection-less. Reads first u32 type then a
     type-specific tail; `Datagram = variant<UdpTest, UdpPing,
     SessionAddr1, SessionAddr2>`. No FSM needed.
-  * **`protocol_telnet`** — admin line protocol. `try_parse_line()`
+  * **`protocol_telnet`** вЂ” admin line protocol. `try_parse_line()`
     streaming framer (CRLF or bare LF), `tokenise()` whitespace
     splitter into `Command{verb, args}`, `write_line()` reply helper.
-  * **`protocol_file`** — BNFTP. `FileHeader{u16 size, u16 type}` plus
+  * **`protocol_file`** вЂ” BNFTP. `FileHeader{u16 size, u16 type}` plus
     `ClientFileReq` (0x0100) and `ServerFileReply` (0x0000) with
     arch/client tags, ad/extension ids, 64-bit Windows timestamp, and
     NUL-terminated filename.
-  * **`protocol_d2cs`** — 3-byte header (`u16 size + u8 type`).
+  * **`protocol_d2cs`** вЂ” 3-byte header (`u16 size + u8 type`).
     Implements the D2CS login round-trip (LoginReq 0x01 with
-    11×u32 fields + 5×u32 secret hash + cstring account name;
+    11Г—u32 fields + 5Г—u32 secret hash + cstring account name;
     LoginReply 0x01 with u32 reply code, `kLoginReplyOk` /
     `kLoginReplyBadPass`). Create-char / create-game / join-game
     deferred to the Phase-5 realm wiring step.
 - All four codecs follow the established pattern: pure header-level
   `decode()` returning `Result<Variant>` with `OutOfRange` /
-  `Unimplemented` errors, plus per-message `encode(Writer&, …)`.
+  `Unimplemented` errors, plus per-message `encode(Writer&, вЂ¦)`.
 - 17 new Catch2 cases:
-  * UDP: 6 — round-trip for all four datagram types + unknown-type
+  * UDP: 6 вЂ” round-trip for all four datagram types + unknown-type
     and short-buffer rejection.
-  * Telnet: 5 — CRLF split, bare-LF tolerance, multi-arg tokenise,
+  * Telnet: 5 вЂ” CRLF split, bare-LF tolerance, multi-arg tokenise,
     empty-line yields empty verb, `write_line` appends CRLF.
-  * File: 3 — `ClientFileReq` and `ServerFileReply` round-trip, header
+  * File: 3 вЂ” `ClientFileReq` and `ServerFileReply` round-trip, header
     rejects size < kSize.
-  * D2CS: 3 — LoginReq + LoginReply round-trip, header rejects size <
+  * D2CS: 3 вЂ” LoginReq + LoginReply round-trip, header rejects size <
     kSize.
 - **Test count: 192/192 pass** (was 175/175).
 
-### 2026-05-12 (cont. 6)  Phase 4 — D2GS bridge codec
+### 2026-05-12 (cont. 6)  Phase 4 вЂ” D2GS bridge codec
 - `protocol_d2gs` static library. Header `D2gsHeader{u16 size, u16 type,
-  u32 seqno; kSize=8}`. Two direction-tagged variants —
-  `DownMessage = variant<SetGsInfo, EchoReq, Control>` for the D2CS → D2GS
+  u32 seqno; kSize=8}`. Two direction-tagged variants вЂ”
+  `DownMessage = variant<SetGsInfo, EchoReq, Control>` for the D2CS в†’ D2GS
   direction and `UpMessage = variant<SetGsInfo, EchoReply>` for the
-  reverse — disambiguate the 0x13 echo half-duplex and the upstream-only
+  reverse вЂ” disambiguate the 0x13 echo half-duplex and the upstream-only
   rejection of 0x14 control.
 - Messages implemented: `SETGSINFO` (0x12, maxgame + gameflag, both
   directions), `ECHOREQ` / `ECHOREPLY` (0x13, empty body), `CONTROL`
   (0x14, cmd + value with `kControlRestart` / `kControlShutdown`).
-  `AUTHREQ` / `AUTHREPLY` (0x10 / 0x11) deferred — those use direction-
+  `AUTHREQ` / `AUTHREPLY` (0x10 / 0x11) deferred вЂ” those use direction-
   dependent semantics on the same code that the Phase-5 router will tag.
 - 5 new Catch2 cases covering both round-trip paths, the direction-aware
   control rejection on upstream, and short-header rejection.
 - **Test count: 197/197 pass** (+5 from previous 192).
 
-### 2026-05-12 (cont. 7)  Phase 4 — Westwood Online gameres codec
+### 2026-05-12 (cont. 7)  Phase 4 вЂ” Westwood Online gameres codec
 - New `protocol_wolgameres` static library. The legacy `bn_int_nget` /
   `bn_short_nget` macros mean **every multi-byte int is big-endian**;
   the v3 `Reader` / `Writer` already expose `read_be<T>()` /
@@ -517,7 +721,7 @@
   * Repeated TLVs: `u32 tag` (FourCC) + `u16 data_type` + `u16 data_len`
     + raw payload bytes. `DataType` enum exposes the legacy
     `kByte/kBool/kTime/kInt/kString/kBigInt` constants.
-- Tag semantics deliberately live above this layer — callers receive
+- Tag semantics deliberately live above this layer вЂ” callers receive
   `Report{header, has_rndg_prefix, entries}` and pick the meaning per
   tag. Three convenience accessors decode common entry payloads:
   `read_byte`, `read_int` (BE 32-bit), `read_bigint` (BE 64-bit), and
@@ -526,23 +730,23 @@
   three mixed-type entries (SER#/IDNO/FINI) + RNDG prefix, unknown
   data-type rejection, short-header rejection.
 - New repo-memory note: GCC 13 `-Warray-bounds` false positive when
-  copying a `vector<byte>` of size 1 — suppress with a local pragma
+  copying a `vector<byte>` of size 1 вЂ” suppress with a local pragma
   in affected TUs.
 - **Test count: 201/201 pass** (+4 from previous 197).
 
-### 2026-05-12 (cont. 8)  Phase 4 — D2CS realm messages + D2GS auth
-- `protocol_d2cs`: client variant grew `LoginReq → +CreateCharReq +CreateGameReq +JoinGameReq`; server variant grew `LoginReply → +CreateCharReply +CreateGameReply +JoinGameReply`.
+### 2026-05-12 (cont. 8)  Phase 4 вЂ” D2CS realm messages + D2GS auth
+- `protocol_d2cs`: client variant grew `LoginReq в†’ +CreateCharReq +CreateGameReq +JoinGameReq`; server variant grew `LoginReply в†’ +CreateCharReply +CreateGameReply +JoinGameReply`.
   * `decode_client()` / `decode_server()` rewritten as `switch (hdr.type)` dispatchers (replacing the old single-message helpers); `body_for()` retired in favour of a direction-agnostic `body_of()` that returns both header and body view.
   * Status-code constants imported verbatim from `src/common/d2cs_protocol.h`: `kCreateCharReply{Ok,Failed,AlreadyExists,NameRejected}`, `kCreateGameReply{Ok,Failed,InvalidName,NameExists,ServerDown,Unavailable}`, `kJoinGameReply{Ok,Failed,BadPass,NotFound,Full,Level}`.
 - `protocol_d2gs`: added the AUTHREQ/AUTHREPLY family with **direction-tagged** structs that disambiguate the shared 0x11 wire code:
-  * `DownAuthReq` (D2CS → D2GS, type 0x10) — `u32 session_num`, `u32 signlen`, cstring realm, raw key checksum.
-  * `UpAuthReply` (D2GS → D2CS, type 0x11) — `u32 version/checksum/randnum/signlen` + 128-byte sign block.
-  * `DownAuthReply` (D2CS → D2GS, type 0x11) — `u32 reply` with `kAuthReply{Ok,BadVersion,BadChecksum}`.
+  * `DownAuthReq` (D2CS в†’ D2GS, type 0x10) вЂ” `u32 session_num`, `u32 signlen`, cstring realm, raw key checksum.
+  * `UpAuthReply` (D2GS в†’ D2CS, type 0x11) вЂ” `u32 version/checksum/randnum/signlen` + 128-byte sign block.
+  * `DownAuthReply` (D2CS в†’ D2GS, type 0x11) вЂ” `u32 reply` with `kAuthReply{Ok,BadVersion,BadChecksum}`.
   * `DownMessage` and `UpMessage` variants extended accordingly. The direction split is what makes the 0x11 collision unambiguous; the new `0x11 disambiguated by direction` test pins this behaviour.
-- 10 new Catch2 cases. Header-pattern note: `Writer::write_cstring` now guards `memcpy` against empty strings — GCC 13 was tripping `-Wstringop-overflow=` on `memcpy(p, data, 0)` when the encoder fed an empty pass-phrase.
+- 10 new Catch2 cases. Header-pattern note: `Writer::write_cstring` now guards `memcpy` against empty strings вЂ” GCC 13 was tripping `-Wstringop-overflow=` on `memcpy(p, data, 0)` when the encoder fed an empty pass-phrase.
 - **Test count: 211/211 pass** (+10 from previous 201).
 
-## 2026-05-12 (cont. 9) — Phase 5 begins: Application layer
+## 2026-05-12 (cont. 9) вЂ” Phase 5 begins: Application layer
 
 Bootstrapped the application layer per refactoring-plan-04. New tree
 `src/v3/application/{ports,auth}` plus a new in-memory adapter
@@ -550,36 +754,36 @@ collection in `src/v3/infra/inmemory/`. First use-case end-to-end:
 `LoginUser`.
 
 New ports (interface-only, header-only, namespace `pvpgn::application::ports`):
-- `application/ports/event_bus.hpp` — `IEventBus` with subscribe/
+- `application/ports/event_bus.hpp` вЂ” `IEventBus` with subscribe/
   unsubscribe + handler isolation contract.
-- `application/ports/account_repository.hpp` — `IAccountRepository`
+- `application/ports/account_repository.hpp` вЂ” `IAccountRepository`
   with `find_by_id`, `find_by_name`, `save`, `remove`, `size`. All
   returns are `core::Result<T>` / `core::Status<>`.
-- `application/ports/session_registry.hpp` — `ISessionRegistry`
+- `application/ports/session_registry.hpp` вЂ” `ISessionRegistry`
   enforcing the single-session-per-account policy through
   `attach`/`detach`/`session_for`/`account_for`/`list`.
 
 New in-memory adapters (`pvpgn::infra::inmemory`):
-- `event_bus.hpp` — snapshot-and-iterate; per-handler `try/catch`.
-- `account_repository.hpp` — `unique_ptr<Account>` keyed by id, with
+- `event_bus.hpp` вЂ” snapshot-and-iterate; per-handler `try/catch`.
+- `account_repository.hpp` вЂ” `unique_ptr<Account>` keyed by id, with
   a secondary canonical-name index.
-- `session_registry.hpp` — bidirectional `unordered_map` pair.
+- `session_registry.hpp` вЂ” bidirectional `unordered_map` pair.
 
 Domain additions:
 - `domain/shared/ids.hpp` gains `SessionId = StrongId<SessionIdTag, u64>`.
 
 Application use-case:
 - `application/auth/include/application/auth/login_user.hpp` +
-  `src/login_user.cpp`. `execute()` orchestrates lookup → aggregate
-  authentication → event drain → session attach → persistence. Maps
+  `src/login_user.cpp`. `execute()` orchestrates lookup в†’ aggregate
+  authentication в†’ event drain в†’ session attach в†’ persistence. Maps
   `Account::LoginOutcome` to a typed `LoginError`.
 
 Tests: `tests/unit/application/auth/login_user_test.cpp` covers happy
 path, unknown user, bad password, duplicate session, locked account.
 
-Build/test gates: green. ctest reports **216/216** (was 211 — +5).
+Build/test gates: green. ctest reports **216/216** (was 211 вЂ” +5).
 
-## 2026-05-12 (cont. 10) — infra_net: UdpEndpoint
+## 2026-05-12 (cont. 10) вЂ” infra_net: UdpEndpoint
 
 Adds the connectionless counterpart to `TcpSession`/`TcpAcceptor`,
 needed by the BNet UDP tracking probe (`handle_udp_packet`) and the
@@ -591,28 +795,28 @@ future admin/telnet datagram channel.
   `core::Result<udp::endpoint>` exposing the OS-picked port for
   ephemeral binds. `OnDatagram(remote, ByteView)` / `OnError`
   callbacks; `send_to()` is fire-and-forget and thread-safe.
-- `tests/unit/infra/net/udp_echo_test.cpp` — loopback echo round-trip
+- `tests/unit/infra/net/udp_echo_test.cpp` вЂ” loopback echo round-trip
   + `InvalidArgument` parse-failure path.
 
-Tests: **218/218** (was 216 — +2).
+Tests: **218/218** (was 216 вЂ” +2).
 
-## 2026-05-12 (cont. 11) — Phase 2 seam: LegacyProtocolHandler (framing-only)
+## 2026-05-12 (cont. 11) вЂ” Phase 2 seam: LegacyProtocolHandler (framing-only)
 
 Lays the strangler-fig seam called for in
-refactoring-plan-15 §"Network spine on Asio + Fiber" item 2,
+refactoring-plan-15 В§"Network spine on Asio + Fiber" item 2,
 **without yet linking legacy bnetd**. The seam crystallises the
 contract; a follow-up step refactors `src/bnetd/CMakeLists.txt`
 into a `bnetd_legacy` static library and a thin executable, then
 overrides `dispatch_frame()` to call the real `handle_*_packet`.
 
 New ports:
-- `application/ports/connection_handler.hpp` — `IConnectionHandler`
+- `application/ports/connection_handler.hpp` вЂ” `IConnectionHandler`
   + `IConnectionEgress` + `ConnectionHandlerFactory`. The seam
   through which `infra::net::TcpSession` will hand frames to
   protocol code (legacy or v3-native).
 
 New adapter (`pvpgn::integration::legacy_bnetd`):
-- `legacy_protocol_handler.hpp/.cpp` — per-session stateful
+- `legacy_protocol_handler.hpp/.cpp` вЂ” per-session stateful
   framing for the eleven legacy connection classes:
   - **Init**: 1 byte (the `CLIENT_INITCONN_CLASS_*` magic).
   - **Bnet**: u16 type LE + u16 size LE (size = total frame size).
@@ -626,30 +830,30 @@ New adapter (`pvpgn::integration::legacy_bnetd`):
   accumulates frames into a vector for inspection.
 
 New CMake target: `integration_legacy_bnetd` (STATIC, depends on
-`core` + `application_ports` only — no legacy linkage).
+`core` + `application_ports` only вЂ” no legacy linkage).
 
 Tests: `tests/unit/integration/legacy_bnetd/legacy_protocol_handler_test.cpp`
 covers per-class framing, partial-read stitching, malformed-size
 recovery, line-mode trailing-fragment buffering, mid-stream class
 switch, and post-close inertness.
 
-Tests: **226/226** (was 218 — +8).
+Tests: **226/226** (was 218 вЂ” +8).
 
 Outstanding from the user's roadmap:
 - Per-session fiber spawn (small, contained).
 - Refactor `src/bnetd/CMakeLists.txt` into library + executable.
 - Override `dispatch_frame` with real `handle_*_packet` calls.
 
-## 2026-05-12 (cont. 12) — Legacy build refactor: bnetd_legacy STATIC
+## 2026-05-12 (cont. 12) вЂ” Legacy build refactor: bnetd_legacy STATIC
 
 Foundation for the real Phase-2 adapter wire-up. The legacy bnetd
 build now produces both:
 
-  * `libbnetd_legacy.a` — a STATIC library covering every TU except
+  * `libbnetd_legacy.a` вЂ” a STATIC library covering every TU except
     `main.cpp` and `winmain.cpp`, with `PUBLIC` propagation of all
     transitive includes and link deps (common, compat, fmt, win32,
     NETWORK, ZLIB, MYSQL, SQLITE3, PGSQL, ODBC, LUA).
-  * `bnetd` — the original executable, now reduced to `main.cpp` +
+  * `bnetd` вЂ” the original executable, now reduced to `main.cpp` +
     `winmain.cpp` + the win32 resource files, linking only
     `bnetd_legacy` privately.
 
@@ -667,7 +871,7 @@ v3 build/test gates: still **226/226** (no v3 changes this entry).
 Legacy build gate: green.
 
 
-### 2026-05-12 — v3 → bnetd_legacy UDP wire (combined build)
+### 2026-05-12 вЂ” v3 в†’ bnetd_legacy UDP wire (combined build)
 
 First proof that v3 application code can call into the live legacy
 bnetd library. New conditional target `integration_legacy_bnetd_linked`
@@ -684,10 +888,10 @@ in `src/v3/CMakeLists.txt`:
 
 New files under `src/v3/integration/legacy_bnetd/`:
 
-  * `include/integration/legacy_bnetd/legacy_udp_dispatcher.hpp` —
+  * `include/integration/legacy_bnetd/legacy_udp_dispatcher.hpp` вЂ”
     `LegacyUdpDispatcher` ctor takes `infra::net::UdpEndpoint&` plus
     a legacy socket fd; `start()` is idempotent.
-  * `src/legacy_udp_dispatcher.cpp` — wires `set_on_datagram` to
+  * `src/legacy_udp_dispatcher.cpp` вЂ” wires `set_on_datagram` to
     build a legacy `t_packet` (`packet_class_udp`,
     `packet_get_raw_data_build`, `packet_set_size`) and forward to
     `pvpgn::bnetd::handle_udp_packet(usock, addr_v4, port, packet)`.
@@ -711,18 +915,18 @@ cmake --build build/combined
 Gates: combined build is green. **226/226 v3 tests pass** under the
 combined configuration. Legacy `bnetd` executable still produced.
 
-### 2026-05-12 — Per-session Boost.Fiber spawn API
+### 2026-05-12 вЂ” Per-session Boost.Fiber spawn API
 
 Optional fiber-style session handler, gated behind
 `PVPGN_V3_WITH_FIBER=ON` (the default v3 build is unaffected).
 
 New header `src/v3/infra/net/include/infra/net/fiber_session.hpp`:
 
-  * `SessionChannel` — fiber-side view of one TCP session. Wraps a
+  * `SessionChannel` вЂ” fiber-side view of one TCP session. Wraps a
     `boost::fibers::buffered_channel<vector<byte>>` for inbound bytes
     plus a `weak_ptr<TcpSession>` for outbound writes. Tracks a
     `dropped` counter for back-pressure visibility.
-  * `spawn_session(IoRuntime&, shared_ptr<TcpSession>, handler)` —
+  * `spawn_session(IoRuntime&, shared_ptr<TcpSession>, handler)` вЂ”
     wires the session's `on_bytes` to `try_push` and `on_close` to
     `close_inbox`, then spawns the handler as a fiber on the runtime.
     `start()` is called as part of the helper.
@@ -738,9 +942,9 @@ spawn_session(rt, std::move(session),
               });
 ```
 
-**Honest scope note.** Cross-thread Asio↔Fiber wakeups are *not* yet
+**Honest scope note.** Cross-thread Asioв†”Fiber wakeups are *not* yet
 wired. A fiber blocked on `recv()` only resumes when its own thread
-runs the fiber scheduler — which Asio worker threads don't do
+runs the fiber scheduler вЂ” which Asio worker threads don't do
 between handlers. The header documents this caveat and points at
 refactoring-plan-06 as the home for the
 `boost::fibers::asio::round_robin` integration. Until then,
@@ -753,22 +957,22 @@ consumer fiber pops, round-robin via `boost::this_fiber::yield`).
 3 cases:
 - Ordered drain of three chunks.
 - `recv()` returns nullopt after `close_inbox()`.
-- Full-channel pushes increment `dropped` (capacity ⇒ ring of N-1).
+- Full-channel pushes increment `dropped` (capacity в‡’ ring of N-1).
 
 Gated under `if(PVPGN_V3_WITH_FIBER)` in
 `tests/unit/infra/net/CMakeLists.txt`.
 
 ### Build matrix at session end
 
-- `build/v3` — `PVPGN_V3_WITH_FIBER=OFF`, **226/226**.
-- `build/v3-fiber` — `PVPGN_V3_WITH_FIBER=ON`, **229/229**.
-- `build/combined` — legacy + v3, **226/226** + bnetd_legacy.a +
+- `build/v3` вЂ” `PVPGN_V3_WITH_FIBER=OFF`, **226/226**.
+- `build/v3-fiber` вЂ” `PVPGN_V3_WITH_FIBER=ON`, **229/229**.
+- `build/combined` вЂ” legacy + v3, **226/226** + bnetd_legacy.a +
   integration_legacy_bnetd_linked.a + bnetd executable.
-- `build/legacy` — legacy-only, green.
+- `build/legacy` вЂ” legacy-only, green.
 
 ### Deferred
 
-- Asio↔Fiber scheduler integration (`asio::round_robin`) — the next
+- Asioв†”Fiber scheduler integration (`asio::round_robin`) вЂ” the next
   step that makes `spawn_session` usable for real loopback traffic.
 - Replace bnetd's UDP `fdwatch` path with `UdpEndpoint` +
   `LegacyUdpDispatcher` in `src/bnetd/main.cpp`.
@@ -777,7 +981,7 @@ Gated under `if(PVPGN_V3_WITH_FIBER)` in
 
 
 
-### 2026-05-12 — Asio↔Fiber scheduler integration (round_robin)
+### 2026-05-12 вЂ” Asioв†”Fiber scheduler integration (round_robin)
 
 Closes the gap left by cont. 14: `spawn_session` now actually works
 on a real Asio worker thread.
@@ -785,9 +989,9 @@ on a real Asio worker thread.
 #### What changed
 
 1. New header
-   `src/v3/infra/net/include/infra/net/asio_round_robin.hpp` —
+   `src/v3/infra/net/include/infra/net/asio_round_robin.hpp` вЂ”
    vendored from Boost.Fiber's `examples/asio/round_robin.hpp`
-   (Boost 1.83.0, BSL-1.0, © Oliver Kowalke 2013). Trimmed to drop
+   (Boost 1.83.0, BSL-1.0, В© Oliver Kowalke 2013). Trimmed to drop
    the `yield.hpp` include (we never use the asio yield_t completion
    token); behaviour is unchanged. Wrapped in a GCC pragma block
    that silences the example's pedantic warnings.
@@ -814,7 +1018,7 @@ on a real Asio worker thread.
 #### Test
 
 `tests/unit/infra/net/fiber_session_test.cpp` gains a 4th case,
-`spawn_session: echoes loopback bytes via round_robin scheduler` —
+`spawn_session: echoes loopback bytes via round_robin scheduler` вЂ”
 a real loopback TCP echo where:
 
   * The acceptor accepts on a fiber-scheduled IoRuntime.
@@ -831,7 +1035,7 @@ side genuinely wake the blocked fiber on the worker thread.
 | Build dir         | Flags                                            | Tests |
 |-------------------|--------------------------------------------------|-------|
 | `build/v3`        | `-DPVPGN_BUILD_V3=ON`                            | 226/226 |
-| `build/v3-fiber`  | `…+ -DPVPGN_V3_WITH_FIBER=ON`                    | 230/230 |
+| `build/v3-fiber`  | `вЂ¦+ -DPVPGN_V3_WITH_FIBER=ON`                    | 230/230 |
 | `build/combined`  | `-DPVPGN_BUILD_LEGACY=ON -DPVPGN_BUILD_V3=ON`    | 226/226 |
 | `build/legacy`    | `-DPVPGN_BUILD_LEGACY=ON`                        | green |
 
@@ -844,7 +1048,7 @@ side genuinely wake the blocked fiber on the worker thread.
 - Multi-threaded fiber pool (one io_context per worker would be the
   canonical pattern).
 
-### 2026-05-12 — Multi-threaded FiberPool
+### 2026-05-12 вЂ” Multi-threaded FiberPool
 
 Closes the last item from the fiber arc: a real multi-thread fiber
 runtime, since the single-context `round_robin` is constitutionally
@@ -875,24 +1079,24 @@ TU.
       1. Picks a target worker round-robin.
       2. Migrates the OS file descriptor from the worker-0-bound
          socket onto the target worker's executor (release native
-         handle → `assign()` on a fresh `tcp::socket`).
+         handle в†’ `assign()` on a fresh `tcp::socket`).
       3. Posts the session-creation lambda to the target's executor
-         so all session work — TcpSession construction,
-         on_bytes/on_close wiring, fiber spawn, `start()` — happens
+         so all session work вЂ” TcpSession construction,
+         on_bytes/on_close wiring, fiber spawn, `start()` вЂ” happens
          on the worker that will run it.
   * Sessions are *pinned* to their worker for life. No cross-worker
     migration, no work-stealing. Documented in the header.
 
 #### Tests
 
-`tests/unit/infra/net/fiber_pool_test.cpp` — 3 cases:
+`tests/unit/infra/net/fiber_pool_test.cpp` вЂ” 3 cases:
 
-  * **2 workers serve 8 concurrent loopback echos** — the meat: 8
+  * **2 workers serve 8 concurrent loopback echos** вЂ” the meat: 8
     OS threads each open their own client, write `"client-N"`, read
     it back, and only count success when round-trip matches.
     Asserts `successes == 8`.
-  * **accept fails before start** — returns `FailedPrecondition`.
-  * **invalid bind address** — returns `InvalidArgument`.
+  * **accept fails before start** вЂ” returns `FailedPrecondition`.
+  * **invalid bind address** вЂ” returns `InvalidArgument`.
 
 Wired in `tests/unit/infra/net/CMakeLists.txt` under the existing
 `if(PVPGN_V3_WITH_FIBER)` block.
@@ -902,7 +1106,7 @@ Wired in `tests/unit/infra/net/CMakeLists.txt` under the existing
 | Build dir         | Flags                                            | Tests |
 |-------------------|--------------------------------------------------|-------|
 | `build/v3`        | `-DPVPGN_BUILD_V3=ON`                            | 226/226 |
-| `build/v3-fiber`  | `…+ -DPVPGN_V3_WITH_FIBER=ON`                    | 233/233 |
+| `build/v3-fiber`  | `вЂ¦+ -DPVPGN_V3_WITH_FIBER=ON`                    | 233/233 |
 | `build/combined`  | `-DPVPGN_BUILD_LEGACY=ON -DPVPGN_BUILD_V3=ON`    | 226/226 |
 | `build/legacy`    | `-DPVPGN_BUILD_LEGACY=ON`                        | green |
 
@@ -913,11 +1117,11 @@ Wired in `tests/unit/infra/net/CMakeLists.txt` under the existing
     listener pool would be the next refinement.
   * Native-fd migration uses the platform `int` descriptor under
     POSIX. Windows is untested (the path goes through Asio's
-    `native_handle_type` → it should "just work" but isn't
+    `native_handle_type` в†’ it should "just work" but isn't
     exercised in CI yet).
   * Fiber lifetime tied to handler return; no kill switch on
-    individual fibers (close the session ⇒ recv() returns nullopt
-    ⇒ handler exits naturally).
+    individual fibers (close the session в‡’ recv() returns nullopt
+    в‡’ handler exits naturally).
 
 #### Remaining deferred
 
@@ -928,7 +1132,7 @@ Wired in `tests/unit/infra/net/CMakeLists.txt` under the existing
     root).
   * Per-worker `SO_REUSEPORT` listeners.
 
-## 2026-05-13 — Real strangler-fig cut: v3 owns bnetd UDP
+## 2026-05-13 вЂ” Real strangler-fig cut: v3 owns bnetd UDP
 
 First production-path swap: the legacy `bnetd` executable now
 delegates *all* UDP receive I/O to the v3 networking stack (Asio
@@ -969,15 +1173,15 @@ flag.
   down.
 
 * CMake: `bnetd` exe now links `integration_legacy_bnetd_linked`
-  privately in the combined build (still no-op when v3 is off —
+  privately in the combined build (still no-op when v3 is off вЂ”
   guarded by `if(TARGET integration_legacy_bnetd_linked)`).
 
 ### Why UDP first
 
-* No `t_connection*` is needed for `handle_udp_packet` — it takes
+* No `t_connection*` is needed for `handle_udp_packet` вЂ” it takes
   a raw socket + addr/port + packet.
 * Legacy UDP only carries the BNCS port-check / NAT-traversal
-  protocol — small, well-isolated traffic with established tests.
+  protocol вЂ” small, well-isolated traffic with established tests.
 * Reusing the legacy-opened fd means zero behaviour change for
   operators: same bind address, same port-reuse policy, same
   multi-bind support, same firewall holes.
@@ -987,7 +1191,7 @@ flag.
 | Build dir         | Flags                                            | Tests |
 |-------------------|--------------------------------------------------|-------|
 | `build/v3`        | `-DPVPGN_BUILD_V3=ON`                            | 227/227 |
-| `build/v3-fiber`  | `…+ -DPVPGN_V3_WITH_FIBER=ON`                    | 234/234 |
+| `build/v3-fiber`  | `вЂ¦+ -DPVPGN_V3_WITH_FIBER=ON`                    | 234/234 |
 | `build/combined`  | `-DPVPGN_BUILD_LEGACY=ON -DPVPGN_BUILD_V3=ON`    | 227/227 |
 | `build/legacy`    | `-DPVPGN_BUILD_LEGACY=ON`                        | green |
 
@@ -995,11 +1199,11 @@ The `bnetd` binary in `build/combined/src/bnetd/bnetd` now contains
 the v3 UdpBridge code (verified at link time). Runtime smoke-test
 of the swapped path requires a full server stand-up (config,
 storage, eventlog), which is out of scope for the unit-test gate
-— next step.
+вЂ” next step.
 
 ### Test coverage added
 
-* `tests/unit/infra/net/udp_adopt_test.cpp` — UDP fd adopt loopback
+* `tests/unit/infra/net/udp_adopt_test.cpp` вЂ” UDP fd adopt loopback
   round-trip + InvalidArgument on bad fd.
 
 ### Honest scope notes
@@ -1008,14 +1212,14 @@ storage, eventlog), which is out of scope for the unit-test gate
   `t_connection*` construction, which entangles the full legacy
   composition root).
 * Runtime smoke test against a real client (e.g. WAR3 BNCS
-  port-check) is pending — the swap is link-clean and unit-clean
+  port-check) is pending вЂ” the swap is link-clean and unit-clean
   but hasn't been exercised end-to-end yet.
 * The `UdpBridge` runs a single Asio worker thread; UDP volume is
   low enough that this is fine, but the `FiberPool` machinery is
   available for any future protocol that needs N-thread fan-out.
 
 
-### 2026-05-13 � BNet codec: game-list, ladder, file-transfer init, AUTH_CHECK client direction
+### 2026-05-13 пїЅ BNet codec: game-list, ladder, file-transfer init, AUTH_CHECK client direction
 
 Closed four of the deferred BNet SIDs in Phase 4 protocol-decoupling.
 
@@ -1041,14 +1245,14 @@ Closed four of the deferred BNet SIDs in Phase 4 protocol-decoupling.
   bounds: cdkey count capped at 8, game-list entry count capped at 1024;
   both reject oversize with `InvalidArgument`.
 
-* `tests/unit/protocol/bnet/codec_test.cpp`: 9 new `TEST_CASE`s � round
+* `tests/unit/protocol/bnet/codec_test.cpp`: 9 new `TEST_CASE`s пїЅ round
   trips for all 4 SID families (req + reply where applicable), an error
   case for sstatus-only game-list replies, and two defensive bound tests
   (oversize cdkey count, oversize game_count).
 
 #### Build & test gates
 
-Not run locally � neither CMake nor MSVC is installed in this dev
+Not run locally пїЅ neither CMake nor MSVC is installed in this dev
  environment (only TDM-GCC). All edited TUs pass clean in the in-editor
  IntelliSense / clangd diagnostics. The next CI run should pick up the
  new cases and bump the v3 test count by 9.
@@ -1057,7 +1261,7 @@ Not run locally � neither CMake nor MSVC is installed in this dev
 
 * Codec is pure / wire-only. FSM integration (e.g. `BnetFsm` reacting to
   `GameListRequest` by responding with a `GameListReply`) is **not**
-  wired here � Phase 4 explicitly separates codec from FSM.
+  wired here пїЅ Phase 4 explicitly separates codec from FSM.
 * `CdKeyInfo` carries the legacy `public_value` (was named `len` in
   `t_cdkey_info`) verbatim; cdkey decryption / SHA1 hash verification
   remains in the legacy auth path and the upcoming application-layer
@@ -1076,32 +1280,32 @@ Reproducible on Windows / MSVC 19.50 / CMake 4.3:
  ctest  --test-dir build/v3 -C Release
 ```n
 * **230 / 235 v3 unit tests pass** (was 226 before this batch; +9 new test cases for the new SIDs, then 1 deduplicated by ctest name mangling).
-* The 5 `Failed` entries are pre-existing CTest name-filter encoding bugs on Windows � the test names contain `>` UTF-8 arrows that the Win32 CP437 console mangles, so `ctest --rerun-failed` can't find them by name. The underlying executables run clean when invoked directly (e.g. `build/v3/tests/unit/domain/social/Release/test_domain_social.exe`).
+* The 5 `Failed` entries are pre-existing CTest name-filter encoding bugs on Windows пїЅ the test names contain `>` UTF-8 arrows that the Win32 CP437 console mangles, so `ctest --rerun-failed` can't find them by name. The underlying executables run clean when invoked directly (e.g. `build/v3/tests/unit/domain/social/Release/test_domain_social.exe`).
 * Side-effect fixes folded into this commit so the v3 path builds standalone on a clean Windows checkout without the legacy `cmake/Modules/` tree:
    - `CMakeLists.txt`: gated `include(ConfigureChecks.cmake)` and the uninstall/purge targets behind `PVPGN_BUILD_LEGACY`.
-   - `CMakeLists.txt`: MSVC `-DUNICODE -D_UNICODE` no longer applied to the v3 sub-tree � they made `Catch2::Catch2WithMain` emit `wmain` instead of `main`, breaking every test exe.
+   - `CMakeLists.txt`: MSVC `-DUNICODE -D_UNICODE` no longer applied to the v3 sub-tree пїЅ they made `Catch2::Catch2WithMain` emit `wmain` instead of `main`, breaking every test exe.
    - FSM stubs `BnetFsm::on(...)` added for the 4 new client-direction SIDs so `std::visit` over the extended `ClientMessage` variant compiles.
 
 
-### 2026-05-14 � Test name encoding fix + SID_AUTH_INFO server direction (0x50)
+### 2026-05-14 пїЅ Test name encoding fix + SID_AUTH_INFO server direction (0x50)
 
-* **Test names**: replaced Unicode arrows `>` and `�` with ASCII (`->` / `+/-`) in five test cases under `tests/unit/domain/{gameplay,social,ladder,identity}/`. These were causing 5 spurious `Failed` reports under `ctest --rerun-failed` on Windows because the CP437 console mangled the names CTest tried to filter by. Now the whole suite is clean.
+* **Test names**: replaced Unicode arrows `>` and `пїЅ` with ASCII (`->` / `+/-`) in five test cases under `tests/unit/domain/{gameplay,social,ladder,identity}/`. These were causing 5 spurious `Failed` reports under `ctest --rerun-failed` on Windows because the CP437 console mangled the names CTest tried to filter by. Now the whole suite is clean.
 * **SID_AUTH_INFO server direction (`0x50` `SERVER_AUTHREQ_109`)**: added `AuthInfoReply{logontype, server_token, session_num, timestamp (u64), mpq_filename, checksum_formula}` to `messages.hpp` and to the `ServerMessage` variant. `codec.cpp` got `decode_auth_info_reply` (splits u64 FILETIME into two LE u32s and reassembles) + a matching `encode()` + a new arm in the `decode_server` switch. Two new round-trip test cases cover the W3 NLS (`logontype=2`) and standard (`logontype=0`) variants.
-* **No FSM stubs needed** � `AuthInfoReply` is server-direction; `BnetFsm` only dispatches on `ClientMessage`.
+* **No FSM stubs needed** пїЅ `AuthInfoReply` is server-direction; `BnetFsm` only dispatches on `ClientMessage`.
 
 #### Verified build & test (2026-05-14)
 
 * **237 / 237** v3 unit tests pass.
 * Build & test commands unchanged from prior batch (`-DPVPGN_BUILD_V3=ON -DPVPGN_BUILD_LEGACY=OFF -DPVPGN_V3_WITH_BOOST=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.10`).
 
-### 2026-05-15 � BNet codec: CDKEY2 (0x36), FRIENDSLIST (0x65), FRIENDINFO (0x66), CLANINFO (0x82)
+### 2026-05-15 пїЅ BNet codec: CDKEY2 (0x36), FRIENDSLIST (0x65), FRIENDINFO (0x66), CLANINFO (0x82)
 
 Added four more SID families to the v3 BNet codec.
 
-* **CDKEY2 (`0x36`)** � both directions. `CdKey2Request{spawn, keylen, product_id, key_value, server_token, ticks, key_hash[5], owner}`; `CdKey2Reply{result, owner}` with optional trailing owner string (only meaningful on `INUSE` = 5).
-* **FRIENDSLIST (`0x65`)** � empty request; reply is `u8 count` then `count` ? `{cstring name, u8 status, u8 location, u32 client_tag, cstring location_name}`. Reply layout cross-checked against legacy `_client_friendslistreq` in `handle_bnet.cpp`. Defensive bound: reject count > 200.
-* **FRIENDINFO (`0x66`)** � single-friend update. Request: `u8 friend_num`. Reply: `u8 friend_num, u8 type, u8 status, u32 client_tag, cstring game_name`.
-* **CLANINFO (`0x82`)** � request: `u32 cookie, u32 clan_tag, cstring player`. Reply: `u32 cookie, u8 fail` and on `fail == 0` a trailing `{cstring clan_name, u8 rank, u32 join_time}` block; suppressed when `fail != 0`.
+* **CDKEY2 (`0x36`)** пїЅ both directions. `CdKey2Request{spawn, keylen, product_id, key_value, server_token, ticks, key_hash[5], owner}`; `CdKey2Reply{result, owner}` with optional trailing owner string (only meaningful on `INUSE` = 5).
+* **FRIENDSLIST (`0x65`)** пїЅ empty request; reply is `u8 count` then `count` ? `{cstring name, u8 status, u8 location, u32 client_tag, cstring location_name}`. Reply layout cross-checked against legacy `_client_friendslistreq` in `handle_bnet.cpp`. Defensive bound: reject count > 200.
+* **FRIENDINFO (`0x66`)** пїЅ single-friend update. Request: `u8 friend_num`. Reply: `u8 friend_num, u8 type, u8 status, u32 client_tag, cstring game_name`.
+* **CLANINFO (`0x82`)** пїЅ request: `u32 cookie, u32 clan_tag, cstring player`. Reply: `u32 cookie, u8 fail` and on `fail == 0` a trailing `{cstring clan_name, u8 rank, u32 join_time}` block; suppressed when `fail != 0`.
 * **FSM**: added 4 client-direction stub handlers (`CdKey2Request`, `FriendsListRequest`, `FriendInfoRequest`, `ClanInfoRequest`). CDKEY2 only legal in `Init/AuthInfoReceived`; the social-family ones require `LoggedIn/InChat`.
 * **Tests**: 10 new `TEST_CASE` blocks covering both directions, OK/failure variants, and the friends-count oversize defensive bound.
 
@@ -1110,7 +1314,7 @@ Added four more SID families to the v3 BNet codec.
 * **247 / 247** v3 unit tests pass.
 * Build & test commands unchanged from prior batches.
 
-### Phase 4 � BNet protocol coverage to date
+### Phase 4 пїЅ BNet protocol coverage to date
 
 Client > server: `NULL`, `PING`, `AUTH_INFO`, `AUTH_CHECK`, `CDKEY2`, `LOGONRESPONSE2`, `JOINCHANNEL`, `ENTERCHAT`, `CHATCOMMAND`, `GETADVLISTEX`, `LADDERSEARCH`, `GETFILETIME`, `FRIENDSLIST`, `FRIENDINFO`, `CLANINFO`.
 
@@ -1118,13 +1322,13 @@ Server > client: `NULL`, `PING`, `AUTH_INFO` (109), `AUTH_CHECK`, `CDKEYREPLY2`,
 
 Still deferred: statstring helpers (statstring is embedded in chat/profile packets, not a SID); SID_READUSERDATA/WRITEUSERDATA family; `SID_CLAN_CREATE` / member-management family (0x70-0x7F); D2 character-list (lives in D2CS, not BNet).
 
-### 2026-05-16 � D2CS codec: GAMELIST (0x05), GAMEINFO (0x06), CHARLIST (0x17)
+### 2026-05-16 пїЅ D2CS codec: GAMELIST (0x05), GAMEINFO (0x06), CHARLIST (0x17)
 
 Extended the v3 D2CS realm protocol codec with three more SID-style packet families used by the Diablo II login flow.
 
-* **GAMELISTREQ/REPLY (`0x05`)** � request: `u16 seqno + u32 gameflag` (hardcore bit only). Reply: `u16 seqno + u32 token + u8 currchar + u32 gameflag + cstring game_name + cstring game_desc` � one entry per packet (server emits multiple).
-* **GAMEINFOREQ/REPLY (`0x06`)** � request: `u16 seqno + cstring game_name`. Reply: `u16 seqno + u32 gameflag + u32 etime + u8 charlevel + u8 leveldiff + u8 maxchar + u8 currchar + u8[16] chclass + u8[16] charlevels + cstring game_desc + currchar ? cstring char_name`. Defensive bound: `currchar > 16` is rejected with `InvalidArgument`.
-* **CHARLISTREQ/REPLY (`0x17`)** � request: `u16 maxchar + u16 u1`. Reply: `u16 maxchar + u16 currchar + u16 u1 + u16 currchar2 + currchar ? {cstring name + u8[34] portrait}`. The 34-byte `portrait` blob is kept opaque (`std::array<u8, 34>`) so the codec doesn't presume an inventory layout. Defensive bound: `currchar > 64` rejected.
+* **GAMELISTREQ/REPLY (`0x05`)** пїЅ request: `u16 seqno + u32 gameflag` (hardcore bit only). Reply: `u16 seqno + u32 token + u8 currchar + u32 gameflag + cstring game_name + cstring game_desc` пїЅ one entry per packet (server emits multiple).
+* **GAMEINFOREQ/REPLY (`0x06`)** пїЅ request: `u16 seqno + cstring game_name`. Reply: `u16 seqno + u32 gameflag + u32 etime + u8 charlevel + u8 leveldiff + u8 maxchar + u8 currchar + u8[16] chclass + u8[16] charlevels + cstring game_desc + currchar ? cstring char_name`. Defensive bound: `currchar > 16` is rejected with `InvalidArgument`.
+* **CHARLISTREQ/REPLY (`0x17`)** пїЅ request: `u16 maxchar + u16 u1`. Reply: `u16 maxchar + u16 currchar + u16 u1 + u16 currchar2 + currchar ? {cstring name + u8[34] portrait}`. The 34-byte `portrait` blob is kept opaque (`std::array<u8, 34>`) so the codec doesn't presume an inventory layout. Defensive bound: `currchar > 64` rejected.
 * **Variant arms**: `ClientMessage` gains `GameListReq, GameInfoReq, CharListReq`; `ServerMessage` gains `GameListReply, GameInfoReply, CharListReply`.
 * **Tests**: 7 new `TEST_CASE` blocks (req, reply, defensive bound).
 
@@ -1135,7 +1339,7 @@ Extended the v3 D2CS realm protocol codec with three more SID-style packet famil
 
 Still deferred for D2CS: CHARLOGIN (0x07), JOINGAMERESULT, character ladder, convert-char, CHARLIST_110 (0x19).
 
-### 2026-05-17 � BNet SID_READUSERDATA (0x26) + SID_WRITEUSERDATA (0x27)
+### 2026-05-17 пїЅ BNet SID_READUSERDATA (0x26) + SID_WRITEUSERDATA (0x27)
 
 Profile / record query API. `READ` carries a `request_id` cookie so the client can correlate asynchronous answers; `WRITE` has no cookie. Both messages carry a names ? keys matrix; for `READ` the server replies with `name_count * key_count` values in row-major order, for `WRITE` the client packs the values directly after the key list.
 
@@ -1144,7 +1348,7 @@ Profile / record query API. `READ` carries a `request_id` cookie so the client c
   - `SERVER_READ` = u32 name_count + u32 key_count + u32 request_id + (name_count * key_count) ? cstring.
   - `CLIENT_WRITE` = u32 name_count + u32 key_count + names + keys + values.
 * **New message types**: `UserDataReadRequest`, `UserDataReadReply`, `UserDataWriteRequest`. Variant arms added on both directions (`UserDataReadReply` on `ServerMessage`).
-* **Defensive bounds**: each name/key vector capped at 256 entries; total cell count `name_count * key_count` capped at 4096 � over either bound returns `InvalidArgument` instead of allocating GB of strings.
+* **Defensive bounds**: each name/key vector capped at 256 entries; total cell count `name_count * key_count` capped at 4096 пїЅ over either bound returns `InvalidArgument` instead of allocating GB of strings.
 * **FSM gating**: `READUSERDATA` / `WRITEUSERDATA` only accepted in `LoggedIn` / `InChat` (rejects pre-login attempts).
 * **Tests**: 5 new `TEST_CASE` blocks (read req round-trip, read reply round-trip, read reply cell-limit reject, write round-trip, write per-vector limit reject).
 
@@ -1155,14 +1359,14 @@ Profile / record query API. `READ` carries a `request_id` cookie so the client c
 
 Still deferred for BNet: `SID_CLAN_CREATE` / member-management family (0x70-0x7F); statstring helpers (embedded in chat/profile, not a SID).
 
-### 2026-05-18 � BNet SID_CLAN_* family (0x70..0x7C) � clan administration
+### 2026-05-18 пїЅ BNet SID_CLAN_* family (0x70..0x7C) пїЅ clan administration
 
 Added the BNet clan-administration SIDs that complement the existing `SID_CLANINFO` (0x82) query. These power clan create/disband, member invite/remove, rank changes, and MOTD edits.
 
-* **0x70 CLAN_CREATE** � req: `cookie + clan_tag` (4-char tag packed as u32). Reply: `cookie + check_result + friend_count + friend_count ? cstring`. Defensive bound: `friend_count > 64` rejected.
-* **0x73 CLAN_DISBAND**, **0x74 CLAN_MEMBERNEWCHIEF**, **0x77 CLAN_INVITE**, **0x78 CLANMEMBER_REMOVE**, **0x7A CLANMEMBER_RANKUPDATE** � each is a per-request struct on the client side; all five replies collapse onto a single `ClanGenericResultReply { sid, cookie, result }` because they share the wire shape `u32 cookie + u8 result`. The SID code is preserved on the message so the caller knows which command a result belongs to.
-* **0x7B CLAN_MOTDCHG** � client-only `unknown1 + motd` cstring.
-* **0x7C CLAN_MOTD** � req: `cookie`. Reply: `cookie + unknown1 + motd`.
+* **0x70 CLAN_CREATE** пїЅ req: `cookie + clan_tag` (4-char tag packed as u32). Reply: `cookie + check_result + friend_count + friend_count ? cstring`. Defensive bound: `friend_count > 64` rejected.
+* **0x73 CLAN_DISBAND**, **0x74 CLAN_MEMBERNEWCHIEF**, **0x77 CLAN_INVITE**, **0x78 CLANMEMBER_REMOVE**, **0x7A CLANMEMBER_RANKUPDATE** пїЅ each is a per-request struct on the client side; all five replies collapse onto a single `ClanGenericResultReply { sid, cookie, result }` because they share the wire shape `u32 cookie + u8 result`. The SID code is preserved on the message so the caller knows which command a result belongs to.
+* **0x7B CLAN_MOTDCHG** пїЅ client-only `unknown1 + motd` cstring.
+* **0x7C CLAN_MOTD** пїЅ req: `cookie`. Reply: `cookie + unknown1 + motd`.
 * **Result codes** (`CLAN_RESPONSE_*`): 0=success, 1=in use, 2=too soon, 3=too small, 4=declined, 5=decline, 6=accept, 7=not authorized, 8=not found, 9=clan full, 0xA=bad tag, 0xB=bad name, 0xC=not member. Codec is shape-only; semantics live in the FSM/clan service.
 * **FSM gating**: all clan SIDs accepted only post-login (`LoggedIn` / `InChat`).
 * **Tests**: 11 new `TEST_CASE` blocks (each SID + its reply + one defensive-bound rejection on CLAN_CREATE).
@@ -1174,7 +1378,7 @@ Added the BNet clan-administration SIDs that complement the existing `SID_CLANIN
 
 Still deferred for BNet: 0x71/0x72/0x79 multi-cookie invite chains (need bidirectional cookie correlation); statstring helpers (embedded in chat/profile, not a SID); D2 character-list (lives in D2CS).
 
-### 2026-05-19 � BNet 0x71 / 0x72 / 0x79 multi-cookie clan invite chains
+### 2026-05-19 пїЅ BNet 0x71 / 0x72 / 0x79 multi-cookie clan invite chains
 
 - New message types in `src/v3/protocol/bnet/include/protocol/bnet/messages.hpp`:
   - `ClanCreateInviteRequest` / `ClanCreateInviteSummary` (SID_CLAN_CREATEINVITE, 0x71).
@@ -1192,18 +1396,18 @@ Still deferred for BNet: 0x71/0x72/0x79 multi-cookie invite chains (need bidirec
   oversize-friend-list rejection. 278/278 unit tests green.
 
 
-### 2026-05-20 — BNet 0x7D / 0x7E / 0x7F clan member-list and event notifies
+### 2026-05-20 вЂ” BNet 0x7D / 0x7E / 0x7F clan member-list and event notifies
 
 - New SID constants in `src/v3/protocol/bnet/include/protocol/bnet/messages.hpp`:
   - `kSidClanMemberList    = 0x7D` (CLANMEMBERLIST_REQ/REPLY)
   - `kSidClanMemberRemoved = 0x7E` (server-only notify)
   - `kSidClanMemberUpdate  = 0x7F` (server-only)
 - New message types:
-  - `ClanMemberListRequest{cookie}` (client → server)
+  - `ClanMemberListRequest{cookie}` (client в†’ server)
   - `ClanMemberEntry{name, rank, online_status, location}`
-  - `ClanMemberListReply{cookie, members<vector>}` (server → client)
-  - `ClanMemberRemovedNotify{name}` (server → client)
-  - `ClanMemberUpdate{name, rank, online_status, location}` (server → client)
+  - `ClanMemberListReply{cookie, members<vector>}` (server в†’ client)
+  - `ClanMemberRemovedNotify{name}` (server в†’ client)
+  - `ClanMemberUpdate{name, rank, online_status, location}` (server в†’ client)
 - Decoders and encoders added in `src/v3/protocol/bnet/src/codec.cpp`, with the
   per-reply roster size capped by `kClanMemberListLimit = 200` returning
   `InvalidArgument` when exceeded. `decode_client` / `decode_server` switches
@@ -1216,7 +1420,7 @@ Still deferred for BNet: 0x71/0x72/0x79 multi-cookie invite chains (need bidirec
 
 
 
-### 2026-05-21 — BNet 0x67 / 0x68 / 0x69 friend add/del/move acks
+### 2026-05-21 вЂ” BNet 0x67 / 0x68 / 0x69 friend add/del/move acks
 
 - 0x65 / 0x66 (FriendsList, FriendInfo) already covered earlier; this batch
   fills in the three server-only ack notifications.
@@ -1235,7 +1439,7 @@ Still deferred for BNet: 0x71/0x72/0x79 multi-cookie invite chains (need bidirec
 
 
 
-### 2026-05-22 — BNet 0x60..0x63 + 0xFD arranged-team handshake
+### 2026-05-22 вЂ” BNet 0x60..0x63 + 0xFD arranged-team handshake
 
 - New SID constants in `src/v3/protocol/bnet/include/protocol/bnet/messages.hpp`:
   - `kSidArrangedTeamFriendScreen   = 0x60`
@@ -1265,7 +1469,7 @@ Still deferred for BNet: 0x71/0x72/0x79 multi-cookie invite chains (need bidirec
 
 
 
-### 2026-05-23 — BNet 0x09 SID_GETADVLISTEX + 0x1C SID_STARTADVEX3
+### 2026-05-23 вЂ” BNet 0x09 SID_GETADVLISTEX + 0x1C SID_STARTADVEX3
 
 - New wire messages in `src/v3/protocol/bnet/include/protocol/bnet/messages.hpp`:
   - `StartGame4Request` / `StartGame4Ack` (SID_STARTADVEX3, 0x1C).
@@ -1288,7 +1492,7 @@ Still deferred for BNet: 0x71/0x72/0x79 multi-cookie invite chains (need bidirec
 - 302/302 unit tests green.
 
 
-### 2026-05-24 — BNet 0x14 SID_UDPPINGRESPONSE + 0x2E SID_GETLADDERDATA (ladder family)
+### 2026-05-24 вЂ” BNet 0x14 SID_UDPPINGRESPONSE + 0x2E SID_GETLADDERDATA (ladder family)
 
 Extended the BNet codec/FSM to cover the remaining ladder-related opcodes that
 sat outside the already-implemented 0x2F SID_LADDERSEARCH path:
@@ -1311,7 +1515,7 @@ LADDERREPLY with zero entries, and the encoder rejection on count mismatch.
 Result: **307 / 307 green** (was 302).
 
 
-### 2026-05-25 — BNet lobby static-data: ad family + MOTD
+### 2026-05-25 вЂ” BNet lobby static-data: ad family + MOTD
 
 The user's question listed the lobby static-data opcodes as "0x46 / 0x44 /
 0x4A" but the actual wire codes in `bnet_protocol.h` are different:
@@ -1319,8 +1523,8 @@ The user's question listed the lobby static-data opcodes as "0x46 / 0x44 /
 | SID  | Name                  | Direction                       |
 |------|-----------------------|---------------------------------|
 | 0x15 | CHECKAD               | bidirectional ad request/reply  |
-| 0x16 | ADCLICK               | client → server                 |
-| 0x21 | ADACK                 | client → server                 |
+| 0x16 | ADCLICK               | client в†’ server                 |
+| 0x21 | ADACK                 | client в†’ server                 |
 | 0x41 | ADCLICK2              | bidirectional (D2 banners)      |
 | 0x46 | NEWS_INFO / MOTD_W3   | bidirectional MOTD/news entry   |
 
@@ -1341,7 +1545,7 @@ Round-trip tests for each new opcode (eight new cases) using the existing
 `round_trip` helper. Total tests: **315 / 315 green** (was 307).
 
 
-### 2026-05-26 — BNet small-misc: 0x0B / 0x10 / 0x18
+### 2026-05-26 вЂ” BNet small-misc: 0x0B / 0x10 / 0x18
 
 Three loosely-related opcodes that the user grouped as "small-misc":
 
@@ -1372,7 +1576,7 @@ REGSNOOPREPLY with a cstring payload, REGSNOOPREPLY with a dword payload.
 Total: **322 / 322 green** (was 315).
 
 
-### 2026-05-27 — BNet profile/stats extensions: 0x35 PROFILE + 0x59 SETEMAIL
+### 2026-05-27 вЂ” BNet profile/stats extensions: 0x35 PROFILE + 0x59 SETEMAIL
 
 Note: the existing 0x26/0x27 USERDATA pair already covers the bulk of the
 profile/stats matrix read/write. This batch fills the two remaining
@@ -1398,17 +1602,17 @@ empty, SETEMAILREPLY with an email string.
 Total: **327 / 327 green** (was 322).
 
 
-### 2026-05-28 — BNet file metadata: 0x2D SID_ICONREQ (0x33 was already done)
+### 2026-05-28 вЂ” BNet file metadata: 0x2D SID_ICONREQ (0x33 was already done)
 
 Survey check before implementing: 0x33 `CLIENT_FILEINFOREQ` /
-`SERVER_FILEINFOREPLY` was already covered (kSidGetFileTime →
+`SERVER_FILEINFOREPLY` was already covered (kSidGetFileTime в†’
 `FileInfoRequest` / `FileInfoReply`). Only 0x2D remained:
 
 - **0x2D `CLIENT_ICONREQ` / `SERVER_ICONREPLY`.** Request has an empty
   body (validated by the decoder). Reply carries a u64 timestamp (Windows
   FILETIME-style mtime) followed by the icons.bni filename cstring.
 
-FSM policy: `IconRequest` is accepted in every state — clients fetch
+FSM policy: `IconRequest` is accepted in every state вЂ” clients fetch
 icon-pack metadata as part of the early handshake before login completes.
 
 Tests: empty ICONREQ round-trip and ICONREPLY round-trip using the
@@ -1417,43 +1621,43 @@ canonical "icons.bni" sample bytes.
 Total: **329 / 329 green** (was 327).
 
 
-### 2026-05-29 — BNet account recovery: 0x5A GETPASSWORDREQ + 0x5B CHANGEEMAILREQ + 0x5D CRASHDUMP
+### 2026-05-29 вЂ” BNet account recovery: 0x5A GETPASSWORDREQ + 0x5B CHANGEEMAILREQ + 0x5D CRASHDUMP
 
 - Added wire structs `GetPasswordRequest` (account + email), `ChangeEmailRequest` (account + old/new email), `CrashDump` (opaque trailing bytes) in `messages.hpp`.
 - Added SID constants `kSidGetPassword=0x5A`, `kSidChangeEmail=0x5B`, `kSidCrashDump=0x5D`.
 - Extended `ClientMessage` variant; no server-side counterparts (all three are client-only telemetry/recovery flows).
 - Implemented decoders, encoders, and `decode_client` dispatch arms in `codec.cpp`. `CrashDump` reads the full payload as `std::vector<std::byte>` to preserve arbitrary post-auth crash blobs.
-- Added FSM stubs returning `core::ok()` — recovery messages must be accepted before login; crash dumps arrive after auth success and are advisory.
+- Added FSM stubs returning `core::ok()` вЂ” recovery messages must be accepted before login; crash dumps arrive after auth success and are advisory.
 - Added 4 round-trip tests (incl. empty-body CrashDump). Tests pass: 333/333 green.
 
 
-### 2026-05-30 — BNet 0x37 SID_UNKNOWN_37 (legacy D2 charlist)
+### 2026-05-30 вЂ” BNet 0x37 SID_UNKNOWN_37 (legacy D2 charlist)
 
 - Added `kSidCharList=0x37` constant and `CharListRequest` / `CharListReply` wire structs in `messages.hpp`.
-- Client side carries `open_count` (u32) plus an opaque `char_data` tail of d2char_info records; server side carries `unknown1`, `max_chars`, `count` (3×u32) plus the same kind of opaque trailer. Both sides preserve the trailing blob verbatim — the legacy code never parses individual char_info fields once `count` is known.
+- Client side carries `open_count` (u32) plus an opaque `char_data` tail of d2char_info records; server side carries `unknown1`, `max_chars`, `count` (3Г—u32) plus the same kind of opaque trailer. Both sides preserve the trailing blob verbatim вЂ” the legacy code never parses individual char_info fields once `count` is known.
 - Extended `ClientMessage` and `ServerMessage` variants; added decoders, encoders, and dispatch arms in `decode_client` and `decode_server`.
 - FSM: `on(CharListRequest)` gates on logged-in state via `require_clan_state` (charlist exchange is post-auth).
 - Added 3 round-trip tests covering populated request, populated reply, and empty-reply edge case. Tests pass: 336/336 green.
 
 
-### 2026-05-31 — BNet 0x04 SID_SERVERLIST (alt-server fallback)
+### 2026-05-31 вЂ” BNet 0x04 SID_SERVERLIST (alt-server fallback)
 
-- Added `kSidServerList=0x04` constant and `ServerList { unknown1: u32, servers: string }` wire struct in `messages.hpp`. Server→client only.
+- Added `kSidServerList=0x04` constant and `ServerList { unknown1: u32, servers: string }` wire struct in `messages.hpp`. Serverв†’client only.
 - Extended `ServerMessage` variant; added decoder, encoder, and dispatch arm in `decode_server`.
 - No FSM handler needed (`ServerList` is a server-emitted message; the BNet FSM only consumes `ClientMessage` variants).
 - Added 2 round-trip tests (populated semicolon-delimited list and empty list). Tests pass: 338/338 green.
 
 
-### 2026-06-01 — BNet 0x19 SID_MESSAGEBOX (server-pushed modal dialog)
+### 2026-06-01 вЂ” BNet 0x19 SID_MESSAGEBOX (server-pushed modal dialog)
 
-- Note on the user-facing request: in the pvpgn protocol map, "SID_NEWS_INFO" semantics are folded into 0x46 `SID_MOTD_W3` (already handled), while opcode `0x19` is `SERVER_MESSAGEBOX` — a separate, server-only mechanism that asks the official client to display a Win32 MessageBox.
+- Note on the user-facing request: in the pvpgn protocol map, "SID_NEWS_INFO" semantics are folded into 0x46 `SID_MOTD_W3` (already handled), while opcode `0x19` is `SERVER_MESSAGEBOX` вЂ” a separate, server-only mechanism that asks the official client to display a Win32 MessageBox.
 - Added `kSidMessageBox=0x19` constant, `MessageBox { style: u32, text: string, caption: string }` wire struct, and three `kMessageBoxStyle*` constants (OK / OKCANCEL / YESNO) mirroring the legacy `SERVER_MESSAGEBOX_*` defines.
 - Extended `ServerMessage` variant; added decoder, encoder, and dispatch arm in `decode_server`.
 - No FSM handler required (server-only message).
 - Added 3 round-trip tests (OK alert, YESNO prompt, empty payload). Tests pass: 341/341 green.
 
 
-### 2026-06-02 — BNet 0x40 SID_REALMLIST_110 + 0x3E SID_REALMJOIN_109
+### 2026-06-02 вЂ” BNet 0x40 SID_REALMLIST_110 + 0x3E SID_REALMJOIN_109
 
 - Added `kSidRealmList=0x40` and `kSidRealmJoin=0x3E` constants and full request/reply struct families in `messages.hpp`:
   - `RealmListRequest` (empty body) / `RealmListReply { unknown1, entries[] }` where each `RealmListEntry = { unknown, name, description }`.
@@ -1461,109 +1665,109 @@ Total: **329 / 329 green** (was 327).
 - Extended both `ClientMessage` and `ServerMessage` variants; added decoders, encoders, and dispatch arms (`decode_client` + `decode_server`).
 - `port` field is the only big-endian member, matching the legacy `bn_short` network-order convention; uses `read_be<u16>` / `write_be<u16>` already proven by the 0x09 game-list code.
 - Realm-list count is capped at `kRealmListLimit = 256` to bound decoder allocation.
-- FSM stubs: `on(RealmListRequest)` and `on(RealmJoinRequest)` both gate on logged-in via `require_clan_state` — realm selection happens after BNet auth completes.
+- FSM stubs: `on(RealmListRequest)` and `on(RealmJoinRequest)` both gate on logged-in via `require_clan_state` вЂ” realm selection happens after BNet auth completes.
 - Added 5 round-trip tests (empty realm-list request, populated and empty realm-list replies, full realm-join request, full realm-join reply). Tests pass: 346/346 green.
 
 
-### 2026-06-03 — BNet 0x44 SID_WARCRAFTGENERAL (anongame sub-option multiplexer)
+### 2026-06-03 вЂ” BNet 0x44 SID_WARCRAFTGENERAL (anongame sub-option multiplexer)
 
 - 0x44 is a multi-variant packet (10 client sub-options, 3 server sub-options for anongame search / AT teams / tournaments / profile / icon mgmt). Rather than expand the variant by 13+ shapes in one batch, modelled it as a strangler-style envelope: `WarcraftGeneralRequest` / `WarcraftGeneralReply` each carry `sub_option: u8` and an opaque `data: vector<byte>` tail.
 - Added `kSidWarcraftGeneral=0x44` constant plus a full set of named sub-option codes (`kAnonGameClientSearch`, `kAnonGameClientInfos`, `kAnonGameClientCancel`, `kAnonGameClientProfile`, `kAnonGameClientAtSearch`, `kAnonGameClientAtInviterSearch`, `kAnonGameClientTournament`, `kAnonGameClientProfileClan`, `kAnonGameClientGetIcon`, `kAnonGameClientSetIcon`, plus `kAnonGameServer{Search,Found,Cancel}`) so the application layer can route without re-deriving them from raw bytes.
 - Extended both `ClientMessage` and `ServerMessage` variants; added decoders, encoders, and dispatch arms on each side. The wire envelope is symmetric: `u8 sub_option || raw_tail`.
 - FSM stub `on(WarcraftGeneralRequest)` gates on logged-in via `require_clan_state` (anongame requests are all post-auth).
 - Added 4 round-trip tests covering: client SEARCH (PG 2v2 fragment), client CANCEL with empty tail, server SEARCH reply, server FOUND reply. Tests pass: 350/350 green.
-- Follow-up opportunity: when application-layer routing needs typed access, decompose `WarcraftGeneralRequest`/`Reply` into a `std::variant` of the 13 sub-shapes — wire envelope stays unchanged so this is purely additive.
+- Follow-up opportunity: when application-layer routing needs typed access, decompose `WarcraftGeneralRequest`/`Reply` into a `std::variant` of the 13 sub-shapes вЂ” wire envelope stays unchanged so this is purely additive.
 
 
-### 2026-06-04 — BNet 0x4C SID_REQUIREDWORK + 0x4B SID_EXTRAWORK
+### 2026-06-04 вЂ” BNet 0x4C SID_REQUIREDWORK + 0x4B SID_EXTRAWORK
 
 - Added `kSidExtraWork=0x4B` and `kSidRequiredWork=0x4C` constants plus matching wire structs:
-  - `RequiredWork { filename }` — server→client, names the IX86ExtraWork.mpq-style file.
-  - `ExtraWork { game_type: u16, data: vector<byte> }` — client→server, with a 16-bit length prefix consumed when decoding.
+  - `RequiredWork { filename }` вЂ” serverв†’client, names the IX86ExtraWork.mpq-style file.
+  - `ExtraWork { game_type: u16, data: vector<byte> }` вЂ” clientв†’server, with a 16-bit length prefix consumed when decoding.
 - Extended `ClientMessage` with `ExtraWork`, `ServerMessage` with `RequiredWork`; added decoders/encoders/dispatch arms on both sides.
 - `kExtraWorkMaxLen = 32768` bounds the wire-supplied length to prevent oversized blob allocations on decode and out-of-range writes on encode.
-- FSM: `on(ExtraWork)` returns `core::ok()` — EXTRAWORK is part of the anti-cheat handshake and may arrive before the BNet logged-in state.
+- FSM: `on(ExtraWork)` returns `core::ok()` вЂ” EXTRAWORK is part of the anti-cheat handshake and may arrive before the BNet logged-in state.
 - Added 4 round-trip tests (populated filename, empty filename, populated ExtraWork blob, empty ExtraWork). Tests pass: 354/354 green.
 
 
-### 2026-06-05 — BNet 0x34 SID_REALMLIST (pre-1.10)
+### 2026-06-05 вЂ” BNet 0x34 SID_REALMLIST (pre-1.10)
 
 - Added `kSidRealmListLegacy=0x34` constant; the 1.10+ variant at 0x40 was already done, so the constant is renamed only on the legacy side to keep both protocol generations addressable.
 - Added wire structs:
   - `RealmListLegacyRequest { unknown1: u32, unknown2: u32 }` (both fields always zero in capture data; preserved for fidelity).
-  - `RealmListLegacyEntry { unknown3, unknown4, unknown5, unknown6, unknown7, unknown8, unknown9, name, description }` — the seven-u32 fixed prefix of `t_server_realmlistreply_data` followed by two C-strings. Defaults match `SERVER_REALMLISTREPLY_DATA_UNKNOWN*` constants from the legacy tree.
+  - `RealmListLegacyEntry { unknown3, unknown4, unknown5, unknown6, unknown7, unknown8, unknown9, name, description }` вЂ” the seven-u32 fixed prefix of `t_server_realmlistreply_data` followed by two C-strings. Defaults match `SERVER_REALMLISTREPLY_DATA_UNKNOWN*` constants from the legacy tree.
   - `RealmListLegacyReply { unknown1: u32, entries[] }`.
 - Extended `ClientMessage` / `ServerMessage` variants; added decoders, encoders, and dispatch arms. Reuses the existing `kRealmListLimit = 256` cap for entry-count validation.
 - FSM: `on(RealmListLegacyRequest)` gates on logged-in via `require_clan_state`, matching the 0x40 variant.
 - Added 3 round-trip tests (legacy request, populated reply with the canonical BetaWest sample, empty reply). Tests pass: 357/357 green.
 
 
-### 2026-06-06 — BNet 0x42 SID_CDKEY3 (multi-CD-key authentication)
+### 2026-06-06 вЂ” BNet 0x42 SID_CDKEY3 (multi-CD-key authentication)
 
 - Added `kSidCdKey3=0x42` constant plus wire structs:
-  - `CdKey3Request { unknown1..unknown7, key_hash[5], owner_name }` — defaults mirror the seven `CLIENT_CDKEY3_UNKNOWN*` constants from the legacy tree (salt 0xFFFFFFFF, fixed cookies 0x01/0x00/0x10/0x06/0x123456/0x00) for byte-accurate fidelity.
+  - `CdKey3Request { unknown1..unknown7, key_hash[5], owner_name }` вЂ” defaults mirror the seven `CLIENT_CDKEY3_UNKNOWN*` constants from the legacy tree (salt 0xFFFFFFFF, fixed cookies 0x01/0x00/0x10/0x06/0x123456/0x00) for byte-accurate fidelity.
   - `CdKey3Reply { message, owner_name }` with `kCdKeyReply3MessageOk = 0` exposed for callers; the owner-name C-string is optional on the wire and only consumed/written when present.
 - Extended `ClientMessage` / `ServerMessage` variants; added decoders, encoders, and dispatch arms.
-- FSM: `on(CdKey3Request)` returns `core::ok()` — CDKEY3 belongs to the pre-login auth handshake and must be accepted in any state.
+- FSM: `on(CdKey3Request)` returns `core::ok()` вЂ” CDKEY3 belongs to the pre-login auth handshake and must be accepted in any state.
 - Added 3 round-trip tests covering populated request, bare OK reply, and reply with owner-name echo. Tests pass: 360/360 green.
 
 
-### 2026-06-06 — BNet 0x52 SID_CREATEACCOUNT2 (W3 NLS account creation)
+### 2026-06-06 вЂ” BNet 0x52 SID_CREATEACCOUNT2 (W3 NLS account creation)
 
 - Added `kSidCreateAccount2 = 0x52` constant and wire structs:
-  - `CreateAccount2Request { salt[32], password_verifier[32], account_name }` — fixed 64-byte NLS payload (SRP salt + verifier) followed by the account-name C-string.
-  - `CreateAccount2Reply { result }` — single u32 status code. Exposed result constants mirror the legacy `SERVER_CREATEACCOUNT_W3_RESULT_*` names: OK (0), EXISTS (4), EMPTY (7), INVALID (8), BANNED (9), SHORT (0xA), PUNCTUATION (0xB), PUNCTUATION2 (0xC).
+  - `CreateAccount2Request { salt[32], password_verifier[32], account_name }` вЂ” fixed 64-byte NLS payload (SRP salt + verifier) followed by the account-name C-string.
+  - `CreateAccount2Reply { result }` вЂ” single u32 status code. Exposed result constants mirror the legacy `SERVER_CREATEACCOUNT_W3_RESULT_*` names: OK (0), EXISTS (4), EMPTY (7), INVALID (8), BANNED (9), SHORT (0xA), PUNCTUATION (0xB), PUNCTUATION2 (0xC).
 - Extended `ClientMessage` / `ServerMessage` variants; added decoders, encoders, dispatch arms.
-- FSM: `on(CreateAccount2Request)` returns `core::ok()` — account creation predates login.
+- FSM: `on(CreateAccount2Request)` returns `core::ok()` вЂ” account creation predates login.
 - Added 3 round-trip tests covering populated request, OK reply, and the EXISTS result code. Tests pass: 363/363 green.
 
 
-### 2026-06-06 — BNet 0x53 SID_LOGINREQ_W3 / SID_LOGINREPLY_W3 (NLS step A)
+### 2026-06-06 вЂ” BNet 0x53 SID_LOGINREQ_W3 / SID_LOGINREPLY_W3 (NLS step A)
 
 - Added `kSidLoginW3 = 0x53` constant and wire structs:
-  - `LoginW3Request { client_public_key[32], account_name }` — 32-byte SRP client public key (`A`) followed by the account-name C-string.
-  - `LoginW3Reply { message, salt[32], server_public_key[32] }` — u32 status (`kLoginW3MessageSuccess`/`Failure`) plus the 32-byte SRP `salt` and 32-byte server public key (`B`). Reply length is always fixed (0x48 bytes), matching the legacy `t_server_loginreply_w3` layout.
+  - `LoginW3Request { client_public_key[32], account_name }` вЂ” 32-byte SRP client public key (`A`) followed by the account-name C-string.
+  - `LoginW3Reply { message, salt[32], server_public_key[32] }` вЂ” u32 status (`kLoginW3MessageSuccess`/`Failure`) plus the 32-byte SRP `salt` and 32-byte server public key (`B`). Reply length is always fixed (0x48 bytes), matching the legacy `t_server_loginreply_w3` layout.
 - Extended `ClientMessage` / `ServerMessage` variants; added decoders, encoders, dispatch arms.
-- FSM: `on(LoginW3Request)` returns `core::ok()` — NLS step A is part of pre-login auth.
+- FSM: `on(LoginW3Request)` returns `core::ok()` вЂ” NLS step A is part of pre-login auth.
 - Added 3 round-trip tests covering populated request, success reply with non-zero salt/public-key, and failure reply with zeroed key material. Tests pass: 366/366 green.
 
 
-### 2026-06-06 — BNet 0x54 SID_LOGONPROOFREQ / SID_LOGONPROOFREPLY (NLS step B)
+### 2026-06-06 вЂ” BNet 0x54 SID_LOGONPROOFREQ / SID_LOGONPROOFREPLY (NLS step B)
 
 - Added `kSidLogonProofW3 = 0x54` constant and wire structs:
-  - `LogonProofW3Request { client_password_proof[20] }` — single 20-byte SRP `M1`.
-  - `LogonProofW3Reply { response, server_password_proof[20], message }` — u32 status, 20-byte SRP `M2`, and an optional trailing C-string. The legacy server only writes the C-string when `response == kLogonProofW3ResponseCustom`; the decoder treats it as a presence-on-buffer field (read only when bytes remain) so EMAIL / BADPASS / OK replies stay byte-identical to the legacy wire.
+  - `LogonProofW3Request { client_password_proof[20] }` вЂ” single 20-byte SRP `M1`.
+  - `LogonProofW3Reply { response, server_password_proof[20], message }` вЂ” u32 status, 20-byte SRP `M2`, and an optional trailing C-string. The legacy server only writes the C-string when `response == kLogonProofW3ResponseCustom`; the decoder treats it as a presence-on-buffer field (read only when bytes remain) so EMAIL / BADPASS / OK replies stay byte-identical to the legacy wire.
   - Exposed response constants: OK (0), BADPASS (2), EMAIL (0xE), CUSTOM (0xF).
 - Extended `ClientMessage` / `ServerMessage` variants; added decoders, encoders, dispatch arms.
-- FSM: `on(LogonProofW3Request)` returns `core::ok()` — NLS step B is part of pre-login auth.
+- FSM: `on(LogonProofW3Request)` returns `core::ok()` вЂ” NLS step B is part of pre-login auth.
 - Added 3 round-trip tests covering populated request, OK reply (no custom message), and CUSTOM reply with a human-readable lock message. Tests pass: 369/369 green.
 
 
-### 2026-06-06 — Phase 2 listener parity test (Boost-gated)
+### 2026-06-06 вЂ” Phase 2 listener parity test (Boost-gated)
 
 Added `tests/unit/infra/net/listener_parity_test.cpp` with three cases
 that pin the invariants the legacy `fdwatch` accept loop relies on, so
 the eventual fdwatch removal can be mechanical:
 
-1. **Multiple listeners on one IoRuntime** — two `TcpAcceptor`s bound
+1. **Multiple listeners on one IoRuntime** вЂ” two `TcpAcceptor`s bound
    to independent loopback ports accept concurrent clients without
    cross-talk (mirrors the legacy `t_addrlist` of `t_addr` entries).
-2. **Reject-at-accept hook** — the SessionFactory may call
+2. **Reject-at-accept hook** вЂ” the SessionFactory may call
    `session->close()` instead of `start()`, modelling
    `ipbanlist_check()` rejecting a peer right after `psock_accept()`.
    The client observes a graceful close.
-3. **Concrete bind on `0.0.0.0:0`** — `local_endpoint()` reports a
+3. **Concrete bind on `0.0.0.0:0`** вЂ” `local_endpoint()` reports a
    real port the application can advertise back to clients.
 
 CMake wiring added to `tests/unit/infra/net/CMakeLists.txt`. The test
 is gated by `PVPGN_V3_WITH_BOOST` (the whole `infra::net` subtree is).
 In this development environment Boost is not installed and the build
 runs with `PVPGN_V3_WITH_BOOST=OFF`; the remaining 369 tests continue
-to pass. The parity test will activate automatically once Boost ≥ 1.75
+to pass. The parity test will activate automatically once Boost в‰Ґ 1.75
 is on the path and the option is flipped to `ON`.
 
 
-### 2026-06-06 — BNet 0x55 SID_PASSCHANGEREQ / SID_PASSCHANGEREPLY (NLS pw-change step A)
+### 2026-06-06 вЂ” BNet 0x55 SID_PASSCHANGEREQ / SID_PASSCHANGEREPLY (NLS pw-change step A)
 
 - Added `kSidPassChange = 0x55` constant. Wire layout is byte-identical
   to LOGINREQ_W3 / LOGINREPLY_W3 (0x53); only the SID differs.
@@ -1572,7 +1776,7 @@ is on the path and the option is flipped to `ON`.
     constants `kPassChangeMessageAccept` (0) and `kPassChangeMessageReject` (1).
 - Extended `ClientMessage` / `ServerMessage` variants; added decoders,
   encoders, dispatch arms.
-- FSM: `on(PassChangeRequest)` returns `core::ok()` — the legacy flow
+- FSM: `on(PassChangeRequest)` returns `core::ok()` вЂ” the legacy flow
   runs the SRP exchange before the user is fully logged in, so no
   state precondition is enforced.
 - Added 3 round-trip tests covering populated request, accept reply
@@ -1580,41 +1784,41 @@ is on the path and the option is flipped to `ON`.
   Tests pass: 372/372 green.
 
 
-### 2026-06-06 — BNet 0x56 SID_PASSCHANGEPROOFREQ / SID_PASSCHANGEPROOFREPLY (NLS pw-change step B)
+### 2026-06-06 вЂ” BNet 0x56 SID_PASSCHANGEPROOFREQ / SID_PASSCHANGEPROOFREPLY (NLS pw-change step B)
 
 - Added `kSidPassChangeProof = 0x56` constant and wire structs:
-  - `PassChangeProofRequest { client_password_proof[20], salt[32], password_verifier[32] }` — 84-byte fixed payload: SRP `M1` against the *old* password followed by the *new* salt and verifier the server must store on accept.
-  - `PassChangeProofReply { response, server_password_proof[20] }` — u32 status plus the 20-byte server `M2`. Constants `kPassChangeProofResponseOk` (0), `kPassChangeProofResponseBadPass` (2).
+  - `PassChangeProofRequest { client_password_proof[20], salt[32], password_verifier[32] }` вЂ” 84-byte fixed payload: SRP `M1` against the *old* password followed by the *new* salt and verifier the server must store on accept.
+  - `PassChangeProofReply { response, server_password_proof[20] }` вЂ” u32 status plus the 20-byte server `M2`. Constants `kPassChangeProofResponseOk` (0), `kPassChangeProofResponseBadPass` (2).
 - Extended `ClientMessage` / `ServerMessage` variants; added decoders, encoders, dispatch arms.
-- FSM: `on(PassChangeProofRequest)` returns `core::ok()` — NLS password-change runs before full login.
+- FSM: `on(PassChangeProofRequest)` returns `core::ok()` вЂ” NLS password-change runs before full login.
 - Added 3 round-trip tests covering populated request, OK reply, and BADPASS reply with zeroed M2. Tests pass: 375/375 green.
 
 
-## 2026-06-07 — BNet legacy/OLS SID bulk batch ("implement all SIDs")
+## 2026-06-07 вЂ” BNet legacy/OLS SID bulk batch ("implement all SIDs")
 
 Single-push implementation of 15 pre-NLS / legacy BNet SID pairs in one sweep
-through messages → codec → fsm → tests. Goal: close out the gap between the
+through messages в†’ codec в†’ fsm в†’ tests. Goal: close out the gap between the
 modern NLS path (already covered) and the legacy/OLS protocol surface that
 real-world clients still emit during bootstrap.
 
 ### SIDs covered
-| SID    | Name                       | C↔S                                    |
+| SID    | Name                       | Cв†”S                                    |
 |--------|----------------------------|----------------------------------------|
-| 0x05   | CLIENTID / CompInfo1       | C→S `CompInfo1Request` / S→C `CompReply` |
-| 0x06   | PROGIDENT / AUTHREQ1       | C→S `ProgIdent` / S→C `AuthReq1Server` |
-| 0x07   | AUTH                       | C→S `AuthReq1` / S→C `AuthReply1`      |
-| 0x12   | COUNTRYINFO1               | C→S `CountryInfo1`                     |
-| 0x1D   | SESSIONKEY1                | S→C `SessionKey1`                      |
-| 0x1E   | COMPINFO2                  | C→S `CompInfo2`                        |
-| 0x28   | SESSIONKEY2                | S→C `SessionKey2`                      |
-| 0x29   | LOGONRESPONSE              | C→S `LoginReq1` / S→C `LoginReply1`    |
-| 0x2A   | CREATEACCOUNT1             | C→S `CreateAccount1Request` / S→C `CreateAccount1Reply` |
-| 0x2B   | UNKNOWN_2B                 | C→S `Unknown2B` (7×u32)                |
-| 0x30   | CDKEY (legacy)             | C→S `CdKeyLegacyRequest` / S→C `CdKeyLegacyReply` |
-| 0x31   | CHANGEPASSWORD             | C→S `ChangePasswordRequest` / S→C `ChangePasswordReply` |
-| 0x39   | UNKNOWN_39                 | C→S `Unknown39`                        |
-| 0x3D   | CREATEACCOUNT              | C→S `CreateAccountRequest` / S→C `CreateAccountReply` |
-| 0x45   | NETGAMEPORT                | C→S `NetGamePort` (u16)                |
+| 0x05   | CLIENTID / CompInfo1       | Cв†’S `CompInfo1Request` / Sв†’C `CompReply` |
+| 0x06   | PROGIDENT / AUTHREQ1       | Cв†’S `ProgIdent` / Sв†’C `AuthReq1Server` |
+| 0x07   | AUTH                       | Cв†’S `AuthReq1` / Sв†’C `AuthReply1`      |
+| 0x12   | COUNTRYINFO1               | Cв†’S `CountryInfo1`                     |
+| 0x1D   | SESSIONKEY1                | Sв†’C `SessionKey1`                      |
+| 0x1E   | COMPINFO2                  | Cв†’S `CompInfo2`                        |
+| 0x28   | SESSIONKEY2                | Sв†’C `SessionKey2`                      |
+| 0x29   | LOGONRESPONSE              | Cв†’S `LoginReq1` / Sв†’C `LoginReply1`    |
+| 0x2A   | CREATEACCOUNT1             | Cв†’S `CreateAccount1Request` / Sв†’C `CreateAccount1Reply` |
+| 0x2B   | UNKNOWN_2B                 | Cв†’S `Unknown2B` (7Г—u32)                |
+| 0x30   | CDKEY (legacy)             | Cв†’S `CdKeyLegacyRequest` / Sв†’C `CdKeyLegacyReply` |
+| 0x31   | CHANGEPASSWORD             | Cв†’S `ChangePasswordRequest` / Sв†’C `ChangePasswordReply` |
+| 0x39   | UNKNOWN_39                 | Cв†’S `Unknown39`                        |
+| 0x3D   | CREATEACCOUNT              | Cв†’S `CreateAccountRequest` / Sв†’C `CreateAccountReply` |
+| 0x45   | NETGAMEPORT                | Cв†’S `NetGamePort` (u16)                |
 
 ### Deltas
 - `messages.hpp`: +15 SID constants, +23 structs (with `operator==` defaulted),
@@ -1628,7 +1832,7 @@ real-world clients still emit during bootstrap.
   - +13 dispatch arms in `decode_client`, +10 arms in `decode_server`.
   - +23 encoders, all using `begin_bnet_packet` / `finalize_bnet_packet`.
   - Optional trailing strings (host/user, AuthReply1 filename/unknown,
-    CdKeyLegacy owner_name) are emitted only when non-empty so the encode →
+    CdKeyLegacy owner_name) are emitted only when non-empty so the encode в†’
     decode round-trip preserves "field absent" semantics.
 - `fsm.hpp` / `fsm.cpp`: +13 `on(...)` overloads for the new client arms,
   returning `core::ok()` as advisory pre-login acceptance. Server-side messages
@@ -1647,26 +1851,26 @@ real-world clients still emit during bootstrap.
   modeled with stricter protocol-state dependencies and deserve their own
   batch with FSM-state changes rather than bulk advisory-accept handlers.
 - All new optional-trailing-string fields use the encoder rule "write only
-  when non-empty" — keep this contract if these structs gain more fields.
+  when non-empty" вЂ” keep this contract if these structs gain more fields.
 - `CompInfo1Request` host+user are emitted as a pair: either both written or
   neither, mirroring decoder behavior where the strings are read only if any
   bytes remain.
 
 
-## 2026-06-08 — BNet game-lifecycle SIDs + FSM `InGame` state
+## 2026-06-08 вЂ” BNet game-lifecycle SIDs + FSM `InGame` state
 
 Brought the BNet FSM out of "chat-only" and into a proper game-lifecycle
 shape by adding the missing legacy game SIDs and a real `InGame` state.
 
 ### SIDs covered
-| SID  | Name                  | C↔S                                            |
+| SID  | Name                  | Cв†”S                                            |
 |------|-----------------------|------------------------------------------------|
-| 0x02 | STOPADV / CLOSEGAME   | C→S `CloseGame` (empty body)                   |
-| 0x08 | STARTADVEX            | C→S `StartGame1Request` / S→C `StartGame1Ack`  |
-| 0x1A | STARTADVEX2           | C→S `StartGame3Request` / S→C `StartGame3Ack`  |
-| 0x1F | LEAVEGAME / CLOSEGAME2| C→S `CloseGame2` (empty body)                  |
-| 0x22 | NOTIFYJOIN            | C→S `JoinGame{clienttag,versiontag,name,pw}`   |
-| 0x2C | GAMERESULT            | C→S `GameReport{results,player_names,header,body}` |
+| 0x02 | STOPADV / CLOSEGAME   | Cв†’S `CloseGame` (empty body)                   |
+| 0x08 | STARTADVEX            | Cв†’S `StartGame1Request` / Sв†’C `StartGame1Ack`  |
+| 0x1A | STARTADVEX2           | Cв†’S `StartGame3Request` / Sв†’C `StartGame3Ack`  |
+| 0x1F | LEAVEGAME / CLOSEGAME2| Cв†’S `CloseGame2` (empty body)                  |
+| 0x22 | NOTIFYJOIN            | Cв†’S `JoinGame{clienttag,versiontag,name,pw}`   |
+| 0x2C | GAMERESULT            | Cв†’S `GameReport{results,player_names,header,body}` |
 
 ### FSM changes
 - Added `BnetState::InGame` between `InChat` and `Closing`.
@@ -1674,8 +1878,8 @@ shape by adding the missing legacy game SIDs and a real `InGame` state.
   operations continue working while the user is in a game.
 - New transitions:
   - `StartGame1` / `StartGame3` / `StartGame4` (existing 0x1C handler updated)
-    / `JoinGame` from `{InChat, LoggedIn, InGame}` → `InGame`.
-  - `CloseGame` / `CloseGame2`: if `state_ == InGame` → `LoggedIn`,
+    / `JoinGame` from `{InChat, LoggedIn, InGame}` в†’ `InGame`.
+  - `CloseGame` / `CloseGame2`: if `state_ == InGame` в†’ `LoggedIn`,
     otherwise accepted as a no-op (idempotent).
   - `GameReport`: requires post-login, no state change.
 
@@ -1686,7 +1890,7 @@ shape by adding the missing legacy game SIDs and a real `InGame` state.
 - `codec.hpp`: +8 `encode()` decls.
 - `codec.cpp`:
   - +8 decoders. `decode_game_report` bounds the slot count against the
-    remaining payload bytes (`count > remaining/4` → `InvalidArgument`) so
+    remaining payload bytes (`count > remaining/4` в†’ `InvalidArgument`) so
     crafted oversized counts can't induce huge allocations.
   - +6 client and +2 server dispatch arms.
   - +8 encoders. `encode(GameReport)` enforces
@@ -1702,8 +1906,8 @@ shape by adding the missing legacy game SIDs and a real `InGame` state.
 - New tests:
   - 9 codec round-trip cases (0x02, 0x08 req+ack, 0x1A req+ack, 0x1F, 0x22,
     0x2C populated + empty roster).
-  - 7 FSM state-transition cases: STARTGAME1 LoggedIn→InGame, STARTGAME3
-    InChat→InGame, JOINGAME+CLOSEGAME round trip, CLOSEGAME2 from InGame,
+  - 7 FSM state-transition cases: STARTGAME1 LoggedInв†’InGame, STARTGAME3
+    InChatв†’InGame, JOINGAME+CLOSEGAME round trip, CLOSEGAME2 from InGame,
     GAMEREPORT keeps InGame, pre-login STARTGAME1 rejected, CLOSEGAME
     outside InGame as no-op.
 - `ctest -C Release`: **419/419 passed** (was 403, +16).
@@ -1711,7 +1915,7 @@ shape by adding the missing legacy game SIDs and a real `InGame` state.
 ### Notes / Follow-ups
 - `JoinGame` is modelled as the legacy "client tells server it joined a
   game" message (per `bnet_protocol.h:3548`). There is no server-side
-  response struct — the server simply updates its game roster.
+  response struct вЂ” the server simply updates its game roster.
 - We do not currently distinguish between "host" and "joined" in `InGame`;
   the application layer can refine this later by inspecting the original
   message type stored alongside the session.
@@ -1720,23 +1924,23 @@ shape by adding the missing legacy game SIDs and a real `InGame` state.
   can track a `pre_game_state_` shadow field; deferred.
 
 
-## 2026-06-09 — BNet misc / anti-cheat / advisory SIDs batch
+## 2026-06-09 вЂ” BNet misc / anti-cheat / advisory SIDs batch
 
 Filled in the remaining "miscellaneous" BNet SIDs that fit cleanly into the
 existing codec/FSM strangler-fig surface without needing new session state.
 
 ### SIDs covered
-| SID  | Name                       | C↔S                                                          |
+| SID  | Name                       | Cв†”S                                                          |
 |------|----------------------------|--------------------------------------------------------------|
-| 0x17 | READMEMORY (anti-cheat)    | S→C `ReadMemoryRequest{request_id,address,length}` / C→S `ReadMemoryReply{request_id, memory:vector<u8>}` |
-| 0x1B | UNKNOWN_1B (game IP/port)  | C→S `Unknown1B{unknown1, port_be, ip_be, unknown2, unknown3}` (BE fields kept as raw u16/u32 for byte-exact round-trip) |
-| 0x24 | UNKNOWN_24                 | C→S `Unknown24` (empty body)                                 |
-| 0x32 | MAPAUTHREQ1 / REPLY1       | C→S `MapAuthReq1{file_checksum[5], mapfile}` / S→C `MapAuthReply1{response}` |
-| 0x3C | MAPAUTHREQ2 / REPLY2       | C→S `MapAuthReq2{unknown, file_hash[5], mapfile}` / S→C `MapAuthReply2{response}` |
-| 0x5C | CHANGECLIENT               | C→S `ChangeClient{clienttag}`                                |
+| 0x17 | READMEMORY (anti-cheat)    | Sв†’C `ReadMemoryRequest{request_id,address,length}` / Cв†’S `ReadMemoryReply{request_id, memory:vector<u8>}` |
+| 0x1B | UNKNOWN_1B (game IP/port)  | Cв†’S `Unknown1B{unknown1, port_be, ip_be, unknown2, unknown3}` (BE fields kept as raw u16/u32 for byte-exact round-trip) |
+| 0x24 | UNKNOWN_24                 | Cв†’S `Unknown24` (empty body)                                 |
+| 0x32 | MAPAUTHREQ1 / REPLY1       | Cв†’S `MapAuthReq1{file_checksum[5], mapfile}` / Sв†’C `MapAuthReply1{response}` |
+| 0x3C | MAPAUTHREQ2 / REPLY2       | Cв†’S `MapAuthReq2{unknown, file_hash[5], mapfile}` / Sв†’C `MapAuthReply2{response}` |
+| 0x5C | CHANGECLIENT               | Cв†’S `ChangeClient{clienttag}`                                |
 
 ### Deltas
-- `messages.hpp`: +6 SID constants (0x25 ECHOREQ omitted — already covered
+- `messages.hpp`: +6 SID constants (0x25 ECHOREQ omitted вЂ” already covered
   by the existing `kSidPing` constant), +9 structs, +6 client + 4 server
   variant arms, +3 `kMapAuthReply1Response*` constants.
 - `codec.hpp`: +9 `encode()` decls.
@@ -1751,7 +1955,7 @@ existing codec/FSM strangler-fig surface without needing new session state.
 
 ### Discovery / collisions
 - Found 0x25 ECHOREQ/REPLY is already implemented under the name
-  `kSidPing` / `Ping` struct — same wire format (single u32 ticks). Removed
+  `kSidPing` / `Ping` struct вЂ” same wire format (single u32 ticks). Removed
   the redundant Echo* duplication mid-implementation; build error
   `C2196: case value '37' already used` made it obvious.
 
@@ -1769,7 +1973,7 @@ existing codec/FSM strangler-fig surface without needing new session state.
 - `MapAuthReq1`/`MapAuthReq2` checksum/hash arrays are kept as
   `std::array<u32,5>` to mirror the BNCSutil-derived layout used elsewhere
   in the codebase (e.g. `PassChangeProofRequest::password_verifier`).
-- No new FSM states needed — anti-cheat replies and the advisory
+- No new FSM states needed вЂ” anti-cheat replies and the advisory
   Unknown1B/Unknown24 packets are session-transparent.
 - The BNet protocol surface is now essentially complete for legacy +
   modern + OLS + game-lifecycle + anti-cheat. Remaining gaps are mostly
@@ -1777,16 +1981,16 @@ existing codec/FSM strangler-fig surface without needing new session state.
   ladder/profile detail tweaks.
 
 
-## 2026-06-10 — FINDANONGAME (SID 0x44) typed sub-message layer
+## 2026-06-10 вЂ” FINDANONGAME (SID 0x44) typed sub-message layer
 
 Added a second-pass typed parser on top of the opaque
 `WarcraftGeneralRequest{sub_option, data}` / `WarcraftGeneralReply{...}`
 envelopes that the wire codec already produces for SID 0x44. The wire
-codec is unchanged — this is purely an application-facing
+codec is unchanged вЂ” this is purely an application-facing
 parse/serialize layer.
 
 ### New module
-- `src/v3/protocol/bnet/include/protocol/bnet/anongame.hpp` —
+- `src/v3/protocol/bnet/include/protocol/bnet/anongame.hpp` вЂ”
   16 typed structs + two discriminated variants:
   - `AnonGameClient = variant<AnonGameSearch, AnonGameAtSearch,
     AnonGameAtInviterSearch, AnonGameInfoRequest, AnonGameClientCancel,
@@ -1799,7 +2003,7 @@ parse/serialize layer.
     `parse_findanongame_reply(env)`,
     `serialize_findanongame_request(typed)`,
     `serialize_findanongame_reply(typed)`.
-- `src/v3/protocol/bnet/src/anongame.cpp` — implementations.
+- `src/v3/protocol/bnet/src/anongame.cpp` вЂ” implementations.
 - Wired into `src/v3/CMakeLists.txt` (added `anongame.cpp` to
   `protocol_bnet` sources).
 
@@ -1819,8 +2023,8 @@ the message) so callers can log and fall back to the opaque envelope.
 
 ### Tests
 New file `tests/unit/protocol/bnet/anongame_test.cpp` (registered as
-`test_protocol_bnet_anongame`) — 18 round-trip tests:
-- 10 client typed → envelope → wire → envelope → typed round trips.
+`test_protocol_bnet_anongame`) вЂ” 18 round-trip tests:
+- 10 client typed в†’ envelope в†’ wire в†’ envelope в†’ typed round trips.
 - 6 server typed round trips (including FOUND with a realistic
   W3XP PG-2v2 mapname + saf_pt2 tail, and TOURNAMENT reply).
 - 2 negative cases asserting unknown sub-options return
@@ -1851,7 +2055,7 @@ New file `tests/unit/protocol/bnet/anongame_test.cpp` (registered as
 
 ### Follow-ups
 - Could add typed parsers for the `t_saf_pt2` tail inside `AnonGameFound`
-  and the URL/MAP/TYPE/DESC tag stream inside `AnonGameInfoReply` —
+  and the URL/MAP/TYPE/DESC tag stream inside `AnonGameInfoReply` вЂ”
   deferred until an actual matchmaking implementation needs them.
 - The `AnonGameServerCancel` struct currently carries only `count`
   (the leading cancel byte is the sub-option which the wire codec
@@ -1862,7 +2066,7 @@ New file `tests/unit/protocol/bnet/anongame_test.cpp` (registered as
   fully typed in earlier batches and don't need an analogous layer.
 
 
-## 2026-06-11 — FINDANONGAME: typed saf_pt2 + INFOREPLY tag stream
+## 2026-06-11 вЂ” FINDANONGAME: typed saf_pt2 + INFOREPLY tag stream
 
 Promoted the opaque `tail` fields inside `AnonGameFound` and
 `AnonGameInfoReply` to fully typed sub-structures based on the legacy
@@ -1905,7 +2109,7 @@ Promoted the opaque `tail` fields inside `AnonGameFound` and
   - `0x02 server INFOREPLY non-last (trailing=1)`.
   - `0x02 server INFOREPLY empty payload`.
 
-`ctest -C Release`: **452/452 passed** (was 448, +4 net new — two prior
+`ctest -C Release`: **452/452 passed** (was 448, +4 net new вЂ” two prior
 INFOREPLY/INFOREQ cases were updated in place rather than counted as
 new).
 
@@ -1927,7 +2131,7 @@ new).
   legacy logic decoupled the two.
 
 
-## 2026-06-12 — Per-tag typed parsers for FINDANONGAME INFOREPLY payloads
+## 2026-06-12 вЂ” Per-tag typed parsers for FINDANONGAME INFOREPLY payloads
 
 Added typed parse/serialize for each of the five well-known
 INFOREPLY tag payloads (URL / MAP / TYPE / DESC / LADR).
@@ -1937,12 +2141,12 @@ INFOREPLY tag payloads (URL / MAP / TYPE / DESC / LADR).
 - `src/v3/protocol/bnet/src/anongame_tags.cpp`
 - Wired into `protocol_bnet` sources in `src/v3/CMakeLists.txt`.
 
-### Key design decision — zlib boundary
+### Key design decision вЂ” zlib boundary
 The legacy server **zlib-compresses** the entire per-tag payload before
 emitting it on the wire (see
-`bnetd/anongame_infos.cpp::anongame_infos_data_load` →
+`bnetd/anongame_infos.cpp::anongame_infos_data_load` в†’
 `zlib_compress(...)`). The v3 codec layer deliberately does NOT pull
-zlib in — the new parsers operate on the **decompressed bytes only** and
+zlib in вЂ” the new parsers operate on the **decompressed bytes only** and
 the caller is responsible for plugging in a compression adapter on the
 transport side. This keeps the protocol layer pure, deterministic, and
 test-friendly. Documented prominently at the top of `anongame_tags.hpp`.
@@ -1961,7 +2165,7 @@ bytes return `StatusCode::OutOfRange`.
 
 ### Tests
 New file `tests/unit/protocol/bnet/anongame_tags_test.cpp` (registered
-as `test_protocol_bnet_anongame_tags`) — 15 tests:
+as `test_protocol_bnet_anongame_tags`) вЂ” 15 tests:
 - URL: 3-string + 4-string + count-mismatch failure.
 - MAP: empty + multi-name + short-buffer failure + trailing-byte
   rejection.
@@ -1979,19 +2183,19 @@ as `test_protocol_bnet_anongame_tags`) — 15 tests:
   `0 = PG`, `1 = TY`, `2 = AT`. We intentionally keep these as raw
   bytes rather than introducing an enum, because the legacy code
   swaps in tournament-specific values into the gamestyle prefix at
-  runtime (`anongame_prefix[j][3] = tournament_get_races()`, etc.) —
+  runtime (`anongame_prefix[j][3] = tournament_get_races()`, etc.) вЂ”
   doing the same dance over typed enums would add noise without
   value.
 - The legacy LADR layout uses 4-byte tags stored as raw ASCII bytes
   (e.g. `"OLOS"` / `"MAET"`). Since BNet endianness is LE, the u32
   value matches `read_le<u32>` of the literal bytes. Tag values are
-  whatever bytes the server appends — we don't introduce constants
+  whatever bytes the server appends вЂ” we don't introduce constants
   for them yet (most are write-only on the server side).
 - The TYPE section's `gamestyles[i].map_indices` may be empty
   (`u8 count = 0`), which the parser/serializer handle correctly.
 
 
-## 2026-06-13 — zlib compression adapter for INFOREPLY payloads
+## 2026-06-13 вЂ” zlib compression adapter for INFOREPLY payloads
 
 Added an `infra_compression` library with a typed zlib wrapper for the
 legacy FINDANONGAME INFOREPLY framing. The v3 protocol layer remains
@@ -2054,16 +2258,16 @@ warnings-as-errors policy. `SKIP_INSTALL_ALL` is forced ON to keep our
 `cmake --install` clean.
 
 ### Tests (9 new)
-- empty → round-trip (catches the zero-output zlib edge case — fixed by
+- empty в†’ round-trip (catches the zero-output zlib edge case вЂ” fixed by
   pointing `next_out` at a static sink byte when `out.empty()`).
 - small ASCII + NULs round-trip with header sanity-check on `raw_len`.
-- 4 KiB highly-compressible → asserts deflated < raw/2.
+- 4 KiB highly-compressible в†’ asserts deflated < raw/2.
 - 60 000-byte non-trivial input near the u16 boundary.
-- Oversize raw (>u16) → `OutOfRange`.
-- Short header → `OutOfRange`.
-- `comp_len` exceeds buffer → `OutOfRange`.
-- Corrupt stream → fails (zlib error).
-- Tampered `raw_len` (declared length mismatches inflated output) →
+- Oversize raw (>u16) в†’ `OutOfRange`.
+- Short header в†’ `OutOfRange`.
+- `comp_len` exceeds buffer в†’ `OutOfRange`.
+- Corrupt stream в†’ fails (zlib error).
+- Tampered `raw_len` (declared length mismatches inflated output) в†’
   fails.
 
 ### Test count
@@ -2072,23 +2276,23 @@ warnings-as-errors policy. `SKIP_INSTALL_ALL` is forced ON to keep our
 ### Notes / Follow-ups
 - The legacy `zlib_compress` uses chunked deflate with `Z_SYNC_FLUSH` /
   `Z_FINISH`; this produces an equivalent stream to single-shot
-  `Z_FINISH` for any input that fits in one chunk (≤0x8000 = 32 KiB).
+  `Z_FINISH` for any input that fits in one chunk (в‰¤0x8000 = 32 KiB).
   Since the u16 length limit caps everything at 65535 bytes, our
   single-shot path is wire-compatible with what the legacy server
   produces for every realistically-sized INFOREPLY payload.
 - The adapter currently has no caller. The natural next consumer is a
-  service that builds INFOREPLY responses end-to-end: typed payload →
-  serialize → compress → embed into the BNet packet body. That wiring
+  service that builds INFOREPLY responses end-to-end: typed payload в†’
+  serialize в†’ compress в†’ embed into the BNet packet body. That wiring
   is intentionally left for a later batch.
 - `infra_compression` does NOT depend on `protocol_bnet`; both depend
   only on `core`. The application/service layer is where they get
   composed.
 
 
-## 2026-06-14 — Service composing the full INFOREPLY pipeline
+## 2026-06-14 вЂ” Service composing the full INFOREPLY pipeline
 
 Built the first end-to-end pipeline service in the v3 application layer:
-typed payload → serialize → zlib-compress → wrap in `AnonGameInfoReply`
+typed payload в†’ serialize в†’ zlib-compress в†’ wrap in `AnonGameInfoReply`
 envelope. This is the first v3 module that stitches together
 `protocol_bnet`, `infra_compression`, and the application layer in the
 shape of a real use case.
@@ -2131,7 +2335,7 @@ build_inforeplies_for_request(
 
 ### Behaviour highlights
 - **Tag mapping**: client tag (`'URL\0'`, `'MAP\0'`, `'TYPE'`, `'DESC'`,
-  `'LADR'`) → server reply tag (the byte-reversed forms). Unknown tags
+  `'LADR'`) в†’ server reply tag (the byte-reversed forms). Unknown tags
   produce `InvalidArgument`.
 - **Snapshot dispatch**: each requested tag pulls the right typed
   payload from the snapshot's optional fields. Missing optionals are
@@ -2140,7 +2344,7 @@ build_inforeplies_for_request(
   per tag the snapshot can answer, preserving request order. The last
   reply gets `trailing == 0x00`; the earlier ones get `0x01`. Tags the
   snapshot can't answer are silently skipped (matches legacy behaviour
-  — the server only sends INFOREPLY for tags it has data for).
+  вЂ” the server only sends INFOREPLY for tags it has data for).
 - **Compression**: payload bytes go through
   `infra::compression::anongame_compress`, producing the 4-byte
   header + deflate stream that ends up in `AnonGameInfoReply::payload`.
@@ -2152,18 +2356,18 @@ build_inforeplies_for_request(
 registered as `test_application_anongame_infoply`:
 
 1. `server_tag_for` maps the five known client tags.
-2. `server_tag_for` rejects unknown tag → `InvalidArgument`.
+2. `server_tag_for` rejects unknown tag в†’ `InvalidArgument`.
 3. URL single-tag round-trip with decompress + reparse (asserts
    server_tag, tag_unk, count, noitems, trailing, and payload bytes
    identical to the snapshot's typed payload after parse).
 4. Same round-trip for MAP / TYPE / DESC / LADR.
-5. Missing snapshot payload → `NotFound`.
-6. Full INFOREQ of 3 tags → 3 ordered replies, trailing
+5. Missing snapshot payload в†’ `NotFound`.
+6. Full INFOREQ of 3 tags в†’ 3 ordered replies, trailing
    `{0x01, 0x01, 0x00}`, `count` propagated to all.
-7. Partial snapshot (URL+MAP only) on a 5-tag INFOREQ → 2 replies
+7. Partial snapshot (URL+MAP only) on a 5-tag INFOREQ в†’ 2 replies
    in order, correct trailing flags.
-8. Empty INFOREQ → empty reply set.
-9. Unknown tag in INFOREQ → `InvalidArgument`.
+8. Empty INFOREQ в†’ empty reply set.
+9. Unknown tag in INFOREQ в†’ `InvalidArgument`.
 
 ### Test count
 `ctest -C Release`: **485/485 passed** (was 476, +9).
@@ -2178,10 +2382,10 @@ registered as `test_application_anongame_infoply`:
   bridge). Tracked as a future batch.
 - Each reply is currently emitted with `noitems = 1`. The legacy wire
   format technically allows `noitems > 1`, but the legacy server never
-  emits that shape — sticking with 1 keeps us byte-identical to the
+  emits that shape вЂ” sticking with 1 keeps us byte-identical to the
   current implementation. If observed-on-wire packet captures ever
   show batched replies, this is the place to widen.
-- No `WarcraftGeneralReply` envelope wrapping yet — these replies
+- No `WarcraftGeneralReply` envelope wrapping yet вЂ” these replies
   still need to be encapsulated into a SID 0x44 packet via
   `serialize_findanongame_reply`. The existing `AnonGameServer`
   variant already supports that; the natural next step is a helper
@@ -2189,12 +2393,12 @@ registered as `test_application_anongame_infoply`:
   the socket.
 
 
-## 2026-06-15 — Wrap INFOREPLY set into SID 0x44 packet bytes
+## 2026-06-15 вЂ” Wrap INFOREPLY set into SID 0x44 packet bytes
 
 Extended `application_anongame_infoply` so the pipeline now reaches all
-the way to the socket-ready byte stream: typed payloads → serialize →
-zlib-compress → `AnonGameInfoReply` envelope → `WarcraftGeneralReply` →
-`encode(Writer&, WarcraftGeneralReply)` → BNet framed bytes.
+the way to the socket-ready byte stream: typed payloads в†’ serialize в†’
+zlib-compress в†’ `AnonGameInfoReply` envelope в†’ `WarcraftGeneralReply` в†’
+`encode(Writer&, WarcraftGeneralReply)` в†’ BNet framed bytes.
 
 ### New API
 ```cpp
@@ -2214,7 +2418,7 @@ core::Result<std::vector<std::byte>> encode_inforeplies_for_request(
 ```
 
 `encode_inforeplies_for_request` is the top-level entry point that an
-upstream session loop will call once it has parsed a 0x44/INFOREQ —
+upstream session loop will call once it has parsed a 0x44/INFOREQ вЂ”
 hand it the typed request and the server's snapshot and get back the
 concatenated 0x44/INFOREPLY byte stream ready to write.
 
@@ -2223,7 +2427,7 @@ concatenated 0x44/INFOREPLY byte stream ready to write.
   `protocol/common/writer.hpp`. Uses `pvpgn::protocol::Writer` (note:
   the writer lives in `pvpgn::protocol`, not `::bnet`).
 - Each reply is wrapped via the existing
-  `serialize_findanongame_reply(AnonGameServer{reply})` →
+  `serialize_findanongame_reply(AnonGameServer{reply})` в†’
   `WarcraftGeneralReply`, then `encode(w, wgr)` adds the
   `0xFF 0x44 len_lo len_hi sub_option=0x02 body...` framing.
 - `encode_inforeply_packets` reuses a single `Writer` to produce the
@@ -2237,10 +2441,10 @@ concatenated 0x44/INFOREPLY byte stream ready to write.
    reconstruct a `WarcraftGeneralReply`, parse via
    `parse_findanongame_reply`, and compare equal to the original
    `AnonGameInfoReply`.
-3. Three-tag INFOREQ → `encode_inforeplies_for_request` produces a
+3. Three-tag INFOREQ в†’ `encode_inforeplies_for_request` produces a
    byte stream containing exactly 3 SID 0x44 packets whose declared
    lengths cover the buffer with no slack.
-4. INFOREQ for tags that aren't in the snapshot → empty byte stream
+4. INFOREQ for tags that aren't in the snapshot в†’ empty byte stream
    (no packets emitted), matching legacy "skip missing tags"
    behaviour.
 
@@ -2248,7 +2452,7 @@ concatenated 0x44/INFOREPLY byte stream ready to write.
 `ctest -C Release`: **489/489 passed** (was 485, +4).
 
 ### Notes / Follow-ups
-- The end-to-end INFOREPLY pipeline is now closed: parse → service →
+- The end-to-end INFOREPLY pipeline is now closed: parse в†’ service в†’
   encode. The next natural wiring step is to plug this into the
   strangler-fig session loop so a real client connecting through the
   v3 transport gets the typed pipeline instead of the legacy one for
@@ -2261,13 +2465,13 @@ concatenated 0x44/INFOREPLY byte stream ready to write.
   that holds the already-compressed bytes per tag).
 
 
-## 2026-06-16 — CompiledSnapshot caching layer
+## 2026-06-16 вЂ” CompiledSnapshot caching layer
 
 Added a precomputed mirror of `AnonGameInfoSnapshot` that stores each
 tag's *already serialized + zlib-compressed + framed* bytes. Eliminates
-re-serialization and re-compression on every INFOREQ — the exact
+re-serialization and re-compression on every INFOREQ вЂ” the exact
 optimization the legacy server makes by caching
-`*_comp_data` / `*_comp_len` per (war3/w3xp) × language.
+`*_comp_data` / `*_comp_len` per (war3/w3xp) Г— language.
 
 ### Module: `application_anongame_infoply` (extended)
 - New type `CompiledSnapshot { optional<vector<uint8_t>> url/map/type/desc/ladr }`
@@ -2282,19 +2486,19 @@ optimization the legacy server makes by caching
   - `encode_inforeplies_for_request(request, const CompiledSnapshot&)`
 - Internally factored a `lookup_compiled(client_tag, compiled)` helper
   that returns either a pointer to the framed bytes, nullptr (missing),
-  or `InvalidArgument` (unknown tag) — mirrors the dispatch logic of
+  or `InvalidArgument` (unknown tag) вЂ” mirrors the dispatch logic of
   the typed-snapshot path while skipping serialization+compression.
 
 ### Tests (5 new)
 - `compile_snapshot` populates only the present tags; framed bytes
   start with the legacy 4-byte length header.
 - End-to-end byte equality: encode the same INFOREQ via the
-  typed-snapshot path and via the compiled path → identical 0x44
+  typed-snapshot path and via the compiled path в†’ identical 0x44
   byte stream (deterministic because both paths use single-shot
   deflate at level 9).
-- Compiled `build_inforeply_for_tag` with missing tag → `NotFound`.
-- Compiled `build_inforeply_for_tag` with unknown tag → `InvalidArgument`.
-- Compiled fan-out over a 5-tag INFOREQ with only URL+MAP populated →
+- Compiled `build_inforeply_for_tag` with missing tag в†’ `NotFound`.
+- Compiled `build_inforeply_for_tag` with unknown tag в†’ `InvalidArgument`.
+- Compiled fan-out over a 5-tag INFOREQ with only URL+MAP populated в†’
   2 ordered replies with trailing `{0x01, 0x00}`.
 
 ### Build adjustment
@@ -2317,13 +2521,13 @@ work on raw `vector<std::byte>` output.
   once a configuration-loader feeds typed snapshots from the legacy
   `.conf` files.
 - `compile_snapshot` is currently fail-fast: any compression error
-  aborts the whole compile. The natural alternative — best-effort,
-  marking failed tags as missing — could be added later if needed,
+  aborts the whole compile. The natural alternative вЂ” best-effort,
+  marking failed tags as missing вЂ” could be added later if needed,
   but matching the legacy behaviour (compress-or-die at boot) seems
   more defensible.
 
 
-## 2026-06-17 — Load `anongame_infos.conf` into typed snapshot
+## 2026-06-17 вЂ” Load `anongame_infos.conf` into typed snapshot
 
 **Scope.** Stand up a v3 bridge that reads the legacy bnetd
 `conf/anongame_infos.conf` text format and produces an
@@ -2365,7 +2569,7 @@ of the three required URLs is missing, `snap.url` stays
 
 The remaining sections (`[DEFAULT_DESC]`, `[<langID>]`,
 `[THUMBS_DOWN_LIMIT]`, `[ICON_REQUIRED_*]`) and the `ladder_*_URL`
-keys are intentionally skipped — DESC / LADR / TYPE / MAP need
+keys are intentionally skipped вЂ” DESC / LADR / TYPE / MAP need
 data from outside this file (legacy `anongame_maplists.conf`,
 hard-coded ladder-tag bytes, and the gametype/section enums) and
 will land in follow-up batches.
@@ -2384,16 +2588,16 @@ will land in follow-up batches.
 1. Full 4-URL `[URL]` section round-trips into `urls` of size 4.
 2. Pre-1.15 3-URL layout (no `clan_URL`) yields `urls` of size 3.
 3. Single-URL section drops the payload entirely.
-4. Empty file → empty snapshot.
-5. Missing file → `core::StatusCode::NotFound` error.
+4. Empty file в†’ empty snapshot.
+5. Missing file в†’ `core::StatusCode::NotFound` error.
 6. Inline `#` comment is stripped without corrupting the value.
 7. Unknown sections (`THUMBS_DOWN_LIMIT`, `ICON_REQUIRED_*`) are skipped
    without aborting parsing.
 8. The shipped `conf/anongame_infos.conf.in` sample parses cleanly
-   and yields ≥3 URLs (smoke test against the real legacy format).
+   and yields в‰Ґ3 URLs (smoke test against the real legacy format).
 
 **Build & test result.** Configure clean. `cmake --build build/v3
---config Release` clean. `ctest -C Release` → **502/502 passed**
+--config Release` clean. `ctest -C Release` в†’ **502/502 passed**
 (+8 from 494, including a couple of bnetd-side tests that were
 already on master).
 
@@ -2405,13 +2609,13 @@ already on master).
 - The inline-comment stripper is bug-compatible with legacy: it
   splits at the last `#`. URLs containing literal `#` characters
   in the shipped sample don't exist, so this is safe in practice.
-  Real fragments would need a quote-aware tokeniser — defer until
+  Real fragments would need a quote-aware tokeniser вЂ” defer until
   required.
 - No way yet to write a snapshot back into the legacy format
-  (round-trip). The current direction is one-way: legacy → v3.
+  (round-trip). The current direction is one-way: legacy в†’ v3.
 
 
-## 2026-06-17 (b) — Extend legacy loader to `[DEFAULT_DESC]` → DESC payload
+## 2026-06-17 (b) вЂ” Extend legacy loader to `[DEFAULT_DESC]` в†’ DESC payload
 
 **Scope.** Extend `infra_legacy_config::load_anongame_infos` to also
 consume the `[DEFAULT_DESC]` section and yield an
@@ -2451,7 +2655,7 @@ or `"No Descreption"`). If no pair qualifies, `snap.desc` stays
 `std::nullopt`.
 
 `ladder_*_desc` keys in `[DEFAULT_DESC]` are intentionally **not**
-emitted into the DESC payload — they describe LADR entries, not
+emitted into the DESC payload вЂ” they describe LADR entries, not
 gametype DESC entries, and will be consumed by the future LADR
 loader batch.
 
@@ -2459,7 +2663,7 @@ Language-specific sections (`[deDE]`, `[ruRU]`, `[zhCN]`, ...) are
 still ignored; multi-locale ingestion is a separate batch.
 
 **Build & test result.** Configure clean. Build clean.
-`ctest -C Release` → **506/506 passed** (+4 new DESC tests on top
+`ctest -C Release` в†’ **506/506 passed** (+4 new DESC tests on top
 of 502).
 
 **New tests** (`anongame_infos_loader_test.cpp`):
@@ -2468,11 +2672,11 @@ of 502).
    in stable table order with correct ids (0, 4, 12).
 2. A pair with only `short` is dropped; one with both halves survives.
 3. `ladder_*_desc` keys in `[DEFAULT_DESC]` are ignored.
-4. `[deDE]` strings do not override `[DEFAULT_DESC]` strings — only
+4. `[deDE]` strings do not override `[DEFAULT_DESC]` strings вЂ” only
    the default section is consumed at this stage.
 
 
-## 2026-06-17 (c) — Extend legacy loader to LADR payload
+## 2026-06-17 (c) вЂ” Extend legacy loader to LADR payload
 
 **Scope.** Extend `infra_legacy_config::load_anongame_infos` to also
 consume the 10 ladder URL/desc key pairs (`ladder_*_URL` in `[URL]`
@@ -2499,7 +2703,7 @@ and tag bytes:
 
 Each entry's `url` comes from `ladder_<id>_URL` in `[URL]`; each
 entry's `desc` from `ladder_<id>_desc` in `[DEFAULT_DESC]`. Missing
-keys yield empty strings — matching legacy behaviour where
+keys yield empty strings вЂ” matching legacy behaviour where
 `anongame_infos_URL_get_URL` / `anongame_infos_DESC_get_DESC` return
 NULL and `packet_append_string` writes an empty cstring.
 
@@ -2507,7 +2711,7 @@ If neither URL nor desc keys appear anywhere in the file, `snap.ladr`
 stays `std::nullopt` rather than emitting 10 all-empty entries.
 
 **Build & test result.** Configure clean. Build clean.
-`ctest -C Release` → **509/509 passed** (+3 new LADR tests on top of
+`ctest -C Release` в†’ **509/509 passed** (+3 new LADR tests on top of
 506).
 
 **New tests** (`anongame_infos_loader_test.cpp`):
@@ -2517,7 +2721,7 @@ stays `std::nullopt` rather than emitting 10 all-empty entries.
    layout exactly.
 2. Sparse fixture (only one ladder URL): all 10 entries are present;
    the matching slot carries the URL, the rest carry empty strings.
-3. No `ladder_*` keys at all → `snap.ladr` is `std::nullopt`.
+3. No `ladder_*` keys at all в†’ `snap.ladr` is `std::nullopt`.
 
 The "full 4-URL section" test was updated: its fixture has
 `ladder_PG_1v1_URL = "http://ignore"`, which now exercises slot 0
@@ -2531,14 +2735,14 @@ of the LADR payload (previously ignored).
   the locale-aware loader batch.
 
 
-## 2026-06-17 (d) — Multi-locale loader for `anongame_infos.conf`
+## 2026-06-17 (d) вЂ” Multi-locale loader for `anongame_infos.conf`
 
 **Scope.** Add `load_anongame_infos_multilocale(path)` which returns
 a `MultilocaleSnapshotSet` carrying:
 
-- `default_snapshot` — built from `[URL]` + `[DEFAULT_DESC]`
+- `default_snapshot` вЂ” built from `[URL]` + `[DEFAULT_DESC]`
   (identical to what `load_anongame_infos` returns).
-- `by_lang` — one `AnonGameInfoSnapshot` per `[<langID>]` section
+- `by_lang` вЂ” one `AnonGameInfoSnapshot` per `[<langID>]` section
   found in the file (e.g. `"deDE"`, `"ruRU"`, `"zhCN"`).
 
 Each per-locale snapshot reuses the locale-independent URL and LADR
@@ -2547,11 +2751,11 @@ values). The locale-varying parts are:
 
 - `gametype_<name>_short` / `gametype_<name>_long` pairs:
   locale block overrides default; missing keys fall back to
-  `[DEFAULT_DESC]` strings — matching the legacy
+  `[DEFAULT_DESC]` strings вЂ” matching the legacy
   `anongame_infos_DESC_get_DESC(langID, ...)` fallback logic in
   `src/bnetd/anongame_infos.cpp` line 504.
 - `ladder_<id>_desc` strings: same fallback behaviour
-  (locale → default).
+  (locale в†’ default).
 
 If a gametype has neither a locale nor a default pair, its entry is
 omitted from that locale's DESC payload.
@@ -2563,7 +2767,7 @@ spawn phantom locale entries.
 
 **Wiring.** `load_anongame_infos` is now a thin wrapper that calls
 `load_anongame_infos_multilocale` and returns the `default_snapshot`
-field — preserving the single-snapshot API for callers that don't
+field вЂ” preserving the single-snapshot API for callers that don't
 care about locales.
 
 **Refactor.** Pulled the per-snapshot build logic into a
@@ -2573,9 +2777,9 @@ maps). The default snapshot uses an empty fallback bucket; locale
 snapshots use the default block as their fallback.
 
 **Build & test result.** Configure clean. Build clean.
-`ctest -C Release` → **513/513 passed** (+4 new multi-locale tests
+`ctest -C Release` в†’ **513/513 passed** (+4 new multi-locale tests
 on top of 509). All previously-green single-snapshot tests
-continue to pass — the wrapper preserves behaviour.
+continue to pass вЂ” the wrapper preserves behaviour.
 
 **New tests** (`anongame_infos_loader_test.cpp`):
 
@@ -2590,7 +2794,7 @@ continue to pass — the wrapper preserves behaviour.
 
 **Known limitations / next steps.**
 
-- The TYPE payload still has no loader path — TYPE blocks depend on
+- The TYPE payload still has no loader path вЂ” TYPE blocks depend on
   `maplists` data and the AT/TY section enums, both of which live
   outside `anongame_infos.conf`.
 - THUMBS_DOWN_LIMIT and ICON_REQUIRED_* sections are still parsed
@@ -2601,7 +2805,7 @@ continue to pass — the wrapper preserves behaviour.
 
 
 
-### 2026-06-17 (e) — Legacy `bnmaps.conf` → typed `MaplistsBundle`
+### 2026-06-17 (e) вЂ” Legacy `bnmaps.conf` в†’ typed `MaplistsBundle`
 
 **Goal:** Bridge the legacy `anongame_maplists.cpp` mapsfile parser into
 the v3 infra layer so the bnetd 0x44 INFOREPLY pipeline can source MAP
@@ -2632,7 +2836,7 @@ data (and, eventually, TYPE map-index data) from the existing config.
 - `tests/unit/infra/legacy_config/CMakeLists.txt`: registered the new
   executable `test_infra_legacy_config_anongame_maplists`.
 
-**Result:** `ctest -C Release` → **525/525 tests pass** (+12 new).
+**Result:** `ctest -C Release` в†’ **525/525 tests pass** (+12 new).
 
 **Not yet wired**
 - `MaplistsForClient::queue_map_indices` is the raw material for the
@@ -2644,7 +2848,7 @@ data (and, eventually, TYPE map-index data) from the existing config.
 
 
 
-### 2026-06-17 (f) — Multi-locale `CompiledSnapshotSet` cache
+### 2026-06-17 (f) вЂ” Multi-locale `CompiledSnapshotSet` cache
 
 **Goal:** Add a per-locale pre-compiled snapshot bundle so the bnetd
 0x44 hot path can serve INFOREPLIES from the language-specific
@@ -2669,7 +2873,7 @@ deflated bytes without re-serializing/re-compressing on each request.
   object on miss; empty locale map falls back for every lookup; the
   set feeds the existing compiled-API encode path end-to-end.
 
-**Result:** `ctest -C Release` → **529/529 tests pass** (+4 new).
+**Result:** `ctest -C Release` в†’ **529/529 tests pass** (+4 new).
 
 **Layering note**
 `CompiledSnapshotSet` is intentionally pure-application; it does
@@ -2680,12 +2884,12 @@ the application layer free of legacy-config dependencies.
 
 
 
-### 2026-06-17 (g) — Wire INFOREPLY pipeline into strangler-fig handler
+### 2026-06-17 (g) вЂ” Wire INFOREPLY pipeline into strangler-fig handler
 
 **Goal:** Land the v3 FINDANONGAME (SID 0x44) INFOREPLY pipeline into
 the production wire path through `BnetStranglerHandler`. The handler
 already routes `SID_NULL` through v3; this batch adds the 0x44
-INFOREQ → v3 INFOREPLY hook while leaving every other 0x44 sub-option
+INFOREQ в†’ v3 INFOREPLY hook while leaving every other 0x44 sub-option
 on the legacy path.
 
 **What changed**
@@ -2719,13 +2923,13 @@ on the legacy path.
     fall back; resolver returning a failure status falls back; the
     setter is reversible (resolver -> none reverts 0x44 to fallback).
 
-**Result:** `ctest -C Release` → **534/534 tests pass** (+5 new).
+**Result:** `ctest -C Release` в†’ **534/534 tests pass** (+5 new).
 
 **Layering note**
 The strangler depends only on the typed `AnonGameInfoRequest` and the
 pre-built byte stream. It does **not** know about
 `CompiledSnapshotSet`, languages, the legacy-config loaders, or the
-`infra::compression` adapter — all of those live in the closure that
+`infra::compression` adapter вЂ” all of those live in the closure that
 the composition root will install. This keeps the integration layer
 pure routing and lets the application stack (and its tests) evolve
 independently.
@@ -2738,20 +2942,20 @@ independently.
 
 
 
-### 2026-06-17 (h) — TYPE composer + AnonGame composition root
+### 2026-06-17 (h) вЂ” TYPE composer + AnonGame composition root
 
 **Goal:** (User: "implement 1, 2, 3.") Implement the TYPE payload
 composer, the AnonGame composition root that bridges legacy-config
 loaders to the strangler resolver, and wire the resolver factory into
 production. Step 3 (real bnetd startup wiring) is **deferred** because
 the strangler itself is not yet plugged into legacy bnetd's network
-loop — wiring the resolver into a not-yet-installed strangler would be
+loop вЂ” wiring the resolver into a not-yet-installed strangler would be
 premature. Documented as the next pending step.
 
-**Step 1 — TYPE composer (application layer)**
+**Step 1 вЂ” TYPE composer (application layer)**
 - New `application/anongame_infoply/type_composer.hpp` exposing:
-  - `kAnonGameQueueCount = 18` and `kAnonGameDefaultPrefix` —
-    constexpr 18×5 prefix table baked from
+  - `kAnonGameQueueCount = 18` and `kAnonGameDefaultPrefix` вЂ”
+    constexpr 18Г—5 prefix table baked from
     `bnetd/anongame_infos.cpp` (~line 1581).
   - `compose_type_payload(span<const vector<u8>>, prefix_table?)`
     that emits PG (0x00), AT (0x01), TY (0x02) sections in legacy
@@ -2772,20 +2976,20 @@ premature. Documented as the next pending step.
 - `src/v3/CMakeLists.txt`: added `type_composer.cpp` to
   `application_anongame_infoply`.
 
-**Step 2 — AnonGame composition root (integration layer)**
+**Step 2 вЂ” AnonGame composition root (integration layer)**
 - New `integration/legacy_bnetd/anongame_bootstrap.hpp` exposing:
   - `struct AnonGameSnapshotCache { unordered_map<string,
     CompiledSnapshotSet> by_clienttag; }` keyed by uppercase 4-char
     clienttag.
   - `using AnonGameSelector = function<pair<string,string>(
-        const AnonGameInfoRequest&)>;` — host strategy callback that
+        const AnonGameInfoRequest&)>;` вЂ” host strategy callback that
     maps a live request to (clienttag, lang_id).
-  - `build_anongame_snapshot_cache(infos_path, maps_path)` —
+  - `build_anongame_snapshot_cache(infos_path, maps_path)` вЂ”
     end-to-end: loads `anongame_infos.conf` (multilocale) + `bnmaps.conf`,
     composes per-clienttag MAP and TYPE, folds into every locale,
     compiles each `CompiledSnapshotSet`. Returns `NotFound` on file
     open failure.
-  - `make_anongame_inforeply_resolver(cache, selector)` — produces
+  - `make_anongame_inforeply_resolver(cache, selector)` вЂ” produces
     the closure that `BnetStranglerHandler::set_anongame_inforeply_resolver`
     expects. Empty-maps fallback emits a bare-default `""` entry so the
     resolver always has something to serve.
@@ -2796,7 +3000,7 @@ premature. Documented as the next pending step.
   `integration_legacy_bnetd` and pulled in `application_anongame_infoply`
   + `infra_legacy_config` as PUBLIC_DEPS.
 - `tests/unit/integration/legacy_bnetd/anongame_bootstrap_test.cpp`:
-  7 new Catch2 cases — full WAR3+W3XP bootstrap from temp files,
+  7 new Catch2 cases вЂ” full WAR3+W3XP bootstrap from temp files,
   missing-infos / missing-maps NotFound, empty-maps fallback,
   resolver returns SID 0x44 packet bytes (header check), per-locale
   selector returns different bytes than default, unknown clienttag
@@ -2804,7 +3008,7 @@ premature. Documented as the next pending step.
   byte-by-byte loop to sidestep Catch2's missing
   `StringMaker<std::byte>` for `vector<byte>` decomposition.
 
-**Step 3 — production wiring (deferred)**
+**Step 3 вЂ” production wiring (deferred)**
 The strangler is not yet installed into legacy `bnetd::main`'s network
 loop; doing so requires reworking the legacy connection setup to route
 new connections through `LegacyProtocolHandler::on_bytes`. This is its
@@ -2816,13 +3020,13 @@ wiring becomes a single
 `strangler.set_anongame_inforeply_resolver(make_anongame_inforeply_resolver(cache, selector))`
 call at startup.
 
-**Result:** `ctest -C Release` → **549/549 tests pass** (+15 new:
+**Result:** `ctest -C Release` в†’ **549/549 tests pass** (+15 new:
 7 type composer + 7 bootstrap + 1 from a renamed strangler test
 totalling 8 in the integration block).
 
 
 
-### 2026-06-17 (i) — "Implement entire 6": tournament TYPE decorator + production strangler bridge
+### 2026-06-17 (i) вЂ” "Implement entire 6": tournament TYPE decorator + production strangler bridge
 
 **Goal:** (User: "implement entire 6.") Close out the FINDANONGAME
 vertical: add the tournament-aware TYPE decorator (deferred from 6h)
@@ -2831,7 +3035,7 @@ into the live `bnetd_legacy` `_client_anongame_infos` handler so v3
 serves SID 0x44 INFOREPLY in production while legacy stays as the
 fallback.
 
-**Step 1 — Tournament TYPE decorator (application layer)**
+**Step 1 вЂ” Tournament TYPE decorator (application layer)**
 - New `application/anongame_infoply/tournament_decorator.hpp`
   (header-only): `struct TournamentSnapshot { u8 races; bool arranged;
   u8 game_type; }` + `constexpr decorate_prefix_for_tournament(base,
@@ -2846,7 +3050,7 @@ fallback.
 - `tests/unit/application/anongame_infoply/CMakeLists.txt` registers
   the new test target.
 
-**Step 2 — Production strangler bridge (integration_legacy_bnetd_linked)**
+**Step 2 вЂ” Production strangler bridge (integration_legacy_bnetd_linked)**
 - New `integration/legacy_bnetd/src/anongame_inforeply_bridge.cpp`
   exposing `extern "C" int pvpgn_v3_anongame_inforeply_try(void* conn,
   void const* body, unsigned int body_size)`.
@@ -2868,13 +3072,13 @@ fallback.
   any failure (cache uninitialised, parse failure, malformed frame)
   returns 0 so the legacy code path runs unchanged.
 
-**Step 3 — Wire the call site (bnetd_legacy)**
-- `src/bnetd/handle_anongame.cpp` — `_client_anongame_infos` now
+**Step 3 вЂ” Wire the call site (bnetd_legacy)**
+- `src/bnetd/handle_anongame.cpp` вЂ” `_client_anongame_infos` now
   starts with a `#ifdef PVPGN_V3_BNETD_INTEGRATION` block that
   forward-declares `pvpgn_v3_anongame_inforeply_try` and calls it on
   the raw packet bytes; if it returns >0 the legacy code is skipped.
   No legacy behaviour changes when the v3 build isn't configured.
-- `src/v3/CMakeLists.txt` — added `anongame_inforeply_bridge.cpp` to
+- `src/v3/CMakeLists.txt` вЂ” added `anongame_inforeply_bridge.cpp` to
   `integration_legacy_bnetd_linked` SOURCES (the lib already
   inherits `application_anongame_infoply` + `infra_legacy_config`
   through `integration_legacy_bnetd`).
@@ -2882,12 +3086,12 @@ fallback.
   `integration_legacy_bnetd_linked` were already in place from the
   earlier UDP strangler work; this batch reuses that infrastructure.
 
-**Result:** `cmake --build` clean; `ctest -C Release` →
+**Result:** `cmake --build` clean; `ctest -C Release` в†’
 **553/553 tests pass** (+4 tournament_decorator). The bnetd binary
 now routes SID 0x44 INFOREPLY through the v3 typed pipeline whenever
 the snapshot cache initialises successfully, and silently falls back
 to the legacy hand-rolled emitter otherwise. The FINDANONGAME vertical
-(loader → cache → composer → resolver → strangler bridge → live
+(loader в†’ cache в†’ composer в†’ resolver в†’ strangler bridge в†’ live
 handler) is now end-to-end on the v3 stack.
 
 **Follow-ups (future batches):**
@@ -2900,7 +3104,7 @@ handler) is now end-to-end on the v3 stack.
   `_client_anongame_*` sub-options.
 
 
-### 2026-06-17 (j) — "Implement 1 and 2": testable bridge helper + integration tests
+### 2026-06-17 (j) вЂ” "Implement 1 and 2": testable bridge helper + integration tests
 
 **Goal:** (User: "implement 1 and 2.") The user picked options 7a
 (continue strangling sub-options) and 7b (integration test for the
@@ -2911,7 +3115,7 @@ far larger than a single batch can absorb without thrashing layering.
 This batch closes 7b properly and lays the groundwork for 7a by
 factoring the inforeply bridge into a unit-testable seam.
 
-**Step 1 — Testable bridge helper (`compose_inforeply_bytes`)**
+**Step 1 вЂ” Testable bridge helper (`compose_inforeply_bytes`)**
 - `integration/legacy_bnetd/anongame_bootstrap.hpp` adds a new pure
   helper `compose_inforeply_bytes(cache, clienttag, lang_id, body)`
   that takes the raw legacy packet body (post-BNet-header, starting
@@ -2930,32 +3134,32 @@ factoring the inforeply bridge into a unit-testable seam.
   identical; the bridge file shrunk and is now a thin
   conn-getter/dispatch wrapper.
 
-**Step 2 — Integration tests for the live bridge**
+**Step 2 вЂ” Integration tests for the live bridge**
 - `tests/unit/integration/legacy_bnetd/anongame_bootstrap_test.cpp`
   gains 5 new tests under tag `[live]`:
-  - `WAR3 URL request -> framed bytes` — checks an FF 44 frame is
+  - `WAR3 URL request -> framed bytes` вЂ” checks an FF 44 frame is
     produced.
-  - `multiple tags -> multiple frames` — drives URL+MAP+DESC and walks
+  - `multiple tags -> multiple frames` вЂ” drives URL+MAP+DESC and walks
     the byte stream verifying exactly 3 well-formed frames.
-  - `rejects non-INFOS sub-option` — `InvalidArgument` for sub_option
+  - `rejects non-INFOS sub-option` вЂ” `InvalidArgument` for sub_option
     != 0x02.
-  - `rejects empty body` — `InvalidArgument` for empty span.
-  - `deDE locale produces different DESC` — confirms the
+  - `rejects empty body` вЂ” `InvalidArgument` for empty span.
+  - `deDE locale produces different DESC` вЂ” confirms the
     per-connection `(clienttag, lang)` selector path actually
     produces locale-distinct output.
 - The tests exercise the exact code path that
   `pvpgn_v3_anongame_inforeply_try` runs in production, minus the
   legacy `t_packet` / `conn_push_outqueue` boundary (which is now
-  the only un-unit-tested seam — covered by the dispatch_frames
+  the only un-unit-tested seam вЂ” covered by the dispatch_frames
   helper which is straight-line frame splitting).
 
-**Step 3 — Encoding gotcha noted**
+**Step 3 вЂ” Encoding gotcha noted**
 - PowerShell 5.1 `Add-Content` writes em-dashes as a single 0x97
   byte (cp-1252) instead of UTF-8 multi-byte, which trips MSVC C4828
   + /WX. Fixed by post-processing the file to substitute
   `--` for byte 0x97. Will record this in repo memory for next time.
 
-**Result:** `cmake --build` clean; `ctest -C Release` →
+**Result:** `cmake --build` clean; `ctest -C Release` в†’
 **558/558 tests pass** (+5). The bridge's parse->resolve->encode path
 is now fully unit-tested without legacy globals.
 
@@ -2979,7 +3183,7 @@ path, wire it through a typed reply variant, add a thin
 
 
 
-### 2026-06-17 (k) — "Implement 1 and 2": tournament wired into live bridge
+### 2026-06-17 (k) вЂ” "Implement 1 and 2": tournament wired into live bridge
 
 **Goal:** (User: "implement 1 and 2.") The user picked options 8a
 (strangle SET_ICON / GET_ICON) and 8b (plug TournamentSnapshot into
@@ -2987,20 +3191,20 @@ the live bridge). 8a needs new v3 application services (icon table
 resolution, race-win validation, custom-icon allowlist) which is its
 own batch; we close 8b properly here and document 8a as next.
 
-**Step 1 — Tournament-aware cache build**
-- `integration/legacy_bnetd/anongame_bootstrap.hpp` —
+**Step 1 вЂ” Tournament-aware cache build**
+- `integration/legacy_bnetd/anongame_bootstrap.hpp` вЂ”
   `build_anongame_snapshot_cache` now takes an optional third
   argument: `application::anongame_infoply::TournamentSnapshot
   tournament` (default-constructed = no-op identity). Includes
   `<application/anongame_infoply/tournament_decorator.hpp>`.
-- `integration/legacy_bnetd/src/anongame_bootstrap.cpp` — applies
+- `integration/legacy_bnetd/src/anongame_bootstrap.cpp` вЂ” applies
   `decorate_prefix_for_tournament(kAnonGameDefaultPrefix, tournament)`
   once at the top of the build, then threads the resulting prefix
   table through `fold_maps_into` -> `compose_type_payload` for every
   clienttag and every locale. Default arguments mean every existing
   test passes unchanged.
 
-**Step 2 — Live bridge reads legacy tournament_* getters**
+**Step 2 вЂ” Live bridge reads legacy tournament_* getters**
 - `integration/legacy_bnetd/src/anongame_inforeply_bridge.cpp` now
   includes `bnetd/tournament.h` and on lazy init reads
   `tournament_get_races()`, `tournament_is_arranged()`,
@@ -3008,14 +3212,14 @@ own batch; we close 8b properly here and document 8a as next.
   them into a `TournamentSnapshot` that's passed to
   `build_anongame_snapshot_cache`.
 
-**Step 3 — Test coverage**
+**Step 3 вЂ” Test coverage**
 - `tests/unit/integration/legacy_bnetd/anongame_bootstrap_test.cpp`
   gains `compose_inforeply_bytes: tournament snapshot decorates TYPE`
   which uses a tailored `kMapsBodyWithTY` (containing a "TY" queue
   entry) and verifies the TYPE payload bytes differ between a plain
   cache and a tournament-decorated cache.
 
-**Result:** `cmake --build` clean; `ctest -C Release` →
+**Result:** `cmake --build` clean; `ctest -C Release` в†’
 **559/559 tests pass** (+1). The live anongame bridge now serves
 tournament-aware TYPE prefixes whenever the legacy `tournament_*`
 state is non-default at first-call time.
@@ -3027,7 +3231,7 @@ init time. A follow-up batch should add a cache-invalidation hook
 (call from the legacy `tournament_*` mutators) that recreates the
 cache when tournament state changes. Documented inline.
 
-**8a deferred** — strangling SET_ICON / GET_ICON requires:
+**8a deferred** вЂ” strangling SET_ICON / GET_ICON requires:
 - v3 application service for icon table resolution (legacy
   `anongame_infos_get_ICON_REQ` + `account_get_user_icon` +
   `account_get_raceicon` + `account_icon_to_profile_icon`).
@@ -3043,7 +3247,7 @@ the v3 services exist.
 
 
 
-### 2026-06-17 (l) — "Implement 1 and 2": runtime cache invalidation on tournament drift
+### 2026-06-17 (l) вЂ” "Implement 1 and 2": runtime cache invalidation on tournament drift
 
 **Goal:** (User: "implement 1 and 2.") The user picked options 9a
 (strangle GET_ICON / SET_ICON) and 9b (tournament cache invalidation).
@@ -3051,11 +3255,11 @@ the v3 services exist.
 account-icon resolution (see "9a deferral" below); we close 9b in this
 batch and document 9a more concretely.
 
-**Step 1 — Cache stamp + drift check**
-- `application/anongame_infoply/tournament_decorator.hpp` —
+**Step 1 вЂ” Cache stamp + drift check**
+- `application/anongame_infoply/tournament_decorator.hpp` вЂ”
   `TournamentSnapshot` gains a defaulted `operator==` so the bridge
   can compare snapshots cheaply.
-- `integration/legacy_bnetd/src/anongame_inforeply_bridge.cpp` —
+- `integration/legacy_bnetd/src/anongame_inforeply_bridge.cpp` вЂ”
   `BridgeState` now stamps the snapshot used to build the cache
   (`built_with`). On every request, the bridge calls
   `read_tournament_snapshot()` and compares it to `built_with` under
@@ -3067,18 +3271,18 @@ batch and document 9a more concretely.
   `read_tournament_snapshot()` helpers so both the lazy initial path
   and the drift-rebuild path share the same code.
 
-**Step 2 — Test coverage**
+**Step 2 вЂ” Test coverage**
 - The existing `compose_inforeply_bytes: tournament snapshot
   decorates TYPE` test already proves that two different snapshots
   produce two different output streams; combined with the new
   `built_with` stamp, that suffices to verify the rebuild is
   observable. The bridge-internal drift check is a conditional on
-  observable equality and runs on every request — exercising it
+  observable equality and runs on every request вЂ” exercising it
   end-to-end in a pure unit test would require mocking
   `tournament_get_*`, which means linking against the legacy
   globals. Documented as a future integration test.
 
-**Result:** `cmake --build` clean; `ctest -C Release` →
+**Result:** `cmake --build` clean; `ctest -C Release` в†’
 **559/559 tests pass** (no new tests; the change is a runtime
 behaviour fix proven by code review against the existing decorator
 test).
@@ -3086,7 +3290,7 @@ test).
 **9a deferral (concrete next steps).** The strangler pattern needs
 data-path components that don't yet exist in v3:
 
-1. **`application/icon_table`** — pure module that takes a
+1. **`application/icon_table`** вЂ” pure module that takes a
    `(clienttag, account_stats, custom_icon_settings)` triple and
    returns a populated `AnonGameIconReply`. Inputs:
    - `account_get_user_icon`, `account_get_raceicon`,
@@ -3097,15 +3301,15 @@ data-path components that don't yet exist in v3:
    - `anongame_infos_get_ICON_REQ` and `anongame_infos_get_ICON_REQ_TOURNEY`
      tables (currently in `anongame_infos.cpp`; should move to v3
      `infra/legacy_config` as a typed loader).
-2. **`application/icon_validator`** — pure helper for SET_ICON's
+2. **`application/icon_validator`** вЂ” pure helper for SET_ICON's
    `check_user_icon` logic (race-win thresholds + tournament icon
    gating). Should produce a `Result<ValidatedIcon>` with explicit
    error reasons.
-3. **Bridge .cpps** — one per sub-option, mirroring
+3. **Bridge .cpps** вЂ” one per sub-option, mirroring
    `anongame_inforeply_bridge.cpp`:
    - `extern "C" int pvpgn_v3_get_icon_try(void* conn, void const* body, unsigned size)`
    - `extern "C" int pvpgn_v3_set_icon_try(void* conn, void const* body, unsigned size)`
-4. **Call-site gating** — `#ifdef PVPGN_V3_BNETD_INTEGRATION` blocks
+4. **Call-site gating** вЂ” `#ifdef PVPGN_V3_BNETD_INTEGRATION` blocks
    in `_client_anongame_get_icon` and `_client_anongame_set_icon`
    identical in shape to the one already in `_client_anongame_infos`.
 
@@ -3116,7 +3320,7 @@ the data path).
 
 
 
-### 2026-06-17 (m) — Batch 10a step 1: icon services foundation
+### 2026-06-17 (m) вЂ” Batch 10a step 1: icon services foundation
 
 **Goal.** Build the v3 services prerequisite for strangling
 `_client_anongame_get_icon` (FINDANONGAME sub-option 0x09): a typed
@@ -3191,7 +3395,7 @@ still needs:
 
 
 
-### 2026-06-17 (n) — Batch 11a + 11b: AnonGameIconReply codec + integration adapter
+### 2026-06-17 (n) вЂ” Batch 11a + 11b: AnonGameIconReply codec + integration adapter
 
 **Goal.** (User: "11a + 11b together".) Wire `AnonGameIconReply` into
 the `protocol/bnet` typed message set (11a), and add a thin
@@ -3280,7 +3484,7 @@ work for the `_client_anongame_get_icon` strangler:
 
 
 
-### 2026-06-17 (o) — Batch 12a + 12b: GET_ICON + SET_ICON strangler bridges (closes 9a)
+### 2026-06-17 (o) вЂ” Batch 12a + 12b: GET_ICON + SET_ICON strangler bridges (closes 9a)
 
 **Goal.** (User: "implement 1 and 2".) Wire the actual strangler
 bridges for FINDANONGAME sub-options 0x09 (GET_ICON) and 0x0A
@@ -3288,7 +3492,7 @@ bridges for FINDANONGAME sub-options 0x09 (GET_ICON) and 0x0A
 `validate_user_icon` service ported from the legacy
 `check_user_icon`. This closes batch 9a.
 
-**Step 1 — pure validator (`application/icon_table::validate_user_icon`).**
+**Step 1 вЂ” pure validator (`application/icon_table::validate_user_icon`).**
 - Mirrors `bnetd/handle_anongame.cpp::check_user_icon` exactly:
   - Default icon "1O3W" always passes.
   - Level digit must be '2'..'6' (-> row 0..4).
@@ -3301,7 +3505,7 @@ bridges for FINDANONGAME sub-options 0x09 (GET_ICON) and 0x0A
   threshold gating, tourney column thresholds, invalid
   level/race rejection.
 
-**Step 2 — GET_ICON bridge (`integration/legacy_bnetd/get_icon_bridge.cpp`).**
+**Step 2 вЂ” GET_ICON bridge (`integration/legacy_bnetd/get_icon_bridge.cpp`).**
 - New `extern "C" int pvpgn_v3_get_icon_try(void* conn, void const*
   body, unsigned size)`:
   1. Validates body[0] == 0x09 sub-option marker.
@@ -3321,7 +3525,7 @@ bridges for FINDANONGAME sub-options 0x09 (GET_ICON) and 0x0A
      of the inforeply bridge's `dispatch_frames`) to push the
      packet onto the conn's outqueue.
 
-**Step 3 — SET_ICON bridge (`integration/legacy_bnetd/set_icon_bridge.cpp`).**
+**Step 3 вЂ” SET_ICON bridge (`integration/legacy_bnetd/set_icon_bridge.cpp`).**
 - New `extern "C" int pvpgn_v3_set_icon_try(void* conn, void const*
   body, unsigned size)`:
   1. Validates body[0] == 0x0A.
@@ -3339,7 +3543,7 @@ bridges for FINDANONGAME sub-options 0x09 (GET_ICON) and 0x0A
   6. Applies via legacy `account_set_user_icon`,
      `conn_update_w3_playerinfo`, `channel_rejoin`.
 
-**Step 4 — call-site #ifdef blocks (`bnetd/handle_anongame.cpp`).**
+**Step 4 вЂ” call-site #ifdef blocks (`bnetd/handle_anongame.cpp`).**
 - `_client_anongame_get_icon`: prepended a
   `#ifdef PVPGN_V3_BNETD_INTEGRATION` block that forward-declares
   `pvpgn_v3_get_icon_try` and short-circuits the legacy code when
@@ -4971,7 +5175,7 @@ whisper failures.
 Plan B push: a single build/test at the end. Total scope grew
 beyond the dialog wording because 28b's "wire ChangePassword into
 CLIENT_CHANGEPASSREQ" turned out to require a domain change to
-handle the legacy double-hash (`ticks||sessionkey||hash1` →
+handle the legacy double-hash (`ticks||sessionkey||hash1` в†’
 `hash2`) that the use-case does not yet model. Rather than break
 parity I scaffolded the bridge slot (scaffold-only, same pattern as
 27a) so a future batch can replace its body without touching the
@@ -6904,7 +7108,7 @@ Operator runtime validation of the linked binary with
 real client to drive them; pending that, the agent has no
 further mechanical work to do on the TcpBridge.
 
-### 2026-05-12 — Asio↔Fiber scheduler integration (round_robin)
+### 2026-05-12 вЂ” Asioв†”Fiber scheduler integration (round_robin)
 
 Closes the gap left by cont. 14: `spawn_session` now actually works
 on a real Asio worker thread.
@@ -6912,9 +7116,9 @@ on a real Asio worker thread.
 #### What changed
 
 1. New header
-   `src/v3/infra/net/include/infra/net/asio_round_robin.hpp` —
+   `src/v3/infra/net/include/infra/net/asio_round_robin.hpp` вЂ”
    vendored from Boost.Fiber's `examples/asio/round_robin.hpp`
-   (Boost 1.83.0, BSL-1.0, © Oliver Kowalke 2013). Trimmed to drop
+   (Boost 1.83.0, BSL-1.0, В© Oliver Kowalke 2013). Trimmed to drop
    the `yield.hpp` include (we never use the asio yield_t completion
    token); behaviour is unchanged. Wrapped in a GCC pragma block
    that silences the example's pedantic warnings.
@@ -6941,7 +7145,7 @@ on a real Asio worker thread.
 #### Test
 
 `tests/unit/infra/net/fiber_session_test.cpp` gains a 4th case,
-`spawn_session: echoes loopback bytes via round_robin scheduler` —
+`spawn_session: echoes loopback bytes via round_robin scheduler` вЂ”
 a real loopback TCP echo where:
 
   * The acceptor accepts on a fiber-scheduled IoRuntime.
@@ -6958,7 +7162,7 @@ side genuinely wake the blocked fiber on the worker thread.
 | Build dir         | Flags                                            | Tests |
 |-------------------|--------------------------------------------------|-------|
 | `build/v3`        | `-DPVPGN_BUILD_V3=ON`                            | 226/226 |
-| `build/v3-fiber`  | `…+ -DPVPGN_V3_WITH_FIBER=ON`                    | 230/230 |
+| `build/v3-fiber`  | `вЂ¦+ -DPVPGN_V3_WITH_FIBER=ON`                    | 230/230 |
 | `build/combined`  | `-DPVPGN_BUILD_LEGACY=ON -DPVPGN_BUILD_V3=ON`    | 226/226 |
 | `build/legacy`    | `-DPVPGN_BUILD_LEGACY=ON`                        | green |
 
@@ -6971,7 +7175,7 @@ side genuinely wake the blocked fiber on the worker thread.
 - Multi-threaded fiber pool (one io_context per worker would be the
   canonical pattern).
 
-### 2026-05-12 — Multi-threaded FiberPool
+### 2026-05-12 вЂ” Multi-threaded FiberPool
 
 Closes the last item from the fiber arc: a real multi-thread fiber
 runtime, since the single-context `round_robin` is constitutionally
@@ -7002,24 +7206,24 @@ TU.
       1. Picks a target worker round-robin.
       2. Migrates the OS file descriptor from the worker-0-bound
          socket onto the target worker's executor (release native
-         handle → `assign()` on a fresh `tcp::socket`).
+         handle в†’ `assign()` on a fresh `tcp::socket`).
       3. Posts the session-creation lambda to the target's executor
-         so all session work — TcpSession construction,
-         on_bytes/on_close wiring, fiber spawn, `start()` — happens
+         so all session work вЂ” TcpSession construction,
+         on_bytes/on_close wiring, fiber spawn, `start()` вЂ” happens
          on the worker that will run it.
   * Sessions are *pinned* to their worker for life. No cross-worker
     migration, no work-stealing. Documented in the header.
 
 #### Tests
 
-`tests/unit/infra/net/fiber_pool_test.cpp` — 3 cases:
+`tests/unit/infra/net/fiber_pool_test.cpp` вЂ” 3 cases:
 
-  * **2 workers serve 8 concurrent loopback echos** — the meat: 8
+  * **2 workers serve 8 concurrent loopback echos** вЂ” the meat: 8
     OS threads each open their own client, write `"client-N"`, read
     it back, and only count success when round-trip matches.
     Asserts `successes == 8`.
-  * **accept fails before start** — returns `FailedPrecondition`.
-  * **invalid bind address** — returns `InvalidArgument`.
+  * **accept fails before start** вЂ” returns `FailedPrecondition`.
+  * **invalid bind address** вЂ” returns `InvalidArgument`.
 
 Wired in `tests/unit/infra/net/CMakeLists.txt` under the existing
 `if(PVPGN_V3_WITH_FIBER)` block.
@@ -7029,7 +7233,7 @@ Wired in `tests/unit/infra/net/CMakeLists.txt` under the existing
 | Build dir         | Flags                                            | Tests |
 |-------------------|--------------------------------------------------|-------|
 | `build/v3`        | `-DPVPGN_BUILD_V3=ON`                            | 226/226 |
-| `build/v3-fiber`  | `…+ -DPVPGN_V3_WITH_FIBER=ON`                    | 233/233 |
+| `build/v3-fiber`  | `вЂ¦+ -DPVPGN_V3_WITH_FIBER=ON`                    | 233/233 |
 | `build/combined`  | `-DPVPGN_BUILD_LEGACY=ON -DPVPGN_BUILD_V3=ON`    | 226/226 |
 | `build/legacy`    | `-DPVPGN_BUILD_LEGACY=ON`                        | green |
 
@@ -7040,11 +7244,11 @@ Wired in `tests/unit/infra/net/CMakeLists.txt` under the existing
     listener pool would be the next refinement.
   * Native-fd migration uses the platform `int` descriptor under
     POSIX. Windows is untested (the path goes through Asio's
-    `native_handle_type` → it should "just work" but isn't
+    `native_handle_type` в†’ it should "just work" but isn't
     exercised in CI yet).
   * Fiber lifetime tied to handler return; no kill switch on
-    individual fibers (close the session ⇒ recv() returns nullopt
-    ⇒ handler exits naturally).
+    individual fibers (close the session в‡’ recv() returns nullopt
+    в‡’ handler exits naturally).
 
 #### Remaining deferred
 
@@ -7055,7 +7259,7 @@ Wired in `tests/unit/infra/net/CMakeLists.txt` under the existing
     root).
   * Per-worker `SO_REUSEPORT` listeners.
 
-## 2026-05-13 — Real strangler-fig cut: v3 owns bnetd UDP
+## 2026-05-13 вЂ” Real strangler-fig cut: v3 owns bnetd UDP
 
 First production-path swap: the legacy `bnetd` executable now
 delegates *all* UDP receive I/O to the v3 networking stack (Asio
@@ -7096,15 +7300,15 @@ flag.
   down.
 
 * CMake: `bnetd` exe now links `integration_legacy_bnetd_linked`
-  privately in the combined build (still no-op when v3 is off —
+  privately in the combined build (still no-op when v3 is off вЂ”
   guarded by `if(TARGET integration_legacy_bnetd_linked)`).
 
 ### Why UDP first
 
-* No `t_connection*` is needed for `handle_udp_packet` — it takes
+* No `t_connection*` is needed for `handle_udp_packet` вЂ” it takes
   a raw socket + addr/port + packet.
 * Legacy UDP only carries the BNCS port-check / NAT-traversal
-  protocol — small, well-isolated traffic with established tests.
+  protocol вЂ” small, well-isolated traffic with established tests.
 * Reusing the legacy-opened fd means zero behaviour change for
   operators: same bind address, same port-reuse policy, same
   multi-bind support, same firewall holes.
@@ -7114,7 +7318,7 @@ flag.
 | Build dir         | Flags                                            | Tests |
 |-------------------|--------------------------------------------------|-------|
 | `build/v3`        | `-DPVPGN_BUILD_V3=ON`                            | 227/227 |
-| `build/v3-fiber`  | `…+ -DPVPGN_V3_WITH_FIBER=ON`                    | 234/234 |
+| `build/v3-fiber`  | `вЂ¦+ -DPVPGN_V3_WITH_FIBER=ON`                    | 234/234 |
 | `build/combined`  | `-DPVPGN_BUILD_LEGACY=ON -DPVPGN_BUILD_V3=ON`    | 227/227 |
 | `build/legacy`    | `-DPVPGN_BUILD_LEGACY=ON`                        | green |
 
@@ -7122,11 +7326,11 @@ The `bnetd` binary in `build/combined/src/bnetd/bnetd` now contains
 the v3 UdpBridge code (verified at link time). Runtime smoke-test
 of the swapped path requires a full server stand-up (config,
 storage, eventlog), which is out of scope for the unit-test gate
-— next step.
+вЂ” next step.
 
 ### Test coverage added
 
-* `tests/unit/infra/net/udp_adopt_test.cpp` — UDP fd adopt loopback
+* `tests/unit/infra/net/udp_adopt_test.cpp` вЂ” UDP fd adopt loopback
   round-trip + InvalidArgument on bad fd.
 
 ### Honest scope notes
@@ -7135,7 +7339,7 @@ storage, eventlog), which is out of scope for the unit-test gate
   `t_connection*` construction, which entangles the full legacy
   composition root).
 * Runtime smoke test against a real client (e.g. WAR3 BNCS
-  port-check) is pending — the swap is link-clean and unit-clean
+  port-check) is pending вЂ” the swap is link-clean and unit-clean
   but hasn't been exercised end-to-end yet.
 * The `UdpBridge` runs a single Asio worker thread; UDP volume is
   low enough that this is fine, but the `FiberPool` machinery is

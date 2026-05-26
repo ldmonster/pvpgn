@@ -42,12 +42,29 @@ enum class InitDecision : std::uint8_t {
     kBot       = 2,   ///< Chat-bot connection.
     kTelnet    = 3,   ///< Telnet-style ASCII connection.
     kD2csBnetd = 4,   ///< D2CS<->bnetd realm link. IP allow-list applies.
+    kRateLimited = 5, ///< R168.b: per-IP cap exceeded; reject without state change.
+    kD2csIpDenied = 6,///< R168.c: D2CS_BNETD client whose IP is not in the realmlist.
     kRejected  = 0xff ///< Unknown or explicitly-unsupported class byte.
 };
 
-/// Input: the verbatim first byte the client sent after TCP connect.
+/// Input: the verbatim first byte the client sent after TCP connect,
+/// plus the per-IP rate-limit context (R168.b). The rate-limit
+/// fields are optional -- a default-constructed `InitConnRequest`
+/// (or one with `max_conns_per_ip == 0`) skips the limit check.
 struct InitConnRequest {
     std::uint8_t cclass = 0;
+    /// Current open connections from the same client IP, NOT
+    /// counting the one being dispatched. Caller-supplied.
+    unsigned int conn_count = 0;
+    /// Configured cap (`prefs.max_conns_per_IP`); 0 disables the
+    /// check. The legacy code skips this gate for D2CS_BNETD;
+    /// v3 reproduces that exception.
+    unsigned int max_conns_per_ip = 0;
+    /// R168.c: for `kClassD2csBnetd` requests, whether the client
+    /// IP appears in the realmlist. Default `true` preserves the
+    /// behavior of older callers that did not supply this field;
+    /// new v3 acceptors should pass the realmlist verdict.
+    bool d2cs_ip_allowed = true;
 
     constexpr bool operator==(const InitConnRequest&) const = default;
 };
@@ -76,6 +93,18 @@ struct InitConnResponse {
 constexpr InitConnResponse dispatch_init_conn(InitConnRequest req) noexcept
 {
     using namespace pvpgn::protocol::bnet::init;
+    // R168.b: per-IP rate limit. The legacy code applies this
+    // BEFORE the class switch and exempts D2CS_BNETD; reproduce
+    // that here so v3 owns the decision.
+    if (req.max_conns_per_ip != 0 &&
+        req.cclass != kClassD2csBnetd &&
+        req.conn_count > req.max_conns_per_ip) {
+        return {InitDecision::kRateLimited};
+    }
+    // R168.c: realmlist gate for D2CS_BNETD requests.
+    if (req.cclass == kClassD2csBnetd && !req.d2cs_ip_allowed) {
+        return {InitDecision::kD2csIpDenied};
+    }
     switch (req.cclass) {
     case kClassBnet:      return {InitDecision::kBnet};
     case kClassFile:      return {InitDecision::kFile};

@@ -29,7 +29,7 @@
 #include <strings.h>
 #include "common/eventlog.h"
 #include "common/tag.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "d2charfile.h"
 #include "common/setup_after.h"
 
@@ -64,9 +64,9 @@ namespace pvpgn
 			unsigned int			i, n, temp, count, type, number;
 
 			{
-				std::vector<char> ladderfile(std::strlen(prefs_get_ladder_dir()) + 1 + std::strlen(LADDER_FILE_PREFIX) + 1 +
+				std::vector<char> ladderfile(std::strlen(pvpgn::d2cs::prefs_v3::ladder_dir()) + 1 + std::strlen(LADDER_FILE_PREFIX) + 1 +
 					std::strlen(CLIENTTAG_DIABLO2DV) + 1);
-				std::sprintf(ladderfile.data(), "%s/%s.%s", prefs_get_ladder_dir(), LADDER_FILE_PREFIX, CLIENTTAG_DIABLO2DV);
+				std::sprintf(ladderfile.data(), "%s/%s.%s", pvpgn::d2cs::prefs_v3::ladder_dir(), LADDER_FILE_PREFIX, CLIENTTAG_DIABLO2DV);
 				if (!(fp = std::fopen(ladderfile.data(), "rb"))) {
 					eventlog(eventlog_level_error, __FUNCTION__, "error opening ladder file \"{}\" for reading (std::fopen: {})", ladderfile.data(), std::strerror(errno));
 					return -1;

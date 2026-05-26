@@ -106,3 +106,101 @@ TEST_CASE("InitConnResponse equality is value-based",
         appinit::InitConnResponse{appinit::InitDecision::kBnet}
         == appinit::InitConnResponse{appinit::InitDecision::kFile});
 }
+
+// ── R168.b rate-limit tests ──────────────────────────────────────────
+
+TEST_CASE("dispatch_init_conn: max_conns_per_ip=0 disables rate limit",
+          "[application][init][dispatch][ratelimit]") {
+    appinit::InitConnRequest req{bniw::kClassBnet};
+    req.conn_count = 1000;
+    req.max_conns_per_ip = 0;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kBnet);
+}
+
+TEST_CASE("dispatch_init_conn: under cap accepts normally",
+          "[application][init][dispatch][ratelimit]") {
+    appinit::InitConnRequest req{bniw::kClassBnet};
+    req.conn_count = 4;
+    req.max_conns_per_ip = 5;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kBnet);
+}
+
+TEST_CASE("dispatch_init_conn: at-cap accepts (strict >)",
+          "[application][init][dispatch][ratelimit]") {
+    appinit::InitConnRequest req{bniw::kClassBnet};
+    req.conn_count = 5;
+    req.max_conns_per_ip = 5;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kBnet);
+}
+
+TEST_CASE("dispatch_init_conn: over cap returns kRateLimited",
+          "[application][init][dispatch][ratelimit]") {
+    appinit::InitConnRequest req{bniw::kClassBnet};
+    req.conn_count = 6;
+    req.max_conns_per_ip = 5;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kRateLimited);
+}
+
+TEST_CASE("dispatch_init_conn: D2CS_BNETD exempt from rate limit",
+          "[application][init][dispatch][ratelimit]") {
+    appinit::InitConnRequest req{bniw::kClassD2csBnetd};
+    req.conn_count = 1000;
+    req.max_conns_per_ip = 5;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kD2csBnetd);
+}
+
+TEST_CASE("dispatch_init_conn: rate-limit precedes class lookup",
+          "[application][init][dispatch][ratelimit]") {
+    // Even an otherwise-rejected class returns kRateLimited when
+    // the cap is exceeded -- the limit is a pre-filter.
+    appinit::InitConnRequest req{bniw::kClassEnc};
+    req.conn_count = 6;
+    req.max_conns_per_ip = 5;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kRateLimited);
+}
+
+// ── R168.c realmlist tests ───────────────────────────────────────────
+
+TEST_CASE("dispatch_init_conn: D2CS_BNETD with allowed IP accepts",
+          "[application][init][dispatch][realmlist]") {
+    appinit::InitConnRequest req{bniw::kClassD2csBnetd};
+    req.d2cs_ip_allowed = true;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kD2csBnetd);
+}
+
+TEST_CASE("dispatch_init_conn: D2CS_BNETD with disallowed IP rejects",
+          "[application][init][dispatch][realmlist]") {
+    appinit::InitConnRequest req{bniw::kClassD2csBnetd};
+    req.d2cs_ip_allowed = false;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kD2csIpDenied);
+}
+
+TEST_CASE("dispatch_init_conn: d2cs_ip_allowed=false irrelevant for non-D2CS",
+          "[application][init][dispatch][realmlist]") {
+    appinit::InitConnRequest req{bniw::kClassBnet};
+    req.d2cs_ip_allowed = false;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kBnet);
+}
+
+TEST_CASE("dispatch_init_conn: rate-limit short-circuits realmlist gate",
+          "[application][init][dispatch][realmlist]") {
+    // If both gates fire, rate-limit wins (D2CS is exempt from rate-
+    // limit anyway, so this construction can't actually trigger
+    // both; we assert the documented precedence with a non-D2CS
+    // class instead).
+    appinit::InitConnRequest req{bniw::kClassBnet};
+    req.conn_count = 6;
+    req.max_conns_per_ip = 5;
+    req.d2cs_ip_allowed = false;
+    REQUIRE(appinit::dispatch_init_conn(req).decision
+            == appinit::InitDecision::kRateLimited);
+}

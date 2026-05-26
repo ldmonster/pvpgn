@@ -74,10 +74,6 @@ ladder_chars_only = true
 # Minimum experience required to register on the ladder.
 ladderupdate_threshold = 0
 
-# Ladder start time — characters created before this date revert to non-ladder.
-# Format: "yyyy-mm-dd hh:mm:ss"  (empty = no cutoff)
-#ladder_start_time = ""
-
 ##############################################################################
 # [misc]  — Miscellaneous server behaviour                                   #
 ##############################################################################
@@ -100,5 +96,5 @@ timeout_checkinterval = 60
 
 # Activate the "Lvl 100" bug workaround for mods with max level > 99?
 # If level > 255 it will be clamped to 255.
-# false = deactivated (default), true = activated
-difficulty_hack = false
+# 0 = deactivated (default), 1 = activated
+difficulty_hack = 0

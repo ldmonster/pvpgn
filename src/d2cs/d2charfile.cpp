@@ -31,7 +31,7 @@
 #include "common/eventlog.h"
 #include "common/d2char_checksum.h"
 #include "common/xstring.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
 namespace pvpgn
@@ -111,7 +111,7 @@ namespace pvpgn
 			std::memset(chardata->header.account, 0, MAX_USERNAME_LEN);
 			std::strncpy((char*)chardata->header.account, account, MAX_USERNAME_LEN);
 			std::memset(chardata->header.realmname, 0, MAX_REALMNAME_LEN);
-			std::strncpy((char*)chardata->header.realmname, prefs_get_realmname(), MAX_REALMNAME_LEN);
+			std::strncpy((char*)chardata->header.realmname, pvpgn::d2cs::prefs_v3::realmname(), MAX_REALMNAME_LEN);
 			bn_int_set(&chardata->header.checksum, 0);
 			for (i = 0; i < NELEMS(chardata->header.reserved); i++) {
 				bn_int_set(&chardata->header.reserved[i], 0);
@@ -168,12 +168,12 @@ namespace pvpgn
 				characters can be created and if set to 0 then only Classic character can
 				be created	*/
 
-			if (!(prefs_get_lod_realm() == 2)) {
-				if (prefs_get_lod_realm() && ((status & 0x20) != 0x20)) {
+			if (!(pvpgn::d2cs::prefs_v3::lod_realm() == 2)) {
+				if (pvpgn::d2cs::prefs_v3::lod_realm() && ((status & 0x20) != 0x20)) {
 					eventlog(eventlog_level_warn, __FUNCTION__, "This Realm is for LOD Characters Only");
 					return -1;
 				}
-				if (!prefs_get_lod_realm() && ((status & 0x20) != 0x0)) {
+				if (!pvpgn::d2cs::prefs_v3::lod_realm() && ((status & 0x20) != 0x0)) {
 					eventlog(eventlog_level_warn, __FUNCTION__, "This Realm is for Classic Characters Only");
 					return -1;
 				}
@@ -181,7 +181,7 @@ namespace pvpgn
 
 			/*	Once correct type of character is varified then continue with creation of character */
 
-			if (!prefs_allow_newchar()) {
+			if (!pvpgn::d2cs::prefs_v3::allow_newchar()) {
 				eventlog(eventlog_level_warn, __FUNCTION__, "creation of new character is disabled");
 				return -1;
 			}
@@ -198,25 +198,25 @@ namespace pvpgn
 			switch ((t_character_class)chclass)
 			{
 				case character_class_amazon:
-						newbiefile = prefs_get_charsave_newbie_amazon();
+						newbiefile = pvpgn::d2cs::prefs_v3::charsave_newbie_amazon();
 						break;
 				case character_class_sorceress:
-						newbiefile = prefs_get_charsave_newbie_sorceress();
+						newbiefile = pvpgn::d2cs::prefs_v3::charsave_newbie_sorceress();
 						break;
 				case character_class_necromancer:
-						newbiefile = prefs_get_charsave_newbie_necromancer();
+						newbiefile = pvpgn::d2cs::prefs_v3::charsave_newbie_necromancer();
 						break;
 				case character_class_paladin:
-						newbiefile = prefs_get_charsave_newbie_paladin();
+						newbiefile = pvpgn::d2cs::prefs_v3::charsave_newbie_paladin();
 						break;
 				case character_class_barbarian:
-						newbiefile = prefs_get_charsave_newbie_barbarian();
+						newbiefile = pvpgn::d2cs::prefs_v3::charsave_newbie_barbarian();
 						break;
 				case character_class_druid:
-						newbiefile = prefs_get_charsave_newbie_druid();
+						newbiefile = pvpgn::d2cs::prefs_v3::charsave_newbie_druid();
 						break;
 				case character_class_assassin:
-						newbiefile = prefs_get_charsave_newbie_assasin();
+						newbiefile = pvpgn::d2cs::prefs_v3::charsave_newbie_assasin();
 						break;
 			}
 
@@ -230,7 +230,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			savefile_buf.assign(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+			savefile_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
 			savefile = savefile_buf.data();
 			d2char_get_savefile_name(savefile, charname);
 			if ((fp = std::fopen(savefile, "rb"))) {
@@ -239,12 +239,12 @@ namespace pvpgn
 				return -1;
 			}
 
-			infofile_buf.assign(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			infofile_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
 			infofile = infofile_buf.data();
 			d2char_get_infofile_name(infofile, account, charname);
 
 			std::time_t now = std::time(nullptr);
-			std::time_t ladder_time = prefs_get_ladder_start_time();
+			std::time_t ladder_time = pvpgn::d2cs::prefs_v3::ladder_start_time();
 			if ((ladder_time > 0) && (now < ladder_time))
 				charstatus_set_ladder(status, 0);
 
@@ -280,7 +280,7 @@ namespace pvpgn
 
 			ASSERT(account, -1);
 			ASSERT(charname, -1);
-			std::vector<char> file_buf(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
+			std::vector<char> file_buf(std::strlen(pvpgn::d2cs::prefs_v3::charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1);
 			char * file = file_buf.data();
 			d2char_get_infofile_name(file, account, charname);
 			fp = std::fopen(file, "rb");
@@ -316,7 +316,7 @@ namespace pvpgn
 				and converting to expantion on a classic realm.
 				LOD Char must be created on LOD realm	*/
 
-			if (!prefs_get_allow_convert()) {
+			if (!pvpgn::d2cs::prefs_v3::allow_convert()) {
 				eventlog(eventlog_level_info, __FUNCTION__, "Convert char has been disabled");
 				return -1;
 			}
@@ -332,7 +332,7 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got bad account name \"{}\"", account);
 				return -1;
 			}
-			file_buf.assign(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			file_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
 			file = file_buf.data();
 			d2char_get_infofile_name(file, account, charname);
 			if (!(fp = std::fopen(file, "rb+"))) {
@@ -363,7 +363,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			file_buf.assign(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+			file_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
 			file = file_buf.data();
 			d2char_get_savefile_name(file, charname);
 			if (!(fp = std::fopen(file, "rb+"))) {
@@ -422,7 +422,7 @@ namespace pvpgn
 			}
 
 			/* charsave file */
-			file_buf.assign(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			file_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
 			file = file_buf.data();
 			d2char_get_infofile_name(file, account, charname);
 			if (std::remove(file) < 0) {
@@ -431,7 +431,7 @@ namespace pvpgn
 			}
 
 			/* charinfo file */
-			file_buf.assign(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+			file_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
 			file = file_buf.data();
 			d2char_get_savefile_name(file, charname);
 			if (std::remove(file) < 0) {
@@ -439,7 +439,7 @@ namespace pvpgn
 			}
 
 			/* bak charsave file */
-			file_buf.assign(std::strlen(prefs_get_bak_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			file_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::bak_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
 			file = file_buf.data();
 			d2char_get_bak_infofile_name(file, account, charname);
 			if (std::filesystem::exists(file)) {
@@ -449,7 +449,7 @@ namespace pvpgn
 			}
 
 			/* bak charinfo file */
-			file_buf.assign(std::strlen(prefs_get_bak_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+			file_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::bak_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
 			file = file_buf.data();
 			d2char_get_bak_savefile_name(file, charname);
 			if (std::filesystem::exists(file)) {
@@ -496,7 +496,7 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "got bad account name \"{}\"", account);
 				return -1;
 			}
-			file_buf.assign(std::strlen(prefs_get_charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
+			file_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::charinfo_dir()) + 1 + std::strlen(account) + 1 + std::strlen(charname) + 1, '\0');
 			file = file_buf.data();
 			d2char_get_infofile_name(file, account, charname);
 			size = sizeof(t_d2charinfo_file);
@@ -516,7 +516,7 @@ namespace pvpgn
 				bn_byte_set(&data->portrait.ladder, D2CHARINFO_PORTRAIT_PADBYTE);
 				return 0;
 			}
-			unsigned int ladder_time = prefs_get_ladder_start_time();
+			unsigned int ladder_time = pvpgn::d2cs::prefs_v3::ladder_start_time();
 			if ((ladder_time > 0) && bn_int_get(data->header.create_time) < ladder_time) {
 				char			buffer[MAX_SAVEFILE_SIZE];
 				unsigned int		status_offset;
@@ -548,7 +548,7 @@ namespace pvpgn
 				}
 				std::fclose(fp);
 
-				file_buf.assign(std::strlen(prefs_get_charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
+				file_buf.assign(std::strlen(pvpgn::d2cs::prefs_v3::charsave_dir()) + 1 + std::strlen(charname) + 1, '\0');
 				file = file_buf.data();
 				d2char_get_savefile_name(file, charname);
 
@@ -670,7 +670,7 @@ namespace pvpgn
 				ch = name[i];
 				if (ch == '\0') break;
 				if (std::isalnum(ch)) continue;
-				if (std::strchr(prefs_get_d2cs_account_allowed_symbols(), ch)) continue;
+				if (std::strchr(pvpgn::d2cs::prefs_v3::account_allowed_symbols(), ch)) continue;
 				return -1;
 			}
 			if (i >= MIN_USERNAME_LEN || i <= MAX_USERNAME_LEN) return 0;
@@ -687,7 +687,7 @@ namespace pvpgn
 			std::strncpy(tmpchar, charname, sizeof(tmpchar));
 			tmpchar[sizeof(tmpchar)-1] = '\0';
 			strtolower(tmpchar);
-			std::sprintf(filename, "%s/%s", prefs_get_charsave_dir(), tmpchar);
+			std::sprintf(filename, "%s/%s", pvpgn::d2cs::prefs_v3::charsave_dir(), tmpchar);
 			return 0;
 		}
 
@@ -701,7 +701,7 @@ namespace pvpgn
 			std::strncpy(tmpchar, charname, sizeof(tmpchar));
 			tmpchar[sizeof(tmpchar)-1] = '\0';
 			strtolower(tmpchar);
-			std::sprintf(filename, "%s/%s", prefs_get_bak_charsave_dir(), tmpchar);
+			std::sprintf(filename, "%s/%s", pvpgn::d2cs::prefs_v3::bak_charsave_dir(), tmpchar);
 			return 0;
 		}
 
@@ -716,7 +716,7 @@ namespace pvpgn
 			std::strncpy(tmpacct, account, sizeof(tmpacct));
 			tmpacct[sizeof(tmpacct)-1] = '\0';
 			strtolower(tmpacct);
-			std::sprintf(filename, "%s/%s", prefs_get_charinfo_dir(), tmpacct);
+			std::sprintf(filename, "%s/%s", pvpgn::d2cs::prefs_v3::charinfo_dir(), tmpacct);
 			return 0;
 		}
 
@@ -736,7 +736,7 @@ namespace pvpgn
 			std::strncpy(tmpacct, account, sizeof(tmpacct));
 			tmpchar[sizeof(tmpacct)-1] = '\0';
 			strtolower(tmpacct);
-			std::sprintf(filename, "%s/%s/%s", prefs_get_charinfo_dir(), tmpacct, tmpchar);
+			std::sprintf(filename, "%s/%s/%s", pvpgn::d2cs::prefs_v3::charinfo_dir(), tmpacct, tmpchar);
 			return 0;
 		}
 
@@ -756,7 +756,7 @@ namespace pvpgn
 			std::strncpy(tmpacct, account, sizeof(tmpacct));
 			tmpchar[sizeof(tmpacct)-1] = '\0';
 			strtolower(tmpacct);
-			std::sprintf(filename, "%s/%s/%s", prefs_get_bak_charinfo_dir(), tmpacct, tmpchar);
+			std::sprintf(filename, "%s/%s/%s", pvpgn::d2cs::prefs_v3::bak_charinfo_dir(), tmpacct, tmpchar);
 			return 0;
 		}
 

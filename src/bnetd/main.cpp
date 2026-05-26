@@ -382,7 +382,7 @@ int pre_server_startup(void)
 	if (characterlist_create("") < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load character list");
 	if (prefs_v3::track()) /* setup the tracking mechanism */
-		tracker_set_servers(prefs_get_trackserv_addrs());
+		tracker_set_servers(prefs_v3::trackserv_addrs());
 	if (command_groups_load(prefs_v3::command_groups_file()) < 0)
 		eventlog(eventlog_level_error, __FUNCTION__, "could not load command_groups list");
 	aliasfile_load(prefs_v3::aliasfile());
@@ -533,17 +533,13 @@ extern int main(int argc, char ** argv)
 		eventlog_set(stderr);
 		/* errors to eventlog from here on... */
 
-		if (prefs_load(cmdline_get_preffile()) < 0) {
-			eventlog(eventlog_level_fatal, __FUNCTION__, "could not parse configuration file (exiting)");
-			return -1;
-		}
-
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 		{
-			/* Derive the TOML config path from the legacy .conf path:
-			 * replace the last extension with ".toml", or append ".toml"
-			 * if no extension is present.  A failure here is non-fatal:
-			 * the legacy prefs_get_* accessors remain active as fallback. */
+			/* R149: v3 TOML is the sole config source under the
+			 * integration build. Derive the .toml path from the
+			 * cmdline .conf path (replace extension); a missing or
+			 * malformed file leaves a default-initialized snapshot
+			 * in place but is reported as a fatal startup error. */
 			std::string toml_path = cmdline_get_preffile();
 			auto dot = toml_path.rfind('.');
 			auto sep = toml_path.find_last_of("/\\");
@@ -551,10 +547,17 @@ extern int main(int argc, char ** argv)
 				toml_path.replace(dot, std::string::npos, ".toml");
 			else
 				toml_path += ".toml";
-			if (pvpgn_v3_prefs_load_toml(toml_path.c_str()) == 0)
+			if (pvpgn_v3_prefs_load_toml(toml_path.c_str()) == 0) {
 				eventlog(eventlog_level_info, __FUNCTION__, "v3 TOML config loaded from '{}'", toml_path);
-			else
-				eventlog(eventlog_level_warn, __FUNCTION__, "v3 TOML config not found at '{}', using legacy .conf values", toml_path);
+			} else {
+				eventlog(eventlog_level_fatal, __FUNCTION__, "could not parse v3 TOML config '{}' (exiting)", toml_path);
+				return -1;
+			}
+		}
+#else
+		if (prefs_load(cmdline_get_preffile()) < 0) {
+			eventlog(eventlog_level_fatal, __FUNCTION__, "could not parse configuration file (exiting)");
+			return -1;
 		}
 #endif
 
@@ -669,7 +672,11 @@ extern int main(int argc, char ** argv)
 
 		if (a == 0)
 			eventlog(eventlog_level_info, __FUNCTION__, "server has shut down");
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+		pvpgn_v3_prefs_unload();
+#else
 		prefs_unload();
+#endif
 		cmdline_unload();
 		//guiOnClose
 #ifndef WIN32_GUI

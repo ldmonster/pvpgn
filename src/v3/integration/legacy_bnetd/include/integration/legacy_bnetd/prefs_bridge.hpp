@@ -27,11 +27,23 @@ extern "C" {
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
 /// Parse @p path as a TOML bnetd config and store the resulting `LegacyPrefs`
-/// snapshot.  Returns 0 on success, -1 on parse error.
+/// snapshot.  After R148 the snapshot is ALWAYS populated when this function
+/// returns: on parse failure a default-initialized `ServerConfig{}` is
+/// installed and the function returns -1.
 int pvpgn_v3_prefs_load_toml(const char* path) noexcept;
+
+/// Clear the global snapshot (used by the legacy `prefs_unload()` path).
+void pvpgn_v3_prefs_unload() noexcept;
 
 /// Returns 1 if a TOML snapshot is loaded, 0 otherwise.
 int pvpgn_v3_prefs_loaded() noexcept;
+
+/// Dump the active TOML snapshot as a sequence of human-readable lines.
+/// Each line is delivered via @p line_cb with the caller-supplied @p user
+/// pointer. No-op when no snapshot is loaded. Lines are NUL-terminated
+/// `const char*` pointers owned by `format_dump`'s internal buffer and
+/// remain valid only for the duration of the callback.
+void pvpgn_v3_prefs_dump(void* user, void (*line_cb)(void* user, const char* line)) noexcept;
 
 // ── [storage] ────────────────────────────────────────────────────────────────
 const char*   pvpgn_v3_prefs_get_storage_path() noexcept;
@@ -198,7 +210,18 @@ unsigned int  pvpgn_v3_prefs_get_clan_min_invites() noexcept;
 unsigned int  pvpgn_v3_prefs_get_log_commands() noexcept;
 const char*   pvpgn_v3_prefs_get_log_command_groups() noexcept;
 const char*   pvpgn_v3_prefs_get_log_command_list() noexcept;
-unsigned int  pvpgn_v3_prefs_get_log_notice() noexcept;
+const char*   pvpgn_v3_prefs_get_log_notice() noexcept;
+
+// ── [messages] (chat quota / flood control) ──────────────────────────────────
+unsigned int  pvpgn_v3_prefs_get_quota() noexcept;
+unsigned int  pvpgn_v3_prefs_get_quota_lines() noexcept;
+unsigned int  pvpgn_v3_prefs_get_quota_time() noexcept;
+unsigned int  pvpgn_v3_prefs_get_quota_wrapline() noexcept;
+unsigned int  pvpgn_v3_prefs_get_quota_maxline() noexcept;
+unsigned int  pvpgn_v3_prefs_get_quota_dobae() noexcept;
+
+// ── [status] aliases used by legacy ─────────────────────────────────────────
+const char*   pvpgn_v3_prefs_get_outputdir() noexcept;
 
 // ── [privileges] ─────────────────────────────────────────────────────────────
 const char*   pvpgn_v3_prefs_get_effective_user() noexcept;

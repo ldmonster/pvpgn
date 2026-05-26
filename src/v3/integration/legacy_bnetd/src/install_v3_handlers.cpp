@@ -27,6 +27,8 @@
 #include "integration/legacy_bnetd/login_user_bridge.hpp"
 #include "integration/legacy_bnetd/send_packet_bridge.hpp"
 #include "integration/legacy_bnetd/init_conn_bridge.hpp"
+#include "integration/legacy_bnetd/ads_bridge.hpp"
+#include "integration/legacy_bnetd/realm_list_bridge.hpp"
 
 #include "common/setup_before.h"
 #include "common/bn_type.h"
@@ -355,6 +357,36 @@ void install_init_conn_apply_handler() {
     install_legacy_init_conn_apply_handler();
     bridge_log_kv(core::LogLevel::Info, "v3.init_conn",
                   "v3 init_conn apply handler installed", {});
+}
+
+namespace {
+std::atomic<bool> g_ads_installed{false};
+}  // namespace
+
+void install_ads_handlers() {
+    bool expected = false;
+    if (!g_ads_installed.compare_exchange_strong(
+            expected, true, std::memory_order_acq_rel)) {
+        return;
+    }
+    install_legacy_ads_handlers();
+    bridge_log_kv(core::LogLevel::Info, "v3.ads",
+                  "v3 ads handlers installed", {});
+}
+
+namespace {
+std::atomic<bool> g_realm_list_installed{false};
+}  // namespace
+
+void install_realm_list_handler() {
+    bool expected = false;
+    if (!g_realm_list_installed.compare_exchange_strong(
+            expected, true, std::memory_order_acq_rel)) {
+        return;
+    }
+    install_legacy_realm_list_handler();
+    bridge_log_kv(core::LogLevel::Info, "v3.realm_list",
+                  "v3 realm_list handler installed", {});
 }
 
 }  // namespace pvpgn::integration::legacy_bnetd

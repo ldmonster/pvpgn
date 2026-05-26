@@ -32,7 +32,7 @@
 #include "common/addr.h"
 #include "common/network.h"
 #include "common/xstring.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "game.h"
 #include "net.h"
 #include "handle_init.h"
@@ -147,7 +147,7 @@ namespace pvpgn
 			t_connection * conn;
 
 			ASSERT(charname, -1);
-			if (!prefs_check_multilogin()) return 0;
+			if (!pvpgn::d2cs::prefs_v3::check_multilogin()) return 0;
 			if (gamelist_find_character(charname)) {
 				return -1;
 			}
@@ -355,13 +355,13 @@ namespace pvpgn
 			{
 				switch (c->cclass) {
 				case conn_class_d2cs:
-					if (prefs_get_idletime() && (now - c->last_active > prefs_get_idletime())) {
+					if (pvpgn::d2cs::prefs_v3::idletime() && (now - c->last_active > pvpgn::d2cs::prefs_v3::idletime())) {
 						eventlog(eventlog_level_info, __FUNCTION__, "client {} idled too long std::time, destroy it", c->sessionnum);
 						d2cs_conn_set_state(c, conn_state_destroy);
 					}
 					break;
 				case conn_class_d2gs:
-					if (prefs_get_s2s_idletime() && now - c->last_active > prefs_get_s2s_idletime()) {
+					if (pvpgn::d2cs::prefs_v3::s2s_idletime() && now - c->last_active > pvpgn::d2cs::prefs_v3::s2s_idletime()) {
 						eventlog(eventlog_level_info, __FUNCTION__, "server {} timed out", c->sessionnum);
 						d2cs_conn_set_state(c, conn_state_destroy);
 					}

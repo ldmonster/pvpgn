@@ -15,7 +15,7 @@ endif()
 # Test Removal"). These exercise the legacy `common` library directly
 # and do not need any v3 infra target; they are gated only on the
 # `common` legacy target being present.
-if(TARGET common)
+if(PVPGN_BUILD_LEGACY)
     pvpgn_v3_add_test(test_common_bigint
         SOURCES bigint_test.cpp
         DEPS    common)

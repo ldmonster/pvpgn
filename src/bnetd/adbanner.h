@@ -53,6 +53,15 @@ namespace pvpgn
 			const AdBanner* const pick(t_clienttag client_tag, t_gamelang client_lang, std::size_t prev_ad_id);
 			const AdBanner* const find(t_clienttag client_tag, t_gamelang client_lang, std::size_t ad_id);
 
+			/// R171.b: enumerate all loaded banners (read-only). Used
+			/// by the v3 ads repository adapter so the application
+			/// dispatcher can see the full candidate pool without the
+			/// legacy global leaking outside the bridge.
+			template <typename F>
+			void for_each(F&& fn) const {
+				for (auto const& b : m_banners) fn(b);
+			}
+
 		private:
 			bool m_loaded = false;
 			std::vector<AdBanner> m_banners;

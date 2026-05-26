@@ -44,7 +44,7 @@
 #include "common/bn_type.h"
 #include "common/tag.h"
 
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "connection.h"
 #include "i18n.h"
 #include "common/setup_after.h"
@@ -143,7 +143,7 @@ namespace pvpgn
 			if (filename.empty() || stat(filename.c_str(), &sfile) != 0)
 			{
 				// try find it in "files"
-				filename = fmt::format("{}/{}", prefs_get_filedir(), rawname);
+				filename = fmt::format("{}/{}", prefs_v3::filedir(), rawname);
 				if (stat(filename.c_str(), &sfile) < 0) /* try again */
 				{
 					/* FIXME: check for lower-case version of filename */

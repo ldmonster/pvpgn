@@ -71,3 +71,17 @@ target_link_libraries(pvpgn_v3_d2cs
 install(TARGETS pvpgn_v3_d2cs
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# PVPGN_VERSION (from top-level CMakeLists.txt) for --version output.
+target_compile_definitions(pvpgn_v3_d2cs PRIVATE
+    $<$<BOOL:${PVPGN_VERSION}>:PVPGN_VERSION="${PVPGN_VERSION}">)
+
+# R167 smoke tests.
+if(BUILD_TESTING)
+    add_test(NAME pvpgn_v3_d2cs_help    COMMAND pvpgn_v3_d2cs --help)
+    add_test(NAME pvpgn_v3_d2cs_version COMMAND pvpgn_v3_d2cs --version)
+    set_tests_properties(pvpgn_v3_d2cs_help PROPERTIES
+        PASS_REGULAR_EXPRESSION "Usage: pvpgn_v3_d2cs")
+    set_tests_properties(pvpgn_v3_d2cs_version PROPERTIES
+        PASS_REGULAR_EXPRESSION "pvpgn_v3_d2cs ")
+endif()

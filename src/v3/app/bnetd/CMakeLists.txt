@@ -65,6 +65,22 @@ if(TARGET infra_config)
     target_compile_definitions(pvpgn_v3_bnetd PRIVATE PVPGN_V3_BNETD_HAVE_CONFIG=1)
 endif()
 
+# PVPGN_VERSION (supplied by top-level CMakeLists.txt) for --version output.
+target_compile_definitions(pvpgn_v3_bnetd PRIVATE
+    $<$<BOOL:${PVPGN_VERSION}>:PVPGN_VERSION="${PVPGN_VERSION}">)
+
+# R167 smoke tests: --help and --version must succeed and emit output.
+# These catch link-time + startup regressions in CI without needing a
+# functional config or accept()-ing real clients.
+if(BUILD_TESTING)
+    add_test(NAME pvpgn_v3_bnetd_help    COMMAND pvpgn_v3_bnetd --help)
+    add_test(NAME pvpgn_v3_bnetd_version COMMAND pvpgn_v3_bnetd --version)
+    set_tests_properties(pvpgn_v3_bnetd_help PROPERTIES
+        PASS_REGULAR_EXPRESSION "Usage: pvpgn_v3_bnetd")
+    set_tests_properties(pvpgn_v3_bnetd_version PROPERTIES
+        PASS_REGULAR_EXPRESSION "pvpgn_v3_bnetd ")
+endif()
+
 # Optional: protocol_irc — IrcFsm wired via IrcTcpSession + IrcSessionFactory (R128)
 if(TARGET protocol_irc)
     target_link_libraries(pvpgn_v3_bnetd PRIVATE protocol_irc)

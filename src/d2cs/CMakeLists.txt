@@ -14,7 +14,7 @@ set(D2CS_LIB_SOURCES
 	gamequeue.h handle_bnetd.cpp handle_bnetd.h handle_d2cs.cpp 
 	handle_d2cs.h handle_d2gs.cpp handle_d2gs.h handle_init.cpp 
 	handle_init.h handle_signal.cpp handle_signal.h net.cpp 
-	net.h prefs.cpp prefs.h s2s.cpp s2s.h server.cpp server.h 
+	net.h s2s.cpp s2s.h server.cpp server.h 
 	serverqueue.h serverqueue.cpp setup.h version.h)
 
 ## main.cpp + d2cs_winmain.cpp stay with the executable so the
@@ -26,6 +26,8 @@ set(D2CS_EXE_SOURCES
 	../win32/d2cs_resource.h ../win32/d2cs_resource.rc)
 
 # ---- d2cs_legacy: the strangler-fig handle -----------------------------
+# R165: legacy `prefs.cpp` / `prefs.h` deleted; v3 TOML loader
+# (`pvpgn_v3_d2cs_prefs_load_toml`) is the sole config source.
 add_library(d2cs_legacy STATIC ${D2CS_LIB_SOURCES})
 target_include_directories(d2cs_legacy
     PUBLIC

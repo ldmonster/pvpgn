@@ -44,7 +44,7 @@
 #include "common/d2cs_d2gs_character.h"
 #include "common/d2char_checksum.h"
 #include "common/addr.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "charlock.h"
 #include "d2ladder.h"
 #include "common/setup_after.h"
@@ -97,7 +97,7 @@ namespace pvpgn
 			}
 
 
-			std::sprintf(filename, "%s/.%s.tmp", d2dbs_prefs_get_charsave_dir(), CharName);
+			std::sprintf(filename, "%s/.%s.tmp", pvpgn::d2dbs::prefs_v3::charsave_dir(), CharName);
 			fd = std::fopen(filename, "wb");
 			if (!fd) {
 				eventlog(eventlog_level_error, __FUNCTION__, "open() failed : {}", filename);
@@ -121,8 +121,8 @@ namespace pvpgn
 			}
 			std::fclose(fd);
 
-			std::sprintf(bakfile, "%s/%s", prefs_get_charsave_bak_dir(), CharName);
-			std::sprintf(savefile, "%s/%s", d2dbs_prefs_get_charsave_dir(), CharName);
+			std::sprintf(bakfile, "%s/%s", pvpgn::d2dbs::prefs_v3::charsave_bak_dir(), CharName);
+			std::sprintf(savefile, "%s/%s", pvpgn::d2dbs::prefs_v3::charsave_dir(), CharName);
 			if (p_rename(savefile, bakfile) == -1) {
 				eventlog(eventlog_level_warn, __FUNCTION__, "error std::rename {} to {}", savefile, bakfile);
 			}
@@ -145,13 +145,13 @@ namespace pvpgn
 			strtolower(AccountName);
 			strtolower(CharName);
 
-			std::sprintf(filepath, "%s/%s", prefs_get_charinfo_bak_dir(), AccountName);
+			std::sprintf(filepath, "%s/%s", pvpgn::d2dbs::prefs_v3::charinfo_bak_dir(), AccountName);
 			if (!std::filesystem::is_directory(filepath)) {
 				p_mkdir(filepath);
 				eventlog(eventlog_level_info, __FUNCTION__, "created charinfo directory: {}", filepath);
 			}
 
-			std::sprintf(filename, "%s/%s/.%s.tmp", d2dbs_prefs_get_charinfo_dir(), AccountName, CharName);
+			std::sprintf(filename, "%s/%s/.%s.tmp", pvpgn::d2dbs::prefs_v3::charinfo_dir(), AccountName, CharName);
 			fd = std::fopen(filename, "wb");
 			if (!fd) {
 				eventlog(eventlog_level_error, __FUNCTION__, "open() failed : {}", filename);
@@ -175,8 +175,8 @@ namespace pvpgn
 			}
 			std::fclose(fd);
 
-			std::sprintf(bakfile, "%s/%s/%s", prefs_get_charinfo_bak_dir(), AccountName, CharName);
-			std::sprintf(savefile, "%s/%s/%s", d2dbs_prefs_get_charinfo_dir(), AccountName, CharName);
+			std::sprintf(bakfile, "%s/%s/%s", pvpgn::d2dbs::prefs_v3::charinfo_bak_dir(), AccountName, CharName);
+			std::sprintf(savefile, "%s/%s/%s", pvpgn::d2dbs::prefs_v3::charinfo_dir(), AccountName, CharName);
 			if (p_rename(savefile, bakfile) == -1) {
 				eventlog(eventlog_level_info, __FUNCTION__, "error std::rename {} to {}", savefile, bakfile);
 			}
@@ -197,8 +197,8 @@ namespace pvpgn
 			strtolower(AccountName);
 			strtolower(CharName);
 
-			std::sprintf(filename, "%s/%s", d2dbs_prefs_get_charsave_dir(), CharName);
-			std::sprintf(filename_d2closed, "%s/%s.d2s", d2dbs_prefs_get_charsave_dir(), CharName);
+			std::sprintf(filename, "%s/%s", pvpgn::d2dbs::prefs_v3::charsave_dir(), CharName);
+			std::sprintf(filename_d2closed, "%s/%s.d2s", pvpgn::d2dbs::prefs_v3::charsave_dir(), CharName);
 			if ((!std::filesystem::exists(filename)) && std::filesystem::exists(filename_d2closed))
 			{
 				std::rename(filename_d2closed, filename);
@@ -252,7 +252,7 @@ namespace pvpgn
 			strtolower(AccountName);
 			strtolower(CharName);
 
-			std::sprintf(filename, "%s/%s/%s", d2dbs_prefs_get_charinfo_dir(), AccountName, CharName);
+			std::sprintf(filename, "%s/%s/%s", pvpgn::d2dbs::prefs_v3::charinfo_dir(), AccountName, CharName);
 			fd = std::fopen(filename, "rb");
 			if (!fd) {
 				eventlog(eventlog_level_error, __FUNCTION__, "open() failed : {}", filename);
@@ -486,7 +486,7 @@ namespace pvpgn
 				if (result == D2DBS_GET_DATA_SUCCESS) {
 					bn_int_set(&getret->charcreatetime, bn_int_get(charinfo.header.create_time));
 					/* FIXME: this should be rewritten to support string formatted std::time */
-					if (bn_int_get(charinfo.header.create_time) >= prefs_get_ladderinit_time()) {
+					if (bn_int_get(charinfo.header.create_time) >= pvpgn::d2dbs::prefs_v3::ladderinit_time()) {
 						bn_int_set(&getret->allowladder, 1);
 					}
 					else {
@@ -645,14 +645,14 @@ namespace pvpgn
 				conn->type = conn->ReadBuf[0];
 
 				if (conn->type == CONNECT_CLASS_D2GS_TO_D2DBS) {
-					if (dbs_verify_ipaddr(d2dbs_prefs_get_d2gs_list(), conn) < 0) {
+					if (dbs_verify_ipaddr(pvpgn::d2dbs::prefs_v3::gameservlist(), conn) < 0) {
 						eventlog(eventlog_level_error, __FUNCTION__, "d2gs connection from unknown ip address");
 						return -1;
 					}
 					readlen = 1;
 					writelen = 0;
 					eventlog(eventlog_level_info, __FUNCTION__, "set connection type for gs {}({}) on socket {}", conn->serverip, conn->serverid, conn->sd);
-					eventlog_step(prefs_get_logfile_gs(), eventlog_level_info, __FUNCTION__, "set connection type for gs %s(%d) on socket %d", conn->serverip, conn->serverid, conn->sd);
+					eventlog_step(pvpgn::d2dbs::prefs_v3::logfile_gs(), eventlog_level_info, __FUNCTION__, "set connection type for gs %s(%d) on socket %d", conn->serverip, conn->serverid, conn->sd);
 				}
 				else {
 					eventlog(eventlog_level_error, __FUNCTION__, "unknown connection type");
@@ -759,7 +759,7 @@ namespace pvpgn
 			int				timeout;
 
 			now = std::time(NULL);
-			timeout = d2dbs_prefs_get_idletime();
+			timeout = pvpgn::d2dbs::prefs_v3::idletime();
 			LIST_TRAVERSE(dbs_server_connection_list, elem)
 			{
 				if (!(tempc = (t_d2dbs_connection*)elem_get_data(elem))) continue;
@@ -821,7 +821,7 @@ namespace pvpgn
 
 		static void dbs_packet_set_charinfo_level(char * CharName, char * charinfo)
 		{
-			if (prefs_get_difficulty_hack()) { /* difficulty hack enabled */
+			if (pvpgn::d2dbs::prefs_v3::difficulty_hack()) { /* difficulty hack enabled */
 				unsigned int	level = bn_int_get((bn_basic*)&charinfo[CHARINFO_SUMMARY_LEVEL_OFFSET]);
 				unsigned int	plevel = bn_byte_get((bn_basic*)&charinfo[CHARINFO_PORTRAIT_LEVEL_OFFSET]);
 
@@ -836,7 +836,7 @@ namespace pvpgn
 
 		static int dbs_packet_fix_charinfo(t_d2dbs_connection * conn, char * AccountName, char * CharName, char * charsave)
 		{
-			if (prefs_get_difficulty_hack()) {
+			if (pvpgn::d2dbs::prefs_v3::difficulty_hack()) {
 				unsigned char	charinfo[CHARINFO_SIZE];
 				unsigned int	level = bn_byte_get((bn_basic*)&charsave[CHARSAVE_LEVEL_OFFSET]);
 				unsigned short	status = bn_short_get((bn_basic*)&charsave[CHARSAVE_STATUS_OFFSET]);

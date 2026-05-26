@@ -47,7 +47,7 @@
 #include "common/eventlog.h"
 #include "common/trans.h"
 #include "common/fdwatch.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "connection.h"
 #include "d2gs.h"
 #include "serverqueue.h"
@@ -109,7 +109,7 @@ static int setup_daemon(void)
 
 static char * write_to_pidfile(void)
 {
-	const char* _pf_src = prefs_get_pidfile(); char* pidfile = new char[std::strlen(_pf_src)+1]; std::strcpy(pidfile, _pf_src);
+	const char* _pf_src = pvpgn::d2cs::prefs_v3::pidfile(); char* pidfile = new char[std::strlen(_pf_src)+1]; std::strcpy(pidfile, _pf_src);
 
 	if (pidfile)
 	{
@@ -149,9 +149,9 @@ static int init(void)
 	d2gslist_create();
 	gqlist_create();
 	d2ladder_init();
-	if(trans_load(d2cs_prefs_get_transfile(),TRANS_D2CS)<0)
+	if(trans_load(pvpgn::d2cs::prefs_v3::transfile(),TRANS_D2CS)<0)
 	    eventlog(eventlog_level_error,__FUNCTION__,"could not load trans list");
-	fdwatch_init(prefs_get_max_connections());
+	fdwatch_init(pvpgn::d2cs::prefs_v3::max_connections());
 	return 0;
 }
 
@@ -189,13 +189,36 @@ static int config_init(int argc, char * * argv)
 	}
 #endif
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	{
+		/* R155: v3 TOML is the sole config source under the integration
+		 * build. Derive the '.toml' path from the cmdline '.conf' path
+		 * (replace extension); a missing or malformed file leaves a
+		 * default-initialized snapshot in place but is reported as a
+		 * fatal startup error. */
+		std::string toml_path = cmdline_get_preffile();
+		auto dot = toml_path.rfind('.');
+		auto sep = toml_path.find_last_of("/\\");
+		if (dot != std::string::npos && (sep == std::string::npos || dot > sep))
+			toml_path.replace(dot, std::string::npos, ".toml");
+		else
+			toml_path += ".toml";
+		if (pvpgn_v3_d2cs_prefs_load_toml(toml_path.c_str()) == 0) {
+			eventlog(eventlog_level_info, __FUNCTION__, "v3 TOML config loaded from '{}'", toml_path);
+		} else {
+			eventlog(eventlog_level_fatal, __FUNCTION__, "could not parse v3 TOML config '{}' (exiting)", toml_path);
+			return -1;
+		}
+	}
+#else
 	if (d2cs_prefs_load(cmdline_get_preffile())<0) {
 		eventlog(eventlog_level_error,__FUNCTION__,"error loading configuration file {}",cmdline_get_preffile());
 		return -1;
 	}
+#endif
 
     eventlog_clear_level();
-    if ((levels = d2cs_prefs_get_loglevels()))
+    if ((levels = pvpgn::d2cs::prefs_v3::loglevels()))
     {
         std::string temp(levels);
         tok = std::strtok(temp.data(),","); /* std::strtok modifies the string it is passed */
@@ -227,8 +250,8 @@ static int config_init(int argc, char * * argv)
 			return -1;
 		}
 	    } else {
-		if (eventlog_open(d2cs_prefs_get_logfile())<0) {
-			eventlog(eventlog_level_error,__FUNCTION__,"error open eventlog file {}",d2cs_prefs_get_logfile());
+		if (eventlog_open(pvpgn::d2cs::prefs_v3::logfile())<0) {
+			eventlog(eventlog_level_error,__FUNCTION__,"error open eventlog file {}",pvpgn::d2cs::prefs_v3::logfile());
 			return -1;
 		}
 	    }
@@ -239,7 +262,11 @@ static int config_init(int argc, char * * argv)
 
 static int config_cleanup(void)
 {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	pvpgn_v3_d2cs_prefs_unload();
+#else
 	d2cs_prefs_unload();
+#endif
 	cmdline_unload();
 	return 0;
 }

@@ -37,6 +37,7 @@
 /// the `protocol_irc` target provides the expected header.
 
 #include <atomic>
+#include <algorithm>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
@@ -176,15 +177,20 @@ public:
         std::span<const std::byte> payload) override {
         // Build a minimal 4-byte BNCS header + payload and send.
         // Header: 0xFF, packet_id, length (LE uint16)
-        const std::uint16_t total =
-            static_cast<std::uint16_t>(4u + payload.size());
-        std::vector<std::byte> buf;
-        buf.reserve(total);
-        buf.push_back(std::byte{0xFF});
-        buf.push_back(std::byte{packet_id});
-        buf.push_back(std::byte{static_cast<std::uint8_t>(total & 0xFFu)});
-        buf.push_back(std::byte{static_cast<std::uint8_t>((total >> 8) & 0xFFu)});
-        buf.insert(buf.end(), payload.begin(), payload.end());
+        //
+        // R169.e: avoid the reserve+push_back+insert pattern that
+        // gcc 15 mis-diagnoses as `-Werror=free-nonheap-object` on
+        // -O2. Pre-size the vector and write through indices.
+        const std::size_t total = 4u + payload.size();
+        const std::uint16_t total_le = static_cast<std::uint16_t>(total);
+        std::vector<std::byte> buf(total);
+        buf[0] = std::byte{0xFF};
+        buf[1] = std::byte{packet_id};
+        buf[2] = std::byte{static_cast<std::uint8_t>(total_le & 0xFFu)};
+        buf[3] = std::byte{static_cast<std::uint8_t>((total_le >> 8) & 0xFFu)};
+        if (!payload.empty()) {
+            std::copy(payload.begin(), payload.end(), buf.begin() + 4);
+        }
         egress_->send(std::move(buf));
         return core::ok();
     }
@@ -431,7 +437,14 @@ static CliArgs parse_args(int argc, char* argv[]) {
                 "  --data-dir,  -d <path>   Data directory (default .)\n"
                 "  --log-level, -l <level>  Log level (default info)\n"
                 "  --threads,   -t <n>      Worker threads (default hw_concurrency)\n"
+                "  --version,   -V          Print version and exit\n"
                 "  --help,      -h          Show this help\n";
+            std::exit(0);
+        } else if (arg == "--version" || arg == "-V") {
+#ifndef PVPGN_VERSION
+#  define PVPGN_VERSION "unknown"
+#endif
+            std::cout << "pvpgn_v3_bnetd " << PVPGN_VERSION << "\n";
             std::exit(0);
         }
     }

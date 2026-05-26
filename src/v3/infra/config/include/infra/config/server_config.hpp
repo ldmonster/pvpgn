@@ -265,7 +265,21 @@ struct CommandLogConfig {
     bool        log_commands       = false;
     std::string log_command_groups;
     std::string log_command_list;
-    bool        log_notice         = false;
+    // Notice text broadcast on channels with command-logging enabled.
+    // Legacy default (`BNETD_LOG_NOTICE` in `src/common/setup_before.h`):
+    //   "*** Please note this channel is logged! ***"
+    std::string log_notice         = "*** Please note this channel is logged! ***";
+};
+
+// ── [messages] (chat quota / flood control) ──────────────────────────────────
+
+struct MessagesConfig {
+    bool          quota          = true; // BNETD_QUOTA toggle
+    std::uint32_t quota_lines    = 5;   // BNETD_QUOTA_LINES
+    std::uint32_t quota_time     = 5;   // BNETD_QUOTA_TIME   (seconds)
+    std::uint32_t quota_wrapline = 40;  // BNETD_QUOTA_WLINE  (chars)
+    std::uint32_t quota_maxline  = 200; // BNETD_QUOTA_MLINE  (chars)
+    std::uint32_t quota_dobae    = 7;   // BNETD_QUOTA_DOBAE  (lines)
 };
 
 // ── Top-level ServerConfig ────────────────────────────────────────────────────
@@ -296,6 +310,7 @@ struct ServerConfig {
     StatusConfig          status;
     ClanConfig            clan;
     CommandLogConfig      command_log;
+    MessagesConfig        messages;
 };
 
 // ── Factory functions ─────────────────────────────────────────────────────────

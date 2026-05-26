@@ -37,7 +37,7 @@
 #include "common/addr.h"
 #include "common/eventlog.h"
 #include "common/list.h"
-#include "prefs.h"
+#include "prefs_v3_shim.h"
 #include "net.h"
 #include "connection.h"
 #include "serverqueue.h"
@@ -83,7 +83,7 @@ static int server_listen(void)
 	t_addr_data	laddr_data;
 	int		sock;
 
-	if (!(server_listen_addrs=addrlist_create(prefs_get_servaddrs(),INADDR_ANY,D2CS_SERVER_PORT))) {
+	if (!(server_listen_addrs=addrlist_create(pvpgn::d2cs::prefs_v3::servaddrs(),INADDR_ANY,D2CS_SERVER_PORT))) {
 		eventlog(eventlog_level_error,__FUNCTION__,"error create listening address list");
 		return -1;
 	}
@@ -187,32 +187,32 @@ static int server_handle_timed_event(void)
 	std::time_t		now;
 
 	now=std::time(NULL);
-	if (now-prev_list_purgetime>(signed)prefs_get_list_purgeinterval()) {
+	if (now-prev_list_purgetime>(signed)pvpgn::d2cs::prefs_v3::list_purgeinterval()) {
 		hashtable_purge(d2cs_connlist());
 		d2cs_gamelist_check_voidgame();
 		prev_list_purgetime=now;
 	}
-	if (now-prev_gamequeue_checktime>(signed)prefs_get_gamequeue_checkinterval()) {
+	if (now-prev_gamequeue_checktime>(signed)pvpgn::d2cs::prefs_v3::gamequeue_checkinterval()) {
 		gqlist_update_all_clients();
 		prev_gamequeue_checktime=now;
 	}
-	if (now-prev_s2s_checktime>(signed)prefs_get_s2s_retryinterval()) {
+	if (now-prev_s2s_checktime>(signed)pvpgn::d2cs::prefs_v3::s2s_retryinterval()) {
 		s2s_check();
 		prev_s2s_checktime=now;
 	}
-	if (now-prev_sq_checktime>(signed)prefs_get_sq_checkinterval()) {
+	if (now-prev_sq_checktime>(signed)pvpgn::d2cs::prefs_v3::sq_checkinterval()) {
 		sqlist_check_timeout();
 		prev_sq_checktime=now;
 	}
-	if (now-prev_d2ladder_refresh_time>(signed)prefs_get_d2ladder_refresh_interval()) {
+	if (now-prev_d2ladder_refresh_time>(signed)pvpgn::d2cs::prefs_v3::d2ladder_refresh_interval()) {
 		d2ladder_refresh();
 		prev_d2ladder_refresh_time=now;
 	}
-	if (now-prev_s2s_keepalive_time>(signed)prefs_get_s2s_keepalive_interval()) {
+	if (now-prev_s2s_keepalive_time>(signed)pvpgn::d2cs::prefs_v3::s2s_keepalive_interval()) {
 		d2gs_keepalive();
 		prev_s2s_keepalive_time=now;
 	}
-	if (now-prev_timeout_checktime>(signed)prefs_get_timeout_checkinterval()) {
+	if (now-prev_timeout_checktime>(signed)pvpgn::d2cs::prefs_v3::timeout_checkinterval()) {
 		connlist_check_timeout();
 		prev_timeout_checktime=now;
 	}

@@ -6,6 +6,10 @@ pvpgn_v3_add_test(test_protocol_bnet_init_wire_types
     SOURCES init_wire_types_test.cpp
     DEPS    protocol_bnet)
 
+pvpgn_v3_add_test(test_protocol_bnet_init_codec
+    SOURCES init_codec_test.cpp
+    DEPS    protocol_bnet)
+
 pvpgn_v3_add_test(test_protocol_bnet_bot_wire_types
     SOURCES bot_wire_types_test.cpp
     DEPS    protocol_bnet)

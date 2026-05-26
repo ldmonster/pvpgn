@@ -10,3 +10,7 @@ pvpgn_v3_add_test(application_realm_character_lock_test
 pvpgn_v3_add_test(application_realm_gs_queue_test
     SOURCES gs_queue_test.cpp
     DEPS application_realm)
+
+pvpgn_v3_add_test(application_realm_realm_list_test
+    SOURCES realm_list_test.cpp
+    DEPS application_realm)
