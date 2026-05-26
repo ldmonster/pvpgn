@@ -18,6 +18,7 @@
 /// / R180.b clear the linked-adapter pivots).
 
 #include "application/bnet_packet_pump/lifecycle.hpp"
+#include "application/bnet_packet_pump/init_side_effects.hpp"
 #include "protocol/bnet/init_codec.hpp"
 #include "application/init/init_conn_dispatch.hpp"
 
@@ -146,6 +147,42 @@ public:
     constexpr void close() noexcept {
         state_ = Lifecycle::kClosed;
         class_ = ConnClass::kNone;
+    }
+
+    /// R186.a: policy-aware feed that ALSO invokes the
+    /// `InitSideEffects` callback table on accept. This is the
+    /// entry the linked half uses now that `apply_via_legacy` is
+    /// being retired: the driver consumes the cclass byte,
+    /// consults `dispatch_init_conn` against `policy`, and on
+    /// accept runs `set_connected` -> `set_class` -> (if
+    /// `kD2csBnetd`) `apply_d2cs_init`. If `apply_d2cs_init`
+    /// fails (returns -1), the driver flips its state to
+    /// `kRejected` and reports `FeedOutcome::kRejected` to the
+    /// caller -- the connection is dead. NULL entries in `sx`
+    /// are treated as no-ops.
+    FeedOutcome feed_with_side_effects(std::span<const std::byte> frame,
+                                       PumpPolicy                 policy,
+                                       void*                      conn,
+                                       InitSideEffects const&     sx) noexcept {
+        auto const outcome = feed(frame, policy);
+        if (outcome != FeedOutcome::kAccepted) return outcome;
+
+        // Driver accepted; run the side effects in legacy order:
+        // log -> set_connected -> set_class -> (d2cs init).
+        if (sx.log_accept    != nullptr) sx.log_accept(conn, class_);
+        if (sx.set_connected != nullptr) sx.set_connected(conn);
+        if (sx.set_class     != nullptr) sx.set_class(conn, class_);
+
+        if (class_ == ConnClass::kD2csBnetd && sx.apply_d2cs_init != nullptr) {
+            int const rc = sx.apply_d2cs_init(conn);
+            if (rc < 0) {
+                // D2CS handshake failed mid-accept: connection is dead.
+                state_ = Lifecycle::kRejected;
+                class_ = ConnClass::kNone;
+                return FeedOutcome::kRejected;
+            }
+        }
+        return FeedOutcome::kAccepted;
     }
 
 private:

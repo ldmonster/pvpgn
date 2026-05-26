@@ -1374,6 +1374,7 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             integration/legacy_bnetd/src/send_packet_bridge_link.cpp
             integration/legacy_bnetd/src/init_conn_bridge_link.cpp
             integration/legacy_bnetd/src/init_packet_dispatch_link.cpp
+            integration/legacy_bnetd/src/init_side_effects_link.cpp
             integration/legacy_bnetd/src/ads_bridge_link.cpp
             integration/legacy_bnetd/src/realm_list_bridge_link.cpp
         PUBLIC_INCLUDES

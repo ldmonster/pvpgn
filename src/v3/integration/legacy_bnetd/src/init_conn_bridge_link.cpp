@@ -1,123 +1,63 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Linked half of the v3 init-conn dispatch strangler. Owns the
-// `t_connection` state-machine transitions that the legacy
-// `handle_init_packet` switch used to perform inline, including
-// the D2CS_BNETD realmlist allow-list check and `handle_d2cs_init`
-// call.
+// Linked half of the v3 init-conn dispatch strangler.
 //
-// Compiled only inside `integration_legacy_bnetd_linked` (requires
-// the legacy `bnetd_legacy` library to be present in the same
-// configure).
+// After R186.a the v3 driver path (`init_packet_dispatch_link.cpp`)
+// no longer invokes `apply_via_legacy` -- the driver applies its
+// own side effects via the `InitSideEffects` port. This handler
+// stays alive ONLY to serve the legacy server.cpp packet pump,
+// which still reaches `bnetd/handle_init.cpp` -> the C ABI
+// `pvpgn_v3_init_conn_apply_ex` dispatcher -> this handler.
+//
+// R187.a: collapsed the per-class switch -- this function now
+// delegates to the same `InitSideEffects` thunks the v3 driver
+// uses, eliminating the duplicated state/class transition + log
+// blob and ensuring both call paths produce identical observable
+// behaviour. When `bnetd/handle_init.cpp` is finally rerouted to
+// the driver, this whole TU goes away.
 
 #include "integration/legacy_bnetd/init_conn_bridge.hpp"
+#include "integration/legacy_bnetd/init_side_effects_link.hpp"
 
+#include "application/bnet_packet_pump/init_side_effects.hpp"
 #include "application/init/init_conn_dispatch.hpp"
-
-#include "common/setup_before.h"
-#include "common/eventlog.h"
-#include "common/addr.h"
-#include "bnetd/connection.h"
-#include "bnetd/realm.h"
-#include "bnetd/handle_d2cs.h"
-#include "common/setup_after.h"
 
 namespace pvpgn::integration::legacy_bnetd {
 
 namespace {
 
-int apply_via_legacy(void* conn_ptr, std::uint8_t cclass) noexcept {
-    using ::pvpgn::bnetd::t_connection;
-    using ::pvpgn::application::init::dispatch_init_conn;
-    using ::pvpgn::application::init::InitConnRequest;
-    using ::pvpgn::application::init::InitDecision;
+using ::pvpgn::application::bnet_packet_pump::ConnClass;
+using ::pvpgn::application::bnet_packet_pump::InitSideEffects;
+using ::pvpgn::application::init::dispatch_init_conn;
+using ::pvpgn::application::init::InitConnRequest;
+using ::pvpgn::application::init::InitDecision;
 
+constexpr ConnClass decision_to_class(InitDecision d) noexcept {
+    switch (d) {
+        case InitDecision::kBnet:       return ConnClass::kBnet;
+        case InitDecision::kFile:       return ConnClass::kFile;
+        case InitDecision::kBot:        return ConnClass::kBot;
+        case InitDecision::kTelnet:     return ConnClass::kTelnet;
+        case InitDecision::kD2csBnetd:  return ConnClass::kD2csBnetd;
+        default:                        return ConnClass::kNone;
+    }
+}
+
+int apply_via_legacy(void* conn_ptr, std::uint8_t cclass) noexcept {
     if (conn_ptr == nullptr) return 0;
 
-    auto* c = static_cast<t_connection*>(conn_ptr);
-
     const auto resp = dispatch_init_conn(InitConnRequest{cclass});
+    const ConnClass cl = decision_to_class(resp.decision);
+    if (cl == ConnClass::kNone) return 0;
 
-    switch (resp.decision) {
-    case InitDecision::kBnet:
-        ::pvpgn::eventlog(
-            ::pvpgn::eventlog_level_info, __FUNCTION__,
-            "[{}] client initiated bnet connection (v3)",
-            ::pvpgn::bnetd::conn_get_socket(c));
-        ::pvpgn::bnetd::conn_set_state(
-            c, ::pvpgn::bnetd::conn_state_connected);
-        ::pvpgn::bnetd::conn_set_class(
-            c, ::pvpgn::bnetd::conn_class_bnet);
-        return 1;
+    InitSideEffects const& sx = get_legacy_init_side_effects();
+    if (sx.log_accept)     sx.log_accept(conn_ptr, cl);
+    if (sx.set_connected)  sx.set_connected(conn_ptr);
+    if (sx.set_class)      sx.set_class(conn_ptr, cl);
 
-    case InitDecision::kFile:
-        ::pvpgn::eventlog(
-            ::pvpgn::eventlog_level_info, __FUNCTION__,
-            "[{}] client initiated file download connection (v3)",
-            ::pvpgn::bnetd::conn_get_socket(c));
-        ::pvpgn::bnetd::conn_set_state(
-            c, ::pvpgn::bnetd::conn_state_connected);
-        ::pvpgn::bnetd::conn_set_class(
-            c, ::pvpgn::bnetd::conn_class_file);
-        return 1;
-
-    case InitDecision::kBot:
-        ::pvpgn::eventlog(
-            ::pvpgn::eventlog_level_info, __FUNCTION__,
-            "[{}] client initiated chat bot connection (v3)",
-            ::pvpgn::bnetd::conn_get_socket(c));
-        ::pvpgn::bnetd::conn_set_state(
-            c, ::pvpgn::bnetd::conn_state_connected);
-        ::pvpgn::bnetd::conn_set_class(
-            c, ::pvpgn::bnetd::conn_class_bot);
-        return 1;
-
-    case InitDecision::kTelnet:
-        ::pvpgn::eventlog(
-            ::pvpgn::eventlog_level_info, __FUNCTION__,
-            "[{}] client initiated telnet connection (v3)",
-            ::pvpgn::bnetd::conn_get_socket(c));
-        ::pvpgn::bnetd::conn_set_state(
-            c, ::pvpgn::bnetd::conn_state_connected);
-        ::pvpgn::bnetd::conn_set_class(
-            c, ::pvpgn::bnetd::conn_class_telnet);
-        return 1;
-
-    case InitDecision::kD2csBnetd:
-        ::pvpgn::eventlog(
-            ::pvpgn::eventlog_level_info, __FUNCTION__,
-            "[{}] client initiated d2cs_bnetd connection (v3)",
-            ::pvpgn::bnetd::conn_get_socket(c));
-        if (::pvpgn::bnetd::realmlist_find_realm_by_ip(
-                ::pvpgn::bnetd::conn_get_addr(c)) == nullptr) {
-            ::pvpgn::eventlog(
-                ::pvpgn::eventlog_level_info, __FUNCTION__,
-                "[{}] d2cs connection from unknown ip address {}",
-                ::pvpgn::bnetd::conn_get_socket(c),
-                ::pvpgn::addr_num_to_addr_str(
-                    ::pvpgn::bnetd::conn_get_addr(c),
-                    ::pvpgn::bnetd::conn_get_port(c)));
-            return -1;
-        }
-        ::pvpgn::bnetd::conn_set_state(
-            c, ::pvpgn::bnetd::conn_state_connected);
-        ::pvpgn::bnetd::conn_set_class(
-            c, ::pvpgn::bnetd::conn_class_d2cs_bnetd);
-        if (::pvpgn::bnetd::handle_d2cs_init(c) < 0) {
-            ::pvpgn::eventlog(
-                ::pvpgn::eventlog_level_info, __FUNCTION__,
-                "[{}] failed to init d2cs connection",
-                ::pvpgn::bnetd::conn_get_socket(c));
-            return -1;
-        }
-        return 1;
-
-    case InitDecision::kRejected:
-    default:
-        // Never reached when the C ABI rejects before invoking us;
-        // returning 0 here keeps the dispatcher's "decline" semantic
-        // even if some future caller wires us up directly.
-        return 0;
+    if (resp.decision == InitDecision::kD2csBnetd && sx.apply_d2cs_init) {
+        if (sx.apply_d2cs_init(conn_ptr) < 0) return -1;
     }
+    return 1;
 }
 
 }  // namespace

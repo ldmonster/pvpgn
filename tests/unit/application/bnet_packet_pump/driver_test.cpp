@@ -220,3 +220,156 @@ TEST_CASE("driver(policy): max_conns_per_ip=0 disables the rate-limit gate",
     auto const o = d.feed(one(init::kClassBnet), pol);
     CHECK(o == pump::FeedOutcome::kAccepted);
 }
+
+// ---- R186.a: feed_with_side_effects + InitSideEffects port ----
+
+namespace {
+
+struct SxCounters {
+    int  log_calls          = 0;
+    int  set_connected_calls = 0;
+    int  set_class_calls     = 0;
+    int  d2cs_init_calls     = 0;
+    void* last_log_conn      = nullptr;
+    void* last_sc_conn       = nullptr;
+    void* last_setclass_conn = nullptr;
+    void* last_d2cs_conn     = nullptr;
+    pump::ConnClass last_class       = pump::ConnClass::kNone;
+    pump::ConnClass last_log_class   = pump::ConnClass::kNone;
+    int  d2cs_init_return  = 0;
+};
+
+SxCounters* g_sx = nullptr;
+
+void cb_log_accept(void* c, pump::ConnClass cl) noexcept
+{
+    if (g_sx) { ++g_sx->log_calls;          g_sx->last_log_conn = c;       g_sx->last_log_class = cl; }
+}
+void cb_set_connected(void* c) noexcept
+{
+    if (g_sx) { ++g_sx->set_connected_calls; g_sx->last_sc_conn = c; }
+}
+void cb_set_class(void* c, pump::ConnClass cl) noexcept
+{
+    if (g_sx) { ++g_sx->set_class_calls;     g_sx->last_setclass_conn = c; g_sx->last_class = cl; }
+}
+int  cb_apply_d2cs_init(void* c) noexcept
+{
+    if (g_sx) { ++g_sx->d2cs_init_calls;     g_sx->last_d2cs_conn = c; return g_sx->d2cs_init_return; }
+    return 0;
+}
+
+pump::InitSideEffects make_full_table() {
+    return pump::InitSideEffects{
+        &cb_set_connected,
+        &cb_set_class,
+        &cb_apply_d2cs_init,
+        &cb_log_accept,
+    };
+}
+
+}  // namespace
+
+TEST_CASE("driver(sx): bnet accept invokes log + set_connected + set_class, NOT d2cs_init",
+          "[application][bnet_packet_pump][driver][sx]")
+{
+    SxCounters sx{};
+    g_sx = &sx;
+    int marker = 42;
+    pump::PacketPumpDriver d{};
+    auto const table = make_full_table();
+    auto const o = d.feed_with_side_effects(
+        one(init::kClassBnet), pump::PumpPolicy{}, &marker, table);
+    CHECK(o == pump::FeedOutcome::kAccepted);
+    CHECK(sx.log_calls          == 1);
+    CHECK(sx.set_connected_calls == 1);
+    CHECK(sx.set_class_calls     == 1);
+    CHECK(sx.d2cs_init_calls     == 0);
+    CHECK(sx.last_class == pump::ConnClass::kBnet);
+    CHECK(sx.last_log_class == pump::ConnClass::kBnet);
+    CHECK(sx.last_sc_conn == &marker);
+    g_sx = nullptr;
+}
+
+TEST_CASE("driver(sx): D2CS_BNETD accept runs d2cs_init too",
+          "[application][bnet_packet_pump][driver][sx]")
+{
+    SxCounters sx{};
+    g_sx = &sx;
+    int marker = 7;
+    pump::PacketPumpDriver d{};
+    auto const table = make_full_table();
+    auto const o = d.feed_with_side_effects(
+        one(init::kClassD2csBnetd), pump::PumpPolicy{}, &marker, table);
+    CHECK(o == pump::FeedOutcome::kAccepted);
+    CHECK(sx.d2cs_init_calls == 1);
+    CHECK(sx.last_d2cs_conn == &marker);
+    CHECK(sx.last_class == pump::ConnClass::kD2csBnetd);
+    g_sx = nullptr;
+}
+
+TEST_CASE("driver(sx): D2CS_BNETD with d2cs_init failure -> kRejected + state terminal",
+          "[application][bnet_packet_pump][driver][sx]")
+{
+    SxCounters sx{};
+    sx.d2cs_init_return = -1;
+    g_sx = &sx;
+    int marker = 0;
+    pump::PacketPumpDriver d{};
+    auto const table = make_full_table();
+    auto const o = d.feed_with_side_effects(
+        one(init::kClassD2csBnetd), pump::PumpPolicy{}, &marker, table);
+    CHECK(o == pump::FeedOutcome::kRejected);
+    CHECK(d.is_rejected());
+    CHECK(d.class_now() == pump::ConnClass::kNone);
+    g_sx = nullptr;
+}
+
+TEST_CASE("driver(sx): driver-level rejection skips ALL side effects",
+          "[application][bnet_packet_pump][driver][sx]")
+{
+    SxCounters sx{};
+    g_sx = &sx;
+    int marker = 0;
+    pump::PacketPumpDriver d{};
+    auto const table = make_full_table();
+    // Unknown cclass -> driver rejects before reaching side effects.
+    auto const o = d.feed_with_side_effects(
+        one(0xfe), pump::PumpPolicy{}, &marker, table);
+    CHECK(o == pump::FeedOutcome::kRejected);
+    CHECK(sx.log_calls          == 0);
+    CHECK(sx.set_connected_calls == 0);
+    CHECK(sx.set_class_calls     == 0);
+    CHECK(sx.d2cs_init_calls     == 0);
+    g_sx = nullptr;
+}
+
+TEST_CASE("driver(sx): NULL callbacks are no-ops, accept still succeeds",
+          "[application][bnet_packet_pump][driver][sx]")
+{
+    int marker = 0;
+    pump::PacketPumpDriver d{};
+    pump::InitSideEffects empty{};  // all NULL
+    auto const o = d.feed_with_side_effects(
+        one(init::kClassBnet), pump::PumpPolicy{}, &marker, empty);
+    CHECK(o == pump::FeedOutcome::kAccepted);
+    CHECK(d.is_open());
+}
+
+TEST_CASE("driver(sx): rate-limit reject in driver skips side effects",
+          "[application][bnet_packet_pump][driver][sx]")
+{
+    SxCounters sx{};
+    g_sx = &sx;
+    int marker = 0;
+    pump::PacketPumpDriver d{};
+    pump::PumpPolicy pol{};
+    pol.conn_count       = 10;
+    pol.max_conns_per_ip = 5;
+    auto const table = make_full_table();
+    auto const o = d.feed_with_side_effects(
+        one(init::kClassBnet), pol, &marker, table);
+    CHECK(o == pump::FeedOutcome::kRateLimited);
+    CHECK(sx.set_class_calls == 0);
+    g_sx = nullptr;
+}
