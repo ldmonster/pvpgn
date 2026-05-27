@@ -28,11 +28,33 @@ endif()
 
 find_package(Threads REQUIRED)
 
+# ---------------------------------------------------------------------------
+# R194: `app_bnetd_legacy_bridge` -- small static library carrying the
+# `LegacyBridge` singleton + `AsioEventLoop` wrapper. Extracted so the
+# legacy `bnetd` executable (which has `server_v3_hook.cpp` injected
+# by the R193 strangler-fig wiring) can link against the symbols too;
+# previously these TUs were compiled directly into `pvpgn_v3_bnetd`
+# and unreachable from the legacy exe.
+# ---------------------------------------------------------------------------
+pvpgn_v3_add_library(app_bnetd_legacy_bridge STATIC
+    SOURCES
+        src/asio_event_loop.cpp
+        src/legacy_bridge.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PUBLIC_DEPS
+        Boost::system
+)
+
+# R194: both impl TUs gate their bodies on PVPGN_V3_BNETD_INTEGRATION.
+# Set it PUBLIC so (a) the lib's own compilation sees the real bodies
+# and (b) consumers see the matching class declaration (no ODR drift).
+target_compile_definitions(app_bnetd_legacy_bridge PUBLIC
+    PVPGN_V3_BNETD_INTEGRATION=1)
+
 add_executable(pvpgn_v3_bnetd
     src/main.cpp
     src/session_manager.cpp
-    src/asio_event_loop.cpp
-    src/legacy_bridge.cpp
     src/bnet_connection_adapter.cpp
     src/lua_connection_context.cpp
 )
@@ -55,6 +77,7 @@ target_link_libraries(pvpgn_v3_bnetd
         protocol_file
         protocol_wol
         infra_net
+        app_bnetd_legacy_bridge
         Boost::system
         Threads::Threads
 )
@@ -100,17 +123,9 @@ install(TARGETS pvpgn_v3_bnetd
 # ---------------------------------------------------------------------------
 # server_v3_hook: legacy bnetd hook that calls LegacyBridge::tick()
 # ---------------------------------------------------------------------------
-# Add server_v3_hook.cpp to the bnetd_legacy static library when the v3
-# build is active.  The hook is compiled with PVPGN_V3_BNETD_INTEGRATION=1
-# (already set on bnetd_legacy by src/bnetd/CMakeLists.txt when the
-# integration_legacy_bnetd_linked target exists) so the non-stub path is
-# compiled in.  The v3 app/bnetd include directory is added so that the
-# hook can #include "app/bnetd/legacy_bridge.hpp".
-if(TARGET bnetd_legacy)
-    target_sources(bnetd_legacy PRIVATE
-        ${CMAKE_SOURCE_DIR}/src/bnetd/server_v3_hook.cpp
-    )
-    target_include_directories(bnetd_legacy PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    )
-endif()
+# MOVED to src/v3/integration/legacy_bnetd/CMakeLists.txt by R193.fix
+# (Strategy B, two-pass `src/v3`). That CMakeLists is added LATE in the
+# top-level configure so that bnetd_legacy already exists. The previous
+# `if(TARGET bnetd_legacy)` placement here was UNREACHABLE because
+# src/v3/app/bnetd/ is processed before src/bnetd/.
+# See plans/r192-checklist.md + plans/r193-audit-checklist.md.

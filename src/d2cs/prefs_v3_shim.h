@@ -20,7 +20,11 @@
 
 #include <ctime>
 
-#ifdef PVPGN_V3_D2CS_INTEGRATION
+#if __has_include("integration/legacy_d2cs/d2cs_prefs_bridge.hpp")
+// R196.b: `__has_include` (not `#ifdef PVPGN_V3_D2CS_INTEGRATION`) so v3-side
+// TUs that pull in this shim transitively still see the bridge function
+// declarations regardless of the integration macro. Mirrors R194's fix to
+// the parallel `src/bnetd/prefs_v3_shim.h`.
 #include "integration/legacy_d2cs/d2cs_prefs_bridge.hpp"
 #endif
 

@@ -552,9 +552,23 @@ extern "C" unsigned int pvpgn_v3_prefs_get_quota_dobae() noexcept {
 
 // ── [privileges] ─────────────────────────────────────────────────────────────
 
+// Note: returns nullptr (NOT empty string) when the toml field is missing
+// or set to "". give_up_root_privileges() in src/common treats nullptr as
+// "skip privilege change" and treats any non-null pointer as "try to
+// setuid/setgid to this name" -- so returning "" would make getpwnam("")
+// fail and abort startup. The legacy prefs path (prefs_runtime_config.*)
+// also returns NULL for the unset case, so this matches that semantic.
+// string_view::data() is null-terminated here because the backing store
+// is a std::string (legacy_prefs.hpp: effective_user_str_).
 extern "C" const char* pvpgn_v3_prefs_get_effective_user() noexcept {
-    auto p = g_prefs.load(); return p ? p->effective_user().data() : "";
+    auto p = g_prefs.load();
+    if (!p) return nullptr;
+    auto sv = p->effective_user();
+    return sv.empty() ? nullptr : sv.data();
 }
 extern "C" const char* pvpgn_v3_prefs_get_effective_group() noexcept {
-    auto p = g_prefs.load(); return p ? p->effective_group().data() : "";
+    auto p = g_prefs.load();
+    if (!p) return nullptr;
+    auto sv = p->effective_group();
+    return sv.empty() ? nullptr : sv.data();
 }

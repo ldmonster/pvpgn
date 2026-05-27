@@ -209,6 +209,19 @@ if(PVPGN_BUILD_LEGACY)
         add_subdirectory(src/v3)
     endif()
     add_subdirectory(src)
+    if(PVPGN_BUILD_V3)
+        # R193.fix (Strategy B, two-pass `src/v3`): the integration target
+        # `integration_legacy_bnetd_linked` and the bnetd / bnetd_legacy
+        # strangler wiring depend on the legacy `bnetd_legacy` target
+        # existing, so they are added AFTER `add_subdirectory(src)`.
+        # See plans/r192-checklist.md + plans/r193-audit-checklist.md.
+        add_subdirectory(src/v3/integration/legacy_bnetd)
+        # R196.b: same systemic ordering bug as R193.fix, but for d2cs.
+        # The integration_legacy_d2cs_linked target + d2cs strangler
+        # wiring depend on `d2cs_legacy` existing. See
+        # plans/r196b-checklist.md.
+        add_subdirectory(src/v3/integration/legacy_d2cs)
+    endif()
     if(WITH_LUA)
         add_subdirectory(lua)
     endif(WITH_LUA)

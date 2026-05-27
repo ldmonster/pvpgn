@@ -22,7 +22,12 @@
 /// Only the accessors actually used by migrated callers are exposed
 /// here. New entries should be added as additional files are migrated.
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R194: include unconditionally. The bridge header has no
+// PVPGN_V3_BNETD_INTEGRATION dependency and is required by every
+// `inline` accessor below regardless of which TU pulls this header
+// in (legacy bnetd, v3 adapters, etc.). Gating it broke v3-side
+// TUs that include legacy bnetd headers transitively.
+#if __has_include("integration/legacy_bnetd/prefs_bridge.hpp")
 #include "integration/legacy_bnetd/prefs_bridge.hpp"
 #endif
 

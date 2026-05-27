@@ -21,8 +21,16 @@
 //     stdin is enough for piping/scripting);
 //   * the `ansi_term` colour glue;
 //   * UDP test (`udptest.cpp` / NETINFO);
-//   * account creation (`CLIENT_CREATEACCTREQ1`);
 //   * Diablo 1 PLAYERINFOREQ stat upload.
+//
+// R197: account creation (`CLIENT_CREATEACCTREQ1`) was previously
+// dropped, but the docker-compose end-to-end smoke needs to bootstrap
+// an account against a fresh bnetd. Reinstated as an opt-in `-C` /
+// `--create-account` flag -- sends CLIENT_CREATEACCTREQ1 once *after*
+// the BNet handshake but *before* CLIENT_LOGINREQ1, then proceeds with
+// the normal login flow. Result OK and "account already exists" are
+// both treated as success (the smoke runs the client multiple times
+// against the same persistent state).
 //
 // Those are valuable but tangential to the modernization
 // objective -- the build now produces a `bnchat` binary that
@@ -64,6 +72,7 @@ struct Options {
     std::string   cdkey;
     std::string   cdowner   = "owner";
     bool          send_cdkey2 = false;
+    bool          create_account = false;
 };
 
 [[noreturn]] void usage(const char* prog) {
@@ -77,6 +86,7 @@ struct Options {
         "  --channel=NAME             channel to join (default \"<clienttag>\")\n"
         "  -k KEY,  --cdkey=KEY       set CD key (auto-enables CDKEY2 stage)\n"
         "  -o NAME, --cdowner=NAME    CD key owner string\n"
+        "  -C,      --create-account  send CLIENT_CREATEACCTREQ1 before LOGINREQ1\n"
         "  -h, --help                 show this help\n"
         "  -v, --version              print version and exit\n",
         prog);
@@ -139,6 +149,8 @@ Options parse_args(int argc, char** argv) {
             o.cdowner = need_value(i, a);
         } else if (starts_with(a, "--cdowner=")) {
             o.cdowner = std::string{a.substr(10)};
+        } else if (a == "-C" || a == "--create-account") {
+            o.create_account = true;
         } else if (!a.empty() && a[0] == '-') {
             std::fprintf(stderr, "%s: unknown option \"%.*s\"\n",
                 argv[0], static_cast<int>(a.size()), a.data());
@@ -220,7 +232,25 @@ bool send_loginreq1(net::socket_t sd, const std::string& user,
     return proto::send_bnet(sd, p);
 }
 
-// ---- chat-event rendering --------------------------------------------
+// ---- CREATEACCTREQ1 helper (R197) ------------------------------------
+
+bool send_createacctreq1(net::socket_t sd, const std::string& user,
+                         const std::string& password) {
+    const std::string pw = to_lower(password);
+    const hash::HashDigest hash1 =
+        hash::bnet_hash(pw.data(), pw.size());
+
+    proto::Packet p;
+    p.resize(proto::kBnetHeaderSize + sizeof(bnet::CClientCreateAcctReq1));
+    p.set_bnet_type(bnet::packet_id::CLIENT_CREATEACCTREQ1);
+    auto* req = p.body_as<bnet::CClientCreateAcctReq1>();
+    for (std::size_t i = 0; i < 5; ++i) {
+        proto::int_set(req->password_hash1[i], hash1[i]);
+    }
+    p.append_cstr(user.c_str());
+    p.set_bnet_size(static_cast<std::uint16_t>(p.size()));
+    return proto::send_bnet(sd, p);
+}
 
 const char* msg_type_str(std::uint32_t t) {
     switch (t) {
@@ -315,12 +345,44 @@ int main(int argc, char** argv) {
         "%s: handshake ok, sessionkey=0x%08x sessionnum=0x%08x\n",
         argv[0], lr.sessionkey, lr.sessionnum);
 
+    // ---- (R197) optional CLIENT_CREATEACCTREQ1 ----
+    proto::Packet p;
+    if (opts.create_account) {
+        if (!send_createacctreq1(sock.get(), opts.user, opts.password)) {
+            std::fprintf(stderr,
+                "%s: send CLIENT_CREATEACCTREQ1 failed\n", argv[0]);
+            return EXIT_FAILURE;
+        }
+        for (;;) {
+            if (!proto::recv_bnet(sock.get(), p)) {
+                std::fprintf(stderr,
+                    "%s: server closed before CREATEACCTREPLY1\n", argv[0]);
+                return EXIT_FAILURE;
+            }
+            if (p.bnet_type() == bnet::packet_id::SERVER_CREATEACCTREPLY1) {
+                break;
+            }
+        }
+        {
+            const auto* reply = p.body_as<bnet::SServerCreateAcctReply1>();
+            const std::uint32_t r =
+                reply ? proto::int_get(reply->result) : 0;
+            // Both Ok (new account) and No (already exists) are treated
+            // as success so the smoke is idempotent across restarts.
+            std::fprintf(stderr,
+                "%s: createacctreply1 result=0x%08x (%s)\n",
+                argv[0], r,
+                r == bnet::kCreateAcctReply1_Ok
+                    ? "created"
+                    : "already-exists-or-rejected (continuing)");
+        }
+    }
+
     // ---- CLIENT_LOGINREQ1 -> SERVER_LOGINREPLY1 ----
     if (!send_loginreq1(sock.get(), opts.user, opts.password, lr.sessionkey)) {
         std::fprintf(stderr, "%s: send CLIENT_LOGINREQ1 failed\n", argv[0]);
         return EXIT_FAILURE;
     }
-    proto::Packet p;
     for (;;) {
         if (!proto::recv_bnet(sock.get(), p)) {
             std::fprintf(stderr,

@@ -1265,33 +1265,13 @@ pvpgn_v3_add_library(integration_legacy_d2cs
 
 # ---- integration/legacy_d2cs/linked (real d2cs_legacy hookup) -----------
 #
-# Only built when `d2cs_legacy` is in the same configure (i.e. when
-# WITH_D2CS=ON). Provides the real `send_packet_via_legacy` that
-# wraps the v3 bytes in a `packet_class_raw` t_packet and pushes
-# via `pvpgn::d2cs::conn_push_outqueue`.
-
-if(TARGET d2cs_legacy)
-    pvpgn_v3_add_library(integration_legacy_d2cs_linked
-        STATIC
-        SOURCES
-            integration/legacy_d2cs/src/send_packet_bridge_link.cpp
-        PUBLIC_INCLUDES
-            ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2cs/include
-        PUBLIC_DEPS
-            core
-            integration_legacy_d2cs
-        DEPS
-            d2cs_legacy
-    )
-    # Legacy headers are not warning-clean under v3 strict warnings.
-    target_compile_options(integration_legacy_d2cs_linked PRIVATE
-        -w)
-    # Legacy headers expect to be reached as `common/packet.h`,
-    # `d2cs/connection.h`, etc -- i.e. relative to `src/`.
-    target_include_directories(integration_legacy_d2cs_linked PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_BINARY_DIR})
-endif()
+# MOVED to src/v3/integration/legacy_d2cs/CMakeLists.txt by R196.b
+# (same R193.fix systemic ordering bug as legacy_bnetd): the previous
+# `if(TARGET d2cs_legacy)` guard here was always FALSE because
+# `add_subdirectory(src/v3)` runs before `add_subdirectory(src)`, so
+# `d2cs_legacy` did not yet exist. The block now lives in a separate
+# CMakeLists added LATE in the top-level configure, after `src` has
+# been processed. See plans/r196b-checklist.md.
 
 # ---- integration/legacy_d2dbs (strangler-fig scaffold) -----------------
 #
@@ -1341,70 +1321,13 @@ endif()
 
 # ---- integration/legacy_bnetd/linked (real bnetd_legacy hookup) ---------
 #
-# Only built when the legacy bnetd library is in the same configure
-# AND boost is available, because the UDP dispatch path needs asio.
-# Provides `LegacyUdpDispatcher` which actually invokes the legacy
-# `pvpgn::bnetd::handle_udp_packet`, plus all the strangler-fig
-# bridges and `install_v3_handlers` registrations. The consumer is
-# responsible for initialising the legacy globals before any
-# datagram is delivered.
+# MOVED to src/v3/integration/legacy_bnetd/CMakeLists.txt by R193.fix
+# (Strategy B, two-pass `src/v3`). That CMakeLists is added LATE in the
+# top-level configure -- after `add_subdirectory(src)` -- so that the
+# `bnetd_legacy` target already exists when we check for it. The previous
+# placement here was UNREACHABLE because src/v3 is processed before src/.
+# See plans/r192-checklist.md + plans/r193-audit-checklist.md.
 
-if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
-    pvpgn_v3_add_library(integration_legacy_bnetd_linked
-        STATIC
-        SOURCES
-            integration/legacy_bnetd/src/legacy_udp_dispatcher.cpp
-            integration/legacy_bnetd/src/udp_bridge.cpp
-            integration/legacy_bnetd/src/tcp_bridge.cpp
-            integration/legacy_bnetd/src/dispatch.cpp
-            integration/legacy_bnetd/src/anongame_inforeply_bridge.cpp
-            integration/legacy_bnetd/src/icon_account_adapter.cpp
-            integration/legacy_bnetd/src/get_icon_bridge.cpp
-            integration/legacy_bnetd/src/set_icon_bridge.cpp
-            integration/legacy_bnetd/src/tournament_bridge.cpp
-            integration/legacy_bnetd/src/clan_profile_bridge.cpp
-            integration/legacy_bnetd/src/profile_bridge.cpp
-            integration/legacy_bnetd/src/chat_command_bridge.cpp
-            integration/legacy_bnetd/src/legacy_chat_reply_sink_default_dispatch.cpp
-            integration/legacy_bnetd/src/legacy_account_repository.cpp
-            integration/legacy_bnetd/src/legacy_event_logger.cpp
-            integration/legacy_bnetd/src/legacy_whisper_target_lookup.cpp
-            integration/legacy_bnetd/src/install_v3_handlers.cpp
-            integration/legacy_bnetd/src/legacy_bnet_frame_router_link.cpp
-            integration/legacy_bnetd/src/send_packet_bridge_link.cpp
-            integration/legacy_bnetd/src/init_conn_bridge_link.cpp
-            integration/legacy_bnetd/src/init_packet_dispatch_link.cpp
-            integration/legacy_bnetd/src/init_side_effects_link.cpp
-            integration/legacy_bnetd/src/ads_bridge_link.cpp
-            integration/legacy_bnetd/src/realm_list_bridge_link.cpp
-        PUBLIC_INCLUDES
-            ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
-        PUBLIC_DEPS
-            core
-            integration_legacy_bnetd
-            infra_net
-            application_icon_table
-            application_tournament
-            application_profile
-            application_chat
-            application_i18n
-            application_auth
-            application_bnet_packet_pump
-            infra_inmemory
-            infra_legacy_crypto
-        DEPS
-            bnetd_legacy
-    )
-    # The legacy headers are not warning-clean under the v3 strict
-    # warning set; suppress for this TU only.
-    target_compile_options(integration_legacy_bnetd_linked PRIVATE
-        -w)
-    # bnetd_legacy headers expect to be reached as `common/packet.h`,
-    # `bnetd/handle_udp.h`, etc. — i.e. relative to `src/`.
-    target_include_directories(integration_legacy_bnetd_linked PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_BINARY_DIR})
-endif()
 
 # ---- infra/net ----------------------------------------------------------
 #

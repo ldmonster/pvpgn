@@ -33,8 +33,10 @@
 #include "bnetd/channel.h"
 #include "bnetd/connection.h"
 #include "bnetd/icons.h"
-#include "bnetd/prefs.h"
 #include "common/setup_after.h"
+
+// R194: `bnetd/prefs.h` was deleted in R165. Use the v3 C bridge.
+#include "integration/legacy_bnetd/prefs_bridge.hpp"
 
 namespace it  = pvpgn::application::icon_table;
 namespace ila = pvpgn::integration::legacy_bnetd;
@@ -60,7 +62,7 @@ std::mutex&      sstate_mutex() { static std::mutex m; return m; }
 void set_icon_init_locked() {
     auto& s = sstate();
     s.init_attempted = true;
-    const char* infos = pvpgn::bnetd::prefs_get_anongame_infos_file();
+    const char* infos = pvpgn_v3_prefs_get_anongame_infos_file();
     if (infos == nullptr) return;
     auto r = pvpgn::infra::legacy_config::load_icon_req_table(infos);
     if (!r) return;

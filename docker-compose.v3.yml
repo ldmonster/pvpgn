@@ -1,0 +1,57 @@
+# =============================================================================
+# R197: parallel bnetd + d2cs end-to-end smoke.
+# =============================================================================
+# Goes beyond Dockerfile.v3 / v3-smoke (which runs the daemons sequentially
+# inside a single container) by running them as two services on a shared
+# user-defined bridge network. This lets:
+#   - d2cs's s2s connection to bnetd succeed (resolves `bnetd` via Docker DNS)
+#   - bnetd's realm.conf entry `d2cs:6113` resolve to d2cs's container IP,
+#     so `realmlist_find_realm_by_ip()` matches when the s2s connection
+#     comes in.
+#   - A host-side bnchat client to connect to bnetd via the published port
+#     and complete a real BNCS handshake (account create + login + channel
+#     join).
+#
+# Usage:
+#   docker build -f Dockerfile.v3 --target v3-compose -t pvpgn-v3-compose:latest .
+#   docker compose -f docker-compose.v3.yml up -d
+#   scripts/dev/v3-compose-smoke.sh
+#   docker compose -f docker-compose.v3.yml down -v
+# =============================================================================
+
+services:
+  bnetd:
+    image: pvpgn-v3-compose:latest
+    container_name: pvpgn-v3-bnetd
+    hostname: bnetd
+    command: ["bnetd"]
+    environment:
+      BNETD_HOST: bnetd
+      D2CS_HOST: d2cs
+    ports:
+      - "6112:6112/tcp"
+    networks:
+      - pvpgn-v3-net
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
+
+  d2cs:
+    image: pvpgn-v3-compose:latest
+    container_name: pvpgn-v3-d2cs
+    hostname: d2cs
+    command: ["d2cs"]
+    environment:
+      BNETD_HOST: bnetd
+      D2CS_HOST: d2cs
+    depends_on:
+      - bnetd
+    ports:
+      - "6113:6113/tcp"
+    networks:
+      - pvpgn-v3-net
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
+
+networks:
+  pvpgn-v3-net:
+    driver: bridge

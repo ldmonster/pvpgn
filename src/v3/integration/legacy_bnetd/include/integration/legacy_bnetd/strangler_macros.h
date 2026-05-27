@@ -32,13 +32,30 @@
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 
-/* C++-only: callers are .cpp files that already use `extern "C"` for
- * the symbol. The forward declaration below is repeated every
- * macro-call but the linker dedups them. */
+/* File-scope forward declarations of every `pvpgn_v3_<op>_try` entry
+ * point. Block-scope `extern "C"` is not standard C++ and is rejected
+ * by GCC 15+ (R194 finding). Declaring them here, at namespace scope
+ * inside an `extern "C"` block, keeps the macro call sites free of
+ * per-call forward declarations while remaining standard-conforming.
+ *
+ * If a new bridge is added, also add a forward declaration below.
+ */
+extern "C" {
+    int pvpgn_v3_clan_profile_try        (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_profile_try             (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_get_icon_try            (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_set_icon_try            (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_anongame_inforeply_try  (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_tournament_try          (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_change_password_try     (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_login_user_try          (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_chat_command_try        (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+}
+
+/* The macro now expands to a single `if(...) return 0;` -- no
+ * declaration inside the function body. */
 #define PVPGN_V3_BRIDGE_TRY(name, conn, body, body_size)                       \
     do {                                                                        \
-        extern "C" int pvpgn_v3_##name##_try(                                  \
-            void* conn_ptr, void const* body_ptr, unsigned int body_sz);       \
         if (pvpgn_v3_##name##_try((conn), (body), (body_size)) > 0) {          \
             return 0;                                                          \
         }                                                                      \

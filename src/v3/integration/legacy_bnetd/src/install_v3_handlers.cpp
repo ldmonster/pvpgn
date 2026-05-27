@@ -29,6 +29,7 @@
 #include "integration/legacy_bnetd/init_conn_bridge.hpp"
 #include "integration/legacy_bnetd/ads_bridge.hpp"
 #include "integration/legacy_bnetd/realm_list_bridge.hpp"
+#include "integration/legacy_bnetd/anongame_lobby_bridge.hpp"
 
 #include "common/setup_before.h"
 #include "common/bn_type.h"
@@ -387,6 +388,31 @@ void install_realm_list_handler() {
     install_legacy_realm_list_handler();
     bridge_log_kv(core::LogLevel::Info, "v3.realm_list",
                   "v3 realm_list handler installed", {});
+}
+
+namespace {
+std::atomic<bool> g_anongame_lobby_installed{false};
+}  // namespace
+
+void install_anongame_lobby_handler() {
+    bool expected = false;
+    if (!g_anongame_lobby_installed.compare_exchange_strong(
+            expected, true, std::memory_order_acq_rel)) {
+        return;
+    }
+    // R191 (structural prep): wire the install hook into the
+    // composition root. The underlying
+    // `install_legacy_anongame_lobby_handler()` remains a stage-1
+    // no-op (no real adapter yet -- see plans/r191-checklist.md
+    // for the data-model mismatch that blocks a faithful adapter).
+    // With no handler installed the extern "C" entry returns -1
+    // and every existing call site keeps the legacy
+    // `_anongame_queue` path. R192 will replace the stage-1 no-op
+    // body with the real adapter.
+    install_legacy_anongame_lobby_handler();
+    bridge_log_kv(core::LogLevel::Info, "v3.anongame_lobby",
+                  "v3 anongame_lobby install hook wired (stage-1 no-op body)",
+                  {});
 }
 
 }  // namespace pvpgn::integration::legacy_bnetd

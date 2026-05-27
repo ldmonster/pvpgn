@@ -55,13 +55,15 @@ target_link_libraries(d2cs PRIVATE d2cs_legacy)
 # link the d2cs executable against the linked integration adapter
 # and define PVPGN_V3_D2CS_INTEGRATION so the legacy #ifdef hooks
 # in handle_bnetd.cpp / handle_d2cs.cpp are live.
-if(TARGET integration_legacy_d2cs_linked)
-    target_link_libraries(d2cs PRIVATE integration_legacy_d2cs_linked)
-    target_compile_definitions(d2cs PRIVATE PVPGN_V3_D2CS_INTEGRATION=1)
-    target_compile_definitions(d2cs_legacy PRIVATE PVPGN_V3_D2CS_INTEGRATION=1)
-    target_include_directories(d2cs_legacy PRIVATE
-        ${CMAKE_SOURCE_DIR}/src/v3/integration/legacy_d2cs/include)
-endif()
+#
+# MOVED to src/v3/integration/legacy_d2cs/CMakeLists.txt by R196.b
+# (same R193.fix systemic ordering bug as legacy_bnetd): the previous
+# `if(TARGET integration_legacy_d2cs_linked)` guard here was always
+# FALSE because `add_subdirectory(src/v3)` runs before
+# `add_subdirectory(src)`, so `d2cs_legacy` did not yet exist and the
+# linked target was never created. The wiring now lives in a
+# CMakeLists added LATE in the top-level configure, after both
+# `src/v3` and `src` have been processed. See plans/r196b-checklist.md.
 
 install(TARGETS d2cs DESTINATION ${SBINDIR})
 if(WIN32 AND MSVC)

@@ -107,6 +107,8 @@
 # include "integration/legacy_bnetd/udp_bridge.hpp"
 # include "integration/legacy_bnetd/tcp_bridge.hpp"
 # include "integration/legacy_bnetd/prefs_bridge.hpp"
+# include "app/bnetd/asio_event_loop.hpp"
+# include "app/bnetd/legacy_bridge.hpp"
 /* Lifetime-bridge between the captureless C-style hooks installed
  * on the legacy server and the bridge instances scoped to main().
  * Both bridges share `g_v3_io_runtime` so we only spend one io
@@ -599,6 +601,14 @@ extern int main(int argc, char ** argv)
 		g_v3_io_runtime_ptr = &v3_shared_runtime;
 		g_v3_udp_bridge_ptr = &v3_udp_bridge;
 		g_v3_tcp_bridge_ptr = &v3_tcp_bridge;
+		/* R194: `server_v3_hook.cpp::server_tick_v3()` (called from
+		 * the legacy main loop) routes through
+		 * `LegacyBridge::instance().tick()`. The singleton needs an
+		 * `AsioEventLoop` to wrap; we own one here for the duration
+		 * of `pre_server_startup() .. post_server_shutdown()` and
+		 * tear it down at the bottom of this block. */
+		pvpgn::app::bnetd::AsioEventLoop v3_legacy_bridge_loop;
+		pvpgn::app::bnetd::LegacyBridge::init(v3_legacy_bridge_loop);
 		pvpgn::bnetd::server_set_skip_legacy_udp_fdwatch(true);
 		pvpgn::bnetd::server_set_skip_legacy_tcp_fdwatch(true);
 		pvpgn::bnetd::server_set_after_setup_hook(+[]() {
@@ -648,6 +658,9 @@ extern int main(int argc, char ** argv)
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 		pvpgn::bnetd::server_set_after_setup_hook(nullptr);
 		pvpgn::bnetd::server_set_before_shutdown_hook(nullptr);
+		/* R194: tear down the bridge singleton before the loop
+		 * object below goes out of scope. */
+		pvpgn::app::bnetd::LegacyBridge::shutdown();
 		g_v3_udp_bridge_ptr = nullptr;
 		g_v3_tcp_bridge_ptr = nullptr;
 		g_v3_io_runtime_ptr = nullptr;

@@ -140,10 +140,9 @@ rehydrate_from_legacy(::pvpgn::bnetd::t_account* a) {
 
 }  // namespace
 
-core::Result<domain::identity::Account>
-LegacyAccountRepository::find_by_id(domain::AccountId id) const {
-    auto* a = ::pvpgn::bnetd::accountlist_find_account_by_uid(
-        static_cast<unsigned int>(id.value()));
+core::Result<domain::identity::Account, core::Error>
+LegacyAccountRepository::find_by_id(std::uint32_t id) {
+    auto* a = ::pvpgn::bnetd::accountlist_find_account_by_uid(id);
     if (a == nullptr) {
         return core::fail(core::Error{
             core::StatusCode::NotFound, "account not found"});
@@ -151,9 +150,9 @@ LegacyAccountRepository::find_by_id(domain::AccountId id) const {
     return rehydrate_from_legacy(a);
 }
 
-core::Result<domain::identity::Account>
-LegacyAccountRepository::find_by_name(const domain::UserName& name) const {
-    std::string buf{name.display()};
+core::Result<domain::identity::Account, core::Error>
+LegacyAccountRepository::find_by_name(std::string_view name) {
+    std::string buf{name};
     auto* a = ::pvpgn::bnetd::accountlist_find_account(buf.c_str());
     if (a == nullptr) {
         return core::fail(core::Error{
@@ -162,7 +161,7 @@ LegacyAccountRepository::find_by_name(const domain::UserName& name) const {
     return rehydrate_from_legacy(a);
 }
 
-core::Status<>
+core::Result<void, core::Error>
 LegacyAccountRepository::save(const domain::identity::Account& account) {
     // 29c + 30c: write-back the fields the v3 use-cases mutate:
     //   * passhash1 -- via `account_set_pass` (legacy formats the
@@ -243,16 +242,33 @@ LegacyAccountRepository::save(const domain::identity::Account& account) {
     return core::ok();
 }
 
-core::Status<>
-LegacyAccountRepository::remove(domain::AccountId) {
+core::Result<void, core::Error>
+LegacyAccountRepository::remove(std::string_view) {
     return core::fail(core::Error{
         core::StatusCode::Internal,
         "LegacyAccountRepository::remove not implemented"});
 }
 
-std::size_t LegacyAccountRepository::size() const noexcept {
+core::Result<bool, core::Error>
+LegacyAccountRepository::exists(std::string_view name) {
+    std::string buf{name};
+    return ::pvpgn::bnetd::accountlist_find_account(buf.c_str()) != nullptr;
+}
+
+core::Result<std::vector<domain::identity::Account>, core::Error>
+LegacyAccountRepository::list_online() {
+    // No legacy accessor that enumerates online accounts cheaply;
+    // surface NotImplemented so callers route through the legacy
+    // path. R194 stub.
+    return core::fail(core::Error{
+        core::StatusCode::Internal,
+        "LegacyAccountRepository::list_online not implemented"});
+}
+
+core::Result<std::uint32_t, core::Error>
+LegacyAccountRepository::count() {
     // No legacy accessor; callers don't use this in the hot path.
-    return 0;
+    return std::uint32_t{0};
 }
 
 }  // namespace pvpgn::integration::legacy_bnetd

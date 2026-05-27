@@ -26,9 +26,11 @@
 // ownership APIs (38c/38e).
 #include "common/setup_before.h"
 #include "bnetd/server.h"
-#include "bnetd/prefs.h"
 #include "bnetd/connection.h"
 #include "common/setup_after.h"
+
+// R194: `bnetd/prefs.h` was deleted in R165. Use the v3 C bridge.
+#include "integration/legacy_bnetd/prefs_bridge.hpp"
 
 namespace pvpgn::integration::legacy_bnetd {
 
@@ -151,8 +153,11 @@ private:
                 // Destroy. `v3_owns_socket=1` skips fd close;
                 // `DESTROY_FROM_DEADLIST` makes `conn_destroy`
                 // look up the connlist element itself.
+                // R194: `conn_destroy` signature reduced to
+                // `(t_connection*, int)` -- old middle pointer
+                // argument is gone.
                 ::pvpgn::bnetd::conn_destroy(
-                    c, nullptr, DESTROY_FROM_DEADLIST);
+                    c, DESTROY_FROM_DEADLIST);
                 owned->legacy_conn = nullptr;
             }
             // `owned` drops here -> V3OwnedSession destructor ->
@@ -300,7 +305,7 @@ public:
                 // turning on `v3_tcp_session_mode = 1` should
                 // expect to encounter at least one runtime issue
                 // worth fixing in a follow-up batch (38g).
-                if (pvpgn::bnetd::prefs_get_v3_tcp_session_mode() != 0) {
+                if (pvpgn_v3_prefs_get_v3_tcp_session_mode() != 0) {
                     if (spawn_v3_owned_session(
                             listener_index, std::move(sock), caddr)) {
                         return;

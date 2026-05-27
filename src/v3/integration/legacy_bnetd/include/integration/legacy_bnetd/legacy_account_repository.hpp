@@ -21,32 +21,46 @@
 /// (and tests) can still compile.
 
 #include <cstddef>
+#include <cstdint>
+#include <string_view>
+#include <vector>
 
 #include "application/ports/account_repository.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/identity/account.hpp"
-#include "domain/shared/ids.hpp"
-#include "domain/shared/user_name.hpp"
 
 namespace pvpgn::integration::legacy_bnetd {
 
+// R194: signatures track the current `IAccountRepository` interface
+// (R166+). All read-path methods (`find_by_id`, `find_by_name`,
+// `save`, `exists`) are implemented against the legacy `t_account`
+// list; `remove`, `list_online`, and `count` are intentional stubs
+// surfaced as `StatusCode::Internal` for now (no caller uses them
+// in the WITH_BNETD=ON path).
 class LegacyAccountRepository final
     : public application::ports::IAccountRepository {
 public:
-    core::Result<domain::identity::Account>
-    find_by_id(domain::AccountId id) const override;
+    core::Result<domain::identity::Account, core::Error>
+    find_by_id(std::uint32_t id) override;
 
-    core::Result<domain::identity::Account>
-    find_by_name(const domain::UserName& name) const override;
+    core::Result<domain::identity::Account, core::Error>
+    find_by_name(std::string_view name) override;
 
-    core::Status<>
+    core::Result<void, core::Error>
     save(const domain::identity::Account& account) override;
 
-    core::Status<>
-    remove(domain::AccountId id) override;
+    core::Result<void, core::Error>
+    remove(std::string_view name) override;
 
-    std::size_t size() const noexcept override;
+    core::Result<bool, core::Error>
+    exists(std::string_view name) override;
+
+    core::Result<std::vector<domain::identity::Account>, core::Error>
+    list_online() override;
+
+    core::Result<std::uint32_t, core::Error>
+    count() override;
 };
 
 }  // namespace pvpgn::integration::legacy_bnetd

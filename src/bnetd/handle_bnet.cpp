@@ -87,6 +87,13 @@
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 #include "integration/legacy_bnetd/strangler_macros.h"
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R194: handle_bnet.cpp uses `pvpgn_v3_friend_entry` (declared in
+// send_friendslist_bridge.hpp) inside a `#ifdef PVPGN_V3_BNETD_INTEGRATION`
+// block. The header had never been included here because the surrounding
+// block was dead code until R193.fix lit it up.
+#include "integration/legacy_bnetd/send_friendslist_bridge.hpp"
+#endif
 // Strangler-fig hook for SERVER_AUTHREPLY1 byte emission (Step 4 E.3
 // step 2). The v3 bridge builds the on-wire bytes via the v3 codec
 // and ships them through the registered send_packet handler. Returns
@@ -4104,19 +4111,23 @@ namespace pvpgn
 			}
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
-			// R172.d: when the v3 realm-list handler is installed it
-			// owns the entire emit path (walks `realmlist()`, runs
-			// the application `dispatch_realm_list`, and ships the
-			// reply through `pvpgn_v3_send_realmlistlegacyreply`).
-			// rc >= 0 is authoritative; rc == -1 falls through to
-			// the legacy loop below.
+			// R172.d + R188.b + R189: v3 realm-list dispatcher MANDATORY
+			// under PVPGN_V3_BNETD_INTEGRATION (matches the R168.a init
+			// pattern). `install_realm_list_handler()` is called
+			// unconditionally in `server.cpp`; rc < 0 means startup
+			// wiring is broken -- surface as error rather than silently
+			// falling through to the legacy `realmlist()` loop.
 			{
 				int v3rc = pvpgn_v3_realm_list_apply(c, /*legacy_format=*/1);
-				if (v3rc >= 0) {
-					return 0;
+				if (v3rc < 0) {
+					eventlog(eventlog_level_error, __FUNCTION__,
+					    "[{}] v3 realm-list dispatcher not installed (rc={}); rejecting REALMLISTREQ",
+					    conn_get_socket(c), v3rc);
+					return -1;
 				}
+				return 0;
 			}
-#endif
+#else
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				t_server_realmlistreply_data realmdata;
 				unsigned int count;
@@ -4146,6 +4157,7 @@ namespace pvpgn
 			}
 
 			return 0;
+#endif
 		}
 
 		static int _client_realmlistreq110(t_connection * c, t_packet const *const packet)
@@ -4161,14 +4173,19 @@ namespace pvpgn
 			}
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
-			// R172.d: see the matching block in `_client_realmlistreq`.
+			// R172.d + R188.b + R189: see the matching block in
+			// `_client_realmlistreq` -- v3 dispatcher is MANDATORY.
 			{
 				int v3rc = pvpgn_v3_realm_list_apply(c, /*legacy_format=*/0);
-				if (v3rc >= 0) {
-					return 0;
+				if (v3rc < 0) {
+					eventlog(eventlog_level_error, __FUNCTION__,
+					    "[{}] v3 realm-list dispatcher not installed (rc={}); rejecting REALMLISTREQ_110",
+					    conn_get_socket(c), v3rc);
+					return -1;
 				}
+				return 0;
 			}
-#endif
+#else
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				t_server_realmlistreply_110_data realmdata;
 				unsigned int count;
@@ -4192,6 +4209,7 @@ namespace pvpgn
 			}
 
 			return 0;
+#endif
 		}
 
 		static int _client_claninforeq(t_connection * c, t_packet const *const packet)
@@ -4664,10 +4682,13 @@ namespace pvpgn
 			*/
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
-			// R171.c/e: v3 ads dispatcher is authoritative when a
-			// handler is installed (return >= 0). Falls through to
-			// legacy `AdBannerList.pick` only when the bridge
-			// reports "no handler" (-1).
+			// R171.c/e + R188.b + R189: v3 ads dispatcher is
+			// MANDATORY when compiled with PVPGN_V3_BNETD_INTEGRATION.
+			// `install_ads_handlers()` is called unconditionally in
+			// `server.cpp` so the bridge ABI returns -1 only if
+			// startup wiring is broken (matches the R168.a init
+			// pattern -- surface the bug, do NOT silently fall back
+			// to legacy `AdBannerList.pick`).
 			{
 				PvpgnV3AdPickOut v3out{};
 				int const rc = pvpgn_v3_ads_pick_apply(
@@ -4675,73 +4696,67 @@ namespace pvpgn
 				    static_cast<unsigned int>(conn_get_gamelang(c)),
 				    bn_int_get(packet->u.client_adreq.prev_adid),
 				    &v3out);
-				if (rc >= 0) {
-					if (v3out.found == 0) {
-						return 0;
-					}
-					t_packet* const rpacket = packet_create(packet_class_bnet);
-					if (!rpacket) {
-						eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
-						return -1;
-					}
-					packet_set_size(rpacket, sizeof(t_server_adreply));
-					packet_set_type(rpacket, SERVER_ADREPLY);
-					bn_int_set(&rpacket->u.server_adreply.adid, v3out.id);
-					bn_int_set(&rpacket->u.server_adreply.extensiontag, v3out.extension_tag);
-					file_to_mod_time(c, v3out.filename, &rpacket->u.server_adreply.timestamp);
-					packet_append_string(rpacket, v3out.filename);
-					packet_append_string(rpacket, v3out.url);
-					if (pvpgn_v3_send_adreply(c,
-					        v3out.id,
-					        v3out.extension_tag,
-					        bn_long_get(rpacket->u.server_adreply.timestamp),
-					        v3out.filename,
-					        v3out.url) == 1) {
-						packet_del_ref(rpacket);
-						return 0;
-					}
-					conn_push_outqueue(c, rpacket);
+				if (rc < 0) {
+					eventlog(eventlog_level_error, __FUNCTION__,
+					    "[{}] v3 ads dispatcher not installed (rc={}); rejecting ADREQ",
+					    conn_get_socket(c), rc);
+					return -1;
+				}
+				if (v3out.found == 0) {
+					return 0;
+				}
+				t_packet* const rpacket = packet_create(packet_class_bnet);
+				if (!rpacket) {
+					eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
+					return -1;
+				}
+				packet_set_size(rpacket, sizeof(t_server_adreply));
+				packet_set_type(rpacket, SERVER_ADREPLY);
+				bn_int_set(&rpacket->u.server_adreply.adid, v3out.id);
+				bn_int_set(&rpacket->u.server_adreply.extensiontag, v3out.extension_tag);
+				file_to_mod_time(c, v3out.filename, &rpacket->u.server_adreply.timestamp);
+				packet_append_string(rpacket, v3out.filename);
+				packet_append_string(rpacket, v3out.url);
+				if (pvpgn_v3_send_adreply(c,
+				        v3out.id,
+				        v3out.extension_tag,
+				        bn_long_get(rpacket->u.server_adreply.timestamp),
+				        v3out.filename,
+				        v3out.url) == 1) {
 					packet_del_ref(rpacket);
 					return 0;
 				}
-				// rc == -1: no handler installed; fall through to legacy.
-			}
-#endif
-
-			const AdBanner* ad = AdBannerList.pick(conn_get_clienttag(c), conn_get_gamelang(c), bn_int_get(packet->u.client_adreq.prev_adid));
-			if (!ad)
-			{
-				return 0;
-			}
-		
-			t_packet* const rpacket = packet_create(packet_class_bnet);
-			if (!rpacket)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
-				return -1;
-			}
-			packet_set_size(rpacket, sizeof(t_server_adreply));
-			packet_set_type(rpacket, SERVER_ADREPLY);
-			bn_int_set(&rpacket->u.server_adreply.adid, ad->get_id());
-			bn_int_set(&rpacket->u.server_adreply.extensiontag, ad->get_extension_tag());
-			file_to_mod_time(c, ad->get_filename().c_str(), &rpacket->u.server_adreply.timestamp);
-			packet_append_string(rpacket, ad->get_filename().c_str());
-			packet_append_string(rpacket, ad->get_url().c_str());
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
-			if (pvpgn_v3_send_adreply(c,
-			        ad->get_id(),
-			        ad->get_extension_tag(),
-			        bn_long_get(rpacket->u.server_adreply.timestamp),
-			        ad->get_filename().c_str(),
-			        ad->get_url().c_str()) == 1) {
+				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
 			}
-	#endif
-			conn_push_outqueue(c, rpacket);
-			packet_del_ref(rpacket);
-	
-			return 0;
+#else
+			{
+				const AdBanner* ad = AdBannerList.pick(conn_get_clienttag(c), conn_get_gamelang(c), bn_int_get(packet->u.client_adreq.prev_adid));
+				if (!ad)
+				{
+					return 0;
+				}
+
+				t_packet* const rpacket = packet_create(packet_class_bnet);
+				if (!rpacket)
+				{
+					eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
+					return -1;
+				}
+				packet_set_size(rpacket, sizeof(t_server_adreply));
+				packet_set_type(rpacket, SERVER_ADREPLY);
+				bn_int_set(&rpacket->u.server_adreply.adid, ad->get_id());
+				bn_int_set(&rpacket->u.server_adreply.extensiontag, ad->get_extension_tag());
+				file_to_mod_time(c, ad->get_filename().c_str(), &rpacket->u.server_adreply.timestamp);
+				packet_append_string(rpacket, ad->get_filename().c_str());
+				packet_append_string(rpacket, ad->get_url().c_str());
+				conn_push_outqueue(c, rpacket);
+				packet_del_ref(rpacket);
+
+				return 0;
+			}
+#endif
 			}
 
 		static int _client_adack(t_connection * c, t_packet const *const packet)
@@ -4794,7 +4809,9 @@ namespace pvpgn
 			eventlog(eventlog_level_trace, __FUNCTION__, "[{}] ad click2 for adid 0x{:04x} from \"{}\"", conn_get_socket(c), bn_int_get(packet->u.client_adclick2.adid), conn_get_username(c));
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
-			// R171.c/e: v3 click dispatcher authoritative when installed.
+			// R171.c/e + R188.b + R189: v3 click dispatcher MANDATORY
+			// under PVPGN_V3_BNETD_INTEGRATION (see comment above in
+			// `_client_adreq`).
 			{
 				PvpgnV3AdClickOut v3out{};
 				int const rc = pvpgn_v3_ads_click_apply(
@@ -4802,57 +4819,54 @@ namespace pvpgn
 				    static_cast<unsigned int>(conn_get_gamelang(c)),
 				    bn_int_get(packet->u.client_adclick2.adid),
 				    &v3out);
-				if (rc >= 0) {
-					if (v3out.accepted == 0) return 0;
-					t_packet* const rpacket = packet_create(packet_class_bnet);
-					if (!rpacket) {
-						eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
-						return -1;
-					}
-					packet_set_size(rpacket, sizeof(t_server_adclickreply2));
-					packet_set_type(rpacket, SERVER_ADCLICKREPLY2);
-					bn_int_set(&rpacket->u.server_adclickreply2.adid, v3out.id);
-					packet_append_string(rpacket, v3out.click_url);
-					if (pvpgn_v3_send_adclick2reply(c, v3out.id, v3out.click_url) == 1) {
-						packet_del_ref(rpacket);
-						return 0;
-					}
-					conn_push_outqueue(c, rpacket);
+				if (rc < 0) {
+					eventlog(eventlog_level_error, __FUNCTION__,
+					    "[{}] v3 ads dispatcher not installed (rc={}); rejecting ADCLICK2",
+					    conn_get_socket(c), rc);
+					return -1;
+				}
+				if (v3out.accepted == 0) return 0;
+				t_packet* const rpacket = packet_create(packet_class_bnet);
+				if (!rpacket) {
+					eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
+					return -1;
+				}
+				packet_set_size(rpacket, sizeof(t_server_adclickreply2));
+				packet_set_type(rpacket, SERVER_ADCLICKREPLY2);
+				bn_int_set(&rpacket->u.server_adclickreply2.adid, v3out.id);
+				packet_append_string(rpacket, v3out.click_url);
+				if (pvpgn_v3_send_adclick2reply(c, v3out.id, v3out.click_url) == 1) {
 					packet_del_ref(rpacket);
 					return 0;
 				}
-				// rc == -1: no handler installed; fall through to legacy.
-			}
-#endif
-
-			const AdBanner* const ad = AdBannerList.find(conn_get_clienttag(c), conn_get_gamelang(c), bn_int_get(packet->u.client_adclick2.adid));
-			if (!ad)
-			{
-				return 0;
-			}
-
-			t_packet* const rpacket = packet_create(packet_class_bnet);
-			if (!rpacket)
-			{
-				eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
-				return -1;
-			}
-			packet_set_size(rpacket, sizeof(t_server_adclickreply2));
-			packet_set_type(rpacket, SERVER_ADCLICKREPLY2);
-			bn_int_set(&rpacket->u.server_adclickreply2.adid, ad->get_id());
-			packet_append_string(rpacket, ad->get_url().c_str());
-#ifdef PVPGN_V3_BNETD_INTEGRATION
-			if (pvpgn_v3_send_adclick2reply(c,
-			        ad->get_id(),
-			        ad->get_url().c_str()) == 1) {
+				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
 			}
-#endif
-			conn_push_outqueue(c, rpacket);
-			packet_del_ref(rpacket);
+#else
+			{
+				const AdBanner* const ad = AdBannerList.find(conn_get_clienttag(c), conn_get_gamelang(c), bn_int_get(packet->u.client_adclick2.adid));
+				if (!ad)
+				{
+					return 0;
+				}
 
-			return 0;
+				t_packet* const rpacket = packet_create(packet_class_bnet);
+				if (!rpacket)
+				{
+					eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
+					return -1;
+				}
+				packet_set_size(rpacket, sizeof(t_server_adclickreply2));
+				packet_set_type(rpacket, SERVER_ADCLICKREPLY2);
+				bn_int_set(&rpacket->u.server_adclickreply2.adid, ad->get_id());
+				packet_append_string(rpacket, ad->get_url().c_str());
+				conn_push_outqueue(c, rpacket);
+				packet_del_ref(rpacket);
+
+				return 0;
+			}
+#endif
 		}
 		
 		static int _client_readmemory(t_connection * c, t_packet const *const packet)

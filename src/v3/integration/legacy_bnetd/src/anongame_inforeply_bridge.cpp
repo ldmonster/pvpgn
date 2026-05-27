@@ -38,9 +38,11 @@
 #include "common/packet.h"
 #include "common/tag.h"
 #include "bnetd/connection.h"
-#include "bnetd/prefs.h"
 #include "bnetd/tournament.h"
 #include "common/setup_after.h"
+
+// R194: `bnetd/prefs.h` was deleted in R165. Use the v3 C bridge.
+#include "integration/legacy_bnetd/prefs_bridge.hpp"
 
 namespace pb  = pvpgn::protocol::bnet;
 namespace ply = pvpgn::application::anongame_infoply;
@@ -89,8 +91,8 @@ ply::TournamentSnapshot read_tournament_snapshot() {
 // tournament snapshot. Called under state_mutex.
 bool build_cache_locked(const ply::TournamentSnapshot& tourney) {
     auto& s = state();
-    const char* infos = pvpgn::bnetd::prefs_get_anongame_infos_file();
-    const char* maps  = pvpgn::bnetd::prefs_get_mapsfile();
+    const char* infos = pvpgn_v3_prefs_get_anongame_infos_file();
+    const char* maps  = pvpgn_v3_prefs_get_mapsfile();
     if (infos == nullptr || maps == nullptr) {
         ilb::bridge_log(pvpgn::core::LogLevel::Warn,
                         "v3_anongame_bridge",

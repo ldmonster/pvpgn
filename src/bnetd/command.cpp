@@ -3965,10 +3965,13 @@ namespace pvpgn
 			// via the C-linkage bridge -- the bnetd_legacy translation
 			// unit cannot include <vector>/<string>-templated v3 headers
 			// directly.
-			struct Ctx { decltype(say)* say; };
+			// R194: member renamed from `say` to `say_fn` to suppress the
+			// GCC 15 `-Wchanges-meaning` diagnostic (the outer `say`
+			// lambda has the same identifier).
+			struct Ctx { decltype(say)* say_fn; };
 			Ctx ctx{ &say };
 			pvpgn_v3_prefs_dump(&ctx, [](void* u, const char* line) {
-				(*static_cast<Ctx*>(u)->say)(line ? line : "");
+				(*static_cast<Ctx*>(u)->say_fn)(line ? line : "");
 			});
 #else
 			say("[server]");

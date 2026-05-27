@@ -51,7 +51,12 @@
 #include "prefs_v3_shim.h"
 #include "tick.h"
 #include "handle_wol.h"
-#include "handle_wserv.h"
+// R194: handle_wserv.h + handle_wserv.cpp were deleted in commit
+// 03f35f9. The only call site (`handle_wserv_con_command`) is the
+// `conn_class_wserv` switch case below. Since the implementation is
+// gone the call site has been replaced with a fall-through to the
+// generic IRC dispatcher (preserving wserv connections rather than
+// link-failing on the missing symbol). See plans/r194-checklist.md.
 #include "command_groups.h"
 #include "topic.h"
 #include "clan.h"
@@ -2243,7 +2248,10 @@ namespace pvpgn
 				case conn_class_irc:
 					return irc_dispatch_con_command(conn, command, numparams, params, text);
 				case conn_class_wserv:
-					return handle_wserv_con_command(conn, command, numparams, params, text);
+					// R194: handle_wserv_con_command was deleted in commit 03f35f9.
+					// Fall through to the generic IRC dispatcher so wserv connections
+					// keep working (no per-class processing remains).
+					return irc_dispatch_con_command(conn, command, numparams, params, text);
 				case conn_class_wol:
 				case conn_class_wladder:
 				case conn_class_wgameres:

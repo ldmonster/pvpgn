@@ -67,7 +67,15 @@
 #include "handle_bnet.h"
 #include "handle_bot.h"
 #include "handle_telnet.h"
-#include "handle_init.h"
+// R194: handle_init.h was deleted in commit 03f35f9 but not all callers
+// were updated. The function `handle_init_packet` is now defined in
+// `src/v3/integration/legacy_bnetd/src/init_packet_dispatch_link.cpp`
+// (under PVPGN_V3_BNETD_INTEGRATION) or `src/bnetd/handle_init.cpp` (the
+// orphan legacy file). Forward-declare it here in lieu of the removed
+// header so we do not reintroduce the dangling #include.
+namespace pvpgn { namespace bnetd {
+extern int handle_init_packet(t_connection * c, t_packet const * const packet);
+} }
 #include "handle_d2cs.h"
 #include "irc.h"
 #include "handle_udp.h"
@@ -1709,6 +1717,24 @@ namespace pvpgn
 					if (do_restart == restart_mode_all)
 					{
 						eventlog(eventlog_level_info, __FUNCTION__, "reading configuration files");
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+						// R194: legacy `prefs_load()` was removed (R165). The v3
+						// equivalent re-parses the TOML config in place.
+						// `cmdline_get_preffile()` returns the .conf path so we
+						// translate to the matching .toml in the same directory.
+						auto _r194_reload_v3_prefs = [](char const* path_or_null) -> int {
+							std::string p = (path_or_null && *path_or_null) ? path_or_null : BNETD_DEFAULT_CONF_FILE;
+							auto dot = p.find_last_of('.');
+							auto sep = p.find_last_of("/\\");
+							if (dot != std::string::npos && (sep == std::string::npos || dot > sep))
+								p.replace(dot, std::string::npos, ".toml");
+							else
+								p += ".toml";
+							return pvpgn_v3_prefs_load_toml(p.c_str());
+						};
+						if (_r194_reload_v3_prefs(cmdline_get_preffile()) != 0)
+							eventlog(eventlog_level_error, __FUNCTION__, "could not reload v3 TOML configuration");
+#else
 						if (cmdline_get_preffile())
 						{
 							if (prefs_load(cmdline_get_preffile()) < 0)
@@ -1717,6 +1743,7 @@ namespace pvpgn
 						else
 						if (prefs_load(BNETD_DEFAULT_CONF_FILE) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "using default configuration");
+#endif
 
 						if (eventlog_open(prefs_v3::logfile()) < 0)
 							eventlog(eventlog_level_error, __FUNCTION__, "could not use the file \"{}\" for the eventlog", prefs_v3::logfile());
@@ -1804,7 +1831,7 @@ namespace pvpgn
 					if (do_restart == restart_mode_all || do_restart == restart_mode_tracker)
 					{
 						if (prefs_v3::track())
-							tracker_set_servers(prefs_get_trackserv_addrs());
+							tracker_set_servers(prefs_v3::trackserv_addrs()); // R194: replaced legacy prefs_get_trackserv_addrs()
 					}
 
 					if (do_restart == restart_mode_all || do_restart == restart_mode_commandgroups)
@@ -2097,6 +2124,22 @@ namespace pvpgn
 			// branches handle the request).
 			pvpgn::integration::legacy_bnetd::
 				install_init_conn_apply_handler();
+
+			// Step 4 / E.4 (R188.b recovery): install the v3
+			// authoritative apply-side handlers for the ads
+			// pick/click and realm-list dispatch ABIs. These
+			// are *required* under PVPGN_V3_BNETD_INTEGRATION
+			// because R189 promoted `_client_adreq`,
+			// `_client_adclick2`, `_client_realmlistreq` and
+			// `_client_realmlistreq110` to the R168.a mandatory
+			// contract -- the `rc < 0` branch in those handlers
+			// surfaces a missing installer as a hard error.
+			// Without these calls every ad / realm-list request
+			// would fail at runtime.
+			pvpgn::integration::legacy_bnetd::
+				install_ads_handlers();
+			pvpgn::integration::legacy_bnetd::
+				install_realm_list_handler();
 #endif
 
 			laddrs = NULL;

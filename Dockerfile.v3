@@ -6,8 +6,13 @@
 # the v3 tree still compiles after each step.
 #
 # Usage:
-#   docker build -f Dockerfile.v3 --target v3-build  -t pvpgn:v3-build  .
-#   docker build -f Dockerfile.v3 --target v3-test   -t pvpgn:v3-test   .
+#   docker build -f Dockerfile.v3 --target v3-build     -t pvpgn:v3-build     .
+#   docker build -f Dockerfile.v3 --target v3-test      -t pvpgn:v3-test      .
+#   docker build -f Dockerfile.v3 --target v3-runtime   -t pvpgn:v3-runtime   .
+#   docker build -f Dockerfile.v3 --target v3-bnetd-on  -t pvpgn:v3-bnetd-on  .  # R195: legacy bnetd with WITH_BNETD=ON+PVPGN_BUILD_V3=ON
+#   docker build -f Dockerfile.v3 --target v3-d2cs-on   -t pvpgn:v3-d2cs-on   .  # R196.b: legacy d2cs with WITH_D2CS=ON+PVPGN_BUILD_V3=ON
+#   docker build -f Dockerfile.v3 --target v3-smoke     -t pvpgn:v3-smoke     .  # R196.e: runtime smoke -- start bnetd + d2cs, verify port bind
+#   docker build -f Dockerfile.v3 --target v3-compose   -t pvpgn:v3-compose   .  # R197: image used by docker-compose.v3.yml (single image, multi-service via CMD)
 #   # or just:
 #   docker build -f Dockerfile.v3 -t pvpgn:v3 .
 # =============================================================================
@@ -287,3 +292,175 @@ RUN ( cmake -S . -B build/v3-runtime \
    install -D -m 0644 conf/bnetd.toml.in /etc/pvpgn/bnetd.toml
 
 CMD ["/bin/sh", "-c", "if [ -x /usr/local/bin/pvpgn_v3_bnetd ]; then /usr/local/bin/pvpgn_v3_bnetd --version; else echo 'pvpgn_v3_bnetd not built (preview stage)'; fi"]
+
+
+# -----------------------------------------------------------------------------
+# Stage: v3-bnetd-on (R195)
+#
+# CI regression lane for the **legacy** `bnetd` executable built with
+# `WITH_BNETD=ON + PVPGN_BUILD_V3=ON`. Closes the R168..R191.a dead-code
+# gap: those rounds wired strangler-fig hooks (`install_*_handlers` etc.)
+# behind `#ifdef PVPGN_V3_BNETD_INTEGRATION`, but the CMake ordering bug
+# repaired in R193.fix had left the macro undefined under any legacy
+# build, so the hooks never compiled. R194 made the build work. This
+# stage keeps it working.
+#
+# Note: this stage builds *only* the `bnetd` target -- not the full
+# legacy daemon set (d2cs, d2dbs, tools) -- because the goal is the
+# strangler-fig integration gate, not full distro packaging. CMake
+# warning-as-errors is OFF for the legacy lib (legacy headers do not
+# warning-clean under v3 flags).
+#
+# Usage:
+#   docker build -f Dockerfile.v3 --target v3-bnetd-on -t pvpgn:v3-bnetd-on .
+# -----------------------------------------------------------------------------
+FROM v3-base AS v3-bnetd-on
+
+RUN cmake -S . -B build/v3-bnetd-on \
+      -D PVPGN_BUILD_V3=ON \
+      -D PVPGN_BUILD_LEGACY=ON \
+      -D WITH_BNETD=ON \
+      -D WITH_D2CS=OFF \
+      -D WITH_D2DBS=OFF \
+      -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
+      -D CMAKE_BUILD_TYPE=Release \
+   && cmake --build build/v3-bnetd-on --config Release --target bnetd -j"$(nproc)" \
+   && test -x build/v3-bnetd-on/src/bnetd/bnetd \
+   && echo "v3-bnetd-on: built bnetd successfully at build/v3-bnetd-on/src/bnetd/bnetd"
+
+CMD ["/bin/sh", "-c", "/src/build/v3-bnetd-on/src/bnetd/bnetd --help 2>&1 | head -20 || echo 'bnetd help failed'"]
+
+
+# -----------------------------------------------------------------------------
+# Stage: v3-d2cs-on (R196.b)
+#
+# CI regression lane for the **legacy** `d2cs` executable built with
+# `WITH_D2CS=ON + PVPGN_BUILD_V3=ON`. Parallels v3-bnetd-on (R195).
+# Verifies R196.b fixes: (a) src/v3/integration/legacy_d2cs/CMakeLists.txt
+# late-added so `d2cs_legacy` exists when `integration_legacy_d2cs_linked`
+# is created, (b) src/d2cs/prefs_v3_shim.h `#if __has_include(...)` so the
+# v3 bridge declarations are visible regardless of macro state.
+#
+# Note: this stage builds *only* the `d2cs` target -- not the full
+# legacy daemon set (bnetd, d2dbs, tools).
+#
+# Usage:
+#   docker build -f Dockerfile.v3 --target v3-d2cs-on -t pvpgn:v3-d2cs-on .
+# -----------------------------------------------------------------------------
+FROM v3-base AS v3-d2cs-on
+
+RUN cmake -S . -B build/v3-d2cs-on \
+      -D PVPGN_BUILD_V3=ON \
+      -D PVPGN_BUILD_LEGACY=ON \
+      -D WITH_BNETD=OFF \
+      -D WITH_D2CS=ON \
+      -D WITH_D2DBS=OFF \
+      -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
+      -D CMAKE_BUILD_TYPE=Release \
+   && cmake --build build/v3-d2cs-on --config Release --target d2cs -j"$(nproc)" \
+   && test -x build/v3-d2cs-on/src/d2cs/d2cs \
+   && echo "v3-d2cs-on: built d2cs successfully at build/v3-d2cs-on/src/d2cs/d2cs"
+
+CMD ["/bin/sh", "-c", "/src/build/v3-d2cs-on/src/d2cs/d2cs --help 2>&1 | head -20 || echo 'd2cs help failed'"]
+
+
+# -----------------------------------------------------------------------------
+# Stage: v3-smoke (R196.e)
+#
+# Runtime smoke test. Builds both `bnetd` and `d2cs` (combined
+# WITH_BNETD=ON+WITH_D2CS=ON+PVPGN_BUILD_V3=ON), processes the
+# `conf/*.toml` templates (sed-replaces the two unresolved cmake
+# placeholders `${SYSCONFDIR}` and `${LOCALSTATEDIR}` -- these are
+# left literal by `configure_file(@ONLY)` and would otherwise be
+# treated as path strings by the daemon), then runs each daemon in
+# `--debug` mode in the background for a few seconds and checks
+#   (a) the process is still alive after the wait,
+#   (b) the expected listen port is bound.
+#
+# Verifies more than v3-bnetd-on / v3-d2cs-on: those only prove the
+# binary can be linked. v3-smoke proves the binary can start, parse
+# its config, initialise its event loop, and bind to its port without
+# crashing. This is the first stage that actually exercises the
+# `#ifdef PVPGN_V3_BNETD_INTEGRATION` / `#ifdef PVPGN_V3_D2CS_INTEGRATION`
+# strangler paths at runtime.
+#
+# Usage:
+#   docker build -f Dockerfile.v3 --target v3-smoke -t pvpgn:v3-smoke .
+#
+# Limits:
+#   - No client connection / handshake test (would require the BNCS
+#     client lib in the image and a known account in storage).
+#   - No DB initialisation -- bnetd uses the default file-backed
+#     storage in /tmp/pvpgn-state/users/.
+#   - Need `ss` from `iproute2`; install in this stage only.
+# -----------------------------------------------------------------------------
+FROM v3-base AS v3-smoke
+
+RUN apk --quiet --no-cache add iproute2
+
+RUN cmake -S . -B build/v3-smoke \
+      -D PVPGN_BUILD_V3=ON \
+      -D PVPGN_BUILD_LEGACY=ON \
+      -D WITH_BNETD=ON \
+      -D WITH_D2CS=ON \
+      -D WITH_D2DBS=OFF \
+      -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
+      -D CMAKE_BUILD_TYPE=Release \
+   && cmake --build build/v3-smoke --config Release --target bnetd --target d2cs -j"$(nproc)" \
+   && test -x build/v3-smoke/src/bnetd/bnetd \
+   && test -x build/v3-smoke/src/d2cs/d2cs
+
+# Smoke runtime: delegated to a checked-in shell script to dodge
+# buildkit eating the literal `${VAR}` template placeholders that the
+# sed substitution needs to match. See scripts/dev/v3-smoke-runtime.sh.
+RUN chmod +x scripts/dev/v3-smoke-runtime.sh \
+ && BUILD_DIR=/src/build/v3-smoke scripts/dev/v3-smoke-runtime.sh
+
+CMD ["/bin/sh", "-c", "echo 'v3-smoke: build-time smoke completed; see RUN logs for results'"]
+
+
+# =============================================================================
+# R197: v3-compose -- single image used by docker-compose.v3.yml for
+# parallel bnetd + d2cs (and bnchat client) end-to-end testing.
+# =============================================================================
+#
+# Differences vs. v3-smoke:
+#   - Also builds the v3 `bnchat` client binary (PVPGN_BUILD_V3=ON gives
+#     it for free, but we explicitly list it as a build target so the
+#     stage fails fast if it stops linking).
+#   - No build-time RUN smoke. The smoke happens at compose run time, via
+#     scripts/dev/v3-daemon-entry.sh (as ENTRYPOINT) and
+#     scripts/dev/v3-compose-smoke.sh (as host-side orchestrator).
+#   - iproute2 (for `ss`) + bash (for the orchestrator) are pre-installed.
+#   - The same image runs as either `bnetd` or `d2cs` based on the
+#     compose service's `command:` argument.
+#
+# Usage:
+#   docker build -f Dockerfile.v3 --target v3-compose -t pvpgn-v3-compose:latest .
+#   docker compose -f docker-compose.v3.yml up -d
+#   scripts/dev/v3-compose-smoke.sh
+#   docker compose -f docker-compose.v3.yml down -v
+# -----------------------------------------------------------------------------
+FROM v3-base AS v3-compose
+
+RUN apk --quiet --no-cache add iproute2 bash
+
+RUN cmake -S . -B build/v3-smoke \
+      -D PVPGN_BUILD_V3=ON \
+      -D PVPGN_BUILD_LEGACY=ON \
+      -D WITH_BNETD=ON \
+      -D WITH_D2CS=ON \
+      -D WITH_D2DBS=OFF \
+      -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
+      -D CMAKE_BUILD_TYPE=Release \
+   && cmake --build build/v3-smoke --config Release \
+            --target bnetd --target d2cs --target bnchat -j"$(nproc)" \
+   && test -x build/v3-smoke/src/bnetd/bnetd \
+   && test -x build/v3-smoke/src/d2cs/d2cs \
+   && test -x build/v3-smoke/src/v3/tools/client/bnchat
+
+RUN chmod +x scripts/dev/v3-daemon-entry.sh \
+              scripts/dev/v3-compose-smoke.sh
+
+ENTRYPOINT ["scripts/dev/v3-daemon-entry.sh"]
+CMD ["bnetd"]

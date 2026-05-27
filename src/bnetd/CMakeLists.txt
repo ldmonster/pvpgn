@@ -34,7 +34,7 @@ set(BNETD_LIB_SOURCES
 	team.cpp team.h tick.cpp tick.h timer.cpp timer.h topic.cpp topic.h
 	tournament.cpp tournament.h icons.cpp icons.h tracker.cpp tracker.h udptest_send.cpp
 	udptest_send.h versioncheck.cpp versioncheck.h watch.cpp watch.h
-	anongame_wol.cpp anongame_wol.h handle_wserv.cpp handle_wserv.h
+	anongame_wol.cpp anongame_wol.h
 	luafunctions.cpp luafunctions.h luainterface.cpp luainterface.h
 	luaobjects.cpp luaobjects.h luawrapper.cpp luawrapper.h
 	i18n.cpp i18n.h userlog.cpp userlog.h
@@ -119,40 +119,14 @@ target_link_libraries(bnetd PRIVATE bnetd_legacy)
 # v3 strangler-fig: when the v3 build is in the same configure,
 # link the bnetd executable against the linked integration adapter
 # so the UDP receive path can be served by `infra::net::UdpEndpoint`.
-if(TARGET integration_legacy_bnetd_linked)
-    target_link_libraries(bnetd PRIVATE integration_legacy_bnetd_linked)
-    if(TARGET infra_log_simple)
-        # JsonLineLogger (Batch 23c) is referenced from server.cpp
-        # behind PVPGN_V3_BNETD_INTEGRATION; link the lib + expose its
-        # public include path on the legacy compile unit.
-        target_link_libraries(bnetd PRIVATE infra_log_simple)
-        target_include_directories(bnetd_legacy PRIVATE
-            ${CMAKE_SOURCE_DIR}/src/v3/infra/log/include)
-    endif()
-    # Batch 26c: PasswordRotationObserver + InMemoryEventBus are
-    # referenced from server.cpp behind PVPGN_V3_AUDIT_LOG.
-    if(TARGET application_auth)
-        target_link_libraries(bnetd PRIVATE application_auth)
-    endif()
-    target_compile_definitions(bnetd PRIVATE PVPGN_V3_BNETD_INTEGRATION=1)
-    # bnetd_legacy itself hosts the legacy `_client_anongame_*` /
-    # `handle_command` etc. handlers that contain the
-    # `#ifdef PVPGN_V3_BNETD_INTEGRATION` strangler hooks. Without the
-    # define on the lib those hooks were dead code (compiled-out) even
-    # when the bridges were linked into the EXE. Enable them here and
-    # expose the v3 strangler macro header on the legacy include path.
-    target_compile_definitions(bnetd_legacy PRIVATE PVPGN_V3_BNETD_INTEGRATION=1)
-    target_include_directories(bnetd_legacy PRIVATE
-        ${CMAKE_SOURCE_DIR}/src/v3/integration/legacy_bnetd/include
-        ${CMAKE_SOURCE_DIR}/src/v3/application/chat/include
-        ${CMAKE_SOURCE_DIR}/src/v3/application/i18n/include
-        ${CMAKE_SOURCE_DIR}/src/v3/application/auth/include
-        ${CMAKE_SOURCE_DIR}/src/v3/application/ports/include
-        ${CMAKE_SOURCE_DIR}/src/v3/domain/shared/include
-        ${CMAKE_SOURCE_DIR}/src/v3/domain/identity/include
-        ${CMAKE_SOURCE_DIR}/src/v3/infra/inmemory/include
-        ${CMAKE_SOURCE_DIR}/src/v3/core/include)
-endif()
+#
+# MOVED to src/v3/integration/legacy_bnetd/CMakeLists.txt by R193.fix
+# (Strategy B, two-pass `src/v3`). That CMakeLists is added LATE in the
+# top-level configure so that BOTH `bnetd_legacy` AND the
+# `integration_legacy_bnetd_linked` target are available before the
+# wiring runs. The previous `if(TARGET integration_legacy_bnetd_linked)`
+# placement here was always FALSE under the broken ordering.
+# See plans/r192-checklist.md + plans/r193-audit-checklist.md.
 
 install(TARGETS bnetd DESTINATION ${SBINDIR})
 if(WIN32 AND MSVC)

@@ -29,8 +29,10 @@
 #include "common/packet.h"
 #include "common/tag.h"
 #include "bnetd/connection.h"
-#include "bnetd/prefs.h"
 #include "common/setup_after.h"
+
+// R194: `bnetd/prefs.h` was deleted in R165. Use the v3 C bridge.
+#include "integration/legacy_bnetd/prefs_bridge.hpp"
 
 namespace it  = pvpgn::application::icon_table;
 namespace pb  = pvpgn::protocol::bnet;
@@ -52,7 +54,7 @@ std::mutex&      istate_mutex() { static std::mutex m; return m; }
 void icon_req_init_locked() {
     auto& s = istate();
     s.init_attempted = true;
-    const char* infos = pvpgn::bnetd::prefs_get_anongame_infos_file();
+    const char* infos = pvpgn_v3_prefs_get_anongame_infos_file();
     if (infos == nullptr) {
         ila::bridge_log(pvpgn::core::LogLevel::Warn,
                         "v3_get_icon_bridge",

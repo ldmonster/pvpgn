@@ -54,6 +54,8 @@ inline constexpr std::uint16_t CLIENT_STATSREQ     = 0x26ff;
 inline constexpr std::uint16_t SERVER_STATSREPLY   = 0x26ff;
 inline constexpr std::uint16_t CLIENT_LOGINREQ1    = 0x29ff;
 inline constexpr std::uint16_t SERVER_LOGINREPLY1  = 0x29ff;
+inline constexpr std::uint16_t CLIENT_CREATEACCTREQ1   = 0x2aff;
+inline constexpr std::uint16_t SERVER_CREATEACCTREPLY1 = 0x2aff;
 inline constexpr std::uint16_t CLIENT_ICONREQ      = 0x2dff;
 inline constexpr std::uint16_t SERVER_ICONREPLY    = 0x2dff;
 inline constexpr std::uint16_t CLIENT_CDKEY2       = 0x36ff;
@@ -212,6 +214,24 @@ static_assert(sizeof(SServerLoginReply1) == 4);
 
 inline constexpr std::uint32_t kLoginReply1_Fail    = 0x00000000u;
 inline constexpr std::uint32_t kLoginReply1_Success = 0x00000001u;
+
+// CLIENT_CREATEACCTREQ1 0x2aff -- account name appended after the struct.
+// R197: used by bnchat_v3's `--create-account` flag to bootstrap an
+// account against a fresh bnetd before LOGINREQ1.
+struct CClientCreateAcctReq1 {
+    bn_int password_hash1[5];  // 20 bytes: bnet_hash(lowercase(password))
+    // followed by player name NUL-terminated
+};
+static_assert(sizeof(CClientCreateAcctReq1) == 5 * 4);
+
+// SERVER_CREATEACCTREPLY1 0x2aff
+struct SServerCreateAcctReply1 {
+    bn_int result;
+};
+static_assert(sizeof(SServerCreateAcctReply1) == 4);
+
+inline constexpr std::uint32_t kCreateAcctReply1_No = 0x00000000u;
+inline constexpr std::uint32_t kCreateAcctReply1_Ok = 0x00000001u;
 
 // CLIENT_STATSREQ 0x26ff -- name + N field key strings appended
 struct CClientStatsReq {

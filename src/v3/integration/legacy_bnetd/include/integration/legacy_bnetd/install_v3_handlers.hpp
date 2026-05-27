@@ -57,4 +57,19 @@ void install_ads_handlers();
 /// the entry array themselves. No-op on second call.
 void install_realm_list_handler();
 
+/// Installs the legacy-bnetd implementation of the v3 anongame
+/// lobby dispatcher (`pvpgn_v3_anongame_lobby_apply`). R191
+/// (structural prep): the install hook is now wired into the
+/// composition root, but the underlying
+/// `install_legacy_anongame_lobby_handler()` remains a stage-1
+/// no-op until R192. With no handler installed the extern "C"
+/// entry returns -1 and every existing call site keeps the legacy
+/// `_anongame_queue` path -- so adding this call to `server.cpp`
+/// has no behavioural effect this round. See
+/// `plans/r191-checklist.md` for the data-model mismatch (legacy
+/// `matchlists[queue][level]` vs. v3 flat `LobbyEntry`) that blocks
+/// a faithful adapter and the R192-R195 roadmap. No-op on second
+/// call.
+void install_anongame_lobby_handler();
+
 }  // namespace pvpgn::integration::legacy_bnetd
