@@ -25,7 +25,7 @@
 set -e
 
 if [ -z "$1" ]; then
-    echo "FAIL: v3-daemon-entry.sh requires daemon name (bnetd|d2cs)" 1>&2
+    echo "FAIL: v3-daemon-entry.sh requires daemon name (bnetd|d2cs|d2dbs)" 1>&2
     exit 1
 fi
 DAEMON="$1"

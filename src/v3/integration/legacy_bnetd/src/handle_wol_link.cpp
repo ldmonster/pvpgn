@@ -57,7 +57,16 @@
 #include "anongame_wol.h"
 #include "common/setup_after.h"
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
+//
+// R207: relocated from `src/bnetd/handle_wol.cpp`.
+// Strangler-fig move into the v3 `integration_legacy_bnetd_linked`
+// library. Symbol surface preserved verbatim. The legacy
+// `#ifdef PVPGN_V3_BNETD_INTEGRATION` guards are dropped because
+// we are unconditionally inside the v3 build here.
+// Note: `irc_*` symbols are still resolved from `bnetd_legacy`
+// (irc.cpp) across the bnetd <-> bnetd_legacy link edge; an
+// irc.cpp relocation is deferred to a future round.
+
 // Strangler-fig hook for the bnetd WoL (Westwood Online) dispatcher.
 // Observation-only: logs each entry to handle_wol_con_command /
 // handle_wol_log_command / handle_wol_welcome. Returns 0; legacy
@@ -66,7 +75,6 @@ extern "C" int pvpgn_v3_wol_dispatch_try(void* conn_ptr, char const* op) noexcep
 // Send-bridge: encodes a raw-text packet and dispatches via send_packet handler.
 // Returns 1 (handled), 0 (fall through), -1 (error).
 extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
-#endif
 
 namespace pvpgn
 {
@@ -201,9 +209,7 @@ namespace pvpgn
 
 		extern int handle_wol_con_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_wol_dispatch_try(conn, "con_command");
-#endif
 			t_wol_command_table_row const *p;
 
 			for (p = wol_con_command_table; p->wol_command_string != NULL; p++) {
@@ -217,9 +223,7 @@ namespace pvpgn
 
 		extern int handle_wol_log_command(t_connection * conn, char const * command, int numparams, char ** params, char * text)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_wol_dispatch_try(conn, "log_command");
-#endif
 			t_wol_command_table_row const *p;
 
 			for (p = wol_log_command_table; p->wol_command_string != NULL; p++) {
@@ -294,9 +298,7 @@ namespace pvpgn
 
 		extern int handle_wol_welcome(t_connection * conn)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_wol_dispatch_try(conn, "welcome");
-#endif
 			/* This function need rewrite */
 			conn_set_state(conn, conn_state_bot_password);
 
@@ -1660,13 +1662,11 @@ namespace pvpgn
 
 			std::sprintf(data, "\r\n\r\n\r\n%s", command);
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] sent \"{}\"", conn_get_socket(conn), data);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				int const _rc = pvpgn_v3_send_raw_text(conn, data);
 				if (_rc == 1) goto handle_wol_ladder_send_skip_legacy;
 				if (_rc == -1) return -1;
 			}
-#endif
 			{
 				t_packet* const p = packet_create(packet_class_raw);
 				if (!p)
@@ -1678,9 +1678,7 @@ namespace pvpgn
 				conn_push_outqueue(conn, p);
 				packet_del_ref(p);
 			}
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			handle_wol_ladder_send_skip_legacy:;
-#endif
 
 			/* In ladder server we must destroy connection after send packet */
 			conn_set_state(conn, conn_state_destroy);

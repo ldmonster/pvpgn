@@ -66,6 +66,14 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             src/init_conn_bridge_link.cpp
             src/init_packet_dispatch_link.cpp
             src/init_side_effects_link.cpp
+            src/handle_d2cs_link.cpp  # R202: relocated from src/bnetd/handle_d2cs.cpp
+            src/handle_telnet_link.cpp  # R203: relocated from src/bnetd/handle_telnet.cpp
+            src/handle_bot_link.cpp  # R204: relocated from src/bnetd/handle_bot.cpp
+            src/handle_apireg_link.cpp  # R205: relocated from src/bnetd/handle_apireg.cpp
+            src/handle_anongame_link.cpp  # R206: relocated from src/bnetd/handle_anongame.cpp
+            src/handle_wol_link.cpp  # R207: relocated from src/bnetd/handle_wol.cpp
+            src/irc_link.cpp  # R208: relocated from src/bnetd/irc.cpp
+            src/handle_bnet_link.cpp  # R209: relocated from src/bnetd/handle_bnet.cpp (guards stripped)
             src/ads_bridge_link.cpp
             src/realm_list_bridge_link.cpp
         PUBLIC_INCLUDES

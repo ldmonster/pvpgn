@@ -18,6 +18,12 @@
 #ifndef INCLUDED_HANDLE_D2CS_H
 #define INCLUDED_HANDLE_D2CS_H
 
+// R202: implementation relocated to
+// `src/v3/integration/legacy_bnetd/src/handle_d2cs_link.cpp`.
+// This header keeps the public declarations so that callers in
+// `src/bnetd/server.cpp`, `connection.cpp`, and `realm.cpp` can
+// continue to `#include "handle_d2cs.h"` without churn.
+
 #include "common/packet.h"
 #include "connection.h"
 

@@ -1,3 +1,14 @@
+// =====================================================================
+// R209: relocated from src/bnetd/handle_bnet.cpp into the strangler
+// legacy_bnetd integration library. The `#ifdef PVPGN_V3_BNETD_INTEGRATION`
+// guards that were threaded through this translation unit (R166-R200,
+// ~150 sites including R189-style mandatory-v3 if/else blocks) have been
+// programmatically stripped by scripts/dev/strip_v3_guards.py because
+// the macro is always defined when this file is compiled (it is set on
+// the `integration_legacy_bnetd_linked` target). The behaviour under
+// the v3 build is identical to the pre-R209 build with the macro on.
+// =====================================================================
+
 /*
  * Copyright (C) 1998  Mark Baysinger (mbaysing@ucsd.edu)
  * Copyright (C) 1998,1999,2000,2001  Ross Combs (rocombs@cs.nmsu.edu)
@@ -85,15 +96,12 @@
 #include "luainterface.h"
 #endif
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 #include "integration/legacy_bnetd/strangler_macros.h"
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 // R194: handle_bnet.cpp uses `pvpgn_v3_friend_entry` (declared in
 // send_friendslist_bridge.hpp) inside a `#ifdef PVPGN_V3_BNETD_INTEGRATION`
 // block. The header had never been included here because the surrounding
 // block was dead code until R193.fix lit it up.
 #include "integration/legacy_bnetd/send_friendslist_bridge.hpp"
-#endif
 // Strangler-fig hook for SERVER_AUTHREPLY1 byte emission (Step 4 E.3
 // step 2). The v3 bridge builds the on-wire bytes via the v3 codec
 // and ships them through the registered send_packet handler. Returns
@@ -515,7 +523,6 @@ extern "C" int pvpgn_v3_send_clancreateinvitereply(void*        conn_ptr,
                                                     unsigned int clan_tag,
                                                     char const*  clan_creator,
                                                     unsigned int reply) noexcept;
-#endif
 namespace pvpgn
 {
 
@@ -787,9 +794,7 @@ namespace pvpgn
 		/* handlers for bnet packets */
 		static int _client_unknown_1b(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_stub_dispatch_try(c, "unknown_1b");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_unknown_1b)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad UNKNOWN_1B packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_unknown_1b), packet_get_size(packet));
 				return -1;
@@ -815,9 +820,7 @@ namespace pvpgn
 
 		static int _client_compinfo1(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_handshake_dispatch_try(c, "compinfo1");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_compinfo1)) {
@@ -842,9 +845,7 @@ namespace pvpgn
 				conn_set_user(c, user);
 			}
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_compreply(c) <= 0)
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_compreply));
 					packet_set_type(rpacket, SERVER_COMPREPLY);
@@ -855,9 +856,7 @@ namespace pvpgn
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 				}
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_sessionkey1(c, static_cast<unsigned int>(conn_get_sessionkey(c))) <= 0)
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_sessionkey1));
 					packet_set_type(rpacket, SERVER_SESSIONKEY1);
@@ -870,9 +869,7 @@ namespace pvpgn
 
 		static int _client_compinfo2(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_handshake_dispatch_try(c, "compinfo2");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_compinfo2)) {
@@ -897,9 +894,7 @@ namespace pvpgn
 				conn_set_user(c, user);
 			}
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_compreply(c) <= 0)
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_compreply));
 					packet_set_type(rpacket, SERVER_COMPREPLY);
@@ -911,11 +906,9 @@ namespace pvpgn
 					packet_del_ref(rpacket);
 				}
 	
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_sessionkey2(c,
 				                              static_cast<unsigned int>(conn_get_sessionnum(c)),
 				                              static_cast<unsigned int>(conn_get_sessionkey(c))) <= 0)
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_sessionkey2));
 					packet_set_type(rpacket, SERVER_SESSIONKEY2);
@@ -930,9 +923,7 @@ namespace pvpgn
 
 		static int _client_countryinfo1(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_handshake_dispatch_try(c, "countryinfo1");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_countryinfo1)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad COUNTRYINFO1 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_countryinfo1), packet_get_size(packet));
 				return -1;
@@ -973,9 +964,7 @@ namespace pvpgn
 
 		static int _client_auth_info(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_auth_dispatch_try(c, "auth_info");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_auth_info)) {
@@ -1032,9 +1021,7 @@ namespace pvpgn
 
 				/* First, send an ECHO_REQ */
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_echoreq(c, static_cast<unsigned int>(get_ticks())) <= 0)
-#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_echoreq));
 					packet_set_type(rpacket, SERVER_ECHOREQ);
@@ -1079,7 +1066,6 @@ namespace pvpgn
 						packet_append_data(rpacket, padding, 128);
 					}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 					// Strangler-fig: build the same bytes via the v3
 					// codec and dispatch through pvpgn_v3_send_packet_try.
 					// On success skip the legacy outqueue push (we
@@ -1113,7 +1099,6 @@ namespace pvpgn
 							return 0;
 						}
 					}
-#endif
 
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
@@ -1124,9 +1109,7 @@ namespace pvpgn
 
 		static int _client_unknown2b(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_stub_dispatch_try(c, "unknown2b");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_unknown_2b)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad UNKNOWN_2B packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_unknown_2b), packet_get_size(packet));
 				return -1;
@@ -1136,9 +1119,7 @@ namespace pvpgn
 
 		static int _client_progident(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_progident_dispatch_try(c, "progident");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_progident)) {
@@ -1167,7 +1148,6 @@ namespace pvpgn
 				bn_long ts_bn{};
 				file_to_mod_time(c, std::get<0>(checkrevision).c_str(), &ts_bn);
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				// v3 strangler-fig: build SERVER_AUTHREQ1 via the codec and
 				// ship through the registered send_packet handler.
 				if (pvpgn_v3_send_authreq1_server(
@@ -1179,7 +1159,6 @@ namespace pvpgn
 					// Bridge succeeded — skip legacy emit path.
 					goto _client_progident_done;
 				}
-#endif
 
 				if ((rpacket = packet_create(packet_class_bnet)))
 				{
@@ -1201,9 +1180,7 @@ namespace pvpgn
 
 		static int _client_createaccountw3(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_account_dispatch_try(c, "createaccountw3");
-#endif
 			char const *username;
 			char const *plainpass;
 			t_hash sc_hash;
@@ -1263,13 +1240,11 @@ namespace pvpgn
 			{
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account not created (disabled)", conn_get_socket(c));
 				bn_int_set(&rpacket->u.server_createaccount_w3.result, SERVER_CREATEACCOUNT_W3_RESULT_EXIST);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_createaccount_w3(c,
 						bn_int_get(rpacket->u.server_createaccount_w3.result)) == 1) {
 					packet_del_ref(rpacket);
 					return 0;
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
@@ -1279,13 +1254,11 @@ namespace pvpgn
 			{
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] account not created (invalid symbols)", conn_get_socket(c));
 				bn_int_set(&rpacket->u.server_createaccount_w3.result, SERVER_CREATEACCOUNT_W3_RESULT_INVALID);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_createaccount_w3(c,
 						bn_int_get(rpacket->u.server_createaccount_w3.result)) == 1) {
 					packet_del_ref(rpacket);
 					return 0;
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				return 0;
@@ -1324,7 +1297,6 @@ namespace pvpgn
 				bn_int_set(&rpacket->u.server_createaccount_w3.result, SERVER_CREATEACCOUNT_W3_RESULT_OK);
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				unsigned int v3_result = bn_int_get(
 					rpacket->u.server_createaccount_w3.result);
@@ -1333,7 +1305,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -1342,9 +1313,7 @@ namespace pvpgn
 
 		static int _client_createacctreq1(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_account_dispatch_try(c, "createacctreq1");
-#endif
 			t_packet *rpacket;
 			char const *username;
 			t_hash newpasshash1;
@@ -1384,7 +1353,6 @@ namespace pvpgn
 			bn_int_set(&rpacket->u.server_createacctreply1.result, SERVER_CREATEACCTREPLY1_RESULT_OK);
 
 		out:
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				unsigned int v3_result = bn_int_get(
 					rpacket->u.server_createacctreply1.result);
@@ -1394,7 +1362,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -1403,9 +1370,7 @@ namespace pvpgn
 
 		static int _client_createacctreq2(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_account_dispatch_try(c, "createacctreq2");
-#endif
 			t_packet *rpacket;
 			char const *username;
 			t_hash newpasshash1;
@@ -1452,7 +1417,6 @@ namespace pvpgn
 			bn_int_set(&rpacket->u.server_createacctreply2.result, SERVER_CREATEACCTREPLY2_RESULT_OK);
 
 		out:
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				unsigned int v3_result = bn_int_get(
 					rpacket->u.server_createacctreply2.result);
@@ -1462,7 +1426,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -1471,9 +1434,7 @@ namespace pvpgn
 
 		static int _client_changepassreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_account_dispatch_try(c, "changepassreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_changepassreq)) {
@@ -1481,7 +1442,6 @@ namespace pvpgn
 				return -1;
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// 28b strangler-fig: offer the v3 ChangePassword path
 			// first. Scaffold-only today (returns 0 -> fall-through)
 			// unless `PVPGN_V3_CHANGEPW=1` registers a handler at
@@ -1489,7 +1449,6 @@ namespace pvpgn
 			// the source of truth until the use-case learns it.
 			PVPGN_V3_BRIDGE_TRY(change_password, c, packet,
 				packet_get_size(packet));
-#endif
 
 			{
 				char const *username;
@@ -1568,7 +1527,6 @@ namespace pvpgn
 					}
 				}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					unsigned int msg_v3 = static_cast<unsigned int>(
 						bn_int_get(rpacket->u.server_changepassack.message));
@@ -1577,7 +1535,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 
@@ -1588,9 +1545,7 @@ namespace pvpgn
 
 		static int _client_echoreply(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_keepalive_dispatch_try(c, "echoreply");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_echoreply)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ECHOREPLY packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_echoreply), packet_get_size(packet));
 				return -1;
@@ -1613,9 +1568,7 @@ namespace pvpgn
 
 		static int _client_authreq1(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_auth_dispatch_try(c, "authreq1");
-#endif
 			eventlog(eventlog_level_trace, __FUNCTION__, "[{}] received AUTHREQ1(0x07) packet", conn_get_socket(c));
 
 			if (packet_get_size(packet) < sizeof(t_client_authreq1))
@@ -1627,7 +1580,6 @@ namespace pvpgn
 			auto send_failed_packet = [](t_connection *c)
 			{
 				conn_set_state(c, conn_state_untrusted);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				// v3 strangler-fig: build BADVERSION reply via the
 				// codec and ship through the registered handler.
 				if (pvpgn_v3_send_authreply1(
@@ -1636,7 +1588,6 @@ namespace pvpgn
 				{
 					return;
 				}
-#endif
 				t_packet *rpacket = packet_create(packet_class_bnet);
 				if (rpacket)
 				{
@@ -1747,7 +1698,6 @@ namespace pvpgn
 				packet_append_string(rpacket, "");
 				packet_append_string(rpacket, ""); // FIXME: what's the second string for?
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				// v3 strangler-fig: emit the reply via the v3 codec
 				// instead of the legacy packet, when a send_packet
 				// handler is installed. Mirrors the legacy quirk
@@ -1763,7 +1713,6 @@ namespace pvpgn
 						delete[] mpqfilename;
 					return 0;
 				}
-#endif
 
 				if (mpqfilename)
 					delete[] mpqfilename;
@@ -1778,9 +1727,7 @@ namespace pvpgn
 
 		static int _client_authreq109(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_auth_dispatch_try(c, "authreq109");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_authreq_109))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad AUTHREQ_109 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_authreq_109), packet_get_size(packet));
@@ -1790,14 +1737,12 @@ namespace pvpgn
 			auto send_failed_packet = [](t_connection *c)
 			{
 				conn_set_state(c, conn_state_untrusted);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_authreply109(
 				        c, SERVER_AUTHREPLY_109_MESSAGE_BADVERSION,
 				        nullptr) == 1)
 				{
 					return;
 				}
-#endif
 				t_packet *rpacket = packet_create(packet_class_bnet);
 				if (rpacket)
 				{
@@ -1899,7 +1844,6 @@ namespace pvpgn
 				bn_int_set(&rpacket->u.server_authreply_109.message, SERVER_AUTHREPLY_109_MESSAGE_OK);
 				packet_append_string(rpacket, "");
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				// v3 strangler-fig: emit via the v3 codec when the
 				// send_packet handler is installed. Mirrors the
 				// legacy quirk that the final message code is OK
@@ -1914,7 +1858,6 @@ namespace pvpgn
 					packet_del_ref(rpacket);
 					return 0;
 				}
-#endif
 
 				if (mpqfilename)
 					delete[] mpqfilename;
@@ -1929,9 +1872,7 @@ namespace pvpgn
 
 		static int _client_regsnoopreply(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_stub_dispatch_try(c, "regsnoopreply");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_regsnoopreply)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad REGSNOOPREPLY packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_regsnoopreply), packet_get_size(packet));
 				return -1;
@@ -1966,7 +1907,6 @@ namespace pvpgn
 				else
 					packet_append_string(rpacket, prefs_v3::iconfile());
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					// Pull timestamp + appended filename back out of the
 					// legacy-built rpacket so all branch logic stays intact.
@@ -1986,7 +1926,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -1996,9 +1935,7 @@ namespace pvpgn
 
 		static int _client_cdkey(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_cdkey_dispatch_try(c, "cdkey");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_cdkey)) {
@@ -2022,11 +1959,9 @@ namespace pvpgn
 				conn_set_cdkey(c, cdkey);
 				conn_set_owner(c, owner);
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_cdkeyreply(c,
 				                             SERVER_CDKEYREPLY_MESSAGE_OK,
 				                             owner) <= 0)
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_cdkeyreply));
 					packet_set_type(rpacket, SERVER_CDKEYREPLY);
@@ -2053,9 +1988,7 @@ namespace pvpgn
 
 		static int _client_cdkey2(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_cdkey_dispatch_try(c, "cdkey2");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_cdkey2)) {
@@ -2073,11 +2006,9 @@ namespace pvpgn
 
 				conn_set_owner(c, owner);
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_cdkeyreply2(c,
 				                              SERVER_CDKEYREPLY2_MESSAGE_OK,
 				                              owner) <= 0)
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_cdkeyreply2));
 					packet_set_type(rpacket, SERVER_CDKEYREPLY2);
@@ -2093,9 +2024,7 @@ namespace pvpgn
 
 		static int _client_cdkey3(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_cdkey_dispatch_try(c, "cdkey3");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_cdkey3)) {
@@ -2113,11 +2042,9 @@ namespace pvpgn
 
 				conn_set_owner(c, owner);
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_cdkeyreply3(c,
 				                              SERVER_CDKEYREPLY3_MESSAGE_OK,
 				                              nullptr) <= 0)
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_cdkeyreply3));
 					packet_set_type(rpacket, SERVER_CDKEYREPLY3);
@@ -2133,9 +2060,7 @@ namespace pvpgn
 
 		static int _client_udpok(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_telemetry_dispatch_try(c, "udpok");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_udpok)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad UDPOK packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_udpok), packet_get_size(packet));
 				return -1;
@@ -2148,9 +2073,7 @@ namespace pvpgn
 
 		static int _client_fileinforeq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_telemetry_dispatch_try(c, "fileinforeq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_fileinforeq)) {
@@ -2182,7 +2105,6 @@ namespace pvpgn
 					 */
 					file_to_mod_time(c, filename, &rpacket->u.server_fileinforeply.timestamp);
 					packet_append_string(rpacket, filename);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 					{
 						const unsigned long long v3_ts =
 							bn_long_get(rpacket->u.server_fileinforeply.timestamp);
@@ -2196,7 +2118,6 @@ namespace pvpgn
 							return 0;
 						}
 					}
-#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 				}
@@ -2225,9 +2146,7 @@ namespace pvpgn
 
 		static int _client_statsreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_profile_dispatch_try(c, "statsreq");
-#endif
 			t_packet *rpacket;
 			char const *name;
 			char const *key;
@@ -2278,7 +2197,6 @@ namespace pvpgn
 				}
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				// Strangler-fig: collect the appended value strings
 				// from the legacy-built rpacket and ship via v3 codec.
@@ -2315,7 +2233,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -2329,13 +2246,11 @@ namespace pvpgn
 				return -1;
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// 28c strangler-fig: offer the v3 login path first.
 			// Scaffold-only (returns 0 -> legacy runs) unless
 			// `PVPGN_V3_LOGIN=1` registers a handler.
 			PVPGN_V3_BRIDGE_TRY(login_user, c, packet,
 				packet_get_size(packet));
-#endif
 
 			{
 				char const *username;
@@ -2362,13 +2277,11 @@ namespace pvpgn
 					{
 						eventlog(eventlog_level_error, __FUNCTION__, "[{}] login denied, too many concurrent logins. max: {}. current: {}.", conn_get_socket(c), prefs_v3::max_concurrent_logins(), connlist_login_get_length());
 						bn_int_set(&rpacket->u.server_loginreply1.message, SERVER_LOGINREPLY1_MESSAGE_FAIL);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 						if (pvpgn_v3_send_loginreply1(
 								c, SERVER_LOGINREPLY1_MESSAGE_FAIL) == 1) {
 							packet_del_ref(rpacket);
 							return -1;
 						}
-#endif
 						conn_push_outqueue(c, rpacket);
 						packet_del_ref(rpacket);
 						return -1;
@@ -2454,7 +2367,6 @@ namespace pvpgn
 #endif
 					}
 				}
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					// Strangler-fig: ship the same 8 bytes via the
 					// v3 codec. Read the final message field out of
@@ -2468,7 +2380,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -2504,10 +2415,8 @@ namespace pvpgn
 				return -1;
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			PVPGN_V3_BRIDGE_TRY(login_user, c, packet,
 				packet_get_size(packet));
-#endif
 
 			{
 				char const *username;
@@ -2656,7 +2565,6 @@ namespace pvpgn
 					client_init_email(c, account);
 				}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					// Strangler-fig: ship LOGINREPLY2 via v3 codec
 					// for the no-reason case. If legacy already
@@ -2675,7 +2583,6 @@ namespace pvpgn
 						}
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -2692,10 +2599,8 @@ namespace pvpgn
 				return -1;
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			PVPGN_V3_BRIDGE_TRY(login_user, c, packet,
 				packet_get_size(packet));
-#endif
 
 			{
 				char const *username;
@@ -2794,7 +2699,6 @@ namespace pvpgn
 					}
 				}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					// Strangler-fig: ship the same 72 bytes via the
 					// v3 codec. Read message + salt + B back out of
@@ -2815,7 +2719,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 
@@ -2826,9 +2729,7 @@ namespace pvpgn
 
 		static int _client_passchangereq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_passemail_dispatch_try(c, "passchangereq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_passchangereq)) {
@@ -2923,7 +2824,6 @@ namespace pvpgn
 					}
 				}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					// Strangler-fig: ship SERVER_PASSCHANGEREPLY (0x55) via
 					// the v3 codec. Read message + salt + B back out of the
@@ -2943,7 +2843,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 
@@ -2954,9 +2853,7 @@ namespace pvpgn
 
 		static int _client_passchangeproofreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_passemail_dispatch_try(c, "passchangeproofreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_passchangeproofreq)) {
@@ -3020,7 +2917,6 @@ namespace pvpgn
 						conn_increment_passfail_count(c);
 					}
 				}
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					// Strangler-fig: ship SERVER_PASSCHANGEPROOFREPLY (0x56) via
 					// the v3 codec. Read response + server_password_proof back out
@@ -3038,7 +2934,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				conn_set_client_proof(c, NULL);
@@ -3050,9 +2945,7 @@ namespace pvpgn
 	
 		static int _client_pingreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_keepalive_dispatch_try(c, "pingreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_pingreq)) {
@@ -3060,9 +2953,7 @@ namespace pvpgn
 				return -1;
 			}
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_pingreply(c) <= 0)
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_pingreply));
 					packet_set_type(rpacket, SERVER_PINGREPLY);
@@ -3179,7 +3070,6 @@ namespace pvpgn
 						conn_increment_passfail_count(c);
 					}
 				}
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					// Strangler-fig: ship via v3 codec. Read response
 					// + proof back out of the legacy-built rpacket.
@@ -3207,7 +3097,6 @@ namespace pvpgn
 						}
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 				conn_set_client_proof(c, NULL);
@@ -3220,9 +3109,7 @@ namespace pvpgn
 
 		static int _client_changegameport(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_gameport_dispatch_try(c, "changegameport");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_changegameport)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad changegameport packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_changegameport), packet_get_size(packet));
 				return -1;
@@ -3242,9 +3129,7 @@ namespace pvpgn
 
 		static int _client_friendslistreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_friends_dispatch_try(c, "friendslistreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_friendslistreq)) {
@@ -3323,7 +3208,6 @@ namespace pvpgn
 	
 					bn_byte_set(&rpacket->u.server_friendslistreply.friendcount, friendcount);
 	
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 					{
 						// Collect entries from the legacy-built packet payload and
 						// ship via v3 codec.  The payload starts after the fixed
@@ -3384,7 +3268,6 @@ namespace pvpgn
 							return 0;
 						}
 					}
-	#endif
 	
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
@@ -3395,9 +3278,7 @@ namespace pvpgn
 
 		static int _client_friendinforeq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_friends_dispatch_try(c, "friendinforeq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_friendinforeq)) {
@@ -3445,7 +3326,6 @@ namespace pvpgn
 					bn_byte_set(&rpacket->u.server_friendinforeply.status, FRIENDSTATUS_OFFLINE);
 					bn_int_set(&rpacket->u.server_friendinforeply.clienttag, 0);
 					packet_append_string(rpacket, "");
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 					{
 						int v3rc = pvpgn_v3_send_friendinforeply(
 							c,
@@ -3459,7 +3339,6 @@ namespace pvpgn
 							return 0;
 						}
 					}
-	#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 					return 0;
@@ -3491,7 +3370,6 @@ namespace pvpgn
 
 				bn_int_set(&rpacket->u.server_friendinforeply.clienttag, conn_get_clienttag(dest_c));
 	
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 					{
 						unsigned int v3_type   = static_cast<unsigned int>(bn_byte_get(rpacket->u.server_friendinforeply.type));
 						unsigned int v3_status = static_cast<unsigned int>(bn_byte_get(rpacket->u.server_friendinforeply.status));
@@ -3516,7 +3394,6 @@ namespace pvpgn
 							return 0;
 						}
 					}
-	#endif
 	
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
@@ -3676,7 +3553,6 @@ namespace pvpgn
 
 			bn_byte_set(&rpacket->u.server_arrangedteam_friendscreen.f_count, available_players);
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				// Collect the appended player name strings from the legacy-built
 				// packet payload and ship via v3 codec.
@@ -3703,7 +3579,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
@@ -3853,7 +3728,6 @@ namespace pvpgn
 					}
 				}
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 					{
 						unsigned int v3_info[5];
 						for (int v3i = 0; v3i < 5; ++v3i)
@@ -3871,7 +3745,6 @@ namespace pvpgn
 							return 0;
 						}
 					}
-	#endif
 				conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 	
@@ -3912,7 +3785,6 @@ namespace pvpgn
 						bn_int_set(&rpacket->u.server_arrangedteam_member_decline.action, SERVER_ARRANGEDTEAM_DECLINE);
 						packet_append_string(rpacket, conn_get_username(c));
 	
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 						{
 							int v3rc = pvpgn_v3_send_atmemberdecline(
 								dest_c,
@@ -3924,7 +3796,6 @@ namespace pvpgn
 								return 0;
 							}
 						}
-	#endif
 	
 						conn_push_outqueue(dest_c, rpacket);
 						packet_del_ref(rpacket);
@@ -3960,7 +3831,6 @@ namespace pvpgn
 			if (date < motdd->lnews)
 				return -1;		/* exit traversing */
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// Strangler-fig: emit per-news SERVER_MOTD_W3 via the v3 codec.
 			// `packet_append_lstr` writes (len - 1) text bytes + a NUL
 			// terminator -- byte-identical to `write_cstring(lstr_get_str)`
@@ -3979,7 +3849,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 
 			rpacket = packet_create(packet_class_bnet);
 			if (!rpacket)
@@ -4008,9 +3877,7 @@ namespace pvpgn
 		// motd for warcraft 3 (http://img21.imageshack.us/img21/1808/j2py.png)
 		static int _client_motdw3(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_handshake_dispatch_try(c, "motdw3");
-#endif
 			t_packet *rpacket;
 			t_clienttag ctag;
 			t_motd_data motdd;
@@ -4034,7 +3901,6 @@ namespace pvpgn
 			news_traverse(_news_cb, &motdd);
 
 			/* Welcome Message */
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				int v3rc = pvpgn_v3_send_motdw3(
 				    c,
@@ -4048,7 +3914,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 			rpacket = packet_create(packet_class_bnet);
 			if (!rpacket)
 				return -1;
@@ -4100,9 +3965,7 @@ namespace pvpgn
 
 		static int _client_realmlistreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_realm_dispatch_try(c, "realmlistreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_realmlistreq)) {
@@ -4110,7 +3973,6 @@ namespace pvpgn
 				return -1;
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// R172.d + R188.b + R189: v3 realm-list dispatcher MANDATORY
 			// under PVPGN_V3_BNETD_INTEGRATION (matches the R168.a init
 			// pattern). `install_realm_list_handler()` is called
@@ -4127,44 +3989,11 @@ namespace pvpgn
 				}
 				return 0;
 			}
-#else
-			if ((rpacket = packet_create(packet_class_bnet))) {
-				t_server_realmlistreply_data realmdata;
-				unsigned int count;
-
-				packet_set_size(rpacket, sizeof(t_server_realmlistreply));
-				packet_set_type(rpacket, SERVER_REALMLISTREPLY);
-				bn_int_set(&rpacket->u.server_realmlistreply.unknown1, SERVER_REALMLISTREPLY_UNKNOWN1);
-				count = 0;
-				for (t_realm const *realm : realmlist()) {
-					if (!realm_get_active(realm))
-						continue;
-					bn_int_set(&realmdata.unknown3, SERVER_REALMLISTREPLY_DATA_UNKNOWN3);
-					bn_int_set(&realmdata.unknown4, SERVER_REALMLISTREPLY_DATA_UNKNOWN4);
-					bn_int_set(&realmdata.unknown5, SERVER_REALMLISTREPLY_DATA_UNKNOWN5);
-					bn_int_set(&realmdata.unknown6, SERVER_REALMLISTREPLY_DATA_UNKNOWN6);
-					bn_int_set(&realmdata.unknown7, SERVER_REALMLISTREPLY_DATA_UNKNOWN7);
-					bn_int_set(&realmdata.unknown8, SERVER_REALMLISTREPLY_DATA_UNKNOWN8);
-					bn_int_set(&realmdata.unknown9, SERVER_REALMLISTREPLY_DATA_UNKNOWN9);
-					packet_append_data(rpacket, &realmdata, sizeof(realmdata));
-					packet_append_string(rpacket, realm_get_name(realm));
-					packet_append_string(rpacket, realm_get_description(realm));
-					count++;
-				}
-				bn_int_set(&rpacket->u.server_realmlistreply.count, count);
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-			}
-
-			return 0;
-#endif
 		}
 
 		static int _client_realmlistreq110(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_realm_dispatch_try(c, "realmlistreq110");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_realmlistreq_110)) {
@@ -4172,7 +4001,6 @@ namespace pvpgn
 				return -1;
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// R172.d + R188.b + R189: see the matching block in
 			// `_client_realmlistreq` -- v3 dispatcher is MANDATORY.
 			{
@@ -4185,38 +4013,11 @@ namespace pvpgn
 				}
 				return 0;
 			}
-#else
-			if ((rpacket = packet_create(packet_class_bnet))) {
-				t_server_realmlistreply_110_data realmdata;
-				unsigned int count;
-
-				packet_set_size(rpacket, sizeof(t_server_realmlistreply_110));
-				packet_set_type(rpacket, SERVER_REALMLISTREPLY_110);
-				bn_int_set(&rpacket->u.server_realmlistreply_110.unknown1, SERVER_REALMLISTREPLY_110_UNKNOWN1);
-				count = 0;
-				for (t_realm const *realm : realmlist()) {
-					if (!realm_get_active(realm))
-						continue;
-					bn_int_set(&realmdata.unknown1, SERVER_REALMLISTREPLY_110_DATA_UNKNOWN1);
-					packet_append_data(rpacket, &realmdata, sizeof(realmdata));
-					packet_append_string(rpacket, realm_get_name(realm));
-					packet_append_string(rpacket, realm_get_description(realm));
-					count++;
-				}
-				bn_int_set(&rpacket->u.server_realmlistreply_110.count, count);
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-			}
-
-			return 0;
-#endif
 		}
 
 		static int _client_claninforeq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "claninforeq");
-#endif
 			t_packet *rpacket;
 			int count;
 			char const *username;
@@ -4249,7 +4050,6 @@ namespace pvpgn
 			else
 				clantag2 = 0;
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				int v3rc = pvpgn_v3_send_claninforeply(
 					c,
@@ -4262,7 +4062,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				packet_set_size(rpacket, sizeof(t_server_claninforeply));
 				packet_set_type(rpacket, SERVER_CLANINFOREPLY);
@@ -4295,9 +4094,7 @@ namespace pvpgn
 
 		static int _client_profilereq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_profile_dispatch_try(c, "profilereq");
-#endif
 			t_packet *rpacket;
 			int count;
 			char const *username;
@@ -4322,7 +4119,6 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "requested profile for non-existant account");
 				return -1;
 			}
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				unsigned int v3_clan_tag = 0u;
 				if ((clanmember = account_get_clanmember(account)) && (clan = clanmember_get_clan(clanmember)))
@@ -4338,7 +4134,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 			if ((rpacket = packet_create(packet_class_bnet))) {
 				packet_set_size(rpacket, sizeof(t_server_profilereply));
 				packet_set_type(rpacket, SERVER_PROFILEREPLY);
@@ -4362,9 +4157,7 @@ namespace pvpgn
 
 		static int _client_realmjoinreq109(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_realm_dispatch_try(c, "realmjoinreq109");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_realmjoinreq_109)) {
@@ -4419,7 +4212,6 @@ namespace pvpgn
 							bn_int_set(&temp.secret, conn_get_secret(c));
 							bnet_hash(&secret_hash, sizeof(temp), &temp);
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 							{
 								unsigned int v3_addr = realm_get_ip(realm);
 								unsigned short v3_port = realm_get_port(realm);
@@ -4446,7 +4238,6 @@ namespace pvpgn
 									return 0;
 								}
 							}
-	#endif
 							if ((rpacket = packet_create(packet_class_bnet))) {
 								packet_set_size(rpacket, sizeof(t_server_realmjoinreply_109));
 								packet_set_type(rpacket, SERVER_REALMJOINREPLY_109);
@@ -4488,7 +4279,6 @@ namespace pvpgn
 				else
 					eventlog(eventlog_level_error, __FUNCTION__, "[{}] could not find active realm \"{}\"", conn_get_socket(c), realmname);
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					static const unsigned int zero_hash[5] = {0, 0, 0, 0, 0};
 					int v3rc = pvpgn_v3_send_realmjoinreply(
@@ -4513,7 +4303,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-	#endif
 				if ((rpacket = packet_create(packet_class_bnet))) {
 					packet_set_size(rpacket, sizeof(t_server_realmjoinreply_109));
 					packet_set_type(rpacket, SERVER_REALMJOINREPLY_109);
@@ -4547,9 +4336,7 @@ namespace pvpgn
 
 		static int _client_charlistreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_d2_character_dispatch_try(c, "charlistreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_unknown_37)) {
@@ -4573,7 +4360,6 @@ namespace pvpgn
 
 				if (!(charlist = account_get_closed_characterlist(conn_get_account(c), conn_get_clienttag(c), realm_get_name(conn_get_realm(c))))) {
 					bn_int_set(&rpacket->u.server_unknown_37.count, 0);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 					if (pvpgn_v3_send_charlistreply(c,
 					        SERVER_UNKNOWN_37_UNKNOWN1,
 					        SERVER_UNKNOWN_37_UNKNOWN2,
@@ -4583,7 +4369,6 @@ namespace pvpgn
 						packet_del_ref(rpacket);
 						return 0;
 					}
-#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 					return 0;
@@ -4621,7 +4406,6 @@ namespace pvpgn
 					delete[] temp;
 
 					bn_int_set(&rpacket->u.server_unknown_37.count, count);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 					{
 						// Extract char_data bytes from the freshly-built rpacket
 						// (everything after the fixed header).
@@ -4644,7 +4428,6 @@ namespace pvpgn
 							return 0;
 						}
 					}
-#endif
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 				}
@@ -4655,9 +4438,7 @@ namespace pvpgn
 
 		static int _client_unknown39(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_stub_dispatch_try(c, "unknown39");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_unknown_39)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad UNKNOWN_39 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_unknown_39), packet_get_size(packet));
 				return -1;
@@ -4667,9 +4448,7 @@ namespace pvpgn
 
 		static int _client_adreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_ad_dispatch_try(c, "adreq");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_adreq))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ADREQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_adreq), packet_get_size(packet));
@@ -4681,7 +4460,6 @@ namespace pvpgn
 				bn_int_get(packet->u.client_adreq.clienttag), bn_int_get(packet->u.client_adreq.prev_adid), bn_int_get(packet->u.client_adreq.ticks));
 			*/
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// R171.c/e + R188.b + R189: v3 ads dispatcher is
 			// MANDATORY when compiled with PVPGN_V3_BNETD_INTEGRATION.
 			// `install_ads_handlers()` is called unconditionally in
@@ -4730,40 +4508,11 @@ namespace pvpgn
 				packet_del_ref(rpacket);
 				return 0;
 			}
-#else
-			{
-				const AdBanner* ad = AdBannerList.pick(conn_get_clienttag(c), conn_get_gamelang(c), bn_int_get(packet->u.client_adreq.prev_adid));
-				if (!ad)
-				{
-					return 0;
-				}
-
-				t_packet* const rpacket = packet_create(packet_class_bnet);
-				if (!rpacket)
-				{
-					eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
-					return -1;
-				}
-				packet_set_size(rpacket, sizeof(t_server_adreply));
-				packet_set_type(rpacket, SERVER_ADREPLY);
-				bn_int_set(&rpacket->u.server_adreply.adid, ad->get_id());
-				bn_int_set(&rpacket->u.server_adreply.extensiontag, ad->get_extension_tag());
-				file_to_mod_time(c, ad->get_filename().c_str(), &rpacket->u.server_adreply.timestamp);
-				packet_append_string(rpacket, ad->get_filename().c_str());
-				packet_append_string(rpacket, ad->get_url().c_str());
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-
-				return 0;
-			}
-#endif
 			}
 
 		static int _client_adack(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_ad_dispatch_try(c, "adack");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_adack)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ADACK packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_adack), packet_get_size(packet));
 				return -1;
@@ -4782,9 +4531,7 @@ namespace pvpgn
 
 		static int _client_adclick(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_ad_dispatch_try(c, "adclick");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_adclick)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ADCLICK packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_adclick), packet_get_size(packet));
 				return -1;
@@ -4797,9 +4544,7 @@ namespace pvpgn
 
 		static int _client_adclick2(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_ad_dispatch_try(c, "adclick2");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_adclick2))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ADCLICK2 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_adclick2), packet_get_size(packet));
@@ -4808,7 +4553,6 @@ namespace pvpgn
 
 			eventlog(eventlog_level_trace, __FUNCTION__, "[{}] ad click2 for adid 0x{:04x} from \"{}\"", conn_get_socket(c), bn_int_get(packet->u.client_adclick2.adid), conn_get_username(c));
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// R171.c/e + R188.b + R189: v3 click dispatcher MANDATORY
 			// under PVPGN_V3_BNETD_INTEGRATION (see comment above in
 			// `_client_adreq`).
@@ -4843,30 +4587,6 @@ namespace pvpgn
 				packet_del_ref(rpacket);
 				return 0;
 			}
-#else
-			{
-				const AdBanner* const ad = AdBannerList.find(conn_get_clienttag(c), conn_get_gamelang(c), bn_int_get(packet->u.client_adclick2.adid));
-				if (!ad)
-				{
-					return 0;
-				}
-
-				t_packet* const rpacket = packet_create(packet_class_bnet);
-				if (!rpacket)
-				{
-					eventlog(eventlog_level_error, __FUNCTION__, "Could not create a packet");
-					return -1;
-				}
-				packet_set_size(rpacket, sizeof(t_server_adclickreply2));
-				packet_set_type(rpacket, SERVER_ADCLICKREPLY2);
-				bn_int_set(&rpacket->u.server_adclickreply2.adid, ad->get_id());
-				packet_append_string(rpacket, ad->get_url().c_str());
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-
-				return 0;
-			}
-#endif
 		}
 		
 		static int _client_readmemory(t_connection * c, t_packet const *const packet)
@@ -4899,9 +4619,7 @@ namespace pvpgn
 
 		static int _client_statsupdate(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_profile_dispatch_try(c, "statsupdate");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_statsupdate)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad STATSUPDATE packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_statsupdate), packet_get_size(packet));
 				return -1;
@@ -5005,7 +4723,6 @@ namespace pvpgn
 					packet_append_string(rpacket, "");
 					packet_append_string(rpacket, "");
 				}
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					char const* v3_acct = account ? username : "";
 					char const* v3_info = account ? conn_get_playerinfo(c) : "";
@@ -5018,7 +4735,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -5028,9 +4744,7 @@ namespace pvpgn
 
 		static int _client_progident2(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_progident_dispatch_try(c, "progident2");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_progident2)) {
@@ -5062,7 +4776,6 @@ namespace pvpgn
 					}
 				}
 				packet_append_string(rpacket, "");
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					// Re-collect names from the freshly-built rpacket so
 					// all filter logic above stays in legacy. Walk the
@@ -5086,7 +4799,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -5116,7 +4828,6 @@ namespace pvpgn
 				return -1;
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// Observation-only: structured-log the join intent so the
 			// v3 telemetry layer sees every JOINCHANNEL. Bridge always
 			// returns 0 -- legacy retains full ownership of the
@@ -5125,7 +4836,6 @@ namespace pvpgn
 				c, cname,
 				static_cast<unsigned int>(bn_int_get(
 					packet->u.client_joinchannel.channelflag)));
-#endif
 
 			if ((channel = conn_get_channel(c)) && (strcasecmp(channel_get_name(channel), cname) == 0))
 				return 0;		//we are already in this channel
@@ -5186,7 +4896,6 @@ namespace pvpgn
 				return -1;
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// v3 strangler-fig: observe the chat input via the typed
 			// `application::chat::classify_chat_command` seam. Today
 			// the bridge always returns 0 (legacy stays in charge);
@@ -5203,7 +4912,6 @@ namespace pvpgn
 						sz - sizeof(t_client_message));
 				}
 			}
-#endif
 
 			{
 				char const *text;
@@ -5347,10 +5055,8 @@ namespace pvpgn
 			bngtype = bn_short_get(packet->u.client_gamelistreq.gametype);
 			clienttag = conn_get_clienttag(c);
 			gtype = bngreqtype_to_gtype(clienttag, bngtype);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_gamelistreq_try(c, gamename,
 			    static_cast<unsigned int>(bngtype));
-#endif
 			if (!(rpacket = packet_create(packet_class_bnet)))
 				return -1;
 			packet_set_size(rpacket, sizeof(t_server_gamelistreply));
@@ -5439,7 +5145,6 @@ namespace pvpgn
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] GAMELISTREPLY sent {} of {} games", conn_get_socket(c), cbdata.counter, cbdata.tcount);
 			}
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				const unsigned int v3_sstatus =
 				    bn_int_get(rpacket->u.server_gamelistreply.sstatus);
@@ -5450,7 +5155,6 @@ namespace pvpgn
 					return 0;
 				}
 			}
-#endif
 			conn_push_outqueue(c, rpacket);
 			packet_del_ref(rpacket);
 
@@ -5480,9 +5184,7 @@ namespace pvpgn
 			}
 
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] trying to join game \"{}\" pass=\"{}\"", conn_get_socket(c), gamename, gamepass);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_joingame_try(c, gamename);
-#endif
 
 			if (conn_get_joingamewhisper_ack(c) == 0) {
 				watchlist->dispatch(conn_get_account(c), gamename, conn_get_clienttag(c), Watch::ET_joingame);
@@ -5566,10 +5268,8 @@ namespace pvpgn
 				bngtype = bn_short_get(packet->u.client_startgame1.gametype);
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got startgame1 status for game \"{}\" is 0x{:08x} (gametype = 0x{:04x})", conn_get_socket(c), gamename, bn_int_get(packet->u.client_startgame1.status), bngtype);
 				status = bn_int_get(packet->u.client_startgame1.status) & CLIENT_STARTGAME1_STATUSMASK;
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_startgame_try(c, 1u, gamename, gameinfo,
 				    static_cast<unsigned int>(bngtype), status, 0u, 0u);
-#endif
 
 				if ((currgame = conn_get_game(c))) {
 					switch (status) {
@@ -5607,7 +5307,6 @@ namespace pvpgn
 						else
 							bn_int_set(&rpacket->u.server_startgame1_ack.reply, SERVER_STARTGAME1_ACK_NO);
 	
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 						if (pvpgn_v3_send_startgame1ack(c,
 						        bn_int_get(rpacket->u.server_startgame1_ack.reply)) == 1) {
 							packet_del_ref(rpacket);
@@ -5615,10 +5314,6 @@ namespace pvpgn
 							conn_push_outqueue(c, rpacket);
 							packet_del_ref(rpacket);
 						}
-	#else
-						conn_push_outqueue(c, rpacket);
-						packet_del_ref(rpacket);
-	#endif
 					}
 				}
 				else
@@ -5666,10 +5361,8 @@ namespace pvpgn
 				bngtype = bn_short_get(packet->u.client_startgame3.gametype);
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got startgame3 status for game \"{}\" is 0x{:08x} (gametype = 0x{:04x})", conn_get_socket(c), gamename, bn_int_get(packet->u.client_startgame3.status), bngtype);
 				status = bn_int_get(packet->u.client_startgame3.status) & CLIENT_STARTGAME3_STATUSMASK;
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_startgame_try(c, 3u, gamename, gameinfo,
 				    static_cast<unsigned int>(bngtype), status, 0u, 0u);
-#endif
 
 				if ((currgame = conn_get_game(c))) {
 					switch (status) {
@@ -5707,7 +5400,6 @@ namespace pvpgn
 						else
 							bn_int_set(&rpacket->u.server_startgame3_ack.reply, SERVER_STARTGAME3_ACK_NO);
 	
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 						if (pvpgn_v3_send_startgame3ack(c,
 						        bn_int_get(rpacket->u.server_startgame3_ack.reply)) == 1) {
 							packet_del_ref(rpacket);
@@ -5715,10 +5407,6 @@ namespace pvpgn
 							conn_push_outqueue(c, rpacket);
 							packet_del_ref(rpacket);
 						}
-	#else
-						conn_push_outqueue(c, rpacket);
-						packet_del_ref(rpacket);
-	#endif
 					}
 				}
 				else
@@ -5788,12 +5476,10 @@ namespace pvpgn
 				flag = bn_short_get(packet->u.client_startgame4.flag);
 
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got startgame4 status for game \"{}\" is 0x{:08x} (gametype=0x{:04x} option=0x{:04x}, flag=0x{:04x})", conn_get_socket(c), gamename, status, bngtype, option, flag);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				(void)pvpgn_v3_startgame_try(c, 4u, gamename, gameinfo,
 				    static_cast<unsigned int>(bngtype), status,
 				    static_cast<unsigned int>(flag),
 				    static_cast<unsigned int>(option));
-#endif
 
 				if ((currgame = conn_get_game(c))) {
 					if ((status & CLIENT_STARTGAME4_STATUSMASK_OPEN_VALID) == status) {
@@ -5851,7 +5537,6 @@ namespace pvpgn
 					bn_int_set(&rpacket->u.server_startgame4_ack.reply, SERVER_STARTGAME4_ACK_OK);
 				else
 					bn_int_set(&rpacket->u.server_startgame4_ack.reply, SERVER_STARTGAME4_ACK_NO);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_startgame4ack(c,
 				        bn_int_get(rpacket->u.server_startgame4_ack.reply)) == 1) {
 					packet_del_ref(rpacket);
@@ -5859,10 +5544,6 @@ namespace pvpgn
 					conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 				}
-#else
-				conn_push_outqueue(c, rpacket);
-				packet_del_ref(rpacket);
-#endif
 			}
 
 			/* First, send an ECHO_REQ */
@@ -5918,10 +5599,8 @@ namespace pvpgn
 				}
 
 				eventlog(eventlog_level_info, __FUNCTION__, "[{}] CLIENT_GAME_REPORT: {} ({} players)", conn_get_socket(c), conn_get_username(c), player_count);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				// Observation-only: structured-log the GAME_REPORT entry.
 				(void)pvpgn_v3_gamereport_try(c, conn_get_username(c), player_count);
-#endif
 				my_account = conn_get_account(c);
 
 				results = new t_game_result[game_get_count(game)]{};
@@ -6001,10 +5680,8 @@ namespace pvpgn
 
 		static int _client_leavechannel(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// Observation-only: structured-log the leave intent.
 			(void)pvpgn_v3_leavechannel_try(c);
-#endif
 			/* If this user in a channel, notify everyone that the user has left */
 			if (conn_get_channel(c))
 				conn_part_channel(c);
@@ -6013,9 +5690,7 @@ namespace pvpgn
 
 		static int _client_ladderreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_ladder_dispatch_try(c, "ladderreq");
-#endif
 			t_packet *rpacket;
 
 
@@ -6165,7 +5840,6 @@ namespace pvpgn
 						packet_append_string(rpacket, " ");	/* use a space so the client won't show the user's own account when double-clicked on */
 				}
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					const unsigned int v3_clienttag =
 					    bn_int_get(rpacket->u.server_ladderreply.clienttag);
@@ -6184,7 +5858,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-	#endif
 				conn_push_outqueue(c, rpacket);
 					packet_del_ref(rpacket);
 				}
@@ -6194,9 +5867,7 @@ namespace pvpgn
 	
 			static int _client_laddersearchreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_ladder_dispatch_try(c, "laddersearchreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_laddersearchreq)) {
@@ -6281,13 +5952,11 @@ namespace pvpgn
 				packet_set_size(rpacket, sizeof(t_server_laddersearchreply));
 				packet_set_type(rpacket, SERVER_LADDERSEARCHREPLY);
 				bn_int_set(&rpacket->u.server_laddersearchreply.rank, rank);
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_laddersearchreply(c,
 				        bn_int_get(rpacket->u.server_laddersearchreply.rank)) == 1) {
 					packet_del_ref(rpacket);
 					return 0;
 				}
-	#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -6297,9 +5966,7 @@ namespace pvpgn
 
 		static int _client_mapauthreq1(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_gameport_dispatch_try(c, "mapauthreq1");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_mapauthreq1)) {
@@ -6356,17 +6023,12 @@ namespace pvpgn
 					packet_set_size(rpacket, sizeof(t_server_mapauthreply1));
 					packet_set_type(rpacket, SERVER_MAPAUTHREPLY1);
 					bn_int_set(&rpacket->u.server_mapauthreply1.response, val);
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 					if (pvpgn_v3_send_mapauthreply1(c, bn_int_get(rpacket->u.server_mapauthreply1.response)) == 1) {
 						packet_del_ref(rpacket);
 					} else {
 						conn_push_outqueue(c, rpacket);
 						packet_del_ref(rpacket);
 					}
-	#else
-					conn_push_outqueue(c, rpacket);
-					packet_del_ref(rpacket);
-	#endif
 				}
 			}
 
@@ -6375,9 +6037,7 @@ namespace pvpgn
 
 		static int _client_mapauthreq2(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_gameport_dispatch_try(c, "mapauthreq2");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_mapauthreq2)) {
@@ -6434,17 +6094,12 @@ namespace pvpgn
 					packet_set_size(rpacket, sizeof(t_server_mapauthreply2));
 					packet_set_type(rpacket, SERVER_MAPAUTHREPLY2);
 					bn_int_set(&rpacket->u.server_mapauthreply2.response, val);
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 					if (pvpgn_v3_send_mapauthreply2(c, bn_int_get(rpacket->u.server_mapauthreply2.response)) == 1) {
 						packet_del_ref(rpacket);
 					} else {
 						conn_push_outqueue(c, rpacket);
 						packet_del_ref(rpacket);
 					}
-	#else
-					conn_push_outqueue(c, rpacket);
-					packet_del_ref(rpacket);
-	#endif
 				}
 			}
 
@@ -6453,9 +6108,7 @@ namespace pvpgn
 
 		static int _client_changeclient(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_progident_dispatch_try(c, "changeclient");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_changeclient))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLIENT_CHANGECLIENT packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_changeclient), packet_get_size(packet));
@@ -6479,9 +6132,7 @@ namespace pvpgn
 
 		static int _client_clanmemberlistreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clanmemberlistreq");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_clanmemberlist_req)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLANMEMBERLIST_REQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_clanmemberlist_req), packet_get_size(packet));
 				return -1;
@@ -6493,9 +6144,7 @@ namespace pvpgn
 
 		static int _client_clan_motdreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_motdreq");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_clan_motdreq)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLAN_MOTDREQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_clan_motdreq), packet_get_size(packet));
 				return -1;
@@ -6507,9 +6156,7 @@ namespace pvpgn
 
 		static int _client_clan_motdchg(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_motdchg");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_clan_motdreq)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLAN_MOTDCHGREQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_clan_motdreq), packet_get_size(packet));
 				return -1;
@@ -6521,9 +6168,7 @@ namespace pvpgn
 
 		static int _client_clan_disbandreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_disbandreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_clan_disbandreq)) {
@@ -6543,7 +6188,6 @@ namespace pvpgn
 				if (!((account = conn_get_account(c)) && (clan = account_get_clan(account)) && (member = account_get_clanmember(account)) && (clanmember_get_status(member) >= CLAN_CHIEFTAIN))) {
 					eventlog(eventlog_level_warn, __FUNCTION__, "[{}] got suspicious CLAN_DISBANDREQ packet (request without required privileges)", conn_get_socket(c));
 					bn_byte_set(&rpacket->u.server_clan_disbandreply.result, CLAN_RESPONSE_NOT_AUTHORIZED);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 					if (pvpgn_v3_send_clandisbandreply(c,
 					        bn_int_get(rpacket->u.server_clan_disbandreply.count),
 					        bn_byte_get(rpacket->u.server_clan_disbandreply.result)) == 1) {
@@ -6552,10 +6196,6 @@ namespace pvpgn
 						conn_push_outqueue(c, rpacket);
 						packet_del_ref(rpacket);
 					}
-#else
-					conn_push_outqueue(c, rpacket);
-					packet_del_ref(rpacket);
-#endif
 				}
 				else if ((clanlist_remove_clan(clan) == 0) && (clan_remove(clan_get_clantag(clan)) == 0)) {
 					bn_byte_set(&rpacket->u.server_clan_disbandreply.result, CLAN_RESPONSE_SUCCESS);
@@ -6566,7 +6206,6 @@ namespace pvpgn
 				}
 				else {
 					bn_byte_set(&rpacket->u.server_clan_disbandreply.result, CLAN_RESPONSE_FAIL);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 					if (pvpgn_v3_send_clandisbandreply(c,
 					        bn_int_get(rpacket->u.server_clan_disbandreply.count),
 					        bn_byte_get(rpacket->u.server_clan_disbandreply.result)) == 1) {
@@ -6575,10 +6214,6 @@ namespace pvpgn
 						conn_push_outqueue(c, rpacket);
 						packet_del_ref(rpacket);
 					}
-#else
-					conn_push_outqueue(c, rpacket);
-					packet_del_ref(rpacket);
-#endif
 				}
 			}
 
@@ -6587,9 +6222,7 @@ namespace pvpgn
 
 		static int _client_clan_createreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_createreq");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_clan_createreq)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLAN_INFOREQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_clan_createreq), packet_get_size(packet));
 				return -1;
@@ -6602,9 +6235,7 @@ namespace pvpgn
 
 		static int _client_clan_createinvitereq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_createinvitereq");
-#endif
 			t_packet *rpacket;
 			unsigned size;
 			const char *clanname;
@@ -6665,7 +6296,6 @@ namespace pvpgn
 									clanmember = clan_add_member(clan, conn_get_account(conn), CLAN_PEON);
 									clanmember_set_fullmember(clanmember, 1);      /* FIXME: do only this here and no clan_add_member() */
 								}
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 								if (pvpgn_v3_send_clancreateinviteforward(
 								        conn,
 								        bn_int_get(rpacket->u.server_clan_createinvitereq.count),
@@ -6676,9 +6306,6 @@ namespace pvpgn
 								        0) != 1) {
 									conn_push_outqueue(conn, rpacket);
 								}
-	#else
-								conn_push_outqueue(conn, rpacket);
-	#endif
 							}
 						}
 					} while (username && (offset < size));
@@ -6688,14 +6315,12 @@ namespace pvpgn
 					packet_set_type(rpacket, SERVER_CLAN_CREATEINVITEREPLY);
 					bn_int_set(&rpacket->u.server_clan_createinvitereply.count, bn_int_get(packet->u.client_clan_createinvitereply.count));
 					bn_byte_set(&rpacket->u.server_clan_createinvitereply.status, 0);
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 					(void)pvpgn_v3_send_clancreateinvitereply(
 								 c,
 								 bn_int_get(rpacket->u.server_clan_createinvitereply.count),
 								 0u,
 								 "",
 								 bn_byte_get(rpacket->u.server_clan_createinvitereply.status));
-	#endif
 				}
 				packet_del_ref(rpacket);
 			}
@@ -6705,9 +6330,7 @@ namespace pvpgn
 
 		static int _client_clan_createinvitereply(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_createinvitereply");
-#endif
 			t_packet *rpacket;
 			t_connection *conn;
 			t_clan *clan;
@@ -6741,7 +6364,6 @@ namespace pvpgn
 				bn_int_set(&rpacket->u.server_clan_createinvitereply.count, bn_int_get(packet->u.client_clan_createinvitereply.count));
 				bn_byte_set(&rpacket->u.server_clan_createinvitereply.status, status);
 				packet_append_string(rpacket, conn_get_username(c));
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_clancreateinvitereply(
 				        conn,
 				        bn_int_get(rpacket->u.server_clan_createinvitereply.count),
@@ -6753,10 +6375,6 @@ namespace pvpgn
 					conn_push_outqueue(conn, rpacket);
 					packet_del_ref(rpacket);
 				}
-	#else
-				conn_push_outqueue(conn, rpacket);
-				packet_del_ref(rpacket);
-	#endif
 				if (clan) {
 					clanlist_remove_clan(clan);
 					clan_destroy(clan);
@@ -6777,7 +6395,6 @@ namespace pvpgn
 					bn_int_set(&rpacket->u.server_clan_createinvitereply.count, bn_int_get(packet->u.client_clan_createinvitereply.count));
 					bn_byte_set(&rpacket->u.server_clan_createinvitereply.status, CLAN_RESPONSE_SUCCESS);
 					packet_append_string(rpacket, "");
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 					if (pvpgn_v3_send_clancreateinvitereply(
 					        conn,
 					        bn_int_get(rpacket->u.server_clan_createinvitereply.count),
@@ -6789,10 +6406,6 @@ namespace pvpgn
 						conn_push_outqueue(conn, rpacket);
 						packet_del_ref(rpacket);
 					}
-	#else
-					conn_push_outqueue(conn, rpacket);
-					packet_del_ref(rpacket);
-	#endif
 					clan_send_status_window_on_create(clan);
 					clan_save(clan);
 				}
@@ -6804,9 +6417,7 @@ namespace pvpgn
 
 		static int _client_clanmember_rankupdatereq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clanmember_rankupdatereq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_clanmember_rankupdate_req)) {
@@ -6867,7 +6478,6 @@ namespace pvpgn
 				else {
 					bn_byte_set(&rpacket->u.server_clanmember_rankupdate_reply.result, SERVER_CLANMEMBER_RANKUPDATE_FAILED);
 				}
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					unsigned int  count_v3  = static_cast<unsigned int>(
 						bn_int_get(rpacket->u.server_clanmember_rankupdate_reply.count));
@@ -6878,7 +6488,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -6888,9 +6497,7 @@ namespace pvpgn
 
 		static int _client_clanmember_removereq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clanmember_removereq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_clanmember_remove_req)) {
@@ -6932,7 +6539,6 @@ namespace pvpgn
 							SERVER_CLANMEMBER_REMOVE_SUCCESS);
 					}
 				}
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					unsigned int  count_v3  = static_cast<unsigned int>(
 						bn_int_get(rpacket->u.server_clanmember_remove_reply.count));
@@ -6943,7 +6549,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -6953,9 +6558,7 @@ namespace pvpgn
 
 		static int _client_clan_membernewchiefreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_membernewchiefreq");
-#endif
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_clan_membernewchiefreq)) {
@@ -6981,13 +6584,11 @@ namespace pvpgn
 					packet_del_ref(rpacket);
 				}
 				else {
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 					if (pvpgn_v3_send_clan_membernewchief_reply(c,
 							static_cast<unsigned int>(bn_int_get(rpacket->u.server_clan_membernewchiefreply.count)),
 							static_cast<unsigned char>(SERVER_CLAN_MEMBERNEWCHIEFREPLY_FAILED)) == 1) {
 						packet_del_ref(rpacket);
 					} else
-#endif
 					{
 						bn_byte_set(&rpacket->u.server_clan_membernewchiefreply.result, SERVER_CLAN_MEMBERNEWCHIEFREPLY_FAILED);
 						conn_push_outqueue(c, rpacket);
@@ -7001,9 +6602,7 @@ namespace pvpgn
 
 		static int _client_clan_invitereq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_invitereq");
-#endif
 			t_packet *rpacket;
 			t_account *account;
 			t_clan *clan;
@@ -7078,14 +6677,12 @@ namespace pvpgn
 				bn_byte_set(&rpacket->u.server_clan_invitereply.result, response_code);
 				bn_int_set(&rpacket->u.server_clan_invitereply.count, bn_int_get(packet->u.client_clan_invitereq.count));
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				if (pvpgn_v3_send_clan_invitereply(c,
 						static_cast<unsigned int>(bn_int_get(packet->u.client_clan_invitereq.count)),
 						static_cast<unsigned char>(response_code)) == 1) {
 					packet_del_ref(rpacket);
 					return 0;
 				}
-#endif
 				conn_push_outqueue(c, rpacket);
 				packet_del_ref(rpacket);
 			}
@@ -7095,9 +6692,7 @@ namespace pvpgn
 
 		static int _client_clan_invitereply(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_clan_dispatch_try(c, "clan_invitereply");
-#endif
 			t_packet *rpacket;
 			t_account *acc;
 			t_clan *clan;
@@ -7178,7 +6773,6 @@ namespace pvpgn
 						bn_byte_set(&rpacket->u.server_clan_invitereply.result, CLAN_RESPONSE_SUCCESS);
 					}
 				}
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 				{
 					unsigned int  count_v3  = static_cast<unsigned int>(
 						bn_int_get(rpacket->u.server_clan_invitereply.count));
@@ -7189,7 +6783,6 @@ namespace pvpgn
 						return 0;
 					}
 				}
-#endif
 			}
 
 			conn_push_outqueue(conn, rpacket);
@@ -7200,17 +6793,13 @@ namespace pvpgn
 
 		static int _client_crashdump(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_telemetry_dispatch_try(c, "crashdump");
-#endif
 			return 0;
 		}
 
 		static int _client_setemailreply(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_account_dispatch_try(c, "setemailreply");
-#endif
 			char const *email;
 			t_account *account;
 
@@ -7237,9 +6826,7 @@ namespace pvpgn
 
 		static int _client_changeemailreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_account_dispatch_try(c, "changeemailreq");
-#endif
 			char const *oldaddr;
 			char const *newaddr;
 			char const *username;
@@ -7285,9 +6872,7 @@ namespace pvpgn
 
 		static int _client_getpasswordreq(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_passemail_dispatch_try(c, "getpasswordreq");
-#endif
 			char const *username;
 			char const *try_email;
 			char const *email;
@@ -7326,9 +6911,7 @@ namespace pvpgn
 
 		static int _client_extrawork(t_connection * c, t_packet const *const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_telemetry_dispatch_try(c, "extrawork");
-#endif
 			if (packet_get_size(packet) < sizeof(t_client_extrawork)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad EXTRAWORK packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_extrawork), packet_get_size(packet));
 				return -1;

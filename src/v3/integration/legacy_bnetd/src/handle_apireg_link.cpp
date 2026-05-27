@@ -15,6 +15,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+//
+// R205: relocated from `src/bnetd/handle_apireg.cpp`.
+// Strangler-fig move into the v3 `integration_legacy_bnetd_linked` library.
+// Symbol surface preserved verbatim. The legacy
+// `#ifdef PVPGN_V3_BNETD_INTEGRATION` guards are dropped because we are
+// unconditionally inside the v3 build here.
 
 #define APIREGISTER_INTERNAL_ACCESS
 #include "common/setup_before.h"
@@ -40,11 +46,9 @@
 #include "server.h"
 #include "common/setup_after.h"
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 // Send-bridge: encodes a raw-text packet and dispatches via send_packet handler.
 // Returns 1 (handled), 0 (fall through), -1 (error).
 extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
-#endif
 
 namespace pvpgn
 {
@@ -489,13 +493,11 @@ namespace pvpgn
 			}
 
 			DEBUG2("[{}] sent \"{}\"", conn_get_socket(conn), data);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				int const _rc = pvpgn_v3_send_raw_text(conn, data);
 				if (_rc == 1) goto apireg_send_skip_legacy;
 				if (_rc == -1) return -1;
 			}
-#endif
 			{
 				t_packet* const p = packet_create(packet_class_raw);
 				packet_set_size(p, 0);
@@ -503,9 +505,7 @@ namespace pvpgn
 				conn_push_outqueue(conn, p);
 				packet_del_ref(p);
 			}
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			apireg_send_skip_legacy:;
-#endif
 
 			/* In apiregister server we must destroy apiregmember and connection after send packet */
 

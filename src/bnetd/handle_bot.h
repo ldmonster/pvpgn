@@ -22,6 +22,11 @@
 #ifndef INCLUDED_HANDLE_BOT_PROTOS
 #define INCLUDED_HANDLE_BOT_PROTOS
 
+// R204: implementation relocated to
+// `src/v3/integration/legacy_bnetd/src/handle_bot_link.cpp`.
+// This header keeps the public declaration so callers in
+// `src/bnetd/server.cpp` can still `#include "handle_bot.h"`.
+
 #define JUST_NEED_TYPES
 #include "connection.h"
 #include "common/packet.h"

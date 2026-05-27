@@ -22,6 +22,12 @@
 #ifndef INCLUDED_HANDLE_WOL_PROTOS
 #define INCLUDED_HANDLE_WOL_PROTOS
 
+// R207: implementation relocated to
+// `src/v3/integration/legacy_bnetd/src/handle_wol_link.cpp`.
+// This header keeps the public declarations so callers in
+// `src/bnetd/server.cpp` / `connection.cpp` can still
+// `#include "handle_wol.h"`.
+
 #include "common/packet.h"
 #include "connection.h"
 

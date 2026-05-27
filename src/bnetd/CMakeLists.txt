@@ -18,12 +18,12 @@ set(BNETD_LIB_SOURCES
 	cmdline.cpp cmdline.h command.cpp command_groups.cpp command_groups.h
 	command.h connection.cpp connection.h file.cpp file.h file_plain.cpp
 	file_plain.h friends.cpp friends.h game_conv.cpp
-	game_conv.h game.cpp game.h handle_anongame.cpp handle_anongame.h
-	handle_apireg.cpp handle_apireg.h handle_bnet.cpp handle_bnet.h
-	handle_bot.cpp handle_bot.h handle_d2cs.cpp handle_d2cs.h
-	handlers.h handle_telnet.cpp handle_telnet.h handle_udp.cpp
-	handle_udp.h handle_wol.cpp handle_wol.h helpfile.cpp helpfile.h
-	ipban.cpp ipban.h irc.cpp irc.h ladder_calc.cpp ladder_calc.h ladder.cpp
+	game_conv.h game.cpp game.h handle_anongame.h
+	handle_apireg.h handle_bnet.h  # R209: handle_bnet.cpp relocated to legacy_bnetd
+	handle_bot.h
+	handlers.h handle_telnet.h handle_udp.cpp
+	handle_udp.h handle_wol.h helpfile.cpp helpfile.h
+	ipban.cpp ipban.h irc.h ladder_calc.cpp ladder_calc.h ladder.cpp
 	ladder.h mail.cpp mail.h message.cpp message.h news.cpp news.h
 	output.cpp output.h quota.h realm.cpp realm.h
 	runprog.cpp runprog.h server.cpp server.h sql_common.cpp sql_common.h

@@ -11,6 +11,7 @@
 #   docker build -f Dockerfile.v3 --target v3-runtime   -t pvpgn:v3-runtime   .
 #   docker build -f Dockerfile.v3 --target v3-bnetd-on  -t pvpgn:v3-bnetd-on  .  # R195: legacy bnetd with WITH_BNETD=ON+PVPGN_BUILD_V3=ON
 #   docker build -f Dockerfile.v3 --target v3-d2cs-on   -t pvpgn:v3-d2cs-on   .  # R196.b: legacy d2cs with WITH_D2CS=ON+PVPGN_BUILD_V3=ON
+#   docker build -f Dockerfile.v3 --target v3-d2dbs-on  -t pvpgn:v3-d2dbs-on  .  # R199: legacy d2dbs with WITH_D2DBS=ON+PVPGN_BUILD_V3=ON
 #   docker build -f Dockerfile.v3 --target v3-smoke     -t pvpgn:v3-smoke     .  # R196.e: runtime smoke -- start bnetd + d2cs, verify port bind
 #   docker build -f Dockerfile.v3 --target v3-compose   -t pvpgn:v3-compose   .  # R197: image used by docker-compose.v3.yml (single image, multi-service via CMD)
 #   # or just:
@@ -364,6 +365,44 @@ RUN cmake -S . -B build/v3-d2cs-on \
 CMD ["/bin/sh", "-c", "/src/build/v3-d2cs-on/src/d2cs/d2cs --help 2>&1 | head -20 || echo 'd2cs help failed'"]
 
 
+# =============================================================================
+# Stage: v3-d2dbs-on (R199)
+# =============================================================================
+# Same playbook as v3-bnetd-on / v3-d2cs-on, applied to d2dbs. Verifies:
+#   - PVPGN_BUILD_V3=ON + WITH_D2DBS=ON builds the `d2dbs` legacy binary
+#     against `integration_legacy_d2dbs_linked`.
+#   - The strangler hooks under `#ifdef PVPGN_V3_D2DBS_INTEGRATION` in
+#     legacy `dbspacket.cpp` etc. are live (not dead-code).
+#
+# Build closure required two fixes in R199 (mirrors R196.b):
+#   (a) Top-level CMakeLists.txt `add_subdirectory(src/v3/integration/legacy_d2dbs)`
+#       added LATE (after `add_subdirectory(src)`) so `d2dbs_legacy` exists.
+#   (b) `src/d2dbs/prefs_v3_shim.h`: switched from `#ifdef
+#       PVPGN_V3_D2DBS_INTEGRATION` to `#if __has_include(...)` so the v3
+#       bridge declarations are visible regardless of macro state.
+#
+# Note: this stage builds *only* the `d2dbs` target.
+#
+# Usage:
+#   docker build -f Dockerfile.v3 --target v3-d2dbs-on -t pvpgn:v3-d2dbs-on .
+# -----------------------------------------------------------------------------
+FROM v3-base AS v3-d2dbs-on
+
+RUN cmake -S . -B build/v3-d2dbs-on \
+      -D PVPGN_BUILD_V3=ON \
+      -D PVPGN_BUILD_LEGACY=ON \
+      -D WITH_BNETD=OFF \
+      -D WITH_D2CS=OFF \
+      -D WITH_D2DBS=ON \
+      -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
+      -D CMAKE_BUILD_TYPE=Release \
+   && cmake --build build/v3-d2dbs-on --config Release --target d2dbs -j"$(nproc)" \
+   && test -x build/v3-d2dbs-on/src/d2dbs/d2dbs \
+   && echo "v3-d2dbs-on: built d2dbs successfully at build/v3-d2dbs-on/src/d2dbs/d2dbs"
+
+CMD ["/bin/sh", "-c", "/src/build/v3-d2dbs-on/src/d2dbs/d2dbs --help 2>&1 | head -20 || echo 'd2dbs help failed'"]
+
+
 # -----------------------------------------------------------------------------
 # Stage: v3-smoke (R196.e)
 #
@@ -450,13 +489,14 @@ RUN cmake -S . -B build/v3-smoke \
       -D PVPGN_BUILD_LEGACY=ON \
       -D WITH_BNETD=ON \
       -D WITH_D2CS=ON \
-      -D WITH_D2DBS=OFF \
+      -D WITH_D2DBS=ON \
       -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
       -D CMAKE_BUILD_TYPE=Release \
    && cmake --build build/v3-smoke --config Release \
-            --target bnetd --target d2cs --target bnchat -j"$(nproc)" \
+            --target bnetd --target d2cs --target d2dbs --target bnchat -j"$(nproc)" \
    && test -x build/v3-smoke/src/bnetd/bnetd \
    && test -x build/v3-smoke/src/d2cs/d2cs \
+   && test -x build/v3-smoke/src/d2dbs/d2dbs \
    && test -x build/v3-smoke/src/v3/tools/client/bnchat
 
 RUN chmod +x scripts/dev/v3-daemon-entry.sh \

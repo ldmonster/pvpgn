@@ -22,6 +22,17 @@
 #ifndef INCLUDED_HANDLE_BNET_PROTOS
 #define INCLUDED_HANDLE_BNET_PROTOS
 
+// =====================================================================
+// R209: the implementation file `handle_bnet.cpp` was relocated into
+// `src/v3/integration/legacy_bnetd/src/handle_bnet_link.cpp` as the
+// final mechanical step of the Phase 3 strangler-fig migration of the
+// bnetd_legacy library. This header is preserved verbatim so existing
+// `#include "handle_bnet.h"` sites keep compiling unchanged. The
+// `#ifdef PVPGN_V3_BNETD_INTEGRATION` guards in the .cpp were
+// programmatically stripped because the macro is unconditionally
+// defined on the new home target `integration_legacy_bnetd_linked`.
+// =====================================================================
+
 #define JUST_NEED_TYPES
 #include "connection.h"
 #include "common/packet.h"

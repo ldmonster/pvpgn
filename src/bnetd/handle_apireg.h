@@ -21,6 +21,12 @@
 #ifndef INCLUDED_APIREGISTER_TYPES
 #define INCLUDED_APIREGISTER_TYPES
 
+// R205: implementation relocated to
+// `src/v3/integration/legacy_bnetd/src/handle_apireg_link.cpp`.
+// This header keeps the public declarations so callers in
+// `src/bnetd/server.cpp` and `connection.cpp` can still
+// `#include "handle_apireg.h"`.
+
 #include "common/packet.h"
 #include "connection.h"
 #endif

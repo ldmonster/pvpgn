@@ -1,27 +1,34 @@
-/*
- * Copyright (C) 2000,2001	Onlyer	(onlyer@263.net)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- */
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// R202: relocated from `src/bnetd/handle_d2cs.cpp`.
+//
+// Strangler-fig move: the bnetd<->d2cs s2s packet handlers
+// (auth handshake, account/char login forwarding, gameinforeq/reply)
+// now live in the v3 `integration_legacy_bnetd_linked` library.
+//
+// Symbol surface preserved verbatim:
+//   - `pvpgn::bnetd::handle_d2cs_packet`
+//   - `pvpgn::bnetd::handle_d2cs_init`
+//   - `pvpgn::bnetd::send_d2cs_gameinforeq`
+//
+// Callers in `src/bnetd/server.cpp`, `src/bnetd/connection.cpp`,
+// and `src/bnetd/realm.cpp` keep including `bnetd/handle_d2cs.h`
+// (declarations only) and resolve to these definitions through
+// the `bnetd -> integration_legacy_bnetd_linked` link edge.
+//
+// The legacy `#ifdef PVPGN_V3_BNETD_INTEGRATION` observer-hook
+// guards are dropped: we are unconditionally inside the v3 build
+// here, so the observer calls are always emitted.
+
 #include "common/setup_before.h"
+
 #include "handle_d2cs.h"
 
 #include <cstring>
 #include <cstdio>
 
 #include <strings.h>
+
 #include "common/eventlog.h"
 #include "common/bn_type.h"
 #include "common/addr.h"
@@ -34,9 +41,9 @@
 #include "prefs_v3_shim.h"
 #include "account_wrap.h"
 #include "game.h"
+
 #include "common/setup_after.h"
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 extern "C" int pvpgn_v3_d2cs_link_dispatch_try(void* conn_ptr,
                                                 char const* op) noexcept;
 extern "C" int pvpgn_v3_observe_d2cs_bnetd_authreq(void* conn_ptr,
@@ -51,7 +58,6 @@ extern "C" int pvpgn_v3_observe_d2cs_bnetd_charloginreply(void*        conn_ptr,
                                                             unsigned int reply) noexcept;
 extern "C" int pvpgn_v3_observe_d2cs_bnetd_gameinforeq(void*       conn_ptr,
                                                          const char* gamename) noexcept;
-#endif
 
 namespace pvpgn
 {
@@ -118,9 +124,8 @@ namespace pvpgn
 
 		static int on_d2cs_authreply(t_connection * c, t_packet const * packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_d2cs_link_dispatch_try(c, "authreply");
-#endif
+
 			t_packet	* rpacket;
 			unsigned int	version;
 			unsigned int	try_version;
@@ -137,7 +142,7 @@ namespace pvpgn
 				return -1;
 			}
 			if (!(realm = realmlist_find_realm(realmname))) {
-				realm = realmlist_find_realm_by_ip(conn_get_addr(c)); /* should not fail - checked in handle_init_packet() handle_init.c */
+				realm = realmlist_find_realm_by_ip(conn_get_addr(c)); /* should not fail - checked in handle_init_packet() */
 				eventlog(eventlog_level_warn, __FUNCTION__, "warn: realm name mismatch {} {}", realm_get_name(realm), realmname);
 				if (!(prefs_v3::allow_d2cs_setname())) { /* fail if allow_d2cs_setname = false */
 					eventlog(eventlog_level_error, __FUNCTION__, "d2cs not allowed to set realm name");
@@ -170,9 +175,8 @@ namespace pvpgn
 				eventlog(eventlog_level_error, __FUNCTION__, "failed to auth d2cs {}",
 					addr_num_to_ip_str(conn_get_addr(c)));
 			}
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_observe_d2cs_bnetd_authreply(c, static_cast<unsigned int>(reply));
-	#endif
+
 			if ((rpacket = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(rpacket, sizeof(t_bnetd_d2cs_authreply));
 				packet_set_type(rpacket, BNETD_D2CS_AUTHREPLY);
@@ -186,9 +190,8 @@ namespace pvpgn
 
 		static int on_d2cs_accountloginreq(t_connection * c, t_packet const * packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_d2cs_link_dispatch_try(c, "accountloginreq");
-#endif
+
 			unsigned int	sessionkey;
 			unsigned int	sessionnum;
 			unsigned int	salt;
@@ -262,12 +265,11 @@ namespace pvpgn
 					}
 				}
 			}
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_observe_d2cs_bnetd_accountloginreply(
 				c,
 				static_cast<unsigned int>(bn_int_get(packet->u.d2cs_bnetd_accountloginreq.h.seqno)),
 				static_cast<unsigned int>(reply));
-	#endif
+
 			if ((rpacket = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(rpacket, sizeof(t_bnetd_d2cs_accountloginreply));
 				packet_set_type(rpacket, BNETD_D2CS_ACCOUNTLOGINREPLY);
@@ -283,9 +285,8 @@ namespace pvpgn
 #define CHAR_PORTRAIT_LEN	0x30
 		static int on_d2cs_charloginreq(t_connection * c, t_packet const * packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_d2cs_link_dispatch_try(c, "charloginreq");
-#endif
+
 			t_connection *	client;
 			char const *	charname;
 			char const *	portrait;
@@ -340,12 +341,11 @@ namespace pvpgn
 				eventlog(eventlog_level_debug, __FUNCTION__,
 					"loaded portrait for character {}", charname);
 			}
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_observe_d2cs_bnetd_charloginreply(
 				c,
 				static_cast<unsigned int>(bn_int_get(packet->u.d2cs_bnetd_charloginreq.h.seqno)),
 				static_cast<unsigned int>(reply));
-	#endif
+
 			if ((rpacket = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(rpacket, sizeof(t_bnetd_d2cs_charloginreply));
 				packet_set_type(rpacket, BNETD_D2CS_CHARLOGINREPLY);
@@ -362,10 +362,9 @@ namespace pvpgn
 		{
 			t_packet	* packet;
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_observe_d2cs_bnetd_authreq(c,
 				static_cast<unsigned int>(conn_get_sessionnum(c)));
-#endif
+
 			if ((packet = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(packet, sizeof(t_bnetd_d2cs_authreq));
 				packet_set_type(packet, BNETD_D2CS_AUTHREQ);
@@ -403,11 +402,9 @@ namespace pvpgn
 				return -1;
 			}
 
-
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_observe_d2cs_bnetd_gameinforeq(realm_get_conn(realm),
 				game_get_name(game));
-	#endif
+
 			if ((packet = packet_create(packet_class_d2cs_bnetd))) {
 				packet_set_size(packet, sizeof(t_bnetd_d2cs_gameinforeq));
 				packet_set_type(packet, BNETD_D2CS_GAMEINFOREQ);
@@ -421,9 +418,8 @@ namespace pvpgn
 
 		static int on_d2cs_gameinforeply(t_connection * c, t_packet const * packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_d2cs_link_dispatch_try(c, "gameinforeply");
-#endif
+
 			t_game *		game;
 			char const *		gamename;
 			unsigned int		difficulty;

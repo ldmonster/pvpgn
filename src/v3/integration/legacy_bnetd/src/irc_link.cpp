@@ -64,11 +64,16 @@
 #include "anongame_wol.h"
 #include "common/setup_after.h"
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
+//
+// R208: relocated from `src/bnetd/irc.cpp`.
+// Strangler-fig move into the v3 `integration_legacy_bnetd_linked`
+// library. Symbol surface preserved verbatim. The legacy
+// `#ifdef PVPGN_V3_BNETD_INTEGRATION` guards are dropped because
+// we are unconditionally inside the v3 build here.
+
 // Send-bridge: encodes a raw-text packet and dispatches via send_packet handler.
 // Returns 1 (handled), 0 (fall through), -1 (error).
 extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
-#endif
 
 namespace pvpgn
 {
@@ -124,13 +129,11 @@ namespace pvpgn
 			DEBUG2("[{}] sent \"{}\"", conn_get_socket(conn), data);
 			std::strcat(data, "\r\n");
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				int const _rc = pvpgn_v3_send_raw_text(conn, data);
 				if (_rc == 1) goto irc_send_cmd_skip_legacy;
 				if (_rc == -1) return -1;
 			}
-#endif
 			if (!(p = packet_create(packet_class_raw))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
 				return -1;
@@ -139,9 +142,7 @@ namespace pvpgn
 			packet_append_data(p, data, std::strlen(data));
 			conn_push_outqueue(conn, p);
 			packet_del_ref(p);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			irc_send_cmd_skip_legacy:;
-#endif
 			return 0;
 		}
 
@@ -186,13 +187,11 @@ namespace pvpgn
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] sent \"{}\"", conn_get_socket(conn), data);
 			std::strcat(data, "\r\n");
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				int const _rc = pvpgn_v3_send_raw_text(conn, data);
 				if (_rc == 1) goto irc_send_ping_skip_legacy;
 				if (_rc == -1) return -1;
 			}
-#endif
 			if (!(p = packet_create(packet_class_raw))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
 				return -1;
@@ -201,9 +200,7 @@ namespace pvpgn
 			packet_append_data(p, data, std::strlen(data));
 			conn_push_outqueue(conn, p);
 			packet_del_ref(p);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			irc_send_ping_skip_legacy:;
-#endif
 			return 0;
 		}
 
@@ -227,13 +224,11 @@ namespace pvpgn
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] sent \"{}\"", conn_get_socket(conn), data);
 			std::strcat(data, "\r\n");
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			{
 				int const _rc = pvpgn_v3_send_raw_text(conn, data);
 				if (_rc == 1) goto irc_send_pong_skip_legacy;
 				if (_rc == -1) return -1;
 			}
-#endif
 			if (!(p = packet_create(packet_class_raw))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "could not create packet");
 				return -1;
@@ -242,9 +237,7 @@ namespace pvpgn
 			packet_append_data(p, data, std::strlen(data));
 			conn_push_outqueue(conn, p);
 			packet_del_ref(p);
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			irc_send_pong_skip_legacy:;
-#endif
 			return 0;
 		}
 

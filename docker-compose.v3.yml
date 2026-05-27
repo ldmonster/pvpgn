@@ -52,6 +52,23 @@ services:
     stop_signal: SIGTERM
     stop_grace_period: 10s
 
+  d2dbs:
+    image: pvpgn-v3-compose:latest
+    container_name: pvpgn-v3-d2dbs
+    hostname: d2dbs
+    command: ["d2dbs"]
+    environment:
+      BNETD_HOST: bnetd
+      D2CS_HOST: d2cs
+    depends_on:
+      - bnetd
+    ports:
+      - "6114:6114/tcp"
+    networks:
+      - pvpgn-v3-net
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
+
 networks:
   pvpgn-v3-net:
     driver: bridge

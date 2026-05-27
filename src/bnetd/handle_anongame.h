@@ -16,6 +16,12 @@
 #ifndef INCLUDED_HANDLE_ANONGAME_PROTOS
 #define INCLUDED_HANDLE_ANONGAME_PROTOS
 
+// R206: implementation relocated to
+// `src/v3/integration/legacy_bnetd/src/handle_anongame_link.cpp`.
+// This header keeps the public declaration so callers in
+// `src/bnetd/server.cpp` / `connection.cpp` can still
+// `#include "handle_anongame.h"`.
+
 #include "common/packet.h"
 #include "connection.h"
 

@@ -21,6 +21,13 @@
 #ifndef JUST_NEED_TYPES
 #ifndef INCLUDED_IRC_PROTOS
 #define INCLUDED_IRC_PROTOS
+
+// R208: implementation relocated to
+// `src/v3/integration/legacy_bnetd/src/irc_link.cpp`.
+// This header keeps the public declarations so callers in
+// `src/bnetd/handle_wol.cpp` (now relocated as `handle_wol_link.cpp`)
+// and other legacy units can still `#include "irc.h"`.
+
 #define JUST_NEED_TYPES
 # include "common/packet.h"
 # include "connection.h"

@@ -13,8 +13,8 @@
 #include <cstring>
 
 #include "common/setup_before.h"
-#include "d2dbs/dbserver.h"
 #include "d2dbs/setup.h"
+#include "d2dbs/dbserver.h"
 #include "common/setup_after.h"
 
 namespace pvpgn::integration::legacy_d2dbs {
@@ -30,7 +30,7 @@ int send_packet_via_legacy(void* conn_ptr,
     auto* conn = static_cast<::pvpgn::d2dbs::t_d2dbs_connection*>(conn_ptr);
     // Honor remaining-space check (same shape as legacy handlers).
     const long remaining =
-        static_cast<long>(::pvpgn::d2dbs::kBufferSize)
+        static_cast<long>(::kBufferSize)
         - static_cast<long>(conn->nCharsInWriteBuffer);
     if (remaining <= 0) return 0;
     if (static_cast<long>(size) > remaining) return 0;

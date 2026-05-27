@@ -22,6 +22,11 @@
 #ifndef INCLUDED_HANDLE_TELNET_PROTOS
 #define INCLUDED_HANDLE_TELNET_PROTOS
 
+// R203: implementation relocated to
+// `src/v3/integration/legacy_bnetd/src/handle_telnet_link.cpp`.
+// This header keeps the public declaration so callers in
+// `src/bnetd/server.cpp` can still `#include "handle_telnet.h"`.
+
 #define JUST_NEED_TYPES
 #include "connection.h"
 #include "common/packet.h"

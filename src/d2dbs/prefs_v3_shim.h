@@ -12,7 +12,7 @@
 /// under `PVPGN_V3_D2DBS_INTEGRATION`, or to the legacy parser in
 /// `prefs.cpp` otherwise.
 
-#ifdef PVPGN_V3_D2DBS_INTEGRATION
+#if __has_include("integration/legacy_d2dbs/d2dbs_prefs_bridge.hpp")
 #include "integration/legacy_d2dbs/d2dbs_prefs_bridge.hpp"
 #endif
 

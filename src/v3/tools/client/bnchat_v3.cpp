@@ -39,6 +39,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -73,6 +74,8 @@ struct Options {
     std::string   cdowner   = "owner";
     bool          send_cdkey2 = false;
     bool          create_account = false;
+    std::string   say;            // R197.b: send this CLIENT_MESSAGE right after join
+    int           linger_secs = 0; // R197.b: read for N seconds, then exit (only used with --say)
 };
 
 [[noreturn]] void usage(const char* prog) {
@@ -87,6 +90,9 @@ struct Options {
         "  -k KEY,  --cdkey=KEY       set CD key (auto-enables CDKEY2 stage)\n"
         "  -o NAME, --cdowner=NAME    CD key owner string\n"
         "  -C,      --create-account  send CLIENT_CREATEACCTREQ1 before LOGINREQ1\n"
+        "  --say=TEXT                 send CLIENT_MESSAGE immediately after join, then\n"
+        "                             read for --linger-secs seconds (no stdin loop)\n"
+        "  --linger-secs=N            seconds to read after --say before exiting (default 0)\n"
         "  -h, --help                 show this help\n"
         "  -v, --version              print version and exit\n",
         prog);
@@ -151,6 +157,10 @@ Options parse_args(int argc, char** argv) {
             o.cdowner = std::string{a.substr(10)};
         } else if (a == "-C" || a == "--create-account") {
             o.create_account = true;
+        } else if (starts_with(a, "--say=")) {
+            o.say = std::string{a.substr(6)};
+        } else if (starts_with(a, "--linger-secs=")) {
+            o.linger_secs = std::atoi(std::string{a.substr(14)}.c_str());
         } else if (!a.empty() && a[0] == '-') {
             std::fprintf(stderr, "%s: unknown option \"%.*s\"\n",
                 argv[0], static_cast<int>(a.size()), a.data());
@@ -453,6 +463,54 @@ int main(int argc, char** argv) {
     }
     std::fprintf(stderr, "%s: joining channel \"%s\"...\n",
         argv[0], opts.channel.c_str());
+
+    // ---- R197.b: --say one-shot mode ---------------------------------
+    // If --say=TEXT is given, send a CLIENT_MESSAGE immediately, then
+    // read packets for --linger-secs seconds (so the server has time to
+    // echo our own TALK back) and exit. No stdin loop -- this is the
+    // scripted-smoke entry point.
+    if (!opts.say.empty()) {
+        if (!send_chat_message(sock.get(), opts.say)) {
+            std::fprintf(stderr,
+                "%s: send CLIENT_MESSAGE failed\n", argv[0]);
+            return EXIT_FAILURE;
+        }
+        std::fprintf(stderr, "%s: sent CLIENT_MESSAGE %zu bytes\n",
+            argv[0], opts.say.size());
+        const int sd_oneshot = static_cast<int>(sock.get());
+        const int linger = opts.linger_secs > 0 ? opts.linger_secs : 2;
+        const auto deadline = std::chrono::steady_clock::now()
+                            + std::chrono::seconds(linger);
+        for (;;) {
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= deadline) break;
+            const auto remaining_ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    deadline - now).count();
+            timeval tv{};
+            tv.tv_sec = static_cast<long>(remaining_ms / 1000);
+            tv.tv_usec = static_cast<long>((remaining_ms % 1000) * 1000);
+            fd_set rfds;
+            FD_ZERO(&rfds);
+            FD_SET(sd_oneshot, &rfds);
+            const int n = ::select(sd_oneshot + 1, &rfds, nullptr, nullptr, &tv);
+            if (n < 0) {
+                if (errno == EINTR) continue;
+                break;
+            }
+            if (n == 0) break;
+            if (!FD_ISSET(sd_oneshot, &rfds)) continue;
+            if (!proto::recv_bnet(sock.get(), p)) {
+                std::fprintf(stderr, "%s: server disconnected\n", argv[0]);
+                return EXIT_SUCCESS;
+            }
+            if (p.bnet_type() == bnet::packet_id::SERVER_MESSAGE) {
+                render_server_message(p);
+            }
+        }
+        std::fprintf(stderr, "%s: linger expired, exiting\n", argv[0]);
+        return EXIT_SUCCESS;
+    }
 
     // ---- Chat loop: select() on stdin + socket. -----------------------
     // Line-buffered stdin: read until newline -> CLIENT_MESSAGE.

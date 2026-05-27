@@ -52,6 +52,12 @@ else
     fail "d2cs not bound to :6113"
     DC logs --tail=30 d2cs || true
 fi
+if DC exec -T d2dbs ss -tln | awk '{print $4}' | grep -qE ':6114$'; then
+    pass "d2dbs listening on :6114"
+else
+    fail "d2dbs not bound to :6114"
+    DC logs --tail=30 d2dbs || true
+fi
 
 # ---------------------------------------------------------------- 3
 echo "==> waiting up to ${S2S_GRACE}s for s2s auth"
@@ -110,6 +116,36 @@ if echo "$bnchat_log" | grep -q 'joining channel'; then
     pass "bnchat reached CLIENT_JOINCHANNEL"
 else
     fail "bnchat never reached channel join"
+fi
+
+# ---------------------------------------------------------------- 4b
+# R197.b: chat-message round-trip. Use --say (one-shot mode) so the
+# client sends a CLIENT_MESSAGE immediately after joining and then
+# lingers a few seconds to receive the server's echo of our own TALK.
+echo "==> attempting bnchat chat-message round-trip (--say + linger)"
+SAY_TEXT="hello-r197b"
+chat_log=$(DC exec -T bnetd "$BNCHAT" \
+        -u smoke_test -p smokepw -c CHAT \
+        --channel=Public-Chat \
+        --say="$SAY_TEXT" --linger-secs=3 \
+        127.0.0.1 6112 </dev/null 2>&1 | head -60 || true)
+echo "$chat_log"
+
+if echo "$chat_log" | grep -q 'sent CLIENT_MESSAGE'; then
+    pass "bnchat sent CLIENT_MESSAGE"
+else
+    fail "bnchat did not send CLIENT_MESSAGE"
+fi
+# Self-echo (TALK back to sender) is suppressed by PvPGN when the
+# channel has no other listeners ("No one hears you."). That INFO
+# reply IS proof that bnetd's CLIENT_MESSAGE handler ran end-to-end:
+# parsed the body, attempted to broadcast, found no other listeners,
+# and emitted SERVER_MESSAGE(INFO) back to us. Use that as the
+# round-trip assertion.
+if echo "$chat_log" | grep -q 'No one hears you'; then
+    pass "bnetd processed CLIENT_MESSAGE -> SERVER_MESSAGE round-trip"
+else
+    fail "bnetd did not respond to CLIENT_MESSAGE within linger"
 fi
 
 # ---------------------------------------------------------------- 5

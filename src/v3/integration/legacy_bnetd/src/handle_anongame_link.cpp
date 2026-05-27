@@ -41,16 +41,19 @@
 #include "icons.h"
 #include "prefs_v3_shim.h"
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
+//
+// R206: relocated from `src/bnetd/handle_anongame.cpp`.
+// Strangler-fig move into the v3 `integration_legacy_bnetd_linked`
+// library. Symbol surface preserved verbatim. The legacy
+// `#ifdef PVPGN_V3_BNETD_INTEGRATION` guards are dropped because
+// we are unconditionally inside the v3 build here.
+
 // Observation bridge for SID_FINDANONGAME (0x44) dispatch.
 extern "C" int pvpgn_v3_anongame_dispatch_try(void* conn_ptr,
                                               unsigned int option) noexcept;
-#endif
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 #include "integration/legacy_bnetd/strangler_macros.h"
 #include "integration/legacy_bnetd/send_anongame_cancel_bridge.hpp"
-#endif
 
 namespace pvpgn
 {
@@ -88,7 +91,6 @@ namespace pvpgn
 			t_clan * clan;
 			unsigned char rescount;
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// v3 strangler-fig: reproduce the legacy stub via the
 			// typed pipeline so the codec owns the wire format.
 			{
@@ -98,7 +100,6 @@ namespace pvpgn
 					PVPGN_V3_BRIDGE_TRY(clan_profile, c, bd, sz);
 				}
 			}
-#endif
 
 			if (packet_get_size(packet) < sizeof(t_client_findanongame_profile_clan))
 			{
@@ -177,7 +178,6 @@ namespace pvpgn
 			t_bnettime bn_time;
 			bn_long ltime;
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// v3 strangler-fig: build the WAR3 stats reply via the
 			// pure builder + typed codec; only fall through to the
 			// legacy assembly below on failure.
@@ -188,7 +188,6 @@ namespace pvpgn
 					PVPGN_V3_BRIDGE_TRY(profile, c, bd, sz);
 				}
 			}
-#endif
 
 
 			Count = bn_int_get(packet->u.client_findanongame.count);
@@ -469,14 +468,12 @@ namespace pvpgn
 				conn_destroy_anongame(tc[i]);
 			}
 
-	#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// v3 strangler-fig: try the typed pipeline first.
 			// `pvpgn_v3_send_anongame_cancel` encodes the 5-byte body
 			// (cancel=0x03, count LE) and pushes it via the registered
 			// send_packet handler.  Returns 1 on success -> skip legacy path.
 			if (pvpgn_v3_send_anongame_cancel(c, static_cast<unsigned int>(a_count)) > 0)
 				return 0;
-	#endif
 	
 			if (!(rpacket = packet_create(packet_class_bnet)))
 				return -1;
@@ -495,7 +492,6 @@ namespace pvpgn
 		{
 			t_packet * rpacket;
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// v3 strangler-fig: try the typed pipeline first.
 			// `pvpgn_v3_get_icon_try` lazily loads the IconReqTable
 			// from `prefs_get_anongame_infos_file()`, snapshots the
@@ -510,7 +506,6 @@ namespace pvpgn
 					PVPGN_V3_BRIDGE_TRY(get_icon, c, bd, sz);
 				}
 			}
-#endif
 
 			//BlacKDicK 04/20/2003 Need some huge re-work on this.
 			{
@@ -627,7 +622,6 @@ namespace pvpgn
 		/* Choose icon by user from profile > portrait */
 		static int _client_anongame_set_icon(t_connection * c, t_packet const * const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// v3 strangler-fig: try the typed pipeline first.
 			// `pvpgn_v3_set_icon_try` validates the requested icon
 			// against per-account race-win counts (mirrors the
@@ -643,7 +637,6 @@ namespace pvpgn
 					PVPGN_V3_BRIDGE_TRY(set_icon, c, bd, sz);
 				}
 			}
-#endif
 
 			//BlacKDicK 04/20/2003
 			// Modified by aancw 16/12/2014
@@ -762,7 +755,6 @@ namespace pvpgn
 		{
 			t_packet * rpacket;
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// v3 strangler-fig: try the typed pipeline first. The
 			// bridge lazily initialises a snapshot cache from
 			// `prefs_get_anongame_infos_file()` + `prefs_get_mapsfile()`,
@@ -778,7 +770,6 @@ namespace pvpgn
 					PVPGN_V3_BRIDGE_TRY(anongame_inforeply, c, bd, sz);
 				}
 			}
-#endif
 
 			if (bn_int_get(packet->u.client_findanongame_inforeq.count) > 1) {
 				/* reply with 0 entries found */
@@ -914,7 +905,6 @@ namespace pvpgn
 		{
 			t_packet * rpacket;
 
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			// v3 strangler-fig: try the typed pipeline first.
 			// `pvpgn_v3_tournament_try` snapshots the legacy
 			// tournament globals + per-account state into a pure
@@ -928,7 +918,6 @@ namespace pvpgn
 					PVPGN_V3_BRIDGE_TRY(tournament, c, bd, sz);
 				}
 			}
-#endif
 
 			t_account * account = conn_get_account(c);
 			t_clienttag clienttag = conn_get_clienttag(c);
@@ -1109,10 +1098,8 @@ namespace pvpgn
 
 		extern int handle_anongame_packet(t_connection * c, t_packet const * const packet)
 		{
-#ifdef PVPGN_V3_BNETD_INTEGRATION
 			(void)pvpgn_v3_anongame_dispatch_try(c,
 			    static_cast<unsigned int>(bn_byte_get(packet->u.client_anongame.option)));
-#endif
 			switch (bn_byte_get(packet->u.client_anongame.option))
 			{
 			case CLIENT_FINDANONGAME_PROFILE:
