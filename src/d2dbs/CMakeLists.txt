@@ -34,17 +34,11 @@ endif(WITH_WIN32_GUI)
 
 target_link_libraries(d2dbs PRIVATE d2dbs_legacy)
 
-# v3 strangler-fig: when the v3 build is in the same configure,
-# link the d2dbs executable against the linked integration adapter
-# and define PVPGN_V3_D2DBS_INTEGRATION so the legacy #ifdef hooks
-# in dbspacket.cpp are live.
-if(TARGET integration_legacy_d2dbs_linked)
-    target_link_libraries(d2dbs PRIVATE integration_legacy_d2dbs_linked)
-    target_compile_definitions(d2dbs PRIVATE PVPGN_V3_D2DBS_INTEGRATION=1)
-    target_compile_definitions(d2dbs_legacy PRIVATE PVPGN_V3_D2DBS_INTEGRATION=1)
-    target_include_directories(d2dbs_legacy PRIVATE
-        ${CMAKE_SOURCE_DIR}/src/v3/integration/legacy_d2dbs/include)
-endif()
+# v3 strangler-fig wiring MOVED to
+# src/v3/integration/legacy_d2dbs/CMakeLists.txt (added LATE by the
+# top-level configure -- after `add_subdirectory(src)` -- so that
+# d2dbs_legacy actually exists when the wiring runs). Mirrors the
+# R196.b / R199 fix for d2cs / d2dbs. See plans/r199-checklist.md.
 
 install(TARGETS d2dbs DESTINATION ${SBINDIR})
 if(WIN32 AND MSVC)

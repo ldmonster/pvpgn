@@ -221,6 +221,11 @@ if(PVPGN_BUILD_LEGACY)
         # wiring depend on `d2cs_legacy` existing. See
         # plans/r196b-checklist.md.
         add_subdirectory(src/v3/integration/legacy_d2cs)
+        # R199: same systemic ordering bug as R193.fix / R196.b, but for
+        # d2dbs. The integration_legacy_d2dbs_linked target + d2dbs
+        # strangler wiring depend on `d2dbs_legacy` existing. See
+        # plans/r199-checklist.md.
+        add_subdirectory(src/v3/integration/legacy_d2dbs)
     endif()
     if(WITH_LUA)
         add_subdirectory(lua)

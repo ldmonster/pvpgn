@@ -1295,29 +1295,10 @@ pvpgn_v3_add_library(integration_legacy_d2dbs
 
 # ---- integration/legacy_d2dbs/linked (real d2dbs_legacy hookup) --------
 #
-# Only built when `d2dbs_legacy` is in the same configure.
-# d2dbs has no t_packet outqueue; the linked half memcpys directly
-# into the connection's WriteBuf.
-
-if(TARGET d2dbs_legacy)
-    pvpgn_v3_add_library(integration_legacy_d2dbs_linked
-        STATIC
-        SOURCES
-            integration/legacy_d2dbs/src/send_packet_bridge_link.cpp
-        PUBLIC_INCLUDES
-            ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2dbs/include
-        PUBLIC_DEPS
-            core
-            integration_legacy_d2dbs
-        DEPS
-            d2dbs_legacy
-    )
-    target_compile_options(integration_legacy_d2dbs_linked PRIVATE
-        -w)
-    target_include_directories(integration_legacy_d2dbs_linked PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_BINARY_DIR})
-endif()
+# MOVED to src/v3/integration/legacy_d2dbs/CMakeLists.txt by R199, applying
+# the R193.fix Strategy-B / R196.b playbook. The block below was dead code
+# under the old ordering (`d2dbs_legacy` target did not exist yet at v3
+# configure time). See plans/r199-checklist.md.
 
 # ---- integration/legacy_bnetd/linked (real bnetd_legacy hookup) ---------
 #
