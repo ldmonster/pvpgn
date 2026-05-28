@@ -1,8 +1,8 @@
 #pragma once
 #include <string>
 #include <cstdint>
-#include <chrono>
 #include <optional>
+#include "core/clock.hpp"
 #include "core/result.hpp"
 
 namespace pvpgn::domain::realm {
@@ -35,27 +35,27 @@ struct CharacterStats {
 
 class Character {
 public:
-    Character(CharacterId id, CharacterStats stats);
-    
+    Character(CharacterId id, CharacterStats stats, core::SystemTime now);
+
     const CharacterId& id() const noexcept { return id_; }
     const CharacterStats& stats() const noexcept { return stats_; }
-    
+
     bool is_locked() const noexcept { return locked_by_gs_.has_value(); }
     const std::optional<std::string>& locked_by() const noexcept { return locked_by_gs_; }
-    
+
     core::Result<void, core::Error> lock(std::string gs_address);
     core::Result<void, core::Error> unlock(std::string_view gs_address);
-    
-    std::chrono::system_clock::time_point created_at() const noexcept { return created_at_; }
-    std::chrono::system_clock::time_point last_played() const noexcept { return last_played_; }
-    void touch() { last_played_ = std::chrono::system_clock::now(); }
+
+    core::SystemTime created_at() const noexcept { return created_at_; }
+    core::SystemTime last_played() const noexcept { return last_played_; }
+    void touch(core::SystemTime now) noexcept { last_played_ = now; }
 
 private:
     CharacterId id_;
     CharacterStats stats_;
     std::optional<std::string> locked_by_gs_;
-    std::chrono::system_clock::time_point created_at_;
-    std::chrono::system_clock::time_point last_played_;
+    core::SystemTime created_at_;
+    core::SystemTime last_played_;
 };
 
 } // namespace pvpgn::domain::realm

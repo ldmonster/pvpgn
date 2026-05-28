@@ -88,6 +88,11 @@ if(TARGET infra_config)
     target_compile_definitions(pvpgn_v3_bnetd PRIVATE PVPGN_V3_BNETD_HAVE_CONFIG=1)
 endif()
 
+# Optional: infra_log (spdlog logger factory) — available when PVPGN_V3_WITH_SPDLOG=ON
+if(TARGET infra_log)
+    target_link_libraries(pvpgn_v3_bnetd PRIVATE infra_log)
+endif()
+
 # PVPGN_VERSION (supplied by top-level CMakeLists.txt) for --version output.
 target_compile_definitions(pvpgn_v3_bnetd PRIVATE
     $<$<BOOL:${PVPGN_VERSION}>:PVPGN_VERSION="${PVPGN_VERSION}">)

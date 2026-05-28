@@ -69,3 +69,13 @@ pvpgn_v3_add_test(test_application_chat_set_topic
     DEPS    application_chat
             infra_inmemory
             infra_storage_repository)
+
+pvpgn_v3_add_test(test_application_chat_send_whisper
+    SOURCES send_whisper_test.cpp
+    DEPS    application_chat)
+
+pvpgn_v3_add_test(test_application_chat_op_from_channel
+    SOURCES op_from_channel_test.cpp
+    DEPS    application_chat
+            infra_inmemory
+            infra_storage_repository)

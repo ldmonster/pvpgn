@@ -10,6 +10,15 @@ target_sources(pvpgn_application_chat
     src/leave_channel.cpp
     src/ban_from_channel.cpp
     src/command_registry.cpp
+    src/list_channels.cpp
+    src/kick_from_channel.cpp
+    src/set_channel_topic.cpp
+    src/send_emote.cpp
+    src/whisper_use_case.cpp
+    src/send_whisper.cpp
+    src/op_from_channel.cpp
+    src/chat_command.cpp
+    src/chat_event_compose.cpp
 )
 
 target_include_directories(pvpgn_application_chat

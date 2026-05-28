@@ -4,10 +4,10 @@
 /// @file file_audit_log.hpp
 /// Append-only file implementation of IAuditLog.
 ///
-/// Each `record()` flushes a single text line. Format (TSV):
-///   <iso8601_utc>\t<action_name>\t<actor_id>\t<subject>\t<details>
-/// `subject` and `details` have tabs and newlines escaped via
-/// backslash-escaping so the line is grep-able and round-trippable.
+/// Each `record()` flushes a single NDJSON line (one JSON object per line):
+///   {"ts":"2024-01-01T00:00:00.000Z","action":"AccountCreated","actor":42,
+///    "subject":"user","details":"some detail","source_ip":"192.168.1.1"}
+/// String fields are JSON-escaped. `source_ip` is omitted when empty.
 ///
 /// Concurrency: a mutex serializes writes. The file handle is held
 /// open for the lifetime of the object; `record()` calls `flush` so
@@ -45,11 +45,11 @@ public:
     std::vector<application::ports::AuditEntry>
     recent(std::size_t count) const override;
 
-    /// Encode a single entry as a TSV line (terminator included).
+    /// Encode a single entry as an NDJSON line (newline terminator included).
     /// Exposed for testing.
     static std::string format_line(const application::ports::AuditEntry& entry);
 
-    /// Parse a TSV line written by `format_line`. Returns false on
+    /// Parse an NDJSON line written by `format_line`. Returns false on
     /// malformed input. Exposed for testing.
     static bool parse_line(const std::string& line,
                            application::ports::AuditEntry& out);

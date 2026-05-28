@@ -1,6 +1,11 @@
 pvpgn_v3_add_test(test_domain_shared_value_objects
     SOURCES value_objects_test.cpp
-    DEPS    domain_shared)
+    DEPS
+        domain_shared
+        domain_chat
+        domain_realm
+        domain_social
+        domain_gameplay)
 
 pvpgn_v3_add_test(test_domain_shared_client_tag
     SOURCES client_tag_test.cpp
@@ -22,4 +27,33 @@ pvpgn_v3_add_header_selfcheck(test_domain_shared_headers_selfcontained
         domain/shared/match_report.hpp
         domain/shared/user_name.hpp
     DEPS domain_shared
+)
+
+# R253: selfcheck for new domain value-object headers.
+pvpgn_v3_add_header_selfcheck(test_domain_chat_channel_name_selfcontained
+    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/v3/domain/chat/include
+    HEADERS
+        domain/chat/channel_name.hpp
+    DEPS domain_chat
+)
+
+pvpgn_v3_add_header_selfcheck(test_domain_realm_realm_name_selfcontained
+    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/v3/domain/realm/include
+    HEADERS
+        domain/realm/realm_name.hpp
+    DEPS domain_realm
+)
+
+pvpgn_v3_add_header_selfcheck(test_domain_social_clan_tag_selfcontained
+    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/v3/domain/social/include
+    HEADERS
+        domain/social/clan_tag.hpp
+    DEPS domain_social
+)
+
+pvpgn_v3_add_header_selfcheck(test_domain_gameplay_game_name_selfcontained
+    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/v3/domain/gameplay/include
+    HEADERS
+        domain/gameplay/game_name.hpp
+    DEPS domain_gameplay
 )

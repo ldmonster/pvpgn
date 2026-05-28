@@ -14,3 +14,15 @@ pvpgn_v3_add_test(application_realm_gs_queue_test
 pvpgn_v3_add_test(application_realm_realm_list_test
     SOURCES realm_list_test.cpp
     DEPS application_realm)
+
+pvpgn_v3_add_test(application_realm_register_realm_test
+    SOURCES register_realm_test.cpp
+    DEPS application_realm)
+
+pvpgn_v3_add_test(application_realm_heartbeat_realm_test
+    SOURCES heartbeat_realm_test.cpp
+    DEPS application_realm)
+
+pvpgn_v3_add_test(application_realm_realm_auth_test
+    SOURCES realm_auth_test.cpp
+    DEPS application_realm)

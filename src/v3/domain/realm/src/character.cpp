@@ -2,11 +2,11 @@
 
 namespace pvpgn::domain::realm {
 
-Character::Character(CharacterId id, CharacterStats stats)
+Character::Character(CharacterId id, CharacterStats stats, core::SystemTime now)
     : id_(std::move(id))
     , stats_(stats)
-    , created_at_(std::chrono::system_clock::now())
-    , last_played_(std::chrono::system_clock::now())
+    , created_at_(now)
+    , last_played_(now)
 {
 }
 

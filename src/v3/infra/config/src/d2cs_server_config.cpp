@@ -49,7 +49,16 @@ void parse_realm(const Config& cfg, D2csServerConfig& sc)
 void parse_log(const Config& cfg, D2csServerConfig& sc)
 {
     if (auto sec = cfg.section("log")) {
-        sc.log.levels = sec->get_or<std::string>("levels", sc.log.levels);
+        sc.log.levels       = sec->get_or<std::string>("levels", sc.log.levels);
+        sc.log.stdout_sink  = sec->get_or<bool>("stdout", sc.log.stdout_sink);
+        sc.log.rotate_size  = static_cast<std::size_t>(
+            sec->get_or<std::int64_t>("rotate_size",
+                static_cast<std::int64_t>(sc.log.rotate_size)));
+        sc.log.rotate_files = static_cast<std::size_t>(
+            sec->get_or<std::int64_t>("rotate_files",
+                static_cast<std::int64_t>(sc.log.rotate_files)));
+        if (auto f = sec->get<std::string>("file"))
+            sc.log.file = *f;
     }
 }
 

@@ -9,6 +9,7 @@ target_sources(pvpgn_application_game
     src/start_game.cpp
     src/join_game.cpp
     src/leave_game.cpp
+    src/cancel_game.cpp
     src/report_game_result.cpp
     src/list_public_games.cpp
     src/create_private_game.cpp

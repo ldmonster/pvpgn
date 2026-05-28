@@ -55,22 +55,38 @@ bool action_from_name(std::string_view s, ap::AuditAction& out) noexcept {
     return false;
 }
 
-std::string escape_field(std::string_view in) {
+/// Escape a string for embedding inside a JSON double-quoted value.
+/// Escapes: `"` → `\"`, `\` → `\\`, `\n` → `\n`, `\r` → `\r`, `\t` → `\t`.
+/// Other control characters (< 0x20) are emitted as `\uXXXX`.
+std::string json_escape(std::string_view in) {
     std::string out;
-    out.reserve(in.size());
-    for (char c : in) {
+    out.reserve(in.size() + 4);
+    for (unsigned char c : in) {
         switch (c) {
+            case '"':  out += "\\\""; break;
             case '\\': out += "\\\\"; break;
-            case '\t': out += "\\t";  break;
             case '\n': out += "\\n";  break;
             case '\r': out += "\\r";  break;
-            default:   out += c;      break;
+            case '\t': out += "\\t";  break;
+            default:
+                if (c < 0x20) {
+                    char buf[8];
+                    std::snprintf(buf, sizeof(buf), "\\u%04x",
+                                  static_cast<unsigned>(c));
+                    out += buf;
+                } else {
+                    out += static_cast<char>(c);
+                }
+                break;
         }
     }
     return out;
 }
 
-bool unescape_field(std::string_view in, std::string& out) {
+/// Unescape a JSON string value (content between the outer quotes).
+/// Handles `\"`, `\\`, `\/`, `\n`, `\r`, `\t`, `\b`, `\f`, `\uXXXX`.
+/// Returns false on malformed escape sequences.
+bool json_unescape(std::string_view in, std::string& out) {
     out.clear();
     out.reserve(in.size());
     for (std::size_t i = 0; i < in.size(); ++i) {
@@ -78,44 +94,93 @@ bool unescape_field(std::string_view in, std::string& out) {
         if (c != '\\') { out += c; continue; }
         if (++i >= in.size()) return false;
         switch (in[i]) {
+            case '"':  out += '"';  break;
             case '\\': out += '\\'; break;
-            case 't':  out += '\t'; break;
+            case '/':  out += '/';  break;
             case 'n':  out += '\n'; break;
             case 'r':  out += '\r'; break;
-            default:   return false;
+            case 't':  out += '\t'; break;
+            case 'b':  out += '\b'; break;
+            case 'f':  out += '\f'; break;
+            case 'u': {
+                if (i + 4 >= in.size()) return false;
+                char hex[5] = { in[i+1], in[i+2], in[i+3], in[i+4], '\0' };
+                char* endp = nullptr;
+                unsigned long cp = std::strtoul(hex, &endp, 16);
+                if (!endp || *endp != '\0') return false;
+                // Only handle BMP codepoints (U+0000–U+FFFF) as single bytes
+                // for the ASCII subset we write; non-ASCII passthrough as-is.
+                if (cp < 0x80) {
+                    out += static_cast<char>(cp);
+                } else {
+                    // Re-emit as UTF-8 (basic BMP only)
+                    if (cp < 0x800) {
+                        out += static_cast<char>(0xC0 | (cp >> 6));
+                        out += static_cast<char>(0x80 | (cp & 0x3F));
+                    } else {
+                        out += static_cast<char>(0xE0 | (cp >> 12));
+                        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+                        out += static_cast<char>(0x80 | (cp & 0x3F));
+                    }
+                }
+                i += 4;
+                break;
+            }
+            default: return false;
         }
     }
     return true;
 }
 
-std::string format_iso8601_utc(core::SystemTime tp) {
-    auto secs = std::chrono::time_point_cast<std::chrono::seconds>(tp);
-    std::time_t t = std::chrono::system_clock::to_time_t(secs);
-    std::tm     tm_buf{};
+/// Format a SystemTime as ISO 8601 UTC with milliseconds:
+/// "2024-01-01T00:00:00.000Z"
+std::string format_iso8601_ms_utc(core::SystemTime tp) {
+    auto ms_since_epoch =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            tp.time_since_epoch());
+    auto secs = std::chrono::duration_cast<std::chrono::seconds>(ms_since_epoch);
+    auto ms   = ms_since_epoch - secs;
+
+    std::time_t t = static_cast<std::time_t>(secs.count());
+    std::tm tm_buf{};
 #if defined(_WIN32)
     ::gmtime_s(&tm_buf, &t);
 #else
     ::gmtime_r(&t, &tm_buf);
 #endif
-    char buf[64];
+    char buf[32];
     std::snprintf(buf, sizeof(buf),
-                  "%04d-%02d-%02dT%02d:%02d:%02dZ",
+                  "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
                   tm_buf.tm_year + 1900, tm_buf.tm_mon + 1, tm_buf.tm_mday,
-                  tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec);
+                  tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec,
+                  static_cast<int>(ms.count()));
     return std::string(buf);
 }
 
+/// Parse ISO 8601 UTC timestamp with optional milliseconds.
+/// Accepts both "2024-01-01T00:00:00Z" and "2024-01-01T00:00:00.000Z".
 bool parse_iso8601_utc(std::string_view s, core::SystemTime& out) {
-    int Y, M, D, h, m, sec;
-    if (s.size() != 20 || s.back() != 'Z') return false;
-    if (std::sscanf(std::string(s).c_str(),
-                    "%4d-%2d-%2dT%2d:%2d:%2dZ",
-                    &Y, &M, &D, &h, &m, &sec) != 6) {
+    int Y = 0, Mo = 0, D = 0, h = 0, m = 0, sec = 0, ms = 0;
+    // Try with milliseconds first (length 24: "YYYY-MM-DDTHH:MM:SS.mmmZ")
+    if (s.size() == 24 && s.back() == 'Z') {
+        if (std::sscanf(std::string(s).c_str(),
+                        "%4d-%2d-%2dT%2d:%2d:%2d.%3dZ",
+                        &Y, &Mo, &D, &h, &m, &sec, &ms) != 7) {
+            return false;
+        }
+    } else if (s.size() == 20 && s.back() == 'Z') {
+        if (std::sscanf(std::string(s).c_str(),
+                        "%4d-%2d-%2dT%2d:%2d:%2dZ",
+                        &Y, &Mo, &D, &h, &m, &sec) != 6) {
+            return false;
+        }
+        ms = 0;
+    } else {
         return false;
     }
     std::tm tm_buf{};
     tm_buf.tm_year = Y - 1900;
-    tm_buf.tm_mon  = M - 1;
+    tm_buf.tm_mon  = Mo - 1;
     tm_buf.tm_mday = D;
     tm_buf.tm_hour = h;
     tm_buf.tm_min  = m;
@@ -126,7 +191,47 @@ bool parse_iso8601_utc(std::string_view s, core::SystemTime& out) {
     std::time_t t = ::timegm(&tm_buf);
 #endif
     if (t == static_cast<std::time_t>(-1)) return false;
-    out = std::chrono::system_clock::from_time_t(t);
+    out = std::chrono::system_clock::from_time_t(t)
+        + std::chrono::milliseconds(ms);
+    return true;
+}
+
+/// Extract the content of a JSON string field starting at position `pos`
+/// (which must point to the opening `"`). On success, advances `pos` past
+/// the closing `"` and returns true.
+bool extract_json_string(std::string_view sv, std::size_t& pos,
+                         std::string& value) {
+    if (pos >= sv.size() || sv[pos] != '"') return false;
+    ++pos;  // skip opening quote
+    std::size_t start = pos;
+    // Find closing quote, respecting backslash escapes
+    while (pos < sv.size() && sv[pos] != '"') {
+        if (sv[pos] == '\\') {
+            ++pos;  // skip escape char
+            if (pos >= sv.size()) return false;
+        }
+        ++pos;
+    }
+    if (pos >= sv.size()) return false;  // no closing quote
+    std::string_view raw = sv.substr(start, pos - start);
+    ++pos;  // skip closing quote
+    return json_unescape(raw, value);
+}
+
+/// Skip whitespace at `pos`.
+void skip_ws(std::string_view sv, std::size_t& pos) {
+    while (pos < sv.size() &&
+           (sv[pos] == ' ' || sv[pos] == '\t' ||
+            sv[pos] == '\r' || sv[pos] == '\n')) {
+        ++pos;
+    }
+}
+
+/// Expect character `c` at `pos`, advance past it. Returns false if mismatch.
+bool expect_char(std::string_view sv, std::size_t& pos, char c) {
+    skip_ws(sv, pos);
+    if (pos >= sv.size() || sv[pos] != c) return false;
+    ++pos;
     return true;
 }
 
@@ -135,58 +240,119 @@ bool parse_iso8601_utc(std::string_view s, core::SystemTime& out) {
 std::string
 FileAuditLog::format_line(const ap::AuditEntry& e) {
     std::ostringstream oss;
-    oss << format_iso8601_utc(e.timestamp) << '\t'
-        << action_name(e.action)           << '\t'
-        << e.actor.value()                 << '\t'
-        << escape_field(e.subject)         << '\t'
-        << escape_field(e.details)         << '\n';
+    oss << "{\"ts\":\""      << format_iso8601_ms_utc(e.timestamp) << "\""
+        << ",\"action\":\"" << action_name(e.action)              << "\""
+        << ",\"actor\":"    << e.actor.value()
+        << ",\"subject\":\"" << json_escape(e.subject)            << "\""
+        << ",\"details\":\"" << json_escape(e.details)            << "\"";
+    if (!e.source_ip.empty()) {
+        oss << ",\"source_ip\":\"" << json_escape(e.source_ip) << "\"";
+    }
+    oss << "}\n";
     return oss.str();
 }
 
 bool
 FileAuditLog::parse_line(const std::string& line, ap::AuditEntry& out) {
-    // Strip trailing newline if present.
+    // Strip trailing newline(s).
     std::string_view sv(line);
     while (!sv.empty() && (sv.back() == '\n' || sv.back() == '\r')) {
         sv.remove_suffix(1);
     }
 
-    std::array<std::string_view, 5> fields{};
-    std::size_t idx = 0;
-    std::size_t start = 0;
-    for (std::size_t i = 0; i <= sv.size(); ++i) {
-        if (i == sv.size() || sv[i] == '\t') {
-            if (idx >= fields.size()) return false;
-            fields[idx++] = sv.substr(start, i - start);
-            start = i + 1;
+    // Expect opening '{'
+    std::size_t pos = 0;
+    if (!expect_char(sv, pos, '{')) return false;
+
+    // We parse key-value pairs in any order until '}'.
+    // Required fields: ts, action, actor, subject, details.
+    // Optional: source_ip.
+    bool has_ts = false, has_action = false, has_actor = false,
+         has_subject = false, has_details = false;
+
+    core::SystemTime    ts{};
+    ap::AuditAction     action{};
+    std::uint32_t       actor_raw = 0;
+    std::string         subject, details, source_ip;
+
+    while (true) {
+        skip_ws(sv, pos);
+        if (pos >= sv.size()) return false;
+        if (sv[pos] == '}') { ++pos; break; }
+
+        // Expect a key string
+        std::string key;
+        if (!extract_json_string(sv, pos, key)) return false;
+
+        // Expect ':'
+        if (!expect_char(sv, pos, ':')) return false;
+        skip_ws(sv, pos);
+
+        if (key == "ts") {
+            std::string ts_str;
+            if (!extract_json_string(sv, pos, ts_str)) return false;
+            if (!parse_iso8601_utc(ts_str, ts)) return false;
+            has_ts = true;
+        } else if (key == "action") {
+            std::string action_str;
+            if (!extract_json_string(sv, pos, action_str)) return false;
+            if (!action_from_name(action_str, action)) return false;
+            has_action = true;
+        } else if (key == "actor") {
+            // Numeric value (no quotes)
+            std::size_t num_start = pos;
+            while (pos < sv.size() &&
+                   sv[pos] >= '0' && sv[pos] <= '9') {
+                ++pos;
+            }
+            if (pos == num_start) return false;
+            std::string num(sv.substr(num_start, pos - num_start));
+            char* endp = nullptr;
+            actor_raw = static_cast<std::uint32_t>(
+                std::strtoul(num.c_str(), &endp, 10));
+            if (!endp || *endp != '\0') return false;
+            has_actor = true;
+        } else if (key == "subject") {
+            if (!extract_json_string(sv, pos, subject)) return false;
+            has_subject = true;
+        } else if (key == "details") {
+            if (!extract_json_string(sv, pos, details)) return false;
+            has_details = true;
+        } else if (key == "source_ip") {
+            if (!extract_json_string(sv, pos, source_ip)) return false;
+        } else {
+            // Unknown key — skip its value (string or number only for now)
+            skip_ws(sv, pos);
+            if (pos < sv.size() && sv[pos] == '"') {
+                std::string ignored;
+                if (!extract_json_string(sv, pos, ignored)) return false;
+            } else {
+                // Skip until comma or '}'
+                while (pos < sv.size() &&
+                       sv[pos] != ',' && sv[pos] != '}') {
+                    ++pos;
+                }
+            }
         }
-    }
-    if (idx != 5) return false;
 
-    core::SystemTime ts;
-    if (!parse_iso8601_utc(fields[0], ts)) return false;
-
-    ap::AuditAction action;
-    if (!action_from_name(fields[1], action)) return false;
-
-    // actor id
-    std::uint32_t actor_raw = 0;
-    {
-        std::string num(fields[2]);
-        char* endp = nullptr;
-        actor_raw = static_cast<std::uint32_t>(std::strtoul(num.c_str(), &endp, 10));
-        if (!endp || *endp != '\0') return false;
+        // After value, expect ',' or '}'
+        skip_ws(sv, pos);
+        if (pos >= sv.size()) return false;
+        if (sv[pos] == ',') { ++pos; continue; }
+        if (sv[pos] == '}') { ++pos; break; }
+        return false;
     }
 
-    std::string subject, details;
-    if (!unescape_field(fields[3], subject)) return false;
-    if (!unescape_field(fields[4], details)) return false;
+    if (!has_ts || !has_action || !has_actor || !has_subject || !has_details) {
+        return false;
+    }
 
     out.timestamp = ts;
     out.action    = action;
     out.actor     = pvpgn::domain::AccountId{actor_raw};
     out.subject   = std::move(subject);
     out.details   = std::move(details);
+    out.source_ip = std::move(source_ip);
     return true;
 }
 

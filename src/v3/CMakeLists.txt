@@ -95,6 +95,7 @@ pvpgn_v3_add_library(core
     STATIC
     SOURCES
         core/src/logging.cpp
+        core/src/error.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
@@ -249,10 +250,12 @@ if(PVPGN_V3_WITH_SPDLOG)
         STATIC
         SOURCES
             infra/log/src/spdlog_logger.cpp
+            infra/log/src/logger_factory.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/infra/log/include
         PUBLIC_DEPS
             core
+            $<$<TARGET_EXISTS:infra_config>:infra_config>
         DEPS
             spdlog::spdlog
     )

@@ -12,6 +12,8 @@ target_sources(pvpgn_application_moderation
     src/ban_ip.cpp
     src/kick_connection.cpp
     src/silence_user.cpp
+    src/list_bans.cpp
+    src/issue_warning.cpp
 )
 
 target_include_directories(pvpgn_application_moderation

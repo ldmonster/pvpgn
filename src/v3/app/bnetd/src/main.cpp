@@ -57,11 +57,17 @@
 
 // v3 infrastructure
 #include "core/bytes.hpp"
+#include "core/format.hpp"
 #include "domain/connection/connection_context.hpp"
 #include "domain/connection/connection_fsm.hpp"
 #include "infra/net/io_runtime.hpp"
 #include "infra/net/tcp_acceptor.hpp"
 #include "infra/net/tcp_session.hpp"
+#if defined(PVPGN_V3_BNETD_HAVE_CONFIG) && __has_include("infra/config/server_config.hpp")
+#  include "infra/config/server_config.hpp"
+#  include "infra/log/logger_factory.hpp"
+#  define PVPGN_V3_BNETD_HAVE_LOGGER_FACTORY 1
+#endif
 
 // Protocol FSMs
 #include "protocol/bnet/codec.hpp"
@@ -491,12 +497,29 @@ int main(int argc, char* argv[]) {
         // 2. Build config
         const ServerConfig cfg = build_config(cli);
 
-        std::cout << "[bnetd] v3 composition root starting\n"
-                  << "  bnet/bnftp port : " << cfg.bnet_port  << "\n"
-                  << "  wol port        : " << cfg.wol_port   << "\n"
-                  << "  irc port        : " << cfg.irc_port   << "\n"
-                  << "  data dir        : " << cfg.data_dir   << "\n"
-                  << "  log level       : " << cfg.log_level  << "\n";
+        // 2b. Logger initialization from TOML config
+#if defined(PVPGN_V3_BNETD_HAVE_LOGGER_FACTORY)
+        {
+            infra::config::ServerConfig infra_cfg;
+            if (!cli.config_path.empty()) {
+                auto result = infra::config::load_server_config(cli.config_path);
+                if (result.has_value()) {
+                    infra_cfg = std::move(result.value());
+                } else {
+                    std::cerr << "[bnetd] Warning: failed to load config from "
+                              << cli.config_path << ": " << result.error().message() << "\n";
+                }
+            }
+            infra::log::make_and_install_logger(infra_cfg.log, "bnetd");
+        }
+#endif
+        LOG_INFO("bnetd", "pvpgn bnetd starting, config={}",
+            cli.config_path.empty() ? std::string("(defaults)") : cli.config_path);
+        LOG_INFO("bnetd", "  bnet/bnftp port : {}", cfg.bnet_port);
+        LOG_INFO("bnetd", "  wol port        : {}", cfg.wol_port);
+        LOG_INFO("bnetd", "  irc port        : {}", cfg.irc_port);
+        LOG_INFO("bnetd", "  data dir        : {}", cfg.data_dir.string());
+        LOG_INFO("bnetd", "  log level       : {}", cfg.log_level);
 
         // 2a. Initialise Lua runtime and load scripts.
         //     g_lua_runtime is a global LuaRuntime (RAII, opened in its ctor).
@@ -514,14 +537,13 @@ int main(int argc, char* argv[]) {
                 std::cerr << "[bnetd] Lua load warning: " << *err << "\n";
                 // Non-fatal: server continues without Lua scripting.
             } else {
-                std::cout << "[bnetd] Lua runtime initialised ("
-                          << lua_main << ")\n";
+                LOG_INFO("bnetd", "Lua runtime initialised ({})", lua_main);
                 // Fire the server-start hook (equivalent to legacy
                 // lua_handle_server(luaevent_server_start)).
                 (void)g_lua_runtime.call_hook("main");
             }
         } else {
-            std::cout << "[bnetd] Lua not available — scripting disabled\n";
+            LOG_INFO("bnetd", "Lua not available — scripting disabled");
         }
 
         // 3. Create AsioEventLoop (wraps io_context + work guard)
@@ -549,8 +571,7 @@ int main(int argc, char* argv[]) {
             rt,
             BnetBnftpDispatchFactory{cfg, session_mgr, use_cases}};
         bnet_listener.start(cfg.listen_address, cfg.bnet_port);
-        std::cout << "[bnetd] BNet/BNFTP listening on "
-                  << cfg.listen_address << ":" << cfg.bnet_port << "\n";
+        LOG_INFO("bnetd", "BNet/BNFTP listening on {}:{}", cfg.listen_address, cfg.bnet_port);
 
         // Dedicated BNFTP-only port (when bnftp_port differs from bnet_port).
         // Uses FileSessionFactory → BnftpTcpSession → BnftpFsm directly,
@@ -559,8 +580,7 @@ int main(int argc, char* argv[]) {
         if (cfg.bnftp_port != cfg.bnet_port) {
             bnftp_listener.emplace(rt, FileSessionFactory{cfg.data_dir});
             bnftp_listener->start(cfg.listen_address, cfg.bnftp_port);
-            std::cout << "[bnetd] BNFTP-only listening on "
-                      << cfg.listen_address << ":" << cfg.bnftp_port << "\n";
+            LOG_INFO("bnetd", "BNFTP-only listening on {}:{}", cfg.listen_address, cfg.bnftp_port);
         }
 
         // Port 4000: WOL chat
@@ -570,14 +590,12 @@ int main(int argc, char* argv[]) {
                 make_wol_session(std::move(tcp), cfg);
             }};
         wol_listener.start(cfg.listen_address, cfg.wol_port);
-        std::cout << "[bnetd] WOL listening on "
-                  << cfg.listen_address << ":" << cfg.wol_port << "\n";
+        LOG_INFO("bnetd", "WOL listening on {}:{}", cfg.listen_address, cfg.wol_port);
 
         // Port 6667: IRC — IrcFsm wired via IrcSessionFactory
         TcpListener irc_listener{rt, IrcSessionFactory{cfg.server_name}};
         irc_listener.start(cfg.listen_address, cfg.irc_port);
-        std::cout << "[bnetd] IRC listening on "
-                  << cfg.listen_address << ":" << cfg.irc_port << "\n";
+        LOG_INFO("bnetd", "IRC listening on {}:{}", cfg.listen_address, cfg.irc_port);
 
         // 8. Install signal handlers → graceful stop
         rt.install_signal_handlers({SIGINT, SIGTERM});
@@ -591,11 +609,11 @@ int main(int argc, char* argv[]) {
                 ? cfg.worker_threads
                 : std::max(1u, std::thread::hardware_concurrency());
 
-        std::cout << "[bnetd] starting " << n_threads << " worker thread(s)\n";
+        LOG_INFO("bnetd", "starting {} worker thread(s)", n_threads);
         rt.run(n_threads);
 
         // 10. Graceful shutdown
-        std::cout << "[bnetd] shutting down\n";
+        LOG_INFO("bnetd", "shutting down");
         bnet_listener.stop();
         if (bnftp_listener) bnftp_listener->stop();
         wol_listener.stop();
@@ -603,7 +621,7 @@ int main(int argc, char* argv[]) {
 
         LegacyBridge::shutdown();
 
-        std::cout << "[bnetd] stopped\n";
+        LOG_INFO("bnetd", "stopped");
         return EXIT_SUCCESS;
 
     } catch (const std::exception& ex) {

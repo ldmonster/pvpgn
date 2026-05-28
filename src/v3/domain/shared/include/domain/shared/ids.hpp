@@ -18,6 +18,7 @@ using ChannelId = core::StrongId<struct ChannelIdTag, std::uint32_t>;
 using GameId    = core::StrongId<struct GameIdTag,    std::uint32_t>;
 using ClanId    = core::StrongId<struct ClanIdTag,    std::uint32_t>;
 using TeamId    = core::StrongId<struct TeamIdTag,    std::uint32_t>;
-using SessionId = core::StrongId<struct SessionIdTag, std::uint64_t>;
+using SessionId    = core::StrongId<struct SessionIdTag,    std::uint64_t>;
+using ConnectionId = core::StrongId<struct ConnectionIdTag, std::uint32_t>;
 
 }  // namespace pvpgn::domain

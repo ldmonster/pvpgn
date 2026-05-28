@@ -7,5 +7,4 @@ pvpgn_v3_add_library(infra_logging
         include/infra/logging/eventlog_bridge.hpp
     DEPS
         pvpgn_v3_core
-        spdlog::spdlog
 )

@@ -48,7 +48,11 @@ struct D2csRealmSection {
 // ── [log] ────────────────────────────────────────────────────────────────────
 
 struct D2csLogSection {
-    std::string levels = "fatal,error,warn,info";
+    std::string           levels       = "fatal,error,warn,info";
+    std::filesystem::path file;                    ///< spdlog rotating-file sink path
+    bool                  stdout_sink  = true;     ///< also log to stderr
+    std::size_t           rotate_size  = 10 * 1024 * 1024; ///< bytes before rotation
+    std::size_t           rotate_files = 5;        ///< rotated files to keep
 };
 
 // ── [files] ──────────────────────────────────────────────────────────────────

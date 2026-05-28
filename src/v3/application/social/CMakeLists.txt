@@ -13,6 +13,10 @@ target_sources(pvpgn_application_social
     src/kick_from_clan.cpp
     src/promote_clan_member.cpp
     src/set_clan_motd.cpp
+    src/join_clan.cpp
+    src/leave_clan.cpp
+    src/create_team.cpp
+    src/disband_team.cpp
 )
 
 target_include_directories(pvpgn_application_social

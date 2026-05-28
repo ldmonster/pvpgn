@@ -4,11 +4,25 @@ pvpgn_v3_add_library(application_realm
         src/character_persistence.cpp
         src/gs_queue.cpp
         src/realm_list.cpp
+        src/create_character.cpp
+        src/delete_character.cpp
+        src/list_characters.cpp
+        src/load_character.cpp
+        src/save_character.cpp
+        src/join_game_server.cpp
+        src/register_realm.cpp
+        src/unregister_realm.cpp
+        src/heartbeat_realm.cpp
+        src/realm_auth.cpp
     HEADERS
         include/application/realm/character_lock.hpp
         include/application/realm/character_persistence.hpp
         include/application/realm/gs_queue.hpp
         include/application/realm/realm_list.hpp
+        include/application/realm/register_realm.hpp
+        include/application/realm/unregister_realm.hpp
+        include/application/realm/heartbeat_realm.hpp
+        include/application/realm/realm_auth.hpp
     DEPS
         pvpgn_v3_domain_realm
         pvpgn_v3_core

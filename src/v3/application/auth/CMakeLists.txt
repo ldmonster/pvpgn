@@ -7,6 +7,14 @@ target_sources(pvpgn_application_auth
   PRIVATE
     src/login_user.cpp
     src/permission_checker.cpp
+    src/create_account.cpp
+    src/logout_user.cpp
+    src/change_password.cpp
+    src/account_lock.cpp
+    src/login_classifier.cpp
+    src/password_rotation_observer.cpp
+    src/lookup_account.cpp
+    src/list_sessions.cpp
 )
 
 target_include_directories(pvpgn_application_auth

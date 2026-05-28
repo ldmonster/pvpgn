@@ -70,6 +70,20 @@ account_allowed_symbols = "-_[]"
 levels = "fatal,error,warn,info,debug,trace"
 #levels = "fatal,error,warn,info"
 
+# Path to the log file.  Leave empty (or commented out) to disable file logging.
+# Note: d2cs also has [files].logfile for the legacy log path; this key
+# controls the spdlog rotating-file sink introduced in R252.
+#file = "${LOCALSTATEDIR}/d2cs.log"
+
+# Also write log output to stdout/stderr (default: true).
+stdout = true
+
+# Rotating log file settings (only used when `file` is set).
+# rotate_size  : rotate when the log file exceeds this size in bytes (default 10 MiB).
+# rotate_files : number of rotated files to keep (0 = keep all).
+rotate_size  = 10485760
+rotate_files = 5
+
 ##############################################################################
 # [files]  — Paths to data files and directories                             #
 # Use absolute paths to avoid problems.                                      #

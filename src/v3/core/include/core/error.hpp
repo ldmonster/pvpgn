@@ -34,6 +34,15 @@ enum class StatusCode {
     Unavailable        = 14,
     DataLoss           = 15,
     DeadlineExceeded   = 16,
+    // R248: extended codes
+    Conflict           = 17,  ///< resource conflict (e.g. duplicate account)
+    RateLimited        = 18,  ///< request rate exceeded
+    Timeout            = 19,  ///< operation timed out (preferred over DeadlineExceeded in new code)
+    ProtocolError      = 20,  ///< malformed or unexpected protocol message
+    NetworkError       = 21,  ///< network-level failure (connect, send, recv)
+    ConfigError        = 22,  ///< configuration is invalid or missing
+    DependencyFailed   = 23,  ///< a required dependency (DB, service) is unavailable
+    SchemaMismatch     = 24,  ///< DB or config schema version mismatch
 };
 
 constexpr std::string_view to_string(StatusCode c) noexcept {
@@ -55,9 +64,22 @@ constexpr std::string_view to_string(StatusCode c) noexcept {
         case StatusCode::Unavailable:        return "Unavailable";
         case StatusCode::DataLoss:           return "DataLoss";
         case StatusCode::DeadlineExceeded:   return "DeadlineExceeded";
+        // R248: extended codes
+        case StatusCode::Conflict:           return "Conflict";
+        case StatusCode::RateLimited:        return "RateLimited";
+        case StatusCode::Timeout:            return "Timeout";
+        case StatusCode::ProtocolError:      return "ProtocolError";
+        case StatusCode::NetworkError:       return "NetworkError";
+        case StatusCode::ConfigError:        return "ConfigError";
+        case StatusCode::DependencyFailed:   return "DependencyFailed";
+        case StatusCode::SchemaMismatch:     return "SchemaMismatch";
     }
     return "?";
 }
+
+/// Translate a POSIX errno value to the closest StatusCode.
+/// Unknown errno values map to StatusCode::Internal.
+[[nodiscard]] StatusCode from_errno(int err_no) noexcept;
 
 /// Generic error: a code + an optional human-readable message.
 /// Cheap to move; intentionally not `constexpr` because of `std::string`.

@@ -10,7 +10,7 @@
 
 #include <array>
 #include <cstdint>
-#include <cstdio>
+#include <format>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -63,18 +63,13 @@ public:
     std::string to_string() const {
         if (is_v4()) {
             const auto& a = std::get<V4>(data_);
-            char buf[16];
-            std::snprintf(buf, sizeof(buf), "%u.%u.%u.%u", a[0], a[1], a[2], a[3]);
-            return buf;
+            return std::format("{}.{}.{}.{}", a[0], a[1], a[2], a[3]);
         }
         const auto& a = std::get<V6>(data_);
-        char buf[40];
-        std::snprintf(buf, sizeof(buf),
-                      "%02x%02x:%02x%02x:%02x%02x:%02x%02x:"
-                      "%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-                      a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7],
-                      a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]);
-        return buf;
+        return std::format("{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:"
+                           "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}",
+                           a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7],
+                           a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]);
     }
 
     bool operator==(const IpAddress& other) const noexcept { return data_ == other.data_; }

@@ -67,6 +67,17 @@ target_link_libraries(pvpgn_v3_d2cs
         Threads::Threads
 )
 
+# Optional: infra_config (TOML loading) — available when PVPGN_V3_WITH_TOMLPP=ON
+if(TARGET infra_config)
+    target_link_libraries(pvpgn_v3_d2cs PRIVATE infra_config)
+    target_compile_definitions(pvpgn_v3_d2cs PRIVATE PVPGN_V3_D2CS_HAVE_CONFIG=1)
+endif()
+
+# Optional: infra_log (spdlog logger factory) — available when PVPGN_V3_WITH_SPDLOG=ON
+if(TARGET infra_log)
+    target_link_libraries(pvpgn_v3_d2cs PRIVATE infra_log)
+endif()
+
 # Install
 install(TARGETS pvpgn_v3_d2cs
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

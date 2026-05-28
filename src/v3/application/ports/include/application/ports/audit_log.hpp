@@ -49,11 +49,12 @@ enum class AuditAction : std::uint16_t {
 };
 
 struct AuditEntry {
-    AuditAction     action;
+    AuditAction       action;
     domain::AccountId actor;
-    std::string     subject;       // target account/IP/channel/game name
-    std::string     details;       // additional context
-    core::SystemTime timestamp;
+    std::string       subject;    // target account/IP/channel/game name
+    std::string       details;    // additional context
+    std::string       source_ip{};// IPv4/IPv6 address string, empty if unknown
+    core::SystemTime  timestamp;
 };
 
 class IAuditLog {

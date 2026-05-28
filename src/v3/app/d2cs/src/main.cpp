@@ -41,9 +41,16 @@
 #include <boost/asio/ip/tcp.hpp>
 
 // v3 infrastructure
+#include "core/format.hpp"
 #include "infra/net/io_runtime.hpp"
 #include "infra/net/tcp_acceptor.hpp"
 #include "infra/net/tcp_session.hpp"
+#if defined(PVPGN_V3_D2CS_HAVE_CONFIG) && __has_include("infra/config/d2cs_server_config.hpp")
+#  include "infra/config/d2cs_server_config.hpp"
+#  include "infra/config/server_config.hpp"
+#  include "infra/log/logger_factory.hpp"
+#  define PVPGN_V3_D2CS_HAVE_LOGGER_FACTORY 1
+#endif
 
 // D2CS composition root helpers
 #include "app/d2cs/d2cs_tcp_session.hpp"
@@ -160,10 +167,51 @@ int main(int argc, char* argv[]) {
         // 2. Build config
         const D2CSConfig cfg = build_config(cli);
 
-        std::cout << "[d2cs] pvpgn_v3_d2cs composition root starting\n"
-                  << "  listen address : " << cfg.listen_address << "\n"
-                  << "  d2cs port      : " << cfg.d2cs_port      << "\n"
-                  << "  log level      : " << cfg.log_level       << "\n";
+        // 2b. Logger initialization from TOML config
+#if defined(PVPGN_V3_D2CS_HAVE_LOGGER_FACTORY)
+        {
+            infra::config::D2csServerConfig d2cs_cfg;
+            if (!cli.config_path.empty()) {
+                auto result = infra::config::load_d2cs_server_config(cli.config_path);
+                if (result.has_value()) {
+                    d2cs_cfg = std::move(result.value());
+                } else {
+                    std::cerr << "[d2cs] Warning: failed to load config from "
+                              << cli.config_path << ": " << result.error().message() << "\n";
+                }
+            }
+            // Build a LogConfig from D2csLogSection fields.
+            // levels_str_to_level() is internal to server_config.cpp; parse inline.
+            infra::config::LogConfig log_cfg;
+            const std::string& lvls = d2cs_cfg.log.levels;
+            if (lvls.find("trace") != std::string::npos)
+                log_cfg.level = core::LogLevel::Trace;
+            else if (lvls.find("debug") != std::string::npos)
+                log_cfg.level = core::LogLevel::Debug;
+            else if (lvls.find("warn") != std::string::npos)
+                log_cfg.level = core::LogLevel::Warn;
+            else if (lvls.find("error") != std::string::npos)
+                log_cfg.level = core::LogLevel::Error;
+            else if (lvls.find("fatal") != std::string::npos)
+                log_cfg.level = core::LogLevel::Fatal;
+            else
+                log_cfg.level = core::LogLevel::Info;
+            log_cfg.levels_str   = lvls;
+            // Prefer [log].file; fall back to [files].logfile for legacy compat.
+            log_cfg.file         = d2cs_cfg.log.file.empty()
+                                       ? d2cs_cfg.files.logfile
+                                       : d2cs_cfg.log.file;
+            log_cfg.stdout_sink  = d2cs_cfg.log.stdout_sink;
+            log_cfg.rotate_size  = d2cs_cfg.log.rotate_size;
+            log_cfg.rotate_files = d2cs_cfg.log.rotate_files;
+            infra::log::make_and_install_logger(log_cfg, "d2cs");
+        }
+#endif
+        LOG_INFO("d2cs", "pvpgn_v3_d2cs starting, config={}",
+            cli.config_path.empty() ? std::string("(defaults)") : cli.config_path);
+        LOG_INFO("d2cs", "  listen address : {}", cfg.listen_address);
+        LOG_INFO("d2cs", "  d2cs port      : {}", cfg.d2cs_port);
+        LOG_INFO("d2cs", "  log level      : {}", cfg.log_level);
 
         // 3. Create IoRuntime (Asio thread pool)
         pvpgn::infra::net::IoRuntime rt;
@@ -178,8 +226,7 @@ int main(int argc, char* argv[]) {
             }};
         d2cs_listener.start(cfg.listen_address, cfg.d2cs_port);
 
-        std::cout << "[d2cs] pvpgn_v3_d2cs listening on port "
-                  << cfg.d2cs_port << "\n";
+        LOG_INFO("d2cs", "D2CS listening on port {}", cfg.d2cs_port);
 
         // 5. Install signal handlers → graceful stop
         rt.install_signal_handlers({SIGINT, SIGTERM});
@@ -190,14 +237,14 @@ int main(int argc, char* argv[]) {
                 ? cfg.worker_threads
                 : std::max(1u, std::thread::hardware_concurrency());
 
-        std::cout << "[d2cs] starting " << n_threads << " worker thread(s)\n";
+        LOG_INFO("d2cs", "starting {} worker thread(s)", n_threads);
         rt.run(n_threads);
 
         // 7. Graceful shutdown
-        std::cout << "[d2cs] shutting down\n";
+        LOG_INFO("d2cs", "shutting down");
         d2cs_listener.stop();
 
-        std::cout << "[d2cs] stopped\n";
+        LOG_INFO("d2cs", "stopped");
         return EXIT_SUCCESS;
 
     } catch (const std::exception& ex) {

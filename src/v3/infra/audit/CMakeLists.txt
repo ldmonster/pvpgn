@@ -6,6 +6,7 @@ add_library(pvpgn_infra_audit)
 target_sources(pvpgn_infra_audit
   PRIVATE
     src/in_memory_audit_log.cpp
+    src/file_audit_log.cpp
 )
 
 target_include_directories(pvpgn_infra_audit

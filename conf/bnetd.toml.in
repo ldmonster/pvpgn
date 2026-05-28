@@ -101,6 +101,18 @@ localize_by_country = true
 levels = "fatal,error,warn,info,debug,trace"
 #levels = "fatal,error,warn,info"
 
+# Path to the log file.  Leave empty (or commented out) to disable file logging.
+#file = "${LOCALSTATEDIR}/bnetd.log"
+
+# Also write log output to stdout/stderr (default: true).
+stdout = true
+
+# Rotating log file settings (only used when `file` is set).
+# rotate_size  : rotate when the log file exceeds this size in bytes (default 10 MiB).
+# rotate_files : number of rotated files to keep (0 = keep all).
+rotate_size  = 10485760
+rotate_files = 5
+
 ##############################################################################
 # [d2cs]  — Diablo II Character Server integration                          #
 ##############################################################################

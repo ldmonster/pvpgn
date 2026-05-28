@@ -29,3 +29,11 @@ pvpgn_v3_add_test(test_application_auth_logout_user
 pvpgn_v3_add_test(test_application_auth_account_lock
     SOURCES account_lock_test.cpp
     DEPS    application_auth infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_lookup_account
+    SOURCES lookup_account_test.cpp
+    DEPS    application_auth infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_list_sessions
+    SOURCES list_sessions_test.cpp
+    DEPS    application_auth infra_inmemory)
