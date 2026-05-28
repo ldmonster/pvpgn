@@ -2,12 +2,13 @@
 #pragma once
 
 /// @file adapter_registry.hpp
-/// Registry for persistence backend adapters. Provides static factory
-/// methods to create IUnitOfWorkFactory instances for different backends.
+/// Instance-based factory for persistence backend adapters.
+/// Replaces the former static AdapterRegistry with an injectable AdapterFactory.
 
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -33,33 +34,42 @@ struct PersistenceConfig {
     std::uint32_t pool_size{4};     ///< Connection pool size for SQL
 };
 
-/// Registry for persistence backend factories.
-/// Uses static registry pattern to support multiple backend implementations.
-class AdapterRegistry {
+/// Instance-based factory for persistence backend adapters.
+/// Holds a per-instance registry of backend factory functions.
+/// Inject this as a dependency rather than relying on global/static state.
+class AdapterFactory {
 public:
     /// Type alias for factory function
     using FactoryFunction = std::function<
         std::unique_ptr<application::ports::IUnitOfWorkFactory>(
             const PersistenceConfig&)>;
 
+    AdapterFactory() = default;
+    ~AdapterFactory() = default;
+
+    // Non-copyable, movable
+    AdapterFactory(const AdapterFactory&) = delete;
+    AdapterFactory& operator=(const AdapterFactory&) = delete;
+    AdapterFactory(AdapterFactory&&) = default;
+    AdapterFactory& operator=(AdapterFactory&&) = default;
+
     /// Register a factory function for a given backend type.
-    /// Call during application initialization before creating UnitOfWork.
-    static void register_backend(BackendType type, FactoryFunction factory);
+    void register_backend(BackendType type, FactoryFunction factory);
 
     /// Create a UnitOfWorkFactory for the configured backend.
-    /// Returns an error if the backend is not registered.
-    static std::unique_ptr<application::ports::IUnitOfWorkFactory> create(
-        const PersistenceConfig& config);
+    /// Returns nullptr if the backend is not registered.
+    std::unique_ptr<application::ports::IUnitOfWorkFactory> create(
+        const PersistenceConfig& config) const;
 
     /// Get list of currently registered backend types.
-    static std::vector<BackendType> available_backends();
+    std::vector<BackendType> available_backends() const;
 
     /// Clear all registered backends (useful for testing).
-    static void clear();
+    void clear();
 
 private:
-    // Static factory map: BackendType -> FactoryFunction
-    static std::map<BackendType, FactoryFunction>& registry();
+    mutable std::mutex mutex_;
+    std::map<BackendType, FactoryFunction> registry_;
 };
 
 }  // namespace pvpgn::infra::persistence

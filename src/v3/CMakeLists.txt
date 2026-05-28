@@ -355,6 +355,14 @@ pvpgn_v3_add_library(protocol_common
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/common/include
     PUBLIC_DEPS
         core
+    INTERFACE_SOURCES
+        protocol/common/include/protocol/common/packet.hpp
+        protocol/common/include/protocol/common/reader.hpp
+        protocol/common/include/protocol/common/writer.hpp
+        protocol/common/include/protocol/common/replay.hpp
+        protocol/common/include/protocol/common/decode_error.hpp
+        protocol/common/include/protocol/common/frame_view.hpp
+        protocol/common/include/protocol/common/next_frame.hpp
 )
 
 # ---- protocol/bnet ------------------------------------------------------
@@ -1500,6 +1508,14 @@ add_subdirectory(tools/bnpass)
 add_subdirectory(tools/bniutils)
 add_subdirectory(tools/bntrackd)
 add_subdirectory(tools/client)
+
+# ---- services (composition roots — one per server process) ------------------
+#
+# Each services/<name>/ subdirectory defines a static library that wires
+# infrastructure adapters together.  The app/<name>/ executables link against
+# these libraries so that main() stays a thin bootstrap.
+
+add_subdirectory(services)
 
 # ---- app/bnetd (v3 composition root — standalone server binary) -------------
 #

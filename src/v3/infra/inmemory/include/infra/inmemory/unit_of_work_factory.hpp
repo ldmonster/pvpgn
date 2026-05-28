@@ -23,6 +23,7 @@ class InMemoryIpBanRepository;
 class InMemoryAccountBanRepository;
 class InMemoryFriendListRepository;
 class InMemoryRealmRepository;
+class InMemoryTeamRepository;
 
 /// Factory for creating InMemoryUnitOfWork instances.
 /// Holds shared_ptr references to all repositories and returns new UnitOfWork
@@ -45,6 +46,7 @@ private:
     std::shared_ptr<InMemoryAccountBanRepository> account_bans_;
     std::shared_ptr<InMemoryFriendListRepository> friend_lists_;
     std::shared_ptr<InMemoryRealmRepository> realms_;
+    std::shared_ptr<InMemoryTeamRepository> teams_;
 };
 
 }  // namespace pvpgn::infra::inmemory

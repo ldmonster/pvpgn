@@ -23,6 +23,7 @@ class IIpBanRepository;
 class IAccountBanRepository;
 class IFriendListRepository;
 class IRealmRepository;
+class ITeamRepository;
 }
 
 namespace pvpgn::application::ports {
@@ -57,6 +58,7 @@ public:
     virtual IAccountBanRepository& account_bans() = 0;
     virtual IFriendListRepository& friend_lists() = 0;
     virtual IRealmRepository& realms() = 0;
+    [[nodiscard]] virtual ITeamRepository& teams() = 0;
 };
 
 /// RAII guard for automatic rollback on scope exit.

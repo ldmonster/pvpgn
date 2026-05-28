@@ -33,6 +33,7 @@ public:
     application::ports::IAccountBanRepository& account_bans() override;
     application::ports::IFriendListRepository& friend_lists() override;
     application::ports::IRealmRepository& realms() override;
+    [[nodiscard]] application::ports::ITeamRepository& teams() override;
 
 private:
     std::shared_ptr<PostgreSQLConnection> conn_;
@@ -47,6 +48,7 @@ private:
     // - AccountBanRepository
     // - FriendListRepository
     // - RealmRepository
+    // - TeamRepository
     // - Placeholder repositories for channels/games (ephemeral/session-scoped)
 };
 

@@ -2,50 +2,37 @@
 
 #include "infra/persistence/adapter_registry.hpp"
 
-#include <mutex>
-
 namespace pvpgn::infra::persistence {
 
-static std::mutex& registry_mutex() {
-    static std::mutex m;
-    return m;
+void AdapterFactory::register_backend(BackendType type,
+                                      FactoryFunction factory) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    registry_[type] = std::move(factory);
 }
 
-std::map<BackendType, AdapterRegistry::FactoryFunction>&
-AdapterRegistry::registry() {
-    static std::map<BackendType, FactoryFunction> r;
-    return r;
-}
-
-void AdapterRegistry::register_backend(BackendType type,
-                                       FactoryFunction factory) {
-    std::lock_guard<std::mutex> lock(registry_mutex());
-    registry()[type] = factory;
-}
-
-std::unique_ptr<application::ports::IUnitOfWorkFactory> AdapterRegistry::create(
-    const PersistenceConfig& config) {
-    std::lock_guard<std::mutex> lock(registry_mutex());
-    auto& r = registry();
-    auto it = r.find(config.backend);
-    if (it == r.end()) {
+std::unique_ptr<application::ports::IUnitOfWorkFactory>
+AdapterFactory::create(const PersistenceConfig& config) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = registry_.find(config.backend);
+    if (it == registry_.end()) {
         return nullptr;
     }
     return it->second(config);
 }
 
-std::vector<BackendType> AdapterRegistry::available_backends() {
-    std::lock_guard<std::mutex> lock(registry_mutex());
+std::vector<BackendType> AdapterFactory::available_backends() const {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::vector<BackendType> result;
-    for (const auto& [type, _] : registry()) {
+    result.reserve(registry_.size());
+    for (const auto& [type, _] : registry_) {
         result.push_back(type);
     }
     return result;
 }
 
-void AdapterRegistry::clear() {
-    std::lock_guard<std::mutex> lock(registry_mutex());
-    registry().clear();
+void AdapterFactory::clear() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    registry_.clear();
 }
 
 }  // namespace pvpgn::infra::persistence

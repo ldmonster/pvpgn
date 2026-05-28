@@ -78,6 +78,7 @@ target_link_libraries(pvpgn_v3_bnetd
         protocol_wol
         infra_net
         app_bnetd_legacy_bridge
+        services_bnetd
         Boost::system
         Threads::Threads
 )

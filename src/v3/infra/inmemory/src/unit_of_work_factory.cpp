@@ -10,6 +10,7 @@
 #include "infra/inmemory/account_ban_repository.hpp"
 #include "infra/inmemory/friend_list_repository.hpp"
 #include "infra/inmemory/realm_repository.hpp"
+#include "infra/inmemory/in_memory_team_repository.hpp"
 #include "infra/inmemory/unit_of_work.hpp"
 
 namespace pvpgn::infra::inmemory {
@@ -23,14 +24,15 @@ InMemoryUnitOfWorkFactory::InMemoryUnitOfWorkFactory()
       ip_bans_(std::make_shared<InMemoryIpBanRepository>()),
       account_bans_(std::make_shared<InMemoryAccountBanRepository>()),
       friend_lists_(std::make_shared<InMemoryFriendListRepository>()),
-      realms_(std::make_shared<InMemoryRealmRepository>()) {
+      realms_(std::make_shared<InMemoryRealmRepository>()),
+      teams_(std::make_shared<InMemoryTeamRepository>()) {
 }
 
 std::unique_ptr<application::ports::IUnitOfWork>
 InMemoryUnitOfWorkFactory::create() {
     return std::make_unique<InMemoryUnitOfWork>(
         accounts_, channels_, games_, clans_, ladder_, ip_bans_,
-        account_bans_, friend_lists_, realms_);
+        account_bans_, friend_lists_, realms_, teams_);
 }
 
 }  // namespace pvpgn::infra::inmemory

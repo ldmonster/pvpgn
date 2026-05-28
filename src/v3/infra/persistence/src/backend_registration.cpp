@@ -2,7 +2,7 @@
 
 /// @file backend_registration.cpp
 /// Backend registration initialization.
-/// Registers SQLite and File backends with AdapterRegistry.
+/// Registers SQLite and File backends with an AdapterFactory instance.
 
 #include "infra/persistence/adapter_registry.hpp"
 
@@ -11,11 +11,11 @@
 
 namespace pvpgn::infra::persistence {
 
-/// Initialize all persistence backends.
+/// Initialize all persistence backends into the given factory.
 /// Call this during application startup before creating unit of work.
-void register_backends() {
+void register_backends(AdapterFactory& factory) {
     // Register SQLite backend
-    AdapterRegistry::register_backend(
+    factory.register_backend(
         BackendType::SQLite,
         [](const PersistenceConfig& config) {
             return std::make_unique<sqlite::SQLiteUnitOfWorkFactory>(
@@ -23,7 +23,7 @@ void register_backends() {
         });
 
     // Register File backend
-    AdapterRegistry::register_backend(
+    factory.register_backend(
         BackendType::File,
         [](const PersistenceConfig& config) {
             return std::make_unique<file::FileUnitOfWorkFactory>(
