@@ -15,7 +15,11 @@ endif()
 set(CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE ON)
 
 project(pvpgn VERSION 4.0.0 LANGUAGES C CXX)
-set(CMAKE_CXX_STANDARD 11)
+# R210 (plans/01-modern-cpp-baseline.md): raised global floor from C++11
+# to C++20. The v3 sub-tree already targeted C++20 per-target via
+# PVPGN_V3_CXX_STANDARD in cmake/v3.cmake; this bump aligns the legacy
+# tree with the same standard so the whole project speaks one dialect.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 

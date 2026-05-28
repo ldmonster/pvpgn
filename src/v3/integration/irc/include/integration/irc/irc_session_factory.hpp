@@ -4,6 +4,7 @@
 /// @file irc_session_factory.hpp
 /// IRC protocol session factory for IRC client access to BNet.
 
+#include "core/bytes.hpp"
 #include "core/result.hpp"
 #include <memory>
 #include <string>
@@ -23,8 +24,9 @@ public:
     
     explicit IrcSession(std::string session_id, OutputCallback output_cb);
     
-    // Feed raw bytes from client
-    core::Result<void, core::Error> feed(std::span<const uint8_t> data);
+    // Feed raw bytes from client.
+    // R212: canonical core::ByteView at the integration boundary.
+    core::Result<void, core::Error> feed(core::ByteView data);
     
     State state() const noexcept { return state_; }
     const std::string& session_id() const noexcept { return session_id_; }

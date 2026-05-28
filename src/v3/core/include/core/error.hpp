@@ -67,9 +67,10 @@ public:
     explicit Error(StatusCode c, std::string msg = {})
         : code_(c), message_(std::move(msg)) {}
 
-    StatusCode         code()    const noexcept { return code_; }
-    const std::string& message() const noexcept { return message_; }
-    bool               is_ok()   const noexcept { return code_ == StatusCode::Ok; }
+    // R214: accessors are query functions; ignoring them is always a bug.
+    [[nodiscard]] StatusCode         code()    const noexcept { return code_; }
+    [[nodiscard]] const std::string& message() const noexcept { return message_; }
+    [[nodiscard]] bool               is_ok()   const noexcept { return code_ == StatusCode::Ok; }
 
     friend bool operator==(const Error& a, const Error& b) noexcept {
         return a.code_ == b.code_ && a.message_ == b.message_;
@@ -81,7 +82,7 @@ private:
 };
 
 /// Convenience constructor: `make_error(StatusCode::NotFound, "user gone")`.
-inline Error make_error(StatusCode c, std::string msg = {}) {
+[[nodiscard]] inline Error make_error(StatusCode c, std::string msg = {}) {
     return Error{c, std::move(msg)};
 }
 

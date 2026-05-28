@@ -22,11 +22,13 @@
 
 #include "logging.hpp"
 
-#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
-  #include <format>
-  #define PVPGN_V3_HAS_STD_FORMAT 1
-#else
-  #define PVPGN_V3_HAS_STD_FORMAT 0
+// R211 (plans/01-modern-cpp-baseline.md S2): C++20 is mandatory (see
+// core/cxx.hpp / R210). std::format ships with libstdc++ >= 13 and MSVC
+// 19.29+. We require it; the previous "if not available, silently emit
+// unformatted text" fallback was a debugging footgun.
+#include <format>
+#if !defined(__cpp_lib_format) || __cpp_lib_format < 201907L
+#error "pvpgn v3 requires <format> (libstdc++ >= 13 or MSVC 19.29+)."
 #endif
 
 #ifndef PVPGN_V3_LOG_LEVEL
@@ -35,7 +37,6 @@
 
 namespace pvpgn::core {
 
-#if PVPGN_V3_HAS_STD_FORMAT
 template <class... Args>
 inline std::string format_str(std::format_string<Args...> fmt, Args&&... args) {
     try {
@@ -44,11 +45,6 @@ inline std::string format_str(std::format_string<Args...> fmt, Args&&... args) {
         return std::string{"<format error>"};
     }
 }
-#else
-// Fallback when stdlib lacks std::format (e.g. libstdc++ < 13): caller
-// passes an already-formatted string; placeholders are not expanded.
-inline std::string format_str(std::string_view s) { return std::string{s}; }
-#endif
 
 inline void log_msg(LogLevel level, std::string_view module,
                     std::string_view msg) noexcept {
@@ -57,19 +53,14 @@ inline void log_msg(LogLevel level, std::string_view module,
 
 }  // namespace pvpgn::core
 
-#if PVPGN_V3_HAS_STD_FORMAT
-  #define PVPGN_V3_LOG(lvl_, module, ...)                                  \
-      do {                                                                 \
-          if (static_cast<int>(lvl_) >=                                    \
-              static_cast<int>(::pvpgn::core::default_logger().level())) { \
-              ::pvpgn::core::log_msg((lvl_), (module),                     \
-                  ::pvpgn::core::format_str(__VA_ARGS__));                 \
-          }                                                                \
-      } while (0)
-#else
-  #define PVPGN_V3_LOG(lvl_, module, msg)                                  \
-      ::pvpgn::core::log_msg((lvl_), (module), (msg))
-#endif
+#define PVPGN_V3_LOG(lvl_, module, ...)                                  \
+    do {                                                                 \
+        if (static_cast<int>(lvl_) >=                                    \
+            static_cast<int>(::pvpgn::core::default_logger().level())) { \
+            ::pvpgn::core::log_msg((lvl_), (module),                     \
+                ::pvpgn::core::format_str(__VA_ARGS__));                 \
+        }                                                                \
+    } while (0)
 
 #if PVPGN_V3_LOG_LEVEL <= 0
   #define LOG_TRACE(mod, ...) PVPGN_V3_LOG(::pvpgn::core::LogLevel::Trace, mod, __VA_ARGS__)

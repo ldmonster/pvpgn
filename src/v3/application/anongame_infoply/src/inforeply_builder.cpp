@@ -4,7 +4,6 @@
 
 #include <utility>
 
-#include "infra/compression/zlib_anongame.hpp"
 #include "protocol/bnet/codec.hpp"
 #include "protocol/common/writer.hpp"
 
@@ -31,8 +30,9 @@ core::Result<pb::AnonGameInfoReply> compose_inforeply(
     std::uint32_t tag_unk,
     std::uint32_t count,
     std::span<const std::uint8_t> serialized_payload,
-    bool more) {
-    auto framed = infra::compression::anongame_compress(serialized_payload);
+    bool more,
+    const ports::IAnonGameCompressor& compressor) {
+    auto framed = compressor.compress(serialized_payload);
     if (!framed) return core::fail(framed.error());
 
     pb::AnonGameInfoReply out{};
@@ -99,7 +99,8 @@ core::Result<pb::AnonGameInfoReply> build_inforeply_for_tag(
     std::uint32_t tag_unk,
     std::uint32_t count,
     const AnonGameInfoSnapshot& snapshot,
-    bool more) {
+    bool more,
+    const ports::IAnonGameCompressor& compressor) {
     auto ser = serialize_from_snapshot(client_tag, snapshot);
     if (!ser) return core::fail(ser.error());
     if (!ser.value().found) {
@@ -113,13 +114,15 @@ core::Result<pb::AnonGameInfoReply> build_inforeply_for_tag(
     const auto& bytes = ser.value().bytes;
     return compose_inforeply(
         stag.value(), tag_unk, count,
-        std::span<const std::uint8_t>{bytes.data(), bytes.size()}, more);
+        std::span<const std::uint8_t>{bytes.data(), bytes.size()}, more,
+        compressor);
 }
 
 core::Result<std::vector<pb::AnonGameInfoReply>>
 build_inforeplies_for_request(
     const pb::AnonGameInfoRequest& request,
-    const AnonGameInfoSnapshot& snapshot) {
+    const AnonGameInfoSnapshot& snapshot,
+    const ports::IAnonGameCompressor& compressor) {
     // First pass: figure out which requested tags actually have data
     // in the snapshot, preserving request order.
     std::vector<std::size_t> producing;
@@ -136,7 +139,7 @@ build_inforeplies_for_request(
         const auto& e    = request.entries[producing[k]];
         const bool  more = (k + 1 < producing.size());
         auto reply = build_inforeply_for_tag(
-            e.tag, e.tag_unk, request.count, snapshot, more);
+            e.tag, e.tag_unk, request.count, snapshot, more, compressor);
         if (!reply) return core::fail(reply.error());
         out.push_back(std::move(reply).value());
     }
@@ -163,8 +166,9 @@ core::Result<std::vector<std::byte>> encode_inforeply_packets(
 
 core::Result<std::vector<std::byte>> encode_inforeplies_for_request(
     const pb::AnonGameInfoRequest& request,
-    const AnonGameInfoSnapshot& snapshot) {
-    auto replies = build_inforeplies_for_request(request, snapshot);
+    const AnonGameInfoSnapshot& snapshot,
+    const ports::IAnonGameCompressor& compressor) {
+    auto replies = build_inforeplies_for_request(request, snapshot, compressor);
     if (!replies) return core::fail(replies.error());
     return encode_inforeply_packets(
         std::span<const pb::AnonGameInfoReply>{replies.value().data(),
@@ -178,8 +182,9 @@ core::Result<std::vector<std::byte>> encode_inforeplies_for_request(
 namespace {
 
 core::Result<std::vector<std::uint8_t>> compress_one(
-    const std::vector<std::uint8_t>& serialized) {
-    return infra::compression::anongame_compress(
+    const std::vector<std::uint8_t>& serialized,
+    const ports::IAnonGameCompressor& compressor) {
+    return compressor.compress(
         std::span<const std::uint8_t>{serialized.data(), serialized.size()});
 }
 
@@ -209,30 +214,31 @@ core::Result<const std::vector<std::uint8_t>*> lookup_compiled(
 }  // namespace
 
 core::Result<CompiledSnapshot> compile_snapshot(
-    const AnonGameInfoSnapshot& s) {
+    const AnonGameInfoSnapshot& s,
+    const ports::IAnonGameCompressor& compressor) {
     CompiledSnapshot c{};
     if (s.url) {
-        auto bytes = compress_one(pb::serialize_url_payload(*s.url));
+        auto bytes = compress_one(pb::serialize_url_payload(*s.url), compressor);
         if (!bytes) return core::fail(bytes.error());
         c.url = std::move(bytes).value();
     }
     if (s.map) {
-        auto bytes = compress_one(pb::serialize_map_payload(*s.map));
+        auto bytes = compress_one(pb::serialize_map_payload(*s.map), compressor);
         if (!bytes) return core::fail(bytes.error());
         c.map = std::move(bytes).value();
     }
     if (s.type) {
-        auto bytes = compress_one(pb::serialize_type_payload(*s.type));
+        auto bytes = compress_one(pb::serialize_type_payload(*s.type), compressor);
         if (!bytes) return core::fail(bytes.error());
         c.type = std::move(bytes).value();
     }
     if (s.desc) {
-        auto bytes = compress_one(pb::serialize_desc_payload(*s.desc));
+        auto bytes = compress_one(pb::serialize_desc_payload(*s.desc), compressor);
         if (!bytes) return core::fail(bytes.error());
         c.desc = std::move(bytes).value();
     }
     if (s.ladr) {
-        auto bytes = compress_one(pb::serialize_ladr_payload(*s.ladr));
+        auto bytes = compress_one(pb::serialize_ladr_payload(*s.ladr), compressor);
         if (!bytes) return core::fail(bytes.error());
         c.ladr = std::move(bytes).value();
     }
@@ -248,13 +254,14 @@ const CompiledSnapshot& CompiledSnapshotSet::select(
 
 core::Result<CompiledSnapshotSet> compile_snapshot_set(
     const AnonGameInfoSnapshot& default_snapshot,
-    const std::unordered_map<std::string, AnonGameInfoSnapshot>& by_lang) {
+    const std::unordered_map<std::string, AnonGameInfoSnapshot>& by_lang,
+    const ports::IAnonGameCompressor& compressor) {
     CompiledSnapshotSet out{};
-    auto def = compile_snapshot(default_snapshot);
+    auto def = compile_snapshot(default_snapshot, compressor);
     if (!def) return core::fail(def.error());
     out.default_snapshot = std::move(def).value();
     for (const auto& [lang, snap] : by_lang) {
-        auto c = compile_snapshot(snap);
+        auto c = compile_snapshot(snap, compressor);
         if (!c) return core::fail(c.error());
         out.by_lang.emplace(lang, std::move(c).value());
     }

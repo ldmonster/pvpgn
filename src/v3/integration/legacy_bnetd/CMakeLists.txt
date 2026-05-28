@@ -76,6 +76,11 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             src/handle_bnet_link.cpp  # R209: relocated from src/bnetd/handle_bnet.cpp (guards stripped)
             src/ads_bridge_link.cpp
             src/realm_list_bridge_link.cpp
+            src/command_dispatch_bridge.cpp  # R216: legacy chat command strangler
+            src/legacy_help_responder.cpp    # R216d: IHelpResponder legacy adapter
+            src/legacy_help_command_permissions.cpp  # R216f: permissions adapter
+            src/legacy_message_sink.cpp              # R216f: message sink adapter
+            src/legacy_help_corpus_provider.cpp      # R216f: corpus loader adapter
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/include
         PUBLIC_DEPS

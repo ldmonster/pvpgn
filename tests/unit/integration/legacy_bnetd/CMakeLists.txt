@@ -122,6 +122,26 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_anongame_infos_get_bridge
     SOURCES anongame_infos_get_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
 
+# R230(1): runprog lifecycle observer
+pvpgn_v3_add_test(test_integration_legacy_bnetd_runprog_bridge
+    SOURCES runprog_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+# R230(2): news lifecycle observer
+pvpgn_v3_add_test(test_integration_legacy_bnetd_news_bridge
+    SOURCES news_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+# R230(3): userlog lifecycle observer
+pvpgn_v3_add_test(test_integration_legacy_bnetd_userlog_bridge
+    SOURCES userlog_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+# R230(4): versioncheck lifecycle observer
+pvpgn_v3_add_test(test_integration_legacy_bnetd_versioncheck_bridge
+    SOURCES versioncheck_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
 pvpgn_v3_add_test(test_integration_legacy_bnetd_clan_dispatch_bridge
     SOURCES clan_dispatch_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
@@ -399,9 +419,11 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_server_dispatch_bridge
     SOURCES server_dispatch_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
 
-pvpgn_v3_add_test(test_integration_legacy_bnetd_command_dispatch_bridge
-    SOURCES command_dispatch_bridge_test.cpp
-    DEPS    integration_legacy_bnetd)
+# R216: the legacy chat command bridge moved into
+# integration_legacy_bnetd_linked (it needs legacy headers to call
+# conn_get_account / message_send_text / handle_help_command). The
+# old observer-only unit test no longer applies; pure-v3 routing
+# logic is covered by tests/unit/application/admin_commands/.
 
 pvpgn_v3_add_test(test_integration_legacy_bnetd_send_clan_motdreply_bridge
     SOURCES send_clan_motdreply_bridge_test.cpp

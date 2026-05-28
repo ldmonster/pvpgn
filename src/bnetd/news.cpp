@@ -31,6 +31,12 @@
 
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R230(2): observation bridges for news lifecycle.
+extern "C" int pvpgn_v3_news_load_try(char const* filename) noexcept;
+extern "C" int pvpgn_v3_news_unload_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -135,6 +141,9 @@ namespace pvpgn
 
 		extern int news_load(const char *filename)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_news_load_try(filename);
+#endif
 			std::FILE * 		fp;
 			unsigned int	line;
 			unsigned int	len;
@@ -207,6 +216,9 @@ namespace pvpgn
 		/* Free up all of the elements in the linked list */
 		extern int news_unload(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_news_unload_try();
+#endif
 			t_elist *		curr, *save;
 			t_news_index * 	ni;
 

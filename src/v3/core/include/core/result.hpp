@@ -47,8 +47,8 @@ public:
     Result(T v) : data_(std::in_place_index<0>, std::move(v)) {}             // NOLINT
     Result(Failure<E> f) : data_(std::in_place_index<1>, std::move(f).error()) {}  // NOLINT
 
-    bool has_value() const noexcept { return data_.index() == 0; }
-    explicit operator bool() const noexcept { return has_value(); }
+    [[nodiscard]] bool has_value() const noexcept { return data_.index() == 0; }
+    [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
 
     T& value() & {
         assert(has_value());
@@ -72,7 +72,7 @@ public:
         return std::get<1>(std::move(data_));
     }
 
-    T value_or(T fallback) const& {
+    [[nodiscard]] T value_or(T fallback) const& {
         return has_value() ? std::get<0>(data_) : std::move(fallback);
     }
 
@@ -117,8 +117,8 @@ public:
     Result() noexcept = default;
     Result(Failure<E> f) : error_(std::move(f).error()), ok_(false) {}  // NOLINT
 
-    bool has_value() const noexcept { return ok_; }
-    explicit operator bool() const noexcept { return ok_; }
+    [[nodiscard]] bool has_value() const noexcept { return ok_; }
+    [[nodiscard]] explicit operator bool() const noexcept { return ok_; }
 
     const E& error() const& {
         assert(!ok_);
@@ -145,7 +145,19 @@ private:
 template <class T = void>
 using Status = Result<T, Error>;
 
-inline Status<> ok() {
+/// R214 nodiscard convention
+/// ------------------------
+/// `Result<T,E>` is `[[nodiscard]]` at the class level (see above), so every
+/// function that returns a `Result` or `Status` already triggers a warning
+/// when the result is silently dropped. Project policy: if a return value
+/// must be ignored deliberately (e.g. best-effort logging on shutdown), use
+/// an explicit `(void)expr;` -- never disable the warning globally.
+///
+/// In addition, observer/query members (`has_value`, `value_or`, `error`,
+/// `Error::is_ok`, `Error::code`, etc.) are `[[nodiscard]]` because calling
+/// them for their side effects is always a bug.
+
+[[nodiscard]] inline Status<> ok() {
     return Status<>{};
 }
 

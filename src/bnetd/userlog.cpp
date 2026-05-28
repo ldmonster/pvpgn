@@ -47,6 +47,12 @@
 
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R230(3): observation bridges for userlog (admin audit log) lifecycle.
+extern "C" int pvpgn_v3_userlog_init_try(void) noexcept;
+extern "C" int pvpgn_v3_userlog_append_try(char const* username,
+                                            char const* text) noexcept;
+#endif
 
 namespace pvpgn
 {
@@ -70,6 +76,9 @@ namespace pvpgn
 
 		extern void userlog_init()
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_userlog_init_try();
+#endif
 			char *       temp;
 			char const * tok;
 
@@ -91,6 +100,11 @@ namespace pvpgn
 		// add new line at the end of log file
 		extern void userlog_append(t_account * account, const char * text)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_userlog_append_try(
+				account ? account_get_name(account) : nullptr,
+				text);
+#endif
 			// is logging enabled?
 			if (!prefs_v3::log_commands())
 				return;

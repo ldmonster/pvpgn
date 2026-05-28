@@ -3,8 +3,22 @@
 
 /// @file config_subscriber.hpp
 /// Port for receiving configuration reload notifications.
+///
+/// The `ServerConfig` aggregate currently lives in infra (large
+/// kitchen-sink struct exposed by `infra/config/server_config.hpp`).
+/// Until the configuration model is split into a
+/// domain/application-side `ConfigSnapshot` value type and an
+/// infra-side `ServerConfig` adapter, this port forward-declares
+/// the infra type and passes it by reference. The forward
+/// declaration keeps the port header compile-time independent of
+/// infra (no `#include`), which is what the layering check
+/// enforces. The "name-level" coupling that remains is documented
+/// as future-work in [plans/r218-checklist.md] (config snapshot
+/// extraction).
 
-#include "infra/config/server_config.hpp"
+namespace pvpgn::infra::config {
+struct ServerConfig;
+}  // namespace pvpgn::infra::config
 
 namespace pvpgn::application::ports {
 

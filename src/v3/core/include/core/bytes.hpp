@@ -16,6 +16,19 @@
 
 namespace pvpgn::core {
 
+/// **R212 canonical port-boundary types.**
+///
+/// New code MUST use `ByteView` / `ByteSpan` at port and integration
+/// boundaries (function parameters that accept raw network or file
+/// bytes from outside the layer). They are the canonical project-wide
+/// aliases for `std::span<const std::byte>` and `std::span<std::byte>`.
+///
+/// `std::span<const std::uint8_t>` and `std::vector<std::uint8_t>`
+/// remain valid for *internal* helpers that work with byte-as-integer
+/// (e.g. WOL/IRC line scanners that compare against ASCII codes), and
+/// for *owning* storage buffers in DTOs that round-trip through SQL,
+/// Lua, or legacy `unsigned char*` APIs. Convert at the boundary
+/// using `as_byte_view(...)`.
 using ByteSpan = std::span<std::byte>;        ///< mutable
 using ByteView = std::span<const std::byte>;  ///< immutable
 

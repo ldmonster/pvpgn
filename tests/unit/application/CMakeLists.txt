@@ -1,3 +1,6 @@
+if(TARGET application_admin_commands)
+    add_subdirectory(admin_commands)
+endif()
 if(TARGET application_auth)
     add_subdirectory(auth)
 endif()

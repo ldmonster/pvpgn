@@ -10,10 +10,11 @@ WolSession::WolSession(std::string session_id)
     : session_id_(std::move(session_id)) {}
 
 core::Result<std::vector<uint8_t>, core::Error> WolSession::feed(
-    std::span<const uint8_t> data) {
-    
-    // Append incoming data to buffer
-    buffer_.insert(buffer_.end(), data.begin(), data.end());
+    core::ByteView data) {
+
+    // R212: external boundary is core::ByteView; internal buffer is uint8_t.
+    const auto* p = reinterpret_cast<const uint8_t*>(data.data());
+    buffer_.insert(buffer_.end(), p, p + data.size());
     
     std::vector<uint8_t> replies;
     

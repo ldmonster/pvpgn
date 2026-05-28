@@ -13,6 +13,7 @@
 
 #include "application/anongame_infoply/inforeply_builder.hpp"
 #include "infra/compression/zlib_anongame.hpp"
+#include "infra/compression/zlib_anongame_compressor.hpp"
 #include "protocol/bnet/anongame.hpp"
 #include "protocol/bnet/anongame_tags.hpp"
 
@@ -22,6 +23,11 @@ using namespace pvpgn::application::anongame_infoply;
 namespace pb = pvpgn::protocol::bnet;
 
 namespace {
+
+// R217 follow-up: the application no longer depends on infra at compile
+// time; the test constructs the concrete zlib adapter and passes it as
+// the `IAnonGameCompressor` port.
+const infra::compression::ZlibAnonGameCompressor kCompressor{};
 
 AnonGameInfoSnapshot make_full_snapshot() {
     AnonGameInfoSnapshot s{};
@@ -69,7 +75,7 @@ TEST_CASE("infoply: URL single-tag round-trip",
     auto snap = make_full_snapshot();
     auto reply = build_inforeply_for_tag(
         pb::kAnonGameInfoTagURL, /*tag_unk=*/0xCAFEBABEu, /*count=*/42,
-        snap, /*more=*/true);
+        snap, /*more=*/true, kCompressor);
     REQUIRE(reply.has_value());
     REQUIRE(reply.value().count    == 42);
     REQUIRE(reply.value().noitems  == 1);
@@ -92,7 +98,7 @@ TEST_CASE("infoply: MAP / TYPE / DESC / LADR round-trips",
     auto snap = make_full_snapshot();
 
     {  // MAP
-        auto r = build_inforeply_for_tag(pb::kAnonGameInfoTagMAP, 0, 1, snap, false);
+        auto r = build_inforeply_for_tag(pb::kAnonGameInfoTagMAP, 0, 1, snap, false, kCompressor);
         REQUIRE(r.has_value());
         REQUIRE(r.value().tag == pb::kAnonGameInfoTagServerMAP);
         auto raw = infra::compression::anongame_decompress(
@@ -103,7 +109,7 @@ TEST_CASE("infoply: MAP / TYPE / DESC / LADR round-trips",
         REQUIRE(p.value() == snap.map.value());
     }
     {  // TYPE
-        auto r = build_inforeply_for_tag(pb::kAnonGameInfoTagTYPE, 0, 1, snap, false);
+        auto r = build_inforeply_for_tag(pb::kAnonGameInfoTagTYPE, 0, 1, snap, false, kCompressor);
         REQUIRE(r.has_value());
         REQUIRE(r.value().tag == pb::kAnonGameInfoTagServerTYPE);
         auto raw = infra::compression::anongame_decompress(
@@ -114,7 +120,7 @@ TEST_CASE("infoply: MAP / TYPE / DESC / LADR round-trips",
         REQUIRE(p.value() == snap.type.value());
     }
     {  // DESC
-        auto r = build_inforeply_for_tag(pb::kAnonGameInfoTagDESC, 0, 1, snap, false);
+        auto r = build_inforeply_for_tag(pb::kAnonGameInfoTagDESC, 0, 1, snap, false, kCompressor);
         REQUIRE(r.has_value());
         REQUIRE(r.value().tag == pb::kAnonGameInfoTagServerDESC);
         auto raw = infra::compression::anongame_decompress(
@@ -125,7 +131,7 @@ TEST_CASE("infoply: MAP / TYPE / DESC / LADR round-trips",
         REQUIRE(p.value() == snap.desc.value());
     }
     {  // LADR
-        auto r = build_inforeply_for_tag(pb::kAnonGameInfoTagLADR, 0, 1, snap, false);
+        auto r = build_inforeply_for_tag(pb::kAnonGameInfoTagLADR, 0, 1, snap, false, kCompressor);
         REQUIRE(r.has_value());
         REQUIRE(r.value().tag == pb::kAnonGameInfoTagServerLADR);
         auto raw = infra::compression::anongame_decompress(
@@ -141,7 +147,7 @@ TEST_CASE("infoply: missing snapshot payload -> NotFound",
           "[application][anongame_infoply]") {
     AnonGameInfoSnapshot empty;
     auto r = build_inforeply_for_tag(
-        pb::kAnonGameInfoTagURL, 0, 1, empty, false);
+        pb::kAnonGameInfoTagURL, 0, 1, empty, false, kCompressor);
     REQUIRE_FALSE(r.has_value());
     REQUIRE(r.error().code() == core::StatusCode::NotFound);
 }
@@ -157,7 +163,7 @@ TEST_CASE("infoply: full INFOREQ produces ordered replies with trailing flags",
         {pb::kAnonGameInfoTagMAP,  0x02020202u},
         {pb::kAnonGameInfoTagDESC, 0x03030303u},
     };
-    auto replies = build_inforeplies_for_request(req, snap);
+    auto replies = build_inforeplies_for_request(req, snap, kCompressor);
     REQUIRE(replies.has_value());
     REQUIRE(replies.value().size() == 3);
 
@@ -194,7 +200,7 @@ TEST_CASE("infoply: missing tags in snapshot are silently skipped",
         {pb::kAnonGameInfoTagDESC, 0},  // skipped
         {pb::kAnonGameInfoTagLADR, 0},  // skipped
     };
-    auto replies = build_inforeplies_for_request(req, partial);
+    auto replies = build_inforeplies_for_request(req, partial, kCompressor);
     REQUIRE(replies.has_value());
     REQUIRE(replies.value().size() == 2);
     REQUIRE(replies.value()[0].tag      == pb::kAnonGameInfoTagServerURL);
@@ -208,7 +214,7 @@ TEST_CASE("infoply: empty request yields empty reply set",
     pb::AnonGameInfoRequest req{};
     req.count   = 0;
     req.noitems = 0;
-    auto replies = build_inforeplies_for_request(req, make_full_snapshot());
+    auto replies = build_inforeplies_for_request(req, make_full_snapshot(), kCompressor);
     REQUIRE(replies.has_value());
     REQUIRE(replies.value().empty());
 }
@@ -219,7 +225,7 @@ TEST_CASE("infoply: unknown tag in request -> InvalidArgument",
     req.count   = 1;
     req.noitems = 1;
     req.entries = {{0xDEADBEEFu, 0}};
-    auto replies = build_inforeplies_for_request(req, make_full_snapshot());
+    auto replies = build_inforeplies_for_request(req, make_full_snapshot(), kCompressor);
     REQUIRE_FALSE(replies.has_value());
     REQUIRE(replies.error().code() == core::StatusCode::InvalidArgument);
 }
@@ -232,7 +238,7 @@ TEST_CASE("infoply: encode_inforeply_packet starts with 0xFF 0x44 + length",
           "[application][anongame_infoply]") {
     auto snap = make_full_snapshot();
     auto reply = build_inforeply_for_tag(
-        pb::kAnonGameInfoTagURL, 0, 1, snap, false);
+        pb::kAnonGameInfoTagURL, 0, 1, snap, false, kCompressor);
     REQUIRE(reply.has_value());
     auto bytes = encode_inforeply_packet(reply.value());
     REQUIRE(bytes.has_value());
@@ -252,7 +258,7 @@ TEST_CASE("infoply: encode_inforeply_packet round-trips via parse",
           "[application][anongame_infoply]") {
     auto snap = make_full_snapshot();
     auto reply = build_inforeply_for_tag(
-        pb::kAnonGameInfoTagMAP, 0xAA, 9, snap, true);
+        pb::kAnonGameInfoTagMAP, 0xAA, 9, snap, true, kCompressor);
     REQUIRE(reply.has_value());
     auto bytes = encode_inforeply_packet(reply.value());
     REQUIRE(bytes.has_value());
@@ -280,7 +286,7 @@ TEST_CASE("infoply: encode_inforeply_packets concatenates N packets",
         {pb::kAnonGameInfoTagMAP,  0},
         {pb::kAnonGameInfoTagLADR, 0},
     };
-    auto bytes = encode_inforeplies_for_request(req, snap);
+    auto bytes = encode_inforeplies_for_request(req, snap, kCompressor);
     REQUIRE(bytes.has_value());
 
     // Walk the byte stream and confirm we see exactly 3 0x44 packets
@@ -310,7 +316,7 @@ TEST_CASE("infoply: encode_inforeplies_for_request empty -> empty bytes",
     req.count   = 1;
     req.noitems = 1;
     req.entries = {{pb::kAnonGameInfoTagURL, 0}};  // not in snapshot
-    auto bytes = encode_inforeplies_for_request(req, empty);
+    auto bytes = encode_inforeplies_for_request(req, empty, kCompressor);
     REQUIRE(bytes.has_value());
     REQUIRE(bytes.value().empty());
 }
@@ -324,7 +330,7 @@ TEST_CASE("infoply: compile_snapshot populates only the present tags",
     AnonGameInfoSnapshot partial;
     partial.url = pb::AnonGameUrlPayload{{"a", "b", "c"}};
     partial.ladr = pb::AnonGameLadrPayload{{{0x534F4C4Fu, "d", "u"}}};
-    auto compiled = compile_snapshot(partial);
+    auto compiled = compile_snapshot(partial, kCompressor);
     REQUIRE(compiled.has_value());
     REQUIRE(compiled.value().url.has_value());
     REQUIRE_FALSE(compiled.value().map.has_value());
@@ -338,7 +344,7 @@ TEST_CASE("infoply: compile_snapshot populates only the present tags",
 TEST_CASE("infoply: compiled and snapshot paths produce identical packet bytes",
           "[application][anongame_infoply][compiled]") {
     auto snap = make_full_snapshot();
-    auto compiled = compile_snapshot(snap);
+    auto compiled = compile_snapshot(snap, kCompressor);
     REQUIRE(compiled.has_value());
 
     pb::AnonGameInfoRequest req{};
@@ -351,7 +357,7 @@ TEST_CASE("infoply: compiled and snapshot paths produce identical packet bytes",
         {pb::kAnonGameInfoTagDESC, 0xDDDDDDDDu},
         {pb::kAnonGameInfoTagLADR, 0xEEEEEEEEu},
     };
-    auto from_snap     = encode_inforeplies_for_request(req, snap);
+    auto from_snap     = encode_inforeplies_for_request(req, snap, kCompressor);
     auto from_compiled = encode_inforeplies_for_request(req, compiled.value());
     REQUIRE(from_snap.has_value());
     REQUIRE(from_compiled.has_value());
@@ -386,7 +392,7 @@ TEST_CASE("infoply: compiled fan-out skips missing tags & sets trailing flags",
     AnonGameInfoSnapshot partial;
     partial.url = pb::AnonGameUrlPayload{{"a", "b", "c"}};
     partial.map = pb::AnonGameMapPayload{{"only-map"}};
-    auto compiled = compile_snapshot(partial);
+    auto compiled = compile_snapshot(partial, kCompressor);
     REQUIRE(compiled.has_value());
 
     pb::AnonGameInfoRequest req{};

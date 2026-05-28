@@ -53,6 +53,12 @@
 #include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R230(4): observation bridges for versioncheck lifecycle.
+extern "C" int pvpgn_v3_versioncheck_load_try(char const* filename) noexcept;
+extern "C" int pvpgn_v3_versioncheck_unload_try(void) noexcept;
+#endif
+
 
 using json = nlohmann::json;
 
@@ -72,6 +78,9 @@ namespace pvpgn
 
 		bool load_versioncheck_conf(const std::string& filename)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_versioncheck_load_try(filename.c_str());
+#endif
 			if (versioncheck_conf_is_loaded)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "Could not load {}, a versioncheck configuration file is already loaded", filename);
@@ -177,6 +186,9 @@ namespace pvpgn
 
 		void unload_versioncheck_conf()
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_versioncheck_unload_try();
+#endif
 			if (versioncheck_conf_is_loaded)
 			{
 				vc_entries.clear();

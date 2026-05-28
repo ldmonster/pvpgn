@@ -9,6 +9,7 @@
 #include "application/anongame_infoply/inforeply_builder.hpp"
 #include "application/anongame_infoply/tournament_decorator.hpp"
 #include "application/anongame_infoply/type_composer.hpp"
+#include "infra/compression/zlib_anongame_compressor.hpp"
 #include "infra/legacy_config/anongame_infos_loader.hpp"
 #include "infra/legacy_config/anongame_maplists_loader.hpp"
 #include "protocol/bnet/anongame.hpp"
@@ -47,6 +48,8 @@ core::Result<AnonGameSnapshotCache> build_anongame_snapshot_cache(
     auto maps = lc::load_anongame_maplists(maps_path);
     if (!maps) return core::fail(maps.error());
 
+    static const infra::compression::ZlibAnonGameCompressor kCompressor{};
+
     // Decorate the prefix table once. When `tournament` is the default
     // (all zeros, not arranged), this is a no-op and the result is
     // identical to `kAnonGameDefaultPrefix`.
@@ -72,7 +75,7 @@ core::Result<AnonGameSnapshotCache> build_anongame_snapshot_cache(
         }
 
         auto compiled =
-            ply::compile_snapshot_set(def_with_maps, by_lang_with_maps);
+            ply::compile_snapshot_set(def_with_maps, by_lang_with_maps, kCompressor);
         if (!compiled) return core::fail(compiled.error());
         cache.by_clienttag.emplace(tag, std::move(compiled).value());
     }
@@ -84,7 +87,7 @@ core::Result<AnonGameSnapshotCache> build_anongame_snapshot_cache(
     // fall back to.
     if (cache.by_clienttag.empty()) {
         auto compiled = ply::compile_snapshot_set(
-            infos.value().default_snapshot, infos.value().by_lang);
+            infos.value().default_snapshot, infos.value().by_lang, kCompressor);
         if (!compiled) return core::fail(compiled.error());
         cache.by_clienttag.emplace("", std::move(compiled).value());
     }

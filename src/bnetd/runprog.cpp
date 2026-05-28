@@ -36,6 +36,12 @@
 #include "common/eventlog.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R230(1): observation bridges for runprog open/close lifecycle.
+extern "C" int pvpgn_v3_runprog_open_try(char const* command) noexcept;
+extern "C" int pvpgn_v3_runprog_close_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -50,6 +56,9 @@ namespace pvpgn
 
 		extern std::FILE * runprog_open(char const * command)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_runprog_open_try(command);
+#endif
 #ifndef DO_SUBPROC
 			return NULL; /* always fail */
 #else
@@ -117,6 +126,9 @@ namespace pvpgn
 
 		extern int runprog_close(std::FILE * pp)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_runprog_close_try();
+#endif
 #ifndef DO_SUBPROC
 			return -1; /* always fail */
 #else

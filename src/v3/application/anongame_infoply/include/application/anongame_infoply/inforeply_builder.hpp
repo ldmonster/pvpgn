@@ -35,6 +35,7 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 
+#include "application/ports/anongame_compressor.hpp"
 #include "protocol/bnet/anongame.hpp"
 #include "protocol/bnet/anongame_tags.hpp"
 
@@ -70,7 +71,8 @@ struct CompiledSnapshot {
 /// compression is performed independently; if any one fails, the
 /// whole compile fails and reports the error.
 core::Result<CompiledSnapshot> compile_snapshot(
-    const AnonGameInfoSnapshot& snapshot);
+    const AnonGameInfoSnapshot& snapshot,
+    const ports::IAnonGameCompressor& compressor);
 
 /// Bundle of pre-compiled snapshots keyed by language. The legacy
 /// server keeps one such bundle per (war3/w3xp) clienttag and uses
@@ -92,7 +94,8 @@ struct CompiledSnapshotSet {
 /// compile error.
 core::Result<CompiledSnapshotSet> compile_snapshot_set(
     const AnonGameInfoSnapshot& default_snapshot,
-    const std::unordered_map<std::string, AnonGameInfoSnapshot>& by_lang);
+    const std::unordered_map<std::string, AnonGameInfoSnapshot>& by_lang,
+    const ports::IAnonGameCompressor& compressor);
 
 /// Map a client-side request tag (e.g. `kAnonGameInfoTagURL` =
 /// `'URL\0'`) to the matching server-reply tag (the byte-reversed
@@ -101,14 +104,15 @@ core::Result<CompiledSnapshotSet> compile_snapshot_set(
 core::Result<std::uint32_t> server_tag_for(std::uint32_t client_tag);
 
 /// Low-level: build one INFOREPLY from already-serialized payload
-/// bytes. Compresses `serialized_payload` via `infra_compression`
-/// and stuffs the framed bytes into the envelope's `payload` field.
+/// bytes. Compresses `serialized_payload` via the supplied port and
+/// stuffs the framed bytes into the envelope's `payload` field.
 core::Result<protocol::bnet::AnonGameInfoReply> compose_inforeply(
     std::uint32_t server_tag,
     std::uint32_t tag_unk,
     std::uint32_t count,
     std::span<const std::uint8_t> serialized_payload,
-    bool more);
+    bool more,
+    const ports::IAnonGameCompressor& compressor);
 
 /// Build a single INFOREPLY for the given client-side tag, drawing
 /// the typed payload from `snapshot`. Returns `NotFound` when the
@@ -118,7 +122,8 @@ core::Result<protocol::bnet::AnonGameInfoReply> build_inforeply_for_tag(
     std::uint32_t tag_unk,
     std::uint32_t count,
     const AnonGameInfoSnapshot& snapshot,
-    bool more);
+    bool more,
+    const ports::IAnonGameCompressor& compressor);
 
 /// Build the full INFOREPLY set for an entire INFOREQ. The `count`
 /// from the request is propagated to every reply. The `trailing`
@@ -129,7 +134,8 @@ core::Result<protocol::bnet::AnonGameInfoReply> build_inforeply_for_tag(
 core::Result<std::vector<protocol::bnet::AnonGameInfoReply>>
 build_inforeplies_for_request(
     const protocol::bnet::AnonGameInfoRequest& request,
-    const AnonGameInfoSnapshot& snapshot);
+    const AnonGameInfoSnapshot& snapshot,
+    const ports::IAnonGameCompressor& compressor);
 
 /// Serialize one `AnonGameInfoReply` to its full SID 0x44 packet
 /// bytes (`0xFF, 0x44, len_lo, len_hi, sub_option=0x02, body...`).
@@ -149,7 +155,8 @@ core::Result<std::vector<std::byte>> encode_inforeply_packets(
 /// `encode_inforeply_packets(build_inforeplies_for_request(...))`.
 core::Result<std::vector<std::byte>> encode_inforeplies_for_request(
     const protocol::bnet::AnonGameInfoRequest& request,
-    const AnonGameInfoSnapshot& snapshot);
+    const AnonGameInfoSnapshot& snapshot,
+    const ports::IAnonGameCompressor& compressor);
 
 // =========================================================================
 // Cached / pre-compiled overloads

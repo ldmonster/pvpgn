@@ -371,87 +371,92 @@ namespace pvpgn
 
 		static int command_set_flags(t_connection * c); // [Omega]
 		// command handler prototypes
-		static int _handle_clan_command(t_connection * c, char const * text);
-		static int _handle_admin_command(t_connection * c, char const * text);
-		static int _handle_aop_command(t_connection * c, char const * text);
-		static int _handle_op_command(t_connection * c, char const * text);
-		static int _handle_tmpop_command(t_connection * c, char const * text);
-		static int _handle_deop_command(t_connection * c, char const * text);
-		static int _handle_voice_command(t_connection * c, char const * text);
-		static int _handle_devoice_command(t_connection * c, char const * text);
-		static int _handle_vop_command(t_connection * c, char const * text);
-		static int _handle_friends_command(t_connection * c, char const * text);
-		static int _handle_me_command(t_connection * c, char const * text);
-		static int _handle_whisper_command(t_connection * c, char const * text);
-		static int _handle_status_command(t_connection * c, char const * text);
-		static int _handle_who_command(t_connection * c, char const * text);
-		static int _handle_whois_command(t_connection * c, char const * text);
-		static int _handle_whoami_command(t_connection * c, char const * text);
-		static int _handle_announce_command(t_connection * c, char const * text);
-		static int _handle_beep_command(t_connection * c, char const * text);
-		static int _handle_nobeep_command(t_connection * c, char const * text);
+		extern int _handle_clan_command(t_connection * c, char const * text); // R223
+		extern int _handle_admin_command(t_connection * c, char const * text);   // R225
+		extern int _handle_aop_command(t_connection * c, char const * text);     // R225
+		extern int _handle_op_command(t_connection * c, char const * text);      // R225
+		extern int _handle_tmpop_command(t_connection * c, char const * text);   // R225
+		extern int _handle_deop_command(t_connection * c, char const * text);    // R225
+		extern int _handle_voice_command(t_connection * c, char const * text);   // R225
+		extern int _handle_devoice_command(t_connection * c, char const * text); // R225
+		extern int _handle_vop_command(t_connection * c, char const * text);     // R225
+		extern int _handle_friends_command(t_connection * c, char const * text); // R223
+		extern int _handle_me_command(t_connection * c, char const * text);      // R223
+		extern int _handle_whisper_command(t_connection * c, char const * text); // R223
+		/* R216b / R220: these were de-static'd so the v3 strangler bridge
+		 * in integration_legacy_bnetd_linked can delegate to them while
+		 * v3 still owns the dispatch decision. Public decls in
+		 * command_legacy.h. Remove this hop once each is reimplemented
+		 * in pure v3. */
+		extern int _handle_status_command(t_connection * c, char const * text);
+		extern int _handle_who_command(t_connection * c, char const * text);
+		extern int _handle_whois_command(t_connection * c, char const * text); // R228
+		extern int _handle_whoami_command(t_connection * c, char const * text);
+		extern int _handle_announce_command(t_connection * c, char const * text); // R224
+		extern int _handle_beep_command(t_connection * c, char const * text);   // R222
+		extern int _handle_nobeep_command(t_connection * c, char const * text); // R222
 		static int _handle_version_command(t_connection * c, char const * text);
-		static int _handle_copyright_command(t_connection * c, char const * text);
+		extern int _handle_copyright_command(t_connection * c, char const * text); // R221
 		static int _handle_uptime_command(t_connection * c, char const * text);
-		static int _handle_stats_command(t_connection * c, char const * text);
-		static int _handle_time_command(t_connection * c, char const * text);
-		static int _handle_channel_command(t_connection * c, char const * text);
-		static int _handle_rejoin_command(t_connection * c, char const * text);
-		static int _handle_away_command(t_connection * c, char const * text);
-		static int _handle_dnd_command(t_connection * c, char const * text);
-		static int _handle_squelch_command(t_connection * c, char const * text);
-		static int _handle_unsquelch_command(t_connection * c, char const * text);
-		static int _handle_kick_command(t_connection * c, char const * text);
-		static int _handle_ban_command(t_connection * c, char const * text);
-		static int _handle_unban_command(t_connection * c, char const * text);
-		static int _handle_reply_command(t_connection * c, char const * text);
-		static int _handle_realmann_command(t_connection * c, char const * text);
-		static int _handle_watch_command(t_connection * c, char const * text);
-		static int _handle_unwatch_command(t_connection * c, char const * text);
-		static int _handle_watchall_command(t_connection * c, char const * text);
-		static int _handle_unwatchall_command(t_connection * c, char const * text);
-		static int _handle_lusers_command(t_connection * c, char const * text);
-		static int _handle_news_command(t_connection * c, char const * text);
-		static int _handle_games_command(t_connection * c, char const * text);
-		static int _handle_channels_command(t_connection * c, char const * text);
-		static int _handle_addacct_command(t_connection * c, char const * text);
-		static int _handle_chpass_command(t_connection * c, char const * text);
-		static int _handle_connections_command(t_connection * c, char const * text);
-		static int _handle_finger_command(t_connection * c, char const * text);
-		static int _handle_operator_command(t_connection * c, char const * text);
-		static int _handle_admins_command(t_connection * c, char const * text);
-		static int _handle_quit_command(t_connection * c, char const * text);
-		static int _handle_kill_command(t_connection * c, char const * text);
-		static int _handle_killsession_command(t_connection * c, char const * text);
-		static int _handle_gameinfo_command(t_connection * c, char const * text);
-		static int _handle_ladderactivate_command(t_connection * c, char const * text);
-		static int _handle_rehash_command(t_connection * c, char const * text);
-		static int _handle_config_command(t_connection * c, char const * text);
-		static int _handle_find_command(t_connection * c, char const *text);
-		static int _handle_save_command(t_connection * c, char const * text);
+		extern int _handle_stats_command(t_connection * c, char const * text); // R228
+		extern int _handle_time_command(t_connection * c, char const * text);  // R220
+		extern int _handle_channel_command(t_connection * c, char const * text); // R224
+		extern int _handle_rejoin_command(t_connection * c, char const * text);  // R224
+		extern int _handle_away_command(t_connection * c, char const * text);      // R222
+		extern int _handle_dnd_command(t_connection * c, char const * text);       // R222
+		extern int _handle_squelch_command(t_connection * c, char const * text);   // R222
+		extern int _handle_unsquelch_command(t_connection * c, char const * text); // R222
+		extern int _handle_kick_command(t_connection * c, char const * text);  // R226
+		extern int _handle_ban_command(t_connection * c, char const * text);   // R226
+		extern int _handle_unban_command(t_connection * c, char const * text); // R226
+		extern int _handle_reply_command(t_connection * c, char const * text);    // R224
+		extern int _handle_realmann_command(t_connection * c, char const * text); // R224
+		extern int _handle_watch_command(t_connection * c, char const * text);   // R223
+		extern int _handle_unwatch_command(t_connection * c, char const * text); // R223
+		extern int _handle_watchall_command(t_connection * c, char const * text);   // R224
+		extern int _handle_unwatchall_command(t_connection * c, char const * text); // R224
+		extern int _handle_lusers_command(t_connection * c, char const * text); // R221
+		extern int _handle_news_command(t_connection * c, char const * text);     // R220
+		extern int _handle_games_command(t_connection * c, char const * text);    // R220
+		extern int _handle_channels_command(t_connection * c, char const * text); // R220
+		extern int _handle_addacct_command(t_connection * c, char const * text); // R227
+		extern int _handle_chpass_command(t_connection * c, char const * text);  // R227
+		extern int _handle_connections_command(t_connection * c, char const * text); // R221
+		extern int _handle_finger_command(t_connection * c, char const * text);
+		extern int _handle_operator_command(t_connection * c, char const * text); // R225
+		extern int _handle_admins_command(t_connection * c, char const * text); // R221
+		extern int _handle_quit_command(t_connection * c, char const * text); // R222
+		extern int _handle_kill_command(t_connection * c, char const * text);        // R227
+		extern int _handle_killsession_command(t_connection * c, char const * text); // R227
+		extern int _handle_gameinfo_command(t_connection * c, char const * text);        // R228
+		extern int _handle_ladderactivate_command(t_connection * c, char const * text); // R228
+		extern int _handle_rehash_command(t_connection * c, char const * text); // R227
+		extern int _handle_config_command(t_connection * c, char const * text); // R227
+		extern int _handle_find_command(t_connection * c, char const *text);    // R227
+		extern int _handle_save_command(t_connection * c, char const * text);   // R227
 
-		static int _handle_shutdown_command(t_connection * c, char const * text);
-		static int _handle_ladderinfo_command(t_connection * c, char const * text);
-		static int _handle_timer_command(t_connection * c, char const * text);
-		static int _handle_serverban_command(t_connection * c, char const * text);
-		static int _handle_netinfo_command(t_connection * c, char const * text);
-		static int _handle_quota_command(t_connection * c, char const * text);
-		static int _handle_lockacct_command(t_connection * c, char const * text);
-		static int _handle_unlockacct_command(t_connection * c, char const * text);
-		static int _handle_muteacct_command(t_connection * c, char const * text);
-		static int _handle_unmuteacct_command(t_connection * c, char const * text);
-		static int _handle_flag_command(t_connection * c, char const * text);
-		static int _handle_tag_command(t_connection * c, char const * text);
-		static int _handle_ipscan_command(t_connection * c, char const * text);
-		static int _handle_set_command(t_connection * c, char const * text);
-		static int _handle_motd_command(t_connection * c, char const * text);
-		static int _handle_ping_command(t_connection * c, char const * text);
-		static int _handle_commandgroups_command(t_connection * c, char const * text);
-		static int _handle_topic_command(t_connection * c, char const * text);
-		static int _handle_moderate_command(t_connection * c, char const * text);
-		static int _handle_clearstats_command(t_connection * c, char const * text);
-		static int _handle_tos_command(t_connection * c, char const * text);
-		static int _handle_alert_command(t_connection * c, char const * text);
+		extern int _handle_shutdown_command(t_connection * c, char const * text); // R227
+		extern int _handle_ladderinfo_command(t_connection * c, char const * text); // R228
+		extern int _handle_timer_command(t_connection * c, char const * text);      // R228
+		extern int _handle_serverban_command(t_connection * c, char const * text); // R227
+		extern int _handle_netinfo_command(t_connection * c, char const * text); // R228
+		extern int _handle_quota_command(t_connection * c, char const * text);   // R228
+		extern int _handle_lockacct_command(t_connection * c, char const * text);   // R226
+		extern int _handle_unlockacct_command(t_connection * c, char const * text); // R226
+		extern int _handle_muteacct_command(t_connection * c, char const * text);   // R226
+		extern int _handle_unmuteacct_command(t_connection * c, char const * text); // R226
+		extern int _handle_flag_command(t_connection * c, char const * text);       // R226
+		extern int _handle_tag_command(t_connection * c, char const * text);        // R226
+		extern int _handle_ipscan_command(t_connection * c, char const * text); // R228
+		extern int _handle_set_command(t_connection * c, char const * text); // R227
+		extern int _handle_motd_command(t_connection * c, char const * text); // R220
+		extern int _handle_ping_command(t_connection * c, char const * text);          // R228
+		extern int _handle_commandgroups_command(t_connection * c, char const * text); // R228
+		extern int _handle_topic_command(t_connection * c, char const * text);    // R224
+		extern int _handle_moderate_command(t_connection * c, char const * text); // R224
+		extern int _handle_clearstats_command(t_connection * c, char const * text); // R223
+		extern int _handle_tos_command(t_connection * c, char const * text);        // R223
+		extern int _handle_alert_command(t_connection * c, char const * text); // R224
 
 		static const t_command_table_row standard_command_table[] =
 		{
@@ -585,7 +590,13 @@ namespace pvpgn
 			t_command_table_row const *p;
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
-			(void)pvpgn_v3_command_dispatch_try(c, text);
+			// R216: try v3 dispatch first. Non-zero = v3 consumed
+			// the command (handler ran or caller was denied). Zero
+			// means "not in the v3 migration set" -- fall through to
+			// the legacy dispatch loop below.
+			if (pvpgn_v3_command_dispatch_try(c, text) != 0) {
+				return 0;
+			}
 #endif
 
 #ifdef WITH_LUA
@@ -669,7 +680,7 @@ namespace pvpgn
 
 		// +++++++++++++++++++++++++++++++++ command implementations +++++++++++++++++++++++++++++++++++++++
 
-		static int _handle_clan_command(t_connection * c, char const * text)
+		extern int _handle_clan_command(t_connection * c, char const * text)
 		{
 			t_account * acc;
 			t_clanmember * member;
@@ -899,7 +910,7 @@ namespace pvpgn
 			return channel_set_userflags(c);
 		}
 
-		static int _handle_admin_command(t_connection * c, char const * text)
+		extern int _handle_admin_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char		command;
@@ -958,7 +969,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_operator_command(t_connection * c, char const * text)
+		extern int _handle_operator_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char		command;
@@ -1016,7 +1027,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_aop_command(t_connection * c, char const * text)
+		extern int _handle_aop_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char const *	channel;
@@ -1065,7 +1076,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_vop_command(t_connection * c, char const * text)
+		extern int _handle_vop_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char const *	channel;
@@ -1114,7 +1125,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_voice_command(t_connection * c, char const * text)
+		extern int _handle_voice_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char const *	channel;
@@ -1178,7 +1189,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_devoice_command(t_connection * c, char const * text)
+		extern int _handle_devoice_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char const *	channel;
@@ -1254,7 +1265,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_op_command(t_connection * c, char const * text)
+		extern int _handle_op_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char const *	channel;
@@ -1332,7 +1343,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_tmpop_command(t_connection * c, char const * text)
+		extern int _handle_tmpop_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char const *	channel;
@@ -1392,7 +1403,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_deop_command(t_connection * c, char const * text)
+		extern int _handle_deop_command(t_connection * c, char const * text)
 		{
 			char const *	username;
 			char const *	channel;
@@ -1504,7 +1515,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_friends_command(t_connection * c, char const * text)
+		extern int _handle_friends_command(t_connection * c, char const * text)
 		{
 			int i;
 			t_account *my_acc = conn_get_account(c);
@@ -1883,7 +1894,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_me_command(t_connection * c, char const * text)
+		extern int _handle_me_command(t_connection * c, char const * text)
 		{
 			t_channel const * channel;
 
@@ -1906,7 +1917,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_whisper_command(t_connection * c, char const *text)
+		extern int _handle_whisper_command(t_connection * c, char const *text)
 		{
 			char const * username; /* both include NUL, so no need to add one for middle @ or * */
 
@@ -1925,7 +1936,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_status_command(t_connection * c, char const *text)
+		extern int _handle_status_command(t_connection * c, char const *text)
 		{
 			t_clienttag clienttag;
 
@@ -1954,7 +1965,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_who_command(t_connection * c, char const *text)
+		extern int _handle_who_command(t_connection * c, char const *text)
 		{
 			t_connection const * conn;
 			t_channel const *    channel;
@@ -2001,7 +2012,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_whois_command(t_connection * c, char const * text)
+		extern int _handle_whois_command(t_connection * c, char const * text)
 		{
 			std::vector<std::string> args = split_command(text, 1);
 
@@ -2017,7 +2028,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_whoami_command(t_connection * c, char const *text)
+		extern int _handle_whoami_command(t_connection * c, char const *text)
 		{
 			char const * tname;
 
@@ -2032,7 +2043,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_announce_command(t_connection * c, char const *text)
+		extern int _handle_announce_command(t_connection * c, char const *text)
 		{
 			t_message *  message;
 
@@ -2058,13 +2069,13 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_beep_command(t_connection * c, char const *text)
+		extern int _handle_beep_command(t_connection * c, char const *text)
 		{
 			message_send_text(c, message_type_info, c, localize(c, "Audible notification on.")); /* FIXME: actually do something */
 			return 0; /* FIXME: these only affect CHAT clients... I think they prevent ^G from being sent */
 		}
 
-		static int _handle_nobeep_command(t_connection * c, char const *text)
+		extern int _handle_nobeep_command(t_connection * c, char const *text)
 		{
 			message_send_text(c, message_type_info, c, localize(c, "Audible notification off.")); /* FIXME: actually do something */
 			return 0;
@@ -2076,7 +2087,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_copyright_command(t_connection * c, char const *text)
+		extern int _handle_copyright_command(t_connection * c, char const *text)
 		{
 			static char const * const info[] =
 			{
@@ -2114,7 +2125,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_stats_command(t_connection * c, char const *text)
+		extern int _handle_stats_command(t_connection * c, char const *text)
 		{
 			char const * username;
 			t_account *  account;
@@ -2310,7 +2321,7 @@ namespace pvpgn
 			}
 		}
 
-		static int _handle_time_command(t_connection * c, char const *text)
+		extern int _handle_time_command(t_connection * c, char const *text)
 		{
 			t_bnettime  btsystem;
 			t_bnettime  btlocal;
@@ -2343,7 +2354,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_channel_command(t_connection * c, char const *text)
+		extern int _handle_channel_command(t_connection * c, char const *text)
 		{
 			t_channel * channel;
 
@@ -2385,7 +2396,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_rejoin_command(t_connection * c, char const *text)
+		extern int _handle_rejoin_command(t_connection * c, char const *text)
 		{
 
 			if (channel_rejoin(c) != 0)
@@ -2397,7 +2408,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_away_command(t_connection * c, char const *text)
+		extern int _handle_away_command(t_connection * c, char const *text)
 		{
 			std::vector<std::string> args = split_command(text, 1);
 			text = args[1].c_str(); // message
@@ -2424,7 +2435,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_dnd_command(t_connection * c, char const *text)
+		extern int _handle_dnd_command(t_connection * c, char const *text)
 		{
 			std::vector<std::string> args = split_command(text, 1);
 			text = args[1].c_str(); // message
@@ -2451,7 +2462,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_squelch_command(t_connection * c, char const *text)
+		extern int _handle_squelch_command(t_connection * c, char const *text)
 		{
 			t_account *  account;
 
@@ -2494,7 +2505,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_unsquelch_command(t_connection * c, char const *text)
+		extern int _handle_unsquelch_command(t_connection * c, char const *text)
 		{
 			t_account * account;
 			t_connection * dest_c;
@@ -2541,7 +2552,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_kick_command(t_connection * c, char const *text)
+		extern int _handle_kick_command(t_connection * c, char const *text)
 		{
 			char const * username;
 			t_channel const * channel;
@@ -2621,7 +2632,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_ban_command(t_connection * c, char const *text)
+		extern int _handle_ban_command(t_connection * c, char const *text)
 		{
 			char const * username;
 			t_channel *    channel;
@@ -2694,7 +2705,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_unban_command(t_connection * c, char const *text)
+		extern int _handle_unban_command(t_connection * c, char const *text)
 		{
 			t_channel *  channel;
 
@@ -2735,7 +2746,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_reply_command(t_connection * c, char const *text)
+		extern int _handle_reply_command(t_connection * c, char const *text)
 		{
 			char const * dest;
 
@@ -2758,7 +2769,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_realmann_command(t_connection * c, char const *text)
+		extern int _handle_realmann_command(t_connection * c, char const *text)
 		{
 			t_realm * realm;
 			t_realm * trealm;
@@ -2803,7 +2814,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_watch_command(t_connection * c, char const *text)
+		extern int _handle_watch_command(t_connection * c, char const *text)
 		{
 			t_account *  account;
 
@@ -2836,7 +2847,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_unwatch_command(t_connection * c, char const *text)
+		extern int _handle_unwatch_command(t_connection * c, char const *text)
 		{
 			t_account *  account;
 
@@ -2868,7 +2879,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_watchall_command(t_connection * c, char const *text)
+		extern int _handle_watchall_command(t_connection * c, char const *text)
 		{
 			t_clienttag clienttag = 0;
 			char const * clienttag_str;
@@ -2898,7 +2909,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_unwatchall_command(t_connection * c, char const *text)
+		extern int _handle_unwatchall_command(t_connection * c, char const *text)
 		{
 			t_clienttag clienttag = 0;
 			char const * clienttag_str;
@@ -2928,7 +2939,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_lusers_command(t_connection * c, char const *text)
+		extern int _handle_lusers_command(t_connection * c, char const *text)
 		{
 			t_channel *    channel;
 			unsigned int   i;
@@ -2985,7 +2996,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_news_command(t_connection * c, char const *text)
+		extern int _handle_news_command(t_connection * c, char const *text)
 		{
 			news_traverse(_news_cb, c);
 			return 0;
@@ -3061,7 +3072,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_games_command(t_connection * c, char const *text)
+		extern int _handle_games_command(t_connection * c, char const *text)
 		{
 			char           clienttag_str[5];
 			char const         * dest;
@@ -3127,7 +3138,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_channels_command(t_connection * c, char const *text)
+		extern int _handle_channels_command(t_connection * c, char const *text)
 		{
 			t_clienttag       clienttag;
 			t_connection const * conn;
@@ -3209,7 +3220,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_addacct_command(t_connection * c, char const *text)
+		extern int _handle_addacct_command(t_connection * c, char const *text)
 		{
 			unsigned int i;
 			t_account  * temp;
@@ -3263,7 +3274,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_chpass_command(t_connection * c, char const *text)
+		extern int _handle_chpass_command(t_connection * c, char const *text)
 		{
 			unsigned int i;
 			t_account  * account;
@@ -3346,7 +3357,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_connections_command(t_connection *c, char const *text)
+		extern int _handle_connections_command(t_connection *c, char const *text)
 		{
 			t_connection * conn;
 			char           name[19];
@@ -3441,7 +3452,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_finger_command(t_connection * c, char const *text)
+		extern int _handle_finger_command(t_connection * c, char const *text)
 		{
 			char const * dest;
 			t_account *    account;
@@ -3602,7 +3613,7 @@ namespace pvpgn
 
 
 		/* FIXME: do we want to show just Server Admin or Channel Admin Also? [Omega] */
-		static int _handle_admins_command(t_connection * c, char const *text)
+		extern int _handle_admins_command(t_connection * c, char const *text)
 		{
 			unsigned int    i;
 			t_connection *  tc;
@@ -3637,7 +3648,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_quit_command(t_connection * c, char const *text)
+		extern int _handle_quit_command(t_connection * c, char const *text)
 		{
 			if (conn_get_game(c))
 				eventlog(eventlog_level_warn, __FUNCTION__, "[{}] user '{}' tried to disconnect while in game, cheat attempt ?", conn_get_socket(c), conn_get_loggeduser(c));
@@ -3649,7 +3660,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_kill_command(t_connection * c, char const *text)
+		extern int _handle_kill_command(t_connection * c, char const *text)
 		{
 			t_connection *	user;
 			char const * username, * min;
@@ -3691,7 +3702,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_killsession_command(t_connection * c, char const *text)
+		extern int _handle_killsession_command(t_connection * c, char const *text)
 		{
 			t_connection *	user;
 			char const * session, *min;
@@ -3728,7 +3739,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_gameinfo_command(t_connection * c, char const *text)
+		extern int _handle_gameinfo_command(t_connection * c, char const *text)
 		{
 			t_game const * game;
 			char clienttag_str[5];
@@ -3872,14 +3883,14 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_ladderactivate_command(t_connection * c, char const *text)
+		extern int _handle_ladderactivate_command(t_connection * c, char const *text)
 		{
 			ladders.activate();
 			message_send_text(c, message_type_info, c, localize(c, "Copied current scores to active scores on all ladders."));
 			return 0;
 		}
 
-		static int _handle_rehash_command(t_connection * c, char const *text)
+		extern int _handle_rehash_command(t_connection * c, char const *text)
 		{
 			int mode = restart_mode_all; // all by default
 
@@ -3952,7 +3963,7 @@ namespace pvpgn
 		 * line. It is intentionally *not* round-trip-safe TOML --
 		 * paths are emitted bare so admins can copy/paste them.
 		 */
-		static int _handle_config_command(t_connection * c, char const * /*text*/)
+		extern int _handle_config_command(t_connection * c, char const * /*text*/)
 		{
 			auto say = [&](std::string s) {
 				msgtemp = std::move(s);
@@ -4000,7 +4011,7 @@ namespace pvpgn
 		/**
 		* /find <substr to search for inside username>
 		*/
-		static int _handle_find_command(t_connection * c, char const *text)
+		extern int _handle_find_command(t_connection * c, char const *text)
 		{
 			unsigned int  i = 0;
 			t_account *account;
@@ -4041,7 +4052,7 @@ namespace pvpgn
 		/**
 		* Save changes of accounts and clans from the cache to a storage
 		*/
-		static int _handle_save_command(t_connection * c, char const *text)
+		extern int _handle_save_command(t_connection * c, char const *text)
 		{
 			clanlist_save();
 
@@ -4052,7 +4063,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_shutdown_command(t_connection * c, char const *text)
+		extern int _handle_shutdown_command(t_connection * c, char const *text)
 		{
 			char const * dest;
 			unsigned int delay;
@@ -4079,7 +4090,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_ladderinfo_command(t_connection * c, char const *text)
+		extern int _handle_ladderinfo_command(t_connection * c, char const *text)
 		{
 			char const * rank_s, *tag_s;
 			unsigned int rank;
@@ -4323,7 +4334,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_timer_command(t_connection * c, char const *text)
+		extern int _handle_timer_command(t_connection * c, char const *text)
 		{
 			unsigned int delta;
 			t_timer_data data;
@@ -4364,7 +4375,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_serverban_command(t_connection *c, char const *text)
+		extern int _handle_serverban_command(t_connection *c, char const *text)
 		{
 			char const * username;
 			t_connection * dest_c;
@@ -4396,7 +4407,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_netinfo_command(t_connection * c, char const *text)
+		extern int _handle_netinfo_command(t_connection * c, char const *text)
 		{
 			char const * username;
 			t_connection * conn;
@@ -4465,7 +4476,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_quota_command(t_connection * c, char const * text)
+		extern int _handle_quota_command(t_connection * c, char const * text)
 		{
 			msgtemp = localize(c, "Your quota allows you to write {} line(s) per {} second(s).", prefs_v3::quota_lines(), prefs_v3::quota_time());
 			message_send_text(c, message_type_info, c, msgtemp);
@@ -4477,7 +4488,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_lockacct_command(t_connection * c, char const *text)
+		extern int _handle_lockacct_command(t_connection * c, char const *text)
 		{
 			t_connection * user;
 			t_account *    account;
@@ -4525,7 +4536,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_unlockacct_command(t_connection * c, char const *text)
+		extern int _handle_unlockacct_command(t_connection * c, char const *text)
 		{
 			t_connection * user;
 			t_account *    account;
@@ -4556,7 +4567,7 @@ namespace pvpgn
 		}
 
 
-		static int _handle_muteacct_command(t_connection * c, char const *text)
+		extern int _handle_muteacct_command(t_connection * c, char const *text)
 		{
 			t_connection * user;
 			t_account *    account;
@@ -4604,7 +4615,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_unmuteacct_command(t_connection * c, char const *text)
+		extern int _handle_unmuteacct_command(t_connection * c, char const *text)
 		{
 			t_connection * user;
 			t_account *    account;
@@ -4634,7 +4645,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_flag_command(t_connection * c, char const *text)
+		extern int _handle_flag_command(t_connection * c, char const *text)
 		{
 			char const * flag_s;
 			unsigned int newflag;
@@ -4657,7 +4668,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_tag_command(t_connection * c, char const *text)
+		extern int _handle_tag_command(t_connection * c, char const *text)
 		{
 			char const * tag_s;
 			t_clienttag clienttag;
@@ -4687,7 +4698,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_ipscan_command(t_connection * c, char const * text)
+		extern int _handle_ipscan_command(t_connection * c, char const * text)
 		{
 			/*
 			Description of _handle_ipscan_command
@@ -4756,7 +4767,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_set_command(t_connection * c, char const *text)
+		extern int _handle_set_command(t_connection * c, char const *text)
 		{
 			t_account * account;
 			char const * username, *key, *value;
@@ -4819,7 +4830,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_motd_command(t_connection * c, char const *text)
+		extern int _handle_motd_command(t_connection * c, char const *text)
 		{
 			std::string filename = i18n_filename(prefs_v3::motdfile(), conn_get_gamelang_localized(c));
 
@@ -4839,7 +4850,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_tos_command(t_connection * c, char const * text)
+		extern int _handle_tos_command(t_connection * c, char const * text)
 		{
 			/* handle /tos - shows terms of service by user request -raistlinthewiz */
 
@@ -4898,7 +4909,7 @@ namespace pvpgn
 		}
 
 
-		static int _handle_ping_command(t_connection * c, char const *text)
+		extern int _handle_ping_command(t_connection * c, char const *text)
 		{
 			unsigned int i;
 			t_connection *	user;
@@ -4935,7 +4946,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_commandgroups_command(t_connection * c, char const * text)
+		extern int _handle_commandgroups_command(t_connection * c, char const * text)
 		{
 			t_account *	account;
 			char const *	command, *username;
@@ -5015,7 +5026,7 @@ namespace pvpgn
 			return -1;
 		}
 
-		static int _handle_topic_command(t_connection * c, char const * text)
+		extern int _handle_topic_command(t_connection * c, char const * text)
 		{
 			std::vector<std::string> args = split_command(text, 1);
 			std::string topicstr = args[1];
@@ -5067,7 +5078,7 @@ namespace pvpgn
 			return 0;
 		}
 
-		static int _handle_moderate_command(t_connection * c, char const * text)
+		extern int _handle_moderate_command(t_connection * c, char const * text)
 		{
 			unsigned oldflags;
 			t_channel * channel;
@@ -5236,7 +5247,7 @@ namespace pvpgn
 			message_send_text(c, message_type_info, c, msgtemp);
 		}
 
-		static int _handle_clearstats_command(t_connection *c, char const *text)
+		extern int _handle_clearstats_command(t_connection *c, char const *text)
 		{
 			char const * username, * tag;
 			unsigned int all;
@@ -5295,7 +5306,7 @@ namespace pvpgn
 		}
 
 		/* Send message to all clients (similar to announce, but in messagebox) */
-		static int _handle_alert_command(t_connection * c, char const * text)
+		extern int _handle_alert_command(t_connection * c, char const * text)
 		{
 			t_clienttag  clienttag;
 			t_clienttag  clienttag_dest;

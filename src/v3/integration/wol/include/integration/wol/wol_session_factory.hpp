@@ -5,6 +5,7 @@
 /// WOL (Westwood Online) protocol session factory.
 /// Handles Westwood Studios game clients (C&C, Red Alert, etc.)
 
+#include "core/bytes.hpp"
 #include "core/result.hpp"
 #include <memory>
 #include <string>
@@ -22,8 +23,10 @@ public:
     
     explicit WolSession(std::string session_id);
     
-    // Feed raw bytes from client
-    core::Result<std::vector<uint8_t>, core::Error> feed(std::span<const uint8_t> data);
+    // Feed raw bytes from client.
+    // R212: takes canonical core::ByteView (std::span<const std::byte>) at the
+    // integration boundary; internal buffer remains uint8_t-typed.
+    core::Result<std::vector<uint8_t>, core::Error> feed(core::ByteView data);
     
     State state() const noexcept { return state_; }
     const std::string& session_id() const noexcept { return session_id_; }

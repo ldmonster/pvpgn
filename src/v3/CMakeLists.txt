@@ -326,6 +326,7 @@ pvpgn_v3_add_library(infra_compression
         ${CMAKE_CURRENT_SOURCE_DIR}/infra/compression/include
     PUBLIC_DEPS
         core
+        application_ports
     DEPS
         ZLIB::ZLIB
 )
@@ -648,6 +649,8 @@ pvpgn_v3_add_library(application_ports
         domain_gameplay
         domain_moderation
         domain_social
+        domain_realm
+        domain_ladder
 )
 
 # ---- infra/persistence (adapter registry + shared SQL helpers) ----------
@@ -705,8 +708,8 @@ pvpgn_v3_add_library(application_anongame_infoply
         ${CMAKE_CURRENT_SOURCE_DIR}/application/anongame_infoply/include
     PUBLIC_DEPS
         core
+        application_ports
         protocol_bnet
-        infra_compression
 )
 
 # ---- application/icon_table ---------------------------------------------
@@ -742,6 +745,26 @@ pvpgn_v3_add_library(application_tournament
     PUBLIC_DEPS
         core
         protocol_bnet
+)
+
+# ---- application/admin_commands -----------------------------------------
+#
+# R216 strangler-fig: pure routing decision for legacy bnetd chat
+# commands that have been migrated to the v3 dispatch path. Owns name
+# normalisation and permission-predicate hand-off; the actual I/O
+# (sending text to t_connection, userlog) stays in the bridge.
+
+pvpgn_v3_add_library(application_admin_commands
+    STATIC
+    SOURCES
+        application/admin_commands/src/router.cpp
+        application/admin_commands/src/help_corpus.cpp
+        application/admin_commands/src/help_corpus_parser.cpp
+        application/admin_commands/src/file_help_responder.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/admin_commands/include
+    PUBLIC_DEPS
+        core
 )
 
 # ---- application/profile ------------------------------------------------
@@ -1133,6 +1156,10 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/anongame_entry_bridge.cpp
         integration/legacy_bnetd/src/anongame_infos_bridge.cpp
         integration/legacy_bnetd/src/anongame_infos_get_bridge.cpp
+        integration/legacy_bnetd/src/runprog_bridge.cpp        # R230(1)
+        integration/legacy_bnetd/src/news_bridge.cpp           # R230(2)
+        integration/legacy_bnetd/src/userlog_bridge.cpp        # R230(3)
+        integration/legacy_bnetd/src/versioncheck_bridge.cpp   # R230(4)
         integration/legacy_bnetd/src/clan_dispatch_bridge.cpp
         integration/legacy_bnetd/src/clan_send_bridge.cpp
         integration/legacy_bnetd/src/friends_dispatch_bridge.cpp
@@ -1195,7 +1222,6 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/connection_dispatch_bridge.cpp
         integration/legacy_bnetd/src/message_dispatch_bridge.cpp
         integration/legacy_bnetd/src/server_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/command_dispatch_bridge.cpp
         integration/legacy_bnetd/src/send_clan_motdreply_bridge.cpp
         integration/legacy_bnetd/src/encode_clanmemberupdate_bridge.cpp
         integration/legacy_bnetd/src/clan_bridges.cpp
@@ -1212,12 +1238,14 @@ pvpgn_v3_add_library(integration_legacy_bnetd
     PUBLIC_DEPS
         core
         application_ports
+        application_admin_commands
         application_anongame_infoply
         application_chat
         application_i18n
         application_init
         application_ads
         application_realm
+        infra_compression
         infra_legacy_config
         protocol_common
         protocol_bnet

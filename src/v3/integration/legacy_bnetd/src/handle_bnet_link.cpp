@@ -39,10 +39,12 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstring>
+#include <format>
 #include <fstream>
 #include <iterator>
 #include <limits>
 #include <sstream>
+#include <string>
 #include <tuple>
 
 #include <strings.h>
@@ -3931,7 +3933,7 @@ namespace pvpgn
 
 			// read text from bnmotd_w3.txt
 			{
-				fmt::memory_buffer serverinfo;
+				std::string serverinfo;
 
 				std::string filename = i18n_filename(prefs_v3::motdw3file(), conn_get_gamelang_localized(c));
 				std::FILE* fp = std::fopen(filename.c_str(), "r");
@@ -3940,12 +3942,11 @@ namespace pvpgn
 					while (char* buff = file_get_line(fp))
 					{
 						char* line = message_format_line(c, buff);
-						// The original code used `"{}" + '\n'`, which is
-						// pointer arithmetic on a string literal (UB,
-						// reading past the literal).  Modern fmt also
-						// no longer accepts a memory_buffer directly as
-						// the output target -- it needs an iterator.
-						fmt::format_to(std::back_inserter(serverinfo), "{}\n", (line + 1));
+						// R211: replaced fmt::memory_buffer + fmt::format_to
+						// with std::string + std::format_to. The original
+						// legacy code used pointer arithmetic on a literal
+						// ("{}" + '\n'); the modern code is bounds-safe.
+						std::format_to(std::back_inserter(serverinfo), "{}\n", (line + 1));
 						delete[] line;
 					}
 
@@ -3954,7 +3955,7 @@ namespace pvpgn
 						eventlog(eventlog_level_error, __FUNCTION__, "could not close motdw3 file \"{}\" after reading (std::fopen: {})", filename, std::strerror(errno));
 					}
 				}
-				packet_append_string(rpacket, fmt::to_string(serverinfo).c_str());
+				packet_append_string(rpacket, serverinfo.c_str());
 			}
 
 			conn_push_outqueue(c, rpacket);
