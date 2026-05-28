@@ -43,6 +43,8 @@
 
 #ifdef PVPGN_V3_BNETD_INTEGRATION
 #include "integration/legacy_bnetd/send_udptest_bridge.hpp"
+// R246: bnetd udptest_send lifecycle observation bridge.
+extern "C" int pvpgn_v3_bnetd_udptest_send_try(int sd) noexcept;
 #endif
 
 
@@ -56,6 +58,9 @@ namespace pvpgn
 
 		extern int udptest_send(t_connection const * c)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_udptest_send_try(c ? conn_get_socket(c) : -1);
+#endif
 			t_packet *         upacket;
 			struct sockaddr_in caddr;
 			unsigned int       tries, successes;

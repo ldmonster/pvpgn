@@ -33,6 +33,12 @@
 #include "server.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R246: bnetd teamlist observation bridges.
+extern "C" int pvpgn_v3_bnetd_team_load_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_team_unload_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -93,6 +99,9 @@ namespace pvpgn
 
 		int teamlist_load(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_team_load_try();
+#endif
 			// make sure to unload previous teamlist before loading again
 			if (teamlist_head)
 				teamlist_unload();
@@ -107,6 +116,9 @@ namespace pvpgn
 
 		int teamlist_unload(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_team_unload_try();
+#endif
 			t_elem *curr;
 			t_team *team;
 

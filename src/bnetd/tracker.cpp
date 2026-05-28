@@ -52,6 +52,12 @@
 #include "server.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R246: bnetd tracker observation bridges.
+extern "C" int pvpgn_v3_bnetd_tracker_set_servers_try(const char* servers) noexcept;
+extern "C" int pvpgn_v3_bnetd_tracker_send_report_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -63,6 +69,9 @@ namespace pvpgn
 
 		extern int tracker_set_servers(char const * servers)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_tracker_set_servers_try(servers);
+#endif
 			t_addr const * addr;
 			t_elem const * curr;
 			char           temp[32];
@@ -96,6 +105,9 @@ namespace pvpgn
 
 		extern int tracker_send_report(t_addrlist const * laddrs)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_tracker_send_report_try();
+#endif
 			t_addr const *     addrl;
 			t_elem const *     currl;
 			t_addr const *     addrt;

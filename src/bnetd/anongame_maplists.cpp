@@ -28,6 +28,13 @@
 #include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R247: bnetd anongame_maplists observation bridges.
+extern "C" int pvpgn_v3_bnetd_anongame_maplists_create_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_anongame_maplists_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_anongame_tournament_maplists_destroy_try(void) noexcept;
+#endif
+
 #define MAXMAPS 100
 #define MAXMAPS_PER_QUEUE 32 /* cannot be changed (map_prefs only supports 32 maps) */
 
@@ -191,6 +198,9 @@ namespace pvpgn
 		/**********************************************************************************/
 		extern int anongame_maplists_create(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_anongame_maplists_create_try();
+#endif
 			std::FILE *mapfd;
 			char buffer[256];
 			int len, i, queue;
@@ -356,6 +366,9 @@ namespace pvpgn
 
 		extern void anongame_maplists_destroy()
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_anongame_maplists_destroy_try();
+#endif
 			int i;
 
 			for (i = 0; i < MAXMAPS; i++) {
@@ -378,6 +391,9 @@ namespace pvpgn
 
 		extern void anongame_tournament_maplists_destroy(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_anongame_tournament_maplists_destroy_try();
+#endif
 			return; /* nothing to destroy */
 		}
 

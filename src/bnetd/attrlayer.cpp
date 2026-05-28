@@ -27,6 +27,14 @@
 #include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R246: bnetd attrlayer observation bridges.
+extern "C" int pvpgn_v3_bnetd_attrlayer_init_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_attrlayer_cleanup_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_attrlayer_save_try(int flags) noexcept;
+extern "C" int pvpgn_v3_bnetd_attrlayer_flush_try(int flags) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -43,6 +51,9 @@ namespace pvpgn
 
 		extern int attrlayer_init(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_attrlayer_init_try();
+#endif
 			elist_init(&loadedlist);
 			elist_init(&dirtylist);
 			attrlayer_load_default();
@@ -52,6 +63,9 @@ namespace pvpgn
 
 		extern int attrlayer_cleanup(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_attrlayer_cleanup_try();
+#endif
 			attrlayer_flush(FS_FORCE | FS_ALL);
 			attrlayer_unload_default();
 
@@ -83,6 +97,9 @@ namespace pvpgn
 
 		extern int attrlayer_flush(int flags)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_attrlayer_flush_try(flags);
+#endif
 			static t_elist *curr = &loadedlist;
 			static t_elist *next = NULL;
 			t_attrgroup *attrgroup;
@@ -127,6 +144,9 @@ namespace pvpgn
 
 		extern int attrlayer_save(int flags)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_attrlayer_save_try(flags);
+#endif
 			static t_elist *curr = &dirtylist;
 			static t_elist *next = NULL;
 			t_attrgroup *attrgroup;

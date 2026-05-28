@@ -27,6 +27,13 @@
 
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R247: bnetd command_groups observation bridges.
+extern "C" int pvpgn_v3_bnetd_command_groups_load_try(const char* filename) noexcept;
+extern "C" int pvpgn_v3_bnetd_command_groups_unload_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_command_groups_reload_try(const char* filename) noexcept;
+#endif
+
 //#define COMMANDGROUPSDEBUG 1
 
 namespace pvpgn
@@ -50,6 +57,9 @@ namespace pvpgn
 
 		extern int command_groups_load(char const * filename)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_command_groups_load_try(filename);
+#endif
 			unsigned int	line;
 			unsigned int	pos;
 			char *		buff;
@@ -110,6 +120,9 @@ namespace pvpgn
 
 		extern int command_groups_unload(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_command_groups_unload_try();
+#endif
 			for (t_command_groups* entry : command_groups_list) {
 				delete[] entry->command;
 				delete entry;
@@ -129,6 +142,9 @@ namespace pvpgn
 
 		extern int command_groups_reload(char const * filename)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_command_groups_reload_try(filename);
+#endif
 			command_groups_unload();
 			return command_groups_load(filename);
 		}

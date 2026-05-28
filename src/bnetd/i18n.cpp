@@ -61,6 +61,12 @@
 #include "i18n.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R246: bnetd i18n observation bridges.
+extern "C" int pvpgn_v3_bnetd_i18n_load_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_i18n_reload_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -106,6 +112,9 @@ namespace pvpgn
 
 		extern int i18n_reload(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_i18n_reload_try();
+#endif
 			translations.clear();
 			i18n_load();
 
@@ -114,6 +123,9 @@ namespace pvpgn
 
 		extern int i18n_load(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_i18n_load_try();
+#endif
 			namespace xml = pvpgn::v3::infra::xml;
 			std::string original, translate;
 

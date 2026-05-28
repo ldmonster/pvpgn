@@ -35,6 +35,12 @@
 #include "server.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R245: bnetd output subsystem observation bridges.
+extern "C" int pvpgn_v3_bnetd_output_init_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_output_write_to_file_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -51,6 +57,9 @@ namespace pvpgn
 
 		extern void output_init()
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_output_init_try();
+#endif
 			eventlog(eventlog_level_info, __FUNCTION__, "initializing output file");
 
 			if (prefs_v3::XML_status_output())
@@ -203,6 +212,9 @@ namespace pvpgn
 
 		extern int output_write_to_file()
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_output_write_to_file_try();
+#endif
 			if (status_filename.empty())
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "got empty filename");

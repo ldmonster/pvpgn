@@ -478,3 +478,21 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_timer_bridge
 pvpgn_v3_add_test(test_integration_legacy_bnetd_ipban_bridge
     SOURCES ipban_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
+
+# R245: bnetd small-module lifecycle bridges
+# (helpfile, autoupdate, output, support, mail).
+pvpgn_v3_add_test(test_integration_legacy_bnetd_lifecycle_bridges
+    SOURCES bnetd_lifecycle_bridges_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+# R246: bnetd second batch of small-module lifecycle bridges
+# (i18n, icons, attrlayer, tracker, team, udptest_send).
+pvpgn_v3_add_test(test_integration_legacy_bnetd_lifecycle_bridges_r246
+    SOURCES bnetd_lifecycle_bridges_r246_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+# R247: bnetd third batch of small-module lifecycle bridges
+# (alias_command, command_groups, anongame_maplists, handle_udp).
+pvpgn_v3_add_test(test_integration_legacy_bnetd_lifecycle_bridges_r247
+    SOURCES bnetd_lifecycle_bridges_r247_test.cpp
+    DEPS    integration_legacy_bnetd)

@@ -42,6 +42,12 @@
 #include "i18n.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R245: bnetd mail observation bridges.
+extern "C" int pvpgn_v3_bnetd_mail_handle_command_try(int sd, const char* text) noexcept;
+extern "C" int pvpgn_v3_bnetd_mail_check_try(int sd) noexcept;
+#endif
+
 
 namespace pvpgn
 {
@@ -285,6 +291,10 @@ namespace pvpgn
 
 		extern int handle_mail_command(t_connection * c, char const * text)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_mail_handle_command_try(
+				c ? conn_get_socket(c) : -1, text);
+#endif
 			if (!prefs_v3::mail_support()) {
 				message_send_text(c, message_type_error, c, localize(c, "This server has NO mail support."));
 				return -1;
@@ -487,6 +497,9 @@ namespace pvpgn
 				return 0;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_mail_check_try(conn_get_socket(c));
+#endif
 			if (t_account * account = conn_get_account(c))
 				return Mailbox(account_get_uid(account)).size();
 

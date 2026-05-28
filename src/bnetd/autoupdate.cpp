@@ -32,6 +32,12 @@
 #include "common/tag.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R245: bnetd autoupdate observation bridges.
+extern "C" int pvpgn_v3_bnetd_autoupdate_load_try(const char* filename) noexcept;
+extern "C" int pvpgn_v3_bnetd_autoupdate_unload_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -82,6 +88,9 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_autoupdate_load_try(filename);
+#endif
 			if (!(fp = std::fopen(filename, "r"))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
 				return -1;
@@ -159,6 +168,9 @@ namespace pvpgn
 
 		extern int autoupdate_unload(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_autoupdate_unload_try();
+#endif
 			for (t_autoupdate* entry : autoupdate_list) {
 				delete[] const_cast<char*>(entry->versiontag);	/* avoid warning */
 				delete[] const_cast<char*>(entry->updatefile);	/* avoid warning */

@@ -35,6 +35,12 @@
 #include "i18n.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R245: bnetd helpfile lifecycle observation bridges.
+extern "C" int pvpgn_v3_bnetd_helpfile_init_try(const char* filename) noexcept;
+extern "C" int pvpgn_v3_bnetd_helpfile_unload_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -67,6 +73,9 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_helpfile_init_try(filename);
+#endif
 			// iterate language list
 			for (std::size_t i = 0; i < languages.size(); i++)
 			{
@@ -85,6 +94,9 @@ namespace pvpgn
 
 		extern int helpfile_unload(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_helpfile_unload_try();
+#endif
 			// destroy file handles
 			for (std::map<t_gamelang, std::FILE*>::iterator it = hfd_list.begin(); it != hfd_list.end(); ++it)
 			{

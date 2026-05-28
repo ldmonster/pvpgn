@@ -30,6 +30,11 @@
 #include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R245: bnetd support file scanner observation bridge.
+extern "C" int pvpgn_v3_bnetd_support_check_files_try(const char* supportfile) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -51,6 +56,9 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_support_check_files_try(supportfile);
+#endif
 			if (!(fp = std::fopen(supportfile, "r")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open file \"{}\" for reading (std::fopen: {})", supportfile, std::strerror(errno));

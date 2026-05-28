@@ -27,6 +27,12 @@
 #include "udptest_send.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R247: bnetd handle_udp observation bridge.
+extern "C" int pvpgn_v3_bnetd_handle_udp_packet_try(
+    int usock, unsigned int src_addr, unsigned int src_port) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -35,6 +41,11 @@ namespace pvpgn
 
 		extern int handle_udp_packet(int usock, unsigned int src_addr, unsigned short src_port, t_packet const * const packet)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_handle_udp_packet_try(
+				usock, src_addr,
+				static_cast<unsigned int>(src_port));
+#endif
 			if (!packet)
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got NULL packet", usock);

@@ -34,6 +34,13 @@
 #include "i18n.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R247: bnetd alias_command observation bridges.
+extern "C" int pvpgn_v3_bnetd_aliasfile_load_try(const char* filename) noexcept;
+extern "C" int pvpgn_v3_bnetd_aliasfile_unload_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_handle_alias_command_try(
+    int sd, const char* text) noexcept;
+#endif
 
 namespace pvpgn
 {
@@ -329,6 +336,9 @@ namespace pvpgn
 
 		extern int aliasfile_load(char const * filename)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_aliasfile_load_try(filename);
+#endif
 			std::FILE *       afp;
 			char *       buff;
 			char *       temp;
@@ -515,6 +525,9 @@ namespace pvpgn
 
 		extern int aliasfile_unload(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_aliasfile_unload_try();
+#endif
 			t_elem       *  elem1;
 			t_elem       *  elem2;
 			t_alias const * alias;
@@ -570,6 +583,10 @@ namespace pvpgn
 
 		extern int handle_alias_command(t_connection * c, char const * text)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_handle_alias_command_try(
+				c ? conn_get_socket(c) : -1, text);
+#endif
 			unsigned int i, j;
 			char         cmd[MAX_COMMAND_LEN];
 

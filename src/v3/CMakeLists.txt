@@ -1237,6 +1237,15 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/timer_bridge.cpp
         # R244: bnetd IP-ban subsystem bridges.
         integration/legacy_bnetd/src/ipban_bridge.cpp
+        # R245: bnetd small-module lifecycle bridges
+        # (helpfile, autoupdate, output, support, mail).
+        integration/legacy_bnetd/src/bnetd_lifecycle_bridges.cpp
+        # R246: bnetd second batch of small-module lifecycle bridges
+        # (i18n, icons, attrlayer, tracker, team, udptest_send).
+        integration/legacy_bnetd/src/bnetd_lifecycle_bridges_r246.cpp
+        # R247: bnetd third batch of small-module lifecycle bridges
+        # (alias_command, command_groups, anongame_maplists, handle_udp).
+        integration/legacy_bnetd/src/bnetd_lifecycle_bridges_r247.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
     PUBLIC_DEPS
