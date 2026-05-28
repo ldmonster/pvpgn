@@ -468,3 +468,13 @@ pvpgn_v3_add_test(test_integration_legacy_bnetd_send_udptest_bridge
 pvpgn_v3_add_test(test_integration_legacy_bnetd_send_file_bridge
     SOURCES send_file_bridge_test.cpp
     DEPS    integration_legacy_bnetd)
+
+# R243: bnetd per-connection timer subsystem observation bridges.
+pvpgn_v3_add_test(test_integration_legacy_bnetd_timer_bridge
+    SOURCES timer_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)
+
+# R244: bnetd IP-ban subsystem observation bridges.
+pvpgn_v3_add_test(test_integration_legacy_bnetd_ipban_bridge
+    SOURCES ipban_bridge_test.cpp
+    DEPS    integration_legacy_bnetd)

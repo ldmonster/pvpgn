@@ -27,6 +27,16 @@
 #include "compat/psock.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R241: observation bridges for d2cs net.cpp socket helpers.
+extern "C" int pvpgn_v3_d2cs_net_socket_try(int type) noexcept;
+extern "C" int pvpgn_v3_d2cs_net_check_connected_try(int sock) noexcept;
+extern "C" int pvpgn_v3_d2cs_net_listen_try(
+    unsigned int ip,
+    unsigned int port,
+    int type) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -58,6 +68,9 @@ extern int net_socket(int type)
 	int	val;
 	int     ipproto;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_net_socket_try(type);
+#endif
 	if (type==PSOCK_SOCK_STREAM) {
 		ipproto = PSOCK_IPPROTO_TCP;
 	} else {
@@ -84,6 +97,9 @@ extern int net_check_connected(int sock)
 	int		err;
 	psock_t_socklen	errlen;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_net_check_connected_try(sock);
+#endif
 	err = 0;
 	errlen = sizeof(err);
 	if (psock_getsockopt(sock,PSOCK_SOL_SOCKET, PSOCK_SO_ERROR, &err, &errlen)<0) {
@@ -103,6 +119,9 @@ extern int net_listen(unsigned int ip, unsigned int port, int type)
 	struct  sockaddr_in	addr;
 	int    			ipproto;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_net_listen_try(ip, port, type);
+#endif
 	if (type==PSOCK_SOCK_STREAM) {
 		ipproto = PSOCK_IPPROTO_TCP;
 	} else {

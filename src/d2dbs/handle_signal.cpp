@@ -31,6 +31,12 @@
 #include "cmdline.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+// R232(3): observation bridges for d2dbs signal init + dispatch.
+extern "C" int pvpgn_v3_d2dbs_handle_signal_init_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_handle_signal_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -50,6 +56,9 @@ namespace pvpgn
 
 		extern int d2dbs_handle_signal(void)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_handle_signal_try();
+#endif
 			std::time_t		now;
 			char const * levels;
 			char const * tok;
@@ -161,6 +170,9 @@ namespace pvpgn
 #else
 		extern int d2dbs_handle_signal_init(void)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_handle_signal_init_try();
+#endif
 			std::signal(SIGINT, on_signal);
 			std::signal(SIGTERM, on_signal);
 			std::signal(SIGABRT, on_signal);

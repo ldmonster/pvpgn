@@ -1233,6 +1233,10 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/send_d2cs_bnetd_bridges.cpp
         integration/legacy_bnetd/src/send_file_bridge.cpp
         integration/legacy_bnetd/src/prefs_bridge.cpp
+        # R243: bnetd per-connection timer subsystem bridges.
+        integration/legacy_bnetd/src/timer_bridge.cpp
+        # R244: bnetd IP-ban subsystem bridges.
+        integration/legacy_bnetd/src/ipban_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
     PUBLIC_DEPS
@@ -1281,6 +1285,27 @@ pvpgn_v3_add_library(integration_legacy_d2cs
         integration/legacy_d2cs/src/send_charlistreply_bridge.cpp
         integration/legacy_d2cs/src/send_outbound_obs_bridges.cpp
         integration/legacy_d2cs/src/d2cs_prefs_bridge.cpp
+        # R233: observation lifecycle bridges (d2cs).
+        integration/legacy_d2cs/src/bridge_logger.cpp
+        integration/legacy_d2cs/src/d2ladder_bridge.cpp
+        integration/legacy_d2cs/src/s2s_bridge.cpp
+        integration/legacy_d2cs/src/handle_signal_bridge.cpp
+        # R234: more d2cs observation bridges (loop + init + conn).
+        integration/legacy_d2cs/src/server_bridge.cpp
+        integration/legacy_d2cs/src/handle_init_bridge.cpp
+        integration/legacy_d2cs/src/conn_bridge.cpp
+        # R235: d2cs packet dispatcher bridges (d2cs/d2gs/bnetd).
+        integration/legacy_d2cs/src/handle_d2cs_packet_bridge.cpp
+        integration/legacy_d2cs/src/handle_d2gs_packet_bridge.cpp
+        integration/legacy_d2cs/src/handle_bnetd_packet_bridge.cpp
+        # R236: d2cs queue + d2gs-list lifecycle bridges.
+        integration/legacy_d2cs/src/gamequeue_bridge.cpp
+        integration/legacy_d2cs/src/serverqueue_bridge.cpp
+        integration/legacy_d2cs/src/d2gs_bridge.cpp
+        # R238: d2cs game catalogue + per-game lifecycle bridges.
+        integration/legacy_d2cs/src/game_bridge.cpp
+        # R241: d2cs net.cpp socket helper bridges.
+        integration/legacy_d2cs/src/net_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2cs/include
     PUBLIC_DEPS
@@ -1312,6 +1337,16 @@ pvpgn_v3_add_library(integration_legacy_d2dbs
         integration/legacy_d2dbs/src/send_packet_bridge.cpp
         integration/legacy_d2dbs/src/send_echorequest_bridge.cpp
         integration/legacy_d2dbs/src/d2dbs_prefs_bridge.cpp
+        # R231: observation lifecycle bridges (d2dbs).
+        integration/legacy_d2dbs/src/bridge_logger.cpp
+        integration/legacy_d2dbs/src/charlock_bridge.cpp
+        integration/legacy_d2dbs/src/d2ladder_bridge.cpp
+        # R232: observation bridges for dupecheck / dbserver / signals.
+        integration/legacy_d2dbs/src/dbsdupecheck_bridge.cpp
+        integration/legacy_d2dbs/src/dbserver_bridge.cpp
+        integration/legacy_d2dbs/src/handle_signal_bridge.cpp
+        # R242: d2dbs packet dispatcher bridges (handle / timeout / keepalive).
+        integration/legacy_d2dbs/src/dbspacket_bridge.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2dbs/include
     PUBLIC_DEPS

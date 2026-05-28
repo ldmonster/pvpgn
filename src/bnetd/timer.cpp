@@ -25,6 +25,19 @@
 #include "common/eventlog.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R243: bnetd timer subsystem observation bridges.
+extern "C" int pvpgn_v3_bnetd_timerlist_create_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_timerlist_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_timerlist_add_timer_try(
+    int sd,
+    unsigned long long when) noexcept;
+extern "C" int pvpgn_v3_bnetd_timerlist_del_all_timers_try(
+    int sd) noexcept;
+extern "C" int pvpgn_v3_bnetd_timerlist_check_timers_try(
+    unsigned long long when) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -45,6 +58,11 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_timerlist_add_timer_try(
+				conn_get_socket(owner),
+				static_cast<unsigned long long>(when));
+#endif
 			timer = new t_timer{};
 			timer->owner = owner;
 			timer->when = when;
@@ -77,6 +95,9 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_timerlist_del_all_timers_try(conn_get_socket(owner));
+#endif
 			elist_for_each_safe(curr, conn_get_timer(owner), save)
 			{
 				timer = elist_entry(curr, t_timer, owners);
@@ -96,6 +117,10 @@ namespace pvpgn
 			t_elist * curr, *save;
 			t_timer * timer;
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_timerlist_check_timers_try(
+				static_cast<unsigned long long>(when));
+#endif
 			elist_for_each_safe(curr, &timerlist_head, save)
 			{
 				timer = elist_entry(curr, t_timer, timers);
@@ -115,6 +140,9 @@ namespace pvpgn
 
 		extern int timerlist_create(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_timerlist_create_try();
+#endif
 			elist_init(&timerlist_head);
 			return 0;
 		}
@@ -125,6 +153,9 @@ namespace pvpgn
 			t_elist * curr, *save;
 			t_timer * timer;
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_timerlist_destroy_try();
+#endif
 			elist_for_each_safe(curr, &timerlist_head, save)
 			{
 				timer = elist_entry(curr, t_timer, timers);

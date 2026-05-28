@@ -28,6 +28,13 @@
 #include "common/xstring.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+// R231(1): observation bridges for d2dbs charlock lifecycle.
+extern "C" int pvpgn_v3_d2dbs_charlock_init_try(
+    unsigned int tbllen, unsigned int maxgs) noexcept;
+extern "C" int pvpgn_v3_d2dbs_charlock_destroy_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -51,6 +58,9 @@ namespace pvpgn
 
 		int cl_init(unsigned int tbllen, unsigned int maxgs)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_charlock_init_try(tbllen, maxgs);
+#endif
 			if (!tbllen || !maxgs) return -1;
 			cl_destroy();
 
@@ -66,6 +76,9 @@ namespace pvpgn
 
 		int cl_destroy(void)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_charlock_destroy_try();
+#endif
 			unsigned int	i;
 			t_charlockinfo	* ptl, *ptmp;
 

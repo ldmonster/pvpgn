@@ -99,6 +99,11 @@ extern "C" int pvpgn_v3_d2cs_obs_joingamereq_d2gs(void* conn_ptr) noexcept;
 // Observation hooks for complex client-bound packets not yet fully wired
 extern "C" int pvpgn_v3_d2cs_obs_ladderreply(void* conn_ptr) noexcept;
 extern "C" int pvpgn_v3_d2cs_obs_charlistreply(void* conn_ptr) noexcept;
+// R235(1): observation bridge for client-packet dispatch.
+extern "C" int pvpgn_v3_d2cs_handle_d2cs_packet_try(
+    int sd,
+    unsigned int packet_type,
+    unsigned int packet_size) noexcept;
 #endif
 
 
@@ -160,6 +165,12 @@ static t_packet_handle_table d2cs_packet_handle_table[]={
 
 extern int d2cs_handle_d2cs_packet(t_connection * c, t_packet * packet)
 {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_handle_d2cs_packet_try(
+		d2cs_conn_get_socket(c),
+		packet_get_type(packet),
+		packet_get_size(packet));
+#endif
 	return conn_process_packet(c,packet,d2cs_packet_handle_table,NELEMS(d2cs_packet_handle_table));
 }
 

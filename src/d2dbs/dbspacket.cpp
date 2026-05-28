@@ -52,6 +52,13 @@
 #ifdef PVPGN_V3_D2DBS_INTEGRATION
 extern "C" int pvpgn_v3_d2dbs_send_echorequest(void* conn_ptr,
                                                 unsigned int seqno) noexcept;
+// R242: d2dbs packet dispatcher bridges.
+extern "C" int pvpgn_v3_d2dbs_packet_handle_try(
+    int sd,
+    unsigned int stats,
+    unsigned int type) noexcept;
+extern "C" int pvpgn_v3_d2dbs_check_timeout_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_keepalive_try(void) noexcept;
 #endif
 
 namespace pvpgn
@@ -637,6 +644,12 @@ namespace pvpgn
 			t_d2dbs_d2gs_header	* readhead;
 			int		retval;
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_packet_handle_try(
+				conn->sd,
+				static_cast<unsigned int>(conn->stats),
+				static_cast<unsigned int>(conn->type));
+#endif
 			if (conn->stats == 0) {
 				if (conn->nCharsInReadBuffer < (signed)sizeof(t_d2gs_d2dbs_connect)) {
 					return 0;
@@ -758,6 +771,9 @@ namespace pvpgn
 			std::time_t				now;
 			int				timeout;
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_check_timeout_try();
+#endif
 			now = std::time(NULL);
 			timeout = pvpgn::d2dbs::prefs_v3::idletime();
 			LIST_TRAVERSE(dbs_server_connection_list, elem)
@@ -782,6 +798,9 @@ namespace pvpgn
 			unsigned char			*writepos;
 			std::time_t				now;
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_keepalive_try();
+#endif
 			writelen = sizeof(t_d2dbs_d2gs_echorequest);
 			now = std::time(NULL);
 			LIST_TRAVERSE(dbs_server_connection_list, elem)

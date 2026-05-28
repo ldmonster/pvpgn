@@ -43,6 +43,15 @@
 #include "s2s.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R234(3): observation bridge for d2cs per-connection teardown.
+extern "C" int pvpgn_v3_d2cs_conn_destroy_try(
+    int sd,
+    unsigned int sessionnum,
+    unsigned int cclass,
+    unsigned int state) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -427,6 +436,13 @@ namespace pvpgn
 
 			ASSERT(c, -1);
 			if (c->state == conn_state_destroying) return 0;
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_conn_destroy_try(
+				c->sock,
+				c->sessionnum,
+				static_cast<unsigned int>(c->cclass),
+				static_cast<unsigned int>(c->state));
+#endif
 			if (hashtable_remove_data(connlist_head, c, c->sessionnum_hash) < 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "error remove connection from list");
 				return -1;

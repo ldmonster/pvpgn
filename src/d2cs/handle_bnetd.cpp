@@ -51,6 +51,11 @@ extern "C" int pvpgn_v3_d2cs_send_gameinforeply_bnetd(void*        conn_ptr,
                                                         unsigned int seqno,
                                                         char const*  gamename,
                                                         unsigned int difficulty) noexcept;
+// R235(3): observation bridge for bnetd s2s-packet dispatch.
+extern "C" int pvpgn_v3_d2cs_handle_bnetd_packet_try(
+    int sd,
+    unsigned int packet_type,
+    unsigned int packet_size) noexcept;
 #endif
 
 namespace pvpgn
@@ -89,6 +94,12 @@ namespace pvpgn
 
 		extern int handle_bnetd_packet(t_connection * c, t_packet * packet)
 		{
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_handle_bnetd_packet_try(
+				d2cs_conn_get_socket(c),
+				packet_get_type(packet),
+				packet_get_size(packet));
+#endif
 			conn_process_packet(c, packet, bnetd_packet_handle_table, NELEMS(bnetd_packet_handle_table));
 			return 0;
 		}

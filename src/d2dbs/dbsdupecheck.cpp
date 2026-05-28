@@ -23,6 +23,12 @@
 #include "common/eventlog.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+// R232(1): observation bridge for d2dbs dbsdupecheck.
+extern "C" int pvpgn_v3_d2dbs_dupecheck_try(
+    char const* data, unsigned int datalen) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -52,6 +58,9 @@ namespace pvpgn
 
 		extern int dbsdupecheck(char * data, unsigned int datalen)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_dupecheck_try(data, datalen);
+#endif
 			char * pointer, *datap;
 			unsigned int restlen;
 

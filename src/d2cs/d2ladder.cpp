@@ -33,6 +33,12 @@
 #include "d2charfile.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R233(1): observation bridges for d2cs ladder lifecycle.
+extern "C" int pvpgn_v3_d2cs_d2ladder_init_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_d2ladder_destroy_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -49,6 +55,9 @@ namespace pvpgn
 
 		extern int d2ladder_init(void)
 		{
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_d2ladder_init_try();
+#endif
 			if (d2ladder_readladder() < 0) {
 				eventlog(eventlog_level_error, __FUNCTION__, "failed to initialize ladder data");
 				return -1;
@@ -191,6 +200,9 @@ namespace pvpgn
 
 		extern int d2ladder_destroy(void)
 		{
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_d2ladder_destroy_try();
+#endif
 			unsigned int i;
 
 			if (ladder_data) {

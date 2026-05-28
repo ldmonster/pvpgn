@@ -62,6 +62,11 @@
 extern int g_ServiceStatus;
 #endif
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R234(1): observation bridge for d2cs main event-loop entry.
+extern "C" int pvpgn_v3_d2cs_server_process_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -307,6 +312,9 @@ static int server_cleanup(void)
 
 extern int d2cs_server_process(void)
 {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_server_process_try();
+#endif
 #ifndef WIN32
 	handle_signal_init();
 #endif

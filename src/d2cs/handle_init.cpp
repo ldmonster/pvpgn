@@ -27,6 +27,20 @@
 #include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R234(2): observation bridge for d2cs init packet dispatch.
+extern "C" int pvpgn_v3_d2cs_handle_init_packet_try(
+    int sd,
+    unsigned int cclass) noexcept;
+// R237(1): observation bridge for d2gs initconn classification.
+extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn_try(
+    int sd,
+    unsigned int addr) noexcept;
+// R237(2): observation bridge for d2cs initconn classification.
+extern "C" int pvpgn_v3_d2cs_on_d2cs_initconn_try(
+    int sd) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -44,6 +58,11 @@ extern int d2cs_handle_init_packet(t_connection * c, t_packet * packet)
 	ASSERT(c,-1);
 	ASSERT(packet,-1);
 	cclass=bn_byte_get(packet->u.client_initconn.cclass);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_handle_init_packet_try(
+		d2cs_conn_get_socket(c),
+		static_cast<unsigned int>(cclass));
+#endif
 	switch (cclass) {
 		case CLIENT_INITCONN_CLASS_D2CS:
 			retval=on_d2cs_initconn(c);
@@ -63,6 +82,11 @@ static int on_d2gs_initconn(t_connection * c)
 {
 	t_d2gs * gs;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_on_d2gs_initconn_try(
+		d2cs_conn_get_socket(c),
+		d2cs_conn_get_addr(c));
+#endif
 	eventlog(eventlog_level_info,__FUNCTION__,"[{}] client initiated d2gs connection",d2cs_conn_get_socket(c));
 	if (!(gs=d2gslist_find_gs_by_ip(d2cs_conn_get_addr(c)))) {
 		// reload list and see if any dns addy's has changed
@@ -88,6 +112,9 @@ static int on_d2gs_initconn(t_connection * c)
 
 static int on_d2cs_initconn(t_connection * c)
 {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_on_d2cs_initconn_try(d2cs_conn_get_socket(c));
+#endif
 	eventlog(eventlog_level_info,__FUNCTION__,"[{}] client initiated d2cs connection",d2cs_conn_get_socket(c));
 	d2cs_conn_set_class(c,conn_class_d2cs);
 	d2cs_conn_set_state(c,conn_state_connected);

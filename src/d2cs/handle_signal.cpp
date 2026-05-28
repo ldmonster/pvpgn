@@ -32,6 +32,12 @@
 #include "d2ladder.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R233(3): observation bridges for d2cs signal init + per-tick dispatch.
+extern "C" int pvpgn_v3_d2cs_handle_signal_init_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_handle_signal_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -56,6 +62,9 @@ extern int handle_signal(void)
     char const * levels;
     char const * tok;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_handle_signal_try();
+#endif
 
 	if (signal_data.cancel_quit) {
 		signal_data.cancel_quit=0;
@@ -184,6 +193,9 @@ extern void signal_restart_d2gs_wrapper(void)
 #else
 extern int handle_signal_init(void)
 {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_handle_signal_init_try();
+#endif
 	std::signal(SIGINT,on_signal);
 	std::signal(SIGTERM,on_signal);
 	std::signal(SIGABRT,on_signal);

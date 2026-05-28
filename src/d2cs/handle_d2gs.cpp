@@ -82,6 +82,11 @@ extern "C" int pvpgn_v3_d2cs_send_setconffile_d2gs(void*        conn_ptr,
                                                      unsigned int reserved1,
                                                      void const*  data,
                                                      unsigned int data_size) noexcept;
+// R235(2): observation bridge for d2gs-packet dispatch.
+extern "C" int pvpgn_v3_d2cs_handle_d2gs_packet_try(
+    int sd,
+    unsigned int packet_type,
+    unsigned int packet_size) noexcept;
 #endif
 
 namespace pvpgn
@@ -605,6 +610,12 @@ static int on_d2gs_closegame(t_connection * c, t_packet * packet)
 
 extern int handle_d2gs_packet(t_connection * c, t_packet * packet)
 {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_handle_d2gs_packet_try(
+		d2cs_conn_get_socket(c),
+		packet_get_type(packet),
+		packet_get_size(packet));
+#endif
 	conn_process_packet(c,packet,d2gs_packet_handle_table,NELEMS(d2gs_packet_handle_table));
 	return 0;
 }

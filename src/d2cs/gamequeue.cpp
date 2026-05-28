@@ -27,6 +27,12 @@
 #include "handle_d2cs.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R236(1): observation bridges for d2cs game-queue lifecycle.
+extern "C" int pvpgn_v3_d2cs_gqlist_create_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_gqlist_destroy_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -43,6 +49,9 @@ namespace pvpgn
 
 		extern int gqlist_create(void)
 		{
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_gqlist_create_try();
+#endif
 			gqlist_head = list_create();
 			return 0;
 		}
@@ -51,6 +60,9 @@ namespace pvpgn
 		{
 			t_gq	* gq;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_gqlist_destroy_try();
+#endif
 			BEGIN_LIST_TRAVERSE_DATA(gqlist_head, gq, t_gq)
 			{
 				gq_destroy(gq, (t_elem **)curr_elem_);

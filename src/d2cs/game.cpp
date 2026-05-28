@@ -27,6 +27,38 @@
 #include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R238: observation bridges for d2cs game catalogue lifecycle.
+extern "C" int pvpgn_v3_d2cs_gamelist_create_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_gamelist_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_game_create_try(
+    unsigned int id,
+    const char* gamename,
+    unsigned int gameflag) noexcept;
+extern "C" int pvpgn_v3_d2cs_game_destroy_try(
+    unsigned int id,
+    const char* gamename) noexcept;
+// R239: observation bridges for the per-game setter triad.
+extern "C" int pvpgn_v3_d2cs_game_set_d2gs_gameid_try(
+    unsigned int game_id,
+    unsigned int d2gs_gameid) noexcept;
+extern "C" int pvpgn_v3_d2cs_game_set_d2gs_try(
+    unsigned int game_id,
+    unsigned int d2gs_id) noexcept;
+extern "C" int pvpgn_v3_d2cs_game_set_created_try(
+    unsigned int game_id,
+    unsigned int created) noexcept;
+// R240: observation bridges for per-game character add/del.
+extern "C" int pvpgn_v3_d2cs_game_add_character_try(
+    unsigned int game_id,
+    const char* charname,
+    unsigned int chclass,
+    unsigned int level) noexcept;
+extern "C" int pvpgn_v3_d2cs_game_del_character_try(
+    unsigned int game_id,
+    const char* charname) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -57,6 +89,9 @@ namespace pvpgn
 
 		extern int d2cs_gamelist_create(void)
 		{
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_gamelist_create_try();
+#endif
 			gamelist_head = list_create();
 			return 0;
 		}
@@ -65,6 +100,9 @@ namespace pvpgn
 		{
 			t_game * game;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_gamelist_destroy_try();
+#endif
 			BEGIN_LIST_TRAVERSE_DATA(gamelist_head, game, t_game)
 			{
 				game_destroy(game, &curr_elem_);
@@ -187,6 +225,9 @@ namespace pvpgn
 			game->currchar = 0;
 			list_prepend_data(gamelist_head, game);
 			total_game++;
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_game_create_try(game->id, gamename, gameflag);
+#endif
 			eventlog(eventlog_level_info, __FUNCTION__, "game {} pass={} desc={}gameflag=0x{:08X} created ({} total)", gamename, gamepass,
 				gamedesc, gameflag, total_game);
 			return game;
@@ -198,6 +239,9 @@ namespace pvpgn
 			t_game_charinfo	* charinfo;
 
 			ASSERT(game, -1);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_game_destroy_try(game->id, game->name);
+#endif
 			if (gamelist_curr_elem && (game == elem_get_data(gamelist_curr_elem))) {
 				gamelist_curr_elem = elem_get_next_const(gamelist_head, gamelist_curr_elem);
 			}
@@ -254,6 +298,12 @@ namespace pvpgn
 
 			ASSERT(game, -1);
 			ASSERT(charname, -1);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_game_add_character_try(
+				game->id, charname,
+				static_cast<unsigned int>(chclass),
+				static_cast<unsigned int>(level));
+#endif
 			charinfo = game_find_character(game, charname);
 			if (charinfo) {
 				eventlog(eventlog_level_info, __FUNCTION__, "updating character {} (game {}) status", charname, game->name);
@@ -279,6 +329,9 @@ namespace pvpgn
 
 			ASSERT(game, -1);
 			ASSERT(charname, -1);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_game_del_character_try(game->id, charname);
+#endif
 			if (!(charinfo = game_find_character(game, charname))) {
 				eventlog(eventlog_level_error, __FUNCTION__, "character {} not found in game {}", charname, game->name);
 				return -1;
@@ -298,6 +351,9 @@ namespace pvpgn
 		extern int game_set_d2gs_gameid(t_game * game, unsigned int d2gs_gameid)
 		{
 			ASSERT(game, -1);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_game_set_d2gs_gameid_try(game->id, d2gs_gameid);
+#endif
 			game->d2gs_gameid = d2gs_gameid;
 			return 0;
 		}
@@ -324,6 +380,11 @@ namespace pvpgn
 		extern int game_set_d2gs(t_game * game, t_d2gs * gs)
 		{
 			ASSERT(game, -1);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_game_set_d2gs_try(
+				game->id,
+				gs ? d2gs_get_id(gs) : 0u);
+#endif
 			game->d2gs = gs;
 			return 0;
 		}
@@ -436,6 +497,9 @@ namespace pvpgn
 		extern int game_set_created(t_game * game, unsigned int created)
 		{
 			ASSERT(game, -1);
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_game_set_created_try(game->id, created);
+#endif
 			game->created = created;
 			return 0;
 		}

@@ -29,6 +29,12 @@
 #include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R236(2): observation bridges for d2cs server-queue lifecycle.
+extern "C" int pvpgn_v3_d2cs_sqlist_create_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_sqlist_destroy_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -45,6 +51,9 @@ extern t_list * sqlist(void)
 
 extern int sqlist_create(void)
 {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_sqlist_create_try();
+#endif
 	sqlist_head=list_create();
   	return 0;
 }
@@ -53,6 +62,9 @@ extern int sqlist_destroy(void)
 {
 	t_sq	 * sq;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_sqlist_destroy_try();
+#endif
 	BEGIN_LIST_TRAVERSE_DATA_CONST(sqlist_head,sq,t_sq)
 	{
 		sq_destroy(sq,(t_elem **)curr_elem_);

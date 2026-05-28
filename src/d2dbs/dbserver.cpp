@@ -57,6 +57,16 @@
 extern int g_ServiceStatus;
 #endif
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+// R232(2): observation bridges for d2dbs server main + per-conn shutdown.
+extern "C" int pvpgn_v3_d2dbs_server_main_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_server_shutdown_connection_try(
+    int sd,
+    unsigned int serverid,
+    unsigned int conn_type,
+    unsigned int verified) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -89,6 +99,9 @@ namespace pvpgn
 
 		int dbs_server_main(void)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_server_main_try();
+#endif
 			eventlog(eventlog_level_info, __FUNCTION__, "establishing the listener...");
 			dbs_server_listen_socket = dbs_server_init();
 			if (dbs_server_listen_socket < 0) {
@@ -449,6 +462,13 @@ namespace pvpgn
 
 		int dbs_server_shutdown_connection(t_d2dbs_connection* conn)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_server_shutdown_connection_try(
+				conn->sd,
+				conn->serverid,
+				static_cast<unsigned int>(conn->type),
+				conn->verified);
+#endif
 			shutdown(conn->sd, SHUT_RDWR);
 			close(conn->sd);
 			if (conn->verified && conn->type == CONNECT_CLASS_D2GS_TO_D2DBS) {

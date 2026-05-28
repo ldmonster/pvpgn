@@ -30,6 +30,12 @@
 #include "prefs_v3_shim.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+// R231(2): observation bridges for d2dbs ladder lifecycle.
+extern "C" int pvpgn_v3_d2dbs_d2ladder_init_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_d2ladder_destroy_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -301,6 +307,9 @@ namespace pvpgn
 
 		extern int d2dbs_d2ladder_init(void)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_d2ladder_init_try();
+#endif
 			d2ladder_change_count = 0;
 			d2ladder_maxtype = 0;
 			d2ladder_ladder_file = new char[std::strlen(pvpgn::d2dbs::prefs_v3::ladder_dir()) + 1 +
@@ -469,6 +478,9 @@ namespace pvpgn
 
 		extern int d2dbs_d2ladder_destroy(void)
 		{
+#ifdef PVPGN_V3_D2DBS_INTEGRATION
+			(void)pvpgn_v3_d2dbs_d2ladder_destroy_try();
+#endif
 			unsigned int i;
 			t_d2ladder * d2ladder;
 

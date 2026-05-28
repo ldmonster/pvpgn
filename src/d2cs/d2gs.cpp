@@ -45,6 +45,10 @@
 #ifdef PVPGN_V3_D2CS_INTEGRATION
 extern "C" int pvpgn_v3_d2cs_obs_echoreq_d2gs(void* conn_ptr) noexcept;
 extern "C" int pvpgn_v3_d2cs_obs_control_d2gs(void* conn_ptr) noexcept;
+// R236(3): observation bridges for d2cs d2gs-list lifecycle.
+extern "C" int pvpgn_v3_d2cs_d2gslist_create_try(void)  noexcept;
+extern "C" int pvpgn_v3_d2cs_d2gslist_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_d2gslist_reload_try(const char* gslist) noexcept;
 #endif
 
 namespace pvpgn
@@ -64,6 +68,9 @@ namespace pvpgn
 
 		extern int d2gslist_create(void)
 		{
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_d2gslist_create_try();
+#endif
 			d2gslist_head = list_create();
 			return d2gslist_reload(pvpgn::d2cs::prefs_v3::gameservlist());
 		}
@@ -73,6 +80,9 @@ namespace pvpgn
 			t_addrlist	* gsaddrs;
 			t_d2gs		* gs;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_d2gslist_reload_try(gslist);
+#endif
 			if (!d2gslist_head) return -1;
 
 			BEGIN_LIST_TRAVERSE_DATA(d2gslist_head, gs, t_d2gs)
@@ -114,6 +124,9 @@ namespace pvpgn
 		{
 			t_d2gs	* gs;
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+			(void)pvpgn_v3_d2cs_d2gslist_destroy_try();
+#endif
 			BEGIN_LIST_TRAVERSE_DATA_CONST(d2gslist_head, gs, t_d2gs)
 			{
 				d2gs_destroy(gs, (t_elem **)&curr_elem_);

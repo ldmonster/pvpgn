@@ -47,6 +47,20 @@
 #include "i18n.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+// R244: bnetd IP-ban subsystem observation bridges.
+extern "C" int pvpgn_v3_bnetd_ipban_create_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_load_try(const char* filename) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_save_try(const char* filename) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_check_try(const char* ipaddr) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_add_try(
+    int sd,
+    const char* ipaddr,
+    unsigned long long endtime) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_unload_expired_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -81,6 +95,9 @@ namespace pvpgn
 
 		extern int ipbanlist_create(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_ipban_create_try();
+#endif
 			ipbanlist.clear();
 			return 0;
 		}
@@ -88,6 +105,9 @@ namespace pvpgn
 
 		extern int ipbanlist_destroy(void)
 		{
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_ipban_destroy_try();
+#endif
 			for (t_ipban_entry* entry : ipbanlist)
 				ipban_unload_entry(entry);
 			ipbanlist.clear();
@@ -110,6 +130,9 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_ipban_load_try(filename);
+#endif
 			if (!(fp = std::fopen(filename, "r")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open banlist file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
@@ -180,6 +203,9 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_ipban_save_try(filename);
+#endif
 			if (!(fp = std::fopen(filename, "w")))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "could not open banlist file \"{}\" for writing (std::fopen: {})", filename, std::strerror(errno));
@@ -241,6 +267,9 @@ namespace pvpgn
 				return -1;
 			}
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_ipban_check_try(ipaddr);
+#endif
 			whole = ib_strdup(ipaddr);
 
 			eventlog(eventlog_level_debug, __FUNCTION__, "lastcheck: {}, now: {}, now-lc: {}.", (unsigned)lastchecktime, (unsigned)now, (unsigned)(now - lastchecktime));
@@ -402,6 +431,12 @@ namespace pvpgn
 			t_ipban_entry *	entry;
 			std::string msgtemp;
 
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_ipban_add_try(
+				c ? conn_get_socket(c) : -1,
+				cp,
+				static_cast<unsigned long long>(endtime));
+#endif
 			if (!(entry = ipban_str_to_ipban_entry(cp)))
 			{
 				if (c)
@@ -441,6 +476,9 @@ namespace pvpgn
 		extern int ipbanlist_unload_expired(void)
 		{
 			bool removed = false;
+#ifdef PVPGN_V3_BNETD_INTEGRATION
+			(void)pvpgn_v3_bnetd_ipban_unload_expired_try();
+#endif
 			auto it = ipbanlist.begin();
 			while (it != ipbanlist.end())
 			{

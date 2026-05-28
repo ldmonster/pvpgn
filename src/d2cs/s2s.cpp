@@ -31,6 +31,11 @@
 #include "server.h"
 #include "common/setup_after.h"
 
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+// R233(2): observation bridge for d2cs s2s bootstrap.
+extern "C" int pvpgn_v3_d2cs_s2s_init_try(void) noexcept;
+#endif
+
 namespace pvpgn
 {
 
@@ -45,6 +50,9 @@ extern int s2s_check(void)
 
 extern int s2s_init(void)
 {
+#ifdef PVPGN_V3_D2CS_INTEGRATION
+	(void)pvpgn_v3_d2cs_s2s_init_try();
+#endif
 	bnetd_init();
 	return 0;
 }
