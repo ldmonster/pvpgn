@@ -37,3 +37,7 @@ pvpgn_v3_add_test(test_application_auth_lookup_account
 pvpgn_v3_add_test(test_application_auth_list_sessions
     SOURCES list_sessions_test.cpp
     DEPS    application_auth infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_login_user_nls
+    SOURCES login_user_nls_test.cpp
+    DEPS    application_auth infra_crypto_nls)

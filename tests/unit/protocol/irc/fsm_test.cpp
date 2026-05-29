@@ -279,7 +279,7 @@ TEST_CASE("IrcFsm: JOIN before registration yields 451 ERR_NOTREGISTERED",
 // JOIN
 // ===========================================================================
 
-TEST_CASE("IrcFsm: JOIN echoes JOIN + 353 RPL_NAMREPLY + 366 RPL_ENDOFNAMES",
+TEST_CASE("IrcFsm: JOIN echoes JOIN + 332 RPL_TOPIC + 353 RPL_NAMREPLY + 366 RPL_ENDOFNAMES",
           "[protocol][irc][fsm]") {
     FakeContext ctx;
     IrcFsm f{ctx};
@@ -287,13 +287,15 @@ TEST_CASE("IrcFsm: JOIN echoes JOIN + 353 RPL_NAMREPLY + 366 RPL_ENDOFNAMES",
     REQUIRE(f.handle(msg("JOIN", {"#pvpgn"})).has_value());
     REQUIRE(f.state() == IrcState::InChannel);
     REQUIRE(std::string{f.channel()} == "#pvpgn");
-    // Expect: JOIN echo, 353 RPL_NAMREPLY, 366 RPL_ENDOFNAMES
-    REQUIRE(ctx.sent.size() == 3);
+    // R301: JOIN echo, 332 RPL_TOPIC (empty), 353 RPL_NAMREPLY, 366 RPL_ENDOFNAMES
+    REQUIRE(ctx.sent.size() == 4);
     REQUIRE(ctx.sent[0].command == "JOIN");
-    REQUIRE(ctx.sent[0].prefix  == "alice");
+    // R301: prefix is nick!nick@pvpgn
+    REQUIRE(ctx.sent[0].prefix  == "alice!alice@pvpgn");
     REQUIRE(ctx.sent[0].params.front() == "#pvpgn");
-    REQUIRE(ctx.sent[1].command == "353");
-    REQUIRE(ctx.sent[2].command == "366");
+    REQUIRE(ctx.sent[1].command == "332");  // RPL_TOPIC (empty topic)
+    REQUIRE(ctx.sent[2].command == "353");
+    REQUIRE(ctx.sent[3].command == "366");
 }
 
 TEST_CASE("IrcFsm: JOIN with no channel param yields 461 ERR_NEEDMOREPARAMS",
@@ -320,7 +322,8 @@ TEST_CASE("IrcFsm: PART leaves channel and transitions to Registered",
     REQUIRE(f.channel().empty());
     REQUIRE(ctx.sent.size() == 1);
     REQUIRE(ctx.sent[0].command == "PART");
-    REQUIRE(ctx.sent[0].prefix  == "alice");
+    // R301: prefix is nick!nick@pvpgn
+    REQUIRE(ctx.sent[0].prefix  == "alice!alice@pvpgn");
     REQUIRE(ctx.sent[0].params.front() == "#pvpgn");
 }
 
@@ -360,17 +363,15 @@ TEST_CASE("IrcFsm: PART before joining any channel yields 403 ERR_NOSUCHCHANNEL"
 // PRIVMSG / NOTICE
 // ===========================================================================
 
-TEST_CASE("IrcFsm: PRIVMSG after registration echoes back with sender prefix",
+TEST_CASE("IrcFsm: PRIVMSG to channel is silently accepted (no echo in stub mode)",
           "[protocol][irc][fsm]") {
     FakeContext ctx;
     IrcFsm f{ctx};
     register_user(f, ctx);
+    // R301: channel PRIVMSG is forwarded to PostMessage use-case when wired;
+    // in stub mode (no use-case) it is silently accepted — no echo back.
     REQUIRE(f.handle(msg("PRIVMSG", {"#pvpgn", "Hello world"})).has_value());
-    REQUIRE(ctx.sent.size() == 1);
-    REQUIRE(ctx.sent[0].command == "PRIVMSG");
-    REQUIRE(ctx.sent[0].prefix  == "alice");
-    REQUIRE(ctx.sent[0].params[0] == "#pvpgn");
-    REQUIRE(ctx.sent[0].params[1] == "Hello world");
+    REQUIRE(ctx.sent.empty());
 }
 
 TEST_CASE("IrcFsm: PRIVMSG with missing params yields 411 ERR_NORECIPIENT",
@@ -513,29 +514,29 @@ TEST_CASE("IrcFsm: TOPIC get with no topic set returns 331 RPL_NOTOPIC",
     REQUIRE(ctx.sent[0].prefix  == "pvpgn.test");
 }
 
-TEST_CASE("IrcFsm: TOPIC set echoes TOPIC back to client",
+TEST_CASE("IrcFsm: TOPIC set returns 482 ERR_CHANOPRIVSNEEDED (Phase H stub)",
           "[protocol][irc][fsm]") {
     FakeContext ctx;
     IrcFsm f{ctx};
     join_channel(f, ctx, "#pvpgn");
+    // R301: set_topic use-case not yet wired; returns 482 ERR_CHANOPRIVSNEEDED.
     REQUIRE(f.handle(msg("TOPIC", {"#pvpgn", "Welcome to PvPGN!"})).has_value());
     REQUIRE(ctx.sent.size() == 1);
-    REQUIRE(ctx.sent[0].command == "TOPIC");
-    REQUIRE(ctx.sent[0].prefix  == "alice");
-    REQUIRE(ctx.sent[0].params[1] == "Welcome to PvPGN!");
+    REQUIRE(ctx.sent[0].command == "482");
 }
 
-TEST_CASE("IrcFsm: TOPIC get after set returns 332 RPL_TOPIC",
+TEST_CASE("IrcFsm: TOPIC get with no topic set returns 331 RPL_NOTOPIC (topic not persisted in stub)",
           "[protocol][irc][fsm]") {
     FakeContext ctx;
     IrcFsm f{ctx};
     join_channel(f, ctx, "#pvpgn");
+    // Attempt to set topic (returns 482, topic_ not updated).
     REQUIRE(f.handle(msg("TOPIC", {"#pvpgn", "Hello topic"})).has_value());
     ctx.sent.clear();
+    // Get topic — still empty since set was rejected.
     REQUIRE(f.handle(msg("TOPIC", {"#pvpgn"})).has_value());
     REQUIRE(ctx.sent.size() == 1);
-    REQUIRE(ctx.sent[0].command == "332");
-    REQUIRE(ctx.sent[0].params.back().find("Hello topic") != std::string::npos);
+    REQUIRE(ctx.sent[0].command == "331");
 }
 
 TEST_CASE("IrcFsm: TOPIC on wrong channel returns 403 ERR_NOSUCHCHANNEL",
@@ -580,28 +581,25 @@ TEST_CASE("IrcFsm: NAMES not in channel returns only 366 RPL_ENDOFNAMES",
 // KICK
 // ===========================================================================
 
-TEST_CASE("IrcFsm: KICK in channel echoes KICK",
+TEST_CASE("IrcFsm: KICK in channel returns 482 ERR_CHANOPRIVSNEEDED (Phase H stub)",
           "[protocol][irc][fsm]") {
     FakeContext ctx;
     IrcFsm f{ctx};
     join_channel(f, ctx, "#pvpgn");
+    // R301: kick use-case not yet wired; returns 482 ERR_CHANOPRIVSNEEDED.
     REQUIRE(f.handle(msg("KICK", {"#pvpgn", "bob"})).has_value());
     REQUIRE(ctx.sent.size() == 1);
-    REQUIRE(ctx.sent[0].command == "KICK");
-    REQUIRE(ctx.sent[0].prefix  == "alice");
-    REQUIRE(ctx.sent[0].params[0] == "#pvpgn");
-    REQUIRE(ctx.sent[0].params[1] == "bob");
+    REQUIRE(ctx.sent[0].command == "482");
 }
 
-TEST_CASE("IrcFsm: KICK with reason echoes the reason",
+TEST_CASE("IrcFsm: KICK with reason also returns 482 ERR_CHANOPRIVSNEEDED",
           "[protocol][irc][fsm]") {
     FakeContext ctx;
     IrcFsm f{ctx};
     join_channel(f, ctx, "#pvpgn");
     REQUIRE(f.handle(msg("KICK", {"#pvpgn", "bob", "Spamming"})).has_value());
     REQUIRE(ctx.sent.size() == 1);
-    REQUIRE(ctx.sent[0].params.size() == 3);
-    REQUIRE(ctx.sent[0].params[2] == "Spamming");
+    REQUIRE(ctx.sent[0].command == "482");
 }
 
 TEST_CASE("IrcFsm: KICK wrong channel returns 403 ERR_NOSUCHCHANNEL",

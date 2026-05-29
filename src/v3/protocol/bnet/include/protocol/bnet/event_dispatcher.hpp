@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 
+#include "domain/shared/events.hpp"
 #include "domain/shared/ids.hpp"
 
 namespace pvpgn::application::ports {
@@ -18,18 +19,34 @@ class IMessageRouter;
 namespace pvpgn::protocol::bnet {
 
 /// Dispatches domain events to outbound BNet messages.
-/// Converts channel/game domain events into SID_CHATEVENT and SID_GAMEEVENT
-/// packets, then routes them to affected sessions.
+/// Converts channel/game domain events into SID_CHATEVENT (0x0F) and
+/// SID_GAMEEVENT packets, then routes them to affected sessions.
 class BnetEventDispatcher {
 public:
     explicit BnetEventDispatcher(
         std::shared_ptr<application::ports::IMessageRouter> router) noexcept
         : router_(router) {}
 
-    /// Process channel-related domain events and route to target sessions.
-    /// TODO: Full implementation in Phase 5 will convert event types
-    /// to appropriate EID codes (EID_JOIN, EID_LEAVE, EID_TALK, etc.)
-    /// and encode them as SID_CHATEVENT packets.
+    // -----------------------------------------------------------------------
+    // R302 — Channel event dispatch
+    // -----------------------------------------------------------------------
+
+    /// Encode each domain event in @p events as a SID_CHATEVENT (0x0F) packet
+    /// and broadcast to all sessions in @p target_sessions.
+    ///
+    /// Mapping:
+    ///   ChannelJoined        → EID_JOIN   (2)
+    ///   ChannelLeft          → EID_LEAVE  (3)
+    ///   ChannelMessageSent   → EID_TALK   (5) or EID_EMOTE (0x17)
+    ///   ChannelTopicChanged  → EID_INFO   (0x12)
+    ///
+    /// Events of other types are silently ignored.
+    void dispatch_channel_events(
+        std::span<const domain::events::DomainEvent> events,
+        std::span<const domain::SessionId>           target_sessions);
+
+    /// Legacy overload — no-op stub kept for binary compatibility while
+    /// callers are migrated to the event-bearing overload above.
     void dispatch_channel_events(
         const std::vector<domain::SessionId>& target_sessions);
 

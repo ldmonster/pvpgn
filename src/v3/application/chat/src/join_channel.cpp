@@ -3,6 +3,7 @@
 
 #include "application/ports/account_repository.hpp"
 #include "application/ports/channel_repository.hpp"
+#include "application/ports/session_registry.hpp"
 #include "domain/shared/events.hpp"
 
 namespace pvpgn::application::chat {
@@ -71,16 +72,18 @@ JoinChannel::execute(domain::AccountId account_id, const std::string& channel_na
     }
     auto saved_channel = saved_channel_result.value();
 
-    // 6. Drain domain events and collect member session IDs
+    // 6. Drain domain events and collect member session IDs via session registry
     auto events = saved_channel.drain_events();
     std::vector<domain::SessionId> members_to_notify;
-    
-    // In a real implementation, would look up session IDs from connection registry
-    // For now, create placeholder session IDs for each member except the joining account
+
     auto member_ids = saved_channel.member_ids();
     for (const auto& member_id : member_ids) {
         if (member_id.value() != account_id.value()) {
-            members_to_notify.push_back(domain::SessionId{member_id.value()});
+            // Look up the real SessionId for this member from the session registry.
+            // Members without an active session are silently skipped.
+            if (auto sid = session_registry_.session_for(member_id)) {
+                members_to_notify.push_back(sid.value());
+            }
         }
     }
     (void)events;  // Events will be processed by caller

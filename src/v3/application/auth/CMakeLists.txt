@@ -6,6 +6,7 @@ add_library(pvpgn_application_auth)
 target_sources(pvpgn_application_auth
   PRIVATE
     src/login_user.cpp
+    src/login_user_nls.cpp
     src/permission_checker.cpp
     src/create_account.cpp
     src/logout_user.cpp
@@ -30,4 +31,7 @@ target_link_libraries(pvpgn_application_auth
     pvpgn_application_ports
     pvpgn_domain_identity
     pvpgn_core
+  PRIVATE
+    infra_crypto_nls
+    application_chat
 )

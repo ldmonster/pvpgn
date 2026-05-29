@@ -1,98 +1,166 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Golden replay tests: encode known packets, verify byte-for-byte output
-// These catch regressions in codec implementations
+// Golden replay tests: decode known wire bytes and verify the resulting
+// message structs.  These catch regressions in codec implementations.
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <variant>
 
 #include <catch2/catch_test_macros.hpp>
-#include <vector>
-#include <cstdint>
 
-// Placeholder test suite for BNet codec golden tests
-// In a real build, this would include:
-// #include "protocol/bnet/codec.hpp"
-// using namespace pvpgn::protocol::bnet;
+#include "protocol/bnet/codec.hpp"
+#include "protocol/bnet/messages.hpp"
+#include "protocol/common/packet.hpp"
+
+using namespace pvpgn;
 
 namespace pvpgn::protocol::bnet::test {
 
-// Helper to compare byte sequences
-void expect_bytes_equal(const std::vector<uint8_t>& expected,
-                       const std::vector<uint8_t>& actual,
-                       const std::string& test_name) {
-    CHECK(expected.size() == actual.size());
-    for (size_t i = 0; i < std::min(expected.size(), actual.size()); ++i) {
-        CHECK(expected[i] == actual[i]);
-    }
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Convert a fixed-size uint8_t array to a core::ByteView (span<const byte>).
+template <std::size_t N>
+static core::ByteView as_byte_view(const std::array<std::uint8_t, N>& arr) {
+    return std::as_bytes(std::span<const std::uint8_t, N>{arr});
 }
 
-// Test SID_NULL (0x00) packet
+// ---------------------------------------------------------------------------
+// SID_NULL (0x00) — client direction
+// ---------------------------------------------------------------------------
+
 TEST_CASE("BNetGoldenReplay/SID_NULL_Packet", "[protocol][bnet]") {
-    // Known good packet bytes for SID_NULL
-    // Format: [0xFF, packet_id, size_lo, size_hi, ...]
-    const std::vector<uint8_t> expected = {0xFF, 0x00, 0x04, 0x00};
+    // Known good wire bytes for SID_NULL:
+    //   [0xFF, 0x00, 0x04, 0x00]
+    //   marker=0xFF  code=0x00  size=4 (LE)  payload=<empty>
+    const std::array<std::uint8_t, 4> raw = {0xFF, 0x00, 0x04, 0x00};
 
-    // In a real build:
-    // auto encoded = BnetCodec::encode_null();
-    // expect_bytes_equal(expected, encoded, "SID_NULL");
+    // Verify raw byte layout (golden assertion).
+    CHECK(raw[0] == 0xFF);  // BNet packet marker
+    CHECK(raw[1] == 0x00);  // SID_NULL
+    CHECK(raw[2] == 0x04);  // size low byte
+    CHECK(raw[3] == 0x00);  // size high byte
 
-    // Placeholder: verify expected bytes are correct
-    CHECK(expected[0] == 0xFF);  // BNet packet marker
-    CHECK(expected[1] == 0x00);  // SID_NULL
-    CHECK(expected[2] == 0x04);  // Size low byte
-    CHECK(expected[3] == 0x00);  // Size high byte
+    // Parse the frame.
+    auto fp = protocol::parse_packet(as_byte_view(raw));
+    REQUIRE(fp.has_value());
+    CHECK(fp.value().consumed == 4);
+    CHECK(fp.value().packet.header.code == kSidNull);
+
+    // Decode as a client message.
+    auto result = decode_client(fp.value().packet);
+    REQUIRE(result.has_value());
+    REQUIRE(std::holds_alternative<Null>(result.value()));
 }
 
-// Test SID_PING (0x25) packet
+// ---------------------------------------------------------------------------
+// SID_NULL (0x00) — server direction
+// ---------------------------------------------------------------------------
+
+TEST_CASE("BNetGoldenReplay/SID_NULL_Server", "[protocol][bnet]") {
+    const std::array<std::uint8_t, 4> raw = {0xFF, 0x00, 0x04, 0x00};
+
+    auto fp = protocol::parse_packet(as_byte_view(raw));
+    REQUIRE(fp.has_value());
+
+    auto result = decode_server(fp.value().packet);
+    REQUIRE(result.has_value());
+    REQUIRE(std::holds_alternative<Null>(result.value()));
+}
+
+// ---------------------------------------------------------------------------
+// SID_PING (0x25) — client direction, cookie 0xDEADBEEF
+// ---------------------------------------------------------------------------
+
 TEST_CASE("BNetGoldenReplay/SID_PING_Packet", "[protocol][bnet]") {
-    const std::vector<uint8_t> expected = {
+    // Known good wire bytes for SID_PING with cookie 0xDEADBEEF (LE):
+    //   [0xFF, 0x25, 0x08, 0x00, 0xEF, 0xBE, 0xAD, 0xDE]
+    const std::array<std::uint8_t, 8> raw = {
         0xFF, 0x25, 0x08, 0x00,
         0xEF, 0xBE, 0xAD, 0xDE  // cookie 0xDEADBEEF in little-endian
     };
 
-    // In a real build:
-    // auto encoded = BnetCodec::encode_ping(cookie);
-    // expect_bytes_equal(expected, encoded, "SID_PING");
+    // Verify raw byte layout (golden assertion).
+    CHECK(raw[0] == 0xFF);  // BNet packet marker
+    CHECK(raw[1] == 0x25);  // SID_PING
+    CHECK(raw[2] == 0x08);  // size low byte
+    CHECK(raw[3] == 0x00);  // size high byte
+    CHECK(raw[4] == 0xEF);  // cookie byte 0 (LSB)
+    CHECK(raw[5] == 0xBE);  // cookie byte 1
+    CHECK(raw[6] == 0xAD);  // cookie byte 2
+    CHECK(raw[7] == 0xDE);  // cookie byte 3 (MSB)
 
-    // Placeholder: verify expected bytes are correct
-    CHECK(expected[0] == 0xFF);  // BNet packet marker
-    CHECK(expected[1] == 0x25);  // SID_PING
-    CHECK(expected[2] == 0x08);  // Size low byte
-    CHECK(expected[3] == 0x00);  // Size high byte
-    CHECK(expected[4] == 0xEF);  // Cookie byte 0
-    CHECK(expected[5] == 0xBE);  // Cookie byte 1
-    CHECK(expected[6] == 0xAD);  // Cookie byte 2
-    CHECK(expected[7] == 0xDE);  // Cookie byte 3
+    // Parse the frame.
+    auto fp = protocol::parse_packet(as_byte_view(raw));
+    REQUIRE(fp.has_value());
+    CHECK(fp.value().consumed == 8);
+    CHECK(fp.value().packet.header.code == kSidPing);
+
+    // Decode as a client message.
+    auto result = decode_client(fp.value().packet);
+    REQUIRE(result.has_value());
+    REQUIRE(std::holds_alternative<Ping>(result.value()));
+    CHECK(std::get<Ping>(result.value()).ticks == 0xDEADBEEFu);
 }
 
-// Test round-trip: encode then decode
-TEST_CASE("BNetGoldenReplay/RoundTrip_SID_NULL", "[protocol][bnet]") {
-    const std::vector<uint8_t> packet_bytes = {0xFF, 0x00, 0x04, 0x00};
+// ---------------------------------------------------------------------------
+// SID_PING (0x25) — server direction, cookie 0xDEADBEEF
+// ---------------------------------------------------------------------------
 
-    // In a real build:
-    // auto decoded = BnetCodec::decode(std::span<const uint8_t>(packet_bytes));
-    // REQUIRE(decoded.has_value());
-    // CHECK(decoded->type == PacketType::SID_NULL);
-
-    // Placeholder: verify packet structure
-    CHECK(packet_bytes.size() >= 4);
-    CHECK(packet_bytes[0] == 0xFF);
-}
-
-// Test round-trip: encode then decode with payload
-TEST_CASE("BNetGoldenReplay/RoundTrip_SID_PING", "[protocol][bnet]") {
-    const std::vector<uint8_t> packet_bytes = {
+TEST_CASE("BNetGoldenReplay/SID_PING_Server", "[protocol][bnet]") {
+    const std::array<std::uint8_t, 8> raw = {
         0xFF, 0x25, 0x08, 0x00,
-        0x78, 0x56, 0x34, 0x12  // cookie in little-endian (0x12345678)
+        0xEF, 0xBE, 0xAD, 0xDE
     };
 
-    // In a real build:
-    // auto decoded = BnetCodec::decode(std::span<const uint8_t>(packet_bytes));
-    // REQUIRE(decoded.has_value());
-    // CHECK(decoded->type == PacketType::SID_PING);
-    // CHECK(decoded->cookie == 0x12345678);
+    auto fp = protocol::parse_packet(as_byte_view(raw));
+    REQUIRE(fp.has_value());
 
-    // Placeholder: verify packet structure
-    CHECK(packet_bytes.size() >= 8);
-    CHECK(packet_bytes[0] == 0xFF);
-    CHECK(packet_bytes[1] == 0x25);
+    auto result = decode_server(fp.value().packet);
+    REQUIRE(result.has_value());
+    REQUIRE(std::holds_alternative<Ping>(result.value()));
+    CHECK(std::get<Ping>(result.value()).ticks == 0xDEADBEEFu);
+}
+
+// ---------------------------------------------------------------------------
+// SID_PING (0x25) — round-trip, cookie 0x12345678
+// ---------------------------------------------------------------------------
+
+TEST_CASE("BNetGoldenReplay/RoundTrip_SID_NULL", "[protocol][bnet]") {
+    const std::array<std::uint8_t, 4> raw = {0xFF, 0x00, 0x04, 0x00};
+
+    auto fp = protocol::parse_packet(as_byte_view(raw));
+    REQUIRE(fp.has_value());
+    CHECK(fp.value().packet.header.marker == protocol::kBnetMarker);
+    CHECK(fp.value().packet.header.code   == kSidNull);
+    CHECK(fp.value().packet.header.size   == 4);
+    CHECK(fp.value().packet.payload.empty());
+
+    auto result = decode_client(fp.value().packet);
+    REQUIRE(result.has_value());
+    REQUIRE(std::holds_alternative<Null>(result.value()));
+}
+
+TEST_CASE("BNetGoldenReplay/RoundTrip_SID_PING", "[protocol][bnet]") {
+    // cookie 0x12345678 in little-endian: 0x78, 0x56, 0x34, 0x12
+    const std::array<std::uint8_t, 8> raw = {
+        0xFF, 0x25, 0x08, 0x00,
+        0x78, 0x56, 0x34, 0x12
+    };
+
+    auto fp = protocol::parse_packet(as_byte_view(raw));
+    REQUIRE(fp.has_value());
+    CHECK(fp.value().packet.header.marker == protocol::kBnetMarker);
+    CHECK(fp.value().packet.header.code   == kSidPing);
+    CHECK(fp.value().packet.header.size   == 8);
+    CHECK(fp.value().packet.payload.size() == 4);
+
+    auto result = decode_client(fp.value().packet);
+    REQUIRE(result.has_value());
+    REQUIRE(std::holds_alternative<Ping>(result.value()));
+    CHECK(std::get<Ping>(result.value()).ticks == 0x12345678u);
 }
 
 }  // namespace pvpgn::protocol::bnet::test

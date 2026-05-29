@@ -73,9 +73,14 @@
 #include <span>
 #include <string>
 
+#include "application/auth/login_user_nls.hpp"
 #include "core/result.hpp"
 #include "domain/connection/connection_context.hpp"
 #include "domain/connection/connection_fsm.hpp"
+
+namespace pvpgn::application::auth {
+class LoginUser;
+}  // namespace pvpgn::application::auth
 
 namespace pvpgn::app::bnetd {
 
@@ -94,7 +99,7 @@ namespace pvpgn::app::bnetd {
 class BnetConnectionAdapter final
     : public domain::connection::IConnectionContext {
 public:
-    /// Construct the adapter.
+    /// Construct the adapter (OLS-only, no NLS use-case).
     ///
     /// @param ctx        Domain-level I/O context (send_packet / close /
     ///                   game-lifecycle callbacks). Non-owning reference;
@@ -103,6 +108,33 @@ public:
     explicit BnetConnectionAdapter(
         domain::connection::IConnectionContext& ctx,
         std::uint32_t session_id = 0) noexcept;
+
+    /// Construct the adapter with NLS support for WAR3/W3XP clients.
+    ///
+    /// @param ctx            Domain-level I/O context. Non-owning reference;
+    ///                       MUST outlive this adapter.
+    /// @param login_user_nls NLS authentication use-case. Non-owning reference;
+    ///                       MUST outlive this adapter.
+    /// @param session_id     Opaque session identity for logging / registry.
+    BnetConnectionAdapter(
+        domain::connection::IConnectionContext&  ctx,
+        application::auth::LoginUserNls&         login_user_nls,
+        std::uint32_t                            session_id = 0) noexcept;
+
+    /// Construct the adapter with both OLS and NLS use-cases.
+    ///
+    /// @param ctx            Domain-level I/O context. Non-owning reference;
+    ///                       MUST outlive this adapter.
+    /// @param login_user_ols OLS authentication use-case. Non-owning reference;
+    ///                       MUST outlive this adapter.
+    /// @param login_user_nls NLS authentication use-case. Non-owning reference;
+    ///                       MUST outlive this adapter.
+    /// @param session_id     Opaque session identity for logging / registry.
+    BnetConnectionAdapter(
+        domain::connection::IConnectionContext&  ctx,
+        application::auth::LoginUser&            login_user_ols,
+        application::auth::LoginUserNls&         login_user_nls,
+        std::uint32_t                            session_id = 0) noexcept;
 
     // Non-copyable, non-movable (holds a reference to ctx_).
     BnetConnectionAdapter(const BnetConnectionAdapter&)            = delete;

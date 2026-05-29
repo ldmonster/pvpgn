@@ -96,6 +96,15 @@
 #include "app/bnetd/tcp_listener.hpp"
 #include "app/bnetd/tcp_session.hpp"
 
+// R304/R305: in-memory repositories + BnetdService composition root
+#include "infra/inmemory/account_repository.hpp"
+#include "infra/inmemory/channel_repository.hpp"
+#include "infra/inmemory/event_bus.hpp"
+#include "infra/inmemory/game_repository.hpp"
+#include "infra/inmemory/session_registry.hpp"
+#include "infra/inmemory/unit_of_work_factory.hpp"
+#include "services/bnetd/bnetd_service.hpp"
+
 // Lua runtime (infra_lua — no-op stub when Lua is not available)
 #include "infra/lua/lua_runtime.hpp"
 
@@ -243,8 +252,10 @@ class BnetBnftpDispatchFactory {
 public:
     BnetBnftpDispatchFactory(const ServerConfig&                       cfg,
                               SessionManager&                           session_mgr,
-                              const protocol::bnet::BnetUseCaseContext& use_cases)
-        : cfg_(cfg), session_mgr_(session_mgr), use_cases_(use_cases) {}
+                              const protocol::bnet::BnetUseCaseContext& use_cases,
+                              services::bnetd::BnetdService&            bnetd_svc)
+        : cfg_(cfg), session_mgr_(session_mgr), use_cases_(use_cases)
+        , bnetd_svc_(bnetd_svc) {}
 
     void operator()(std::shared_ptr<infra::net::TcpSession> tcp) {
         if (!tcp) return;
@@ -333,9 +344,21 @@ public:
                 // Keep tcp_conn_ctx, lua_ctx, and logging_ctx alive for the
                 // session lifetime by capturing them in the close handler
                 // alongside the adapter (which holds non-owning refs to all).
+                // R305: bnetd_svc_ is a member of BnetBnftpDispatchFactory;
+                // captured via `this` for LogoutUser cleanup on disconnect.
                 tcp->set_on_close(
                     [this, sid, adapter, tcp_conn_ctx, lua_ctx, logging_ctx](
                         const boost::system::error_code&) {
+                        // R305: call LogoutUser to clean up channel membership
+                        // before unregistering the session.
+                        const auto& conn_fsm = adapter->connection_fsm();
+                        const std::uint32_t acct_id = conn_fsm.account_id();
+                        if (acct_id != 0) {
+                            application::auth::LogoutRequest req{
+                                domain::SessionId{sid},
+                                domain::AccountId{acct_id}};
+                            (void)bnetd_svc_.logout_user().execute(req);
+                        }
                         session_mgr_.unregister_session(sid);
                         adapter->connection_fsm().close();
                         (void)tcp_conn_ctx;
@@ -376,6 +399,7 @@ private:
     const ServerConfig&                       cfg_;
     SessionManager&                           session_mgr_;
     protocol::bnet::BnetUseCaseContext        use_cases_;
+    services::bnetd::BnetdService&            bnetd_svc_;
 };
 
 // ---------------------------------------------------------------------------
@@ -474,11 +498,23 @@ static ServerConfig build_config(const CliArgs& args) {
 // Build a null BnetUseCaseContext (in-memory stubs for standalone mode)
 // ---------------------------------------------------------------------------
 
-static protocol::bnet::BnetUseCaseContext build_use_cases() {
-    // Phase 2 composition root: all use-case pointers are null.
-    // The BnetFsm handles null use-cases gracefully (no-ops for domain calls).
-    // Phase 3 will wire real in-memory or persistent adapters here.
-    return protocol::bnet::BnetUseCaseContext{};
+/// Null NLS credential store — used when no persistent credential backend is
+/// available.  Returns std::nullopt for every lookup so that WAR3/W3XP NLS
+/// auth always fails gracefully (the FSM falls back to OLS or rejects).
+struct NullNlsCredentialStore final
+    : public application::auth::INlsCredentialStore {
+    [[nodiscard]] std::optional<application::auth::NlsCredentials>
+    find(std::string_view /*username*/) override {
+        return std::nullopt;
+    }
+};
+
+/// Build a BnetUseCaseContext populated with real chat use-cases from
+/// BnetdService.  The service owns the use-cases; the context holds
+/// non-owning shared_ptrs (no-op deleters) so the FSM can call them.
+static protocol::bnet::BnetUseCaseContext
+build_use_cases(services::bnetd::BnetdService& svc) {
+    return svc.make_use_case_context();
 }
 
 }  // namespace pvpgn::app::bnetd
@@ -488,6 +524,7 @@ static protocol::bnet::BnetUseCaseContext build_use_cases() {
 // ---------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
+    using namespace pvpgn;
     using namespace pvpgn::app::bnetd;
 
     try {
@@ -561,15 +598,40 @@ int main(int argc, char* argv[]) {
         // 5. Create SessionManager
         SessionManager session_mgr;
 
-        // 6. Build use-case context (null stubs for Phase 2)
-        auto use_cases = build_use_cases();
+        // 6. Build use-case context (R304/R305: real chat use-cases via BnetdService)
+        //
+        // Create in-memory repositories and a BnetdService that owns the chat
+        // use-cases and seeds the channel repository with default channels.
+        // A null NLS credential store is used here; WAR3/W3XP NLS auth is
+        // handled separately by BnetConnectionAdapter / ConnectionFsm.
+        // R305: BnetdService also owns LogoutUser (wired with LeaveChannel)
+        // for channel cleanup on disconnect.
+        infra::inmemory::InMemoryChannelRepository  channel_repo;
+        infra::inmemory::InMemoryAccountRepository  account_repo;
+        infra::inmemory::InMemorySessionRegistry    session_reg;
+        infra::inmemory::InMemoryUnitOfWorkFactory  uow_factory;
+        infra::inmemory::InMemoryGameRepository     game_repo;
+        infra::inmemory::InMemoryEventBus           event_bus;
+        NullNlsCredentialStore                      null_nls_store;
+
+        services::bnetd::BnetdService bnetd_svc{
+            uow_factory,
+            event_loop,
+            null_nls_store,
+            channel_repo,
+            account_repo,
+            session_reg,
+            game_repo,
+            event_bus};
+
+        auto use_cases = build_use_cases(bnetd_svc);
 
         // 7. Create listeners
         //
         // Port 6112: BNet + BNFTP (shared port, first-byte dispatch)
         TcpListener bnet_listener{
             rt,
-            BnetBnftpDispatchFactory{cfg, session_mgr, use_cases}};
+            BnetBnftpDispatchFactory{cfg, session_mgr, use_cases, bnetd_svc}};
         bnet_listener.start(cfg.listen_address, cfg.bnet_port);
         LOG_INFO("bnetd", "BNet/BNFTP listening on {}:{}", cfg.listen_address, cfg.bnet_port);
 

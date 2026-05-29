@@ -17,6 +17,7 @@ namespace pvpgn::application::chat {
 class JoinChannel;
 class PostMessage;
 class LeaveChannel;
+class ListChannels;
 }  // namespace pvpgn::application::chat
 
 namespace pvpgn::application::game {
@@ -30,7 +31,10 @@ class CheckIpBan;
 }  // namespace pvpgn::application::moderation
 
 namespace pvpgn::application::ports {
+class IAccountRepository;
+class ICommandRegistry;
 class IMessageRouter;
+class IPermissionChecker;
 class ISessionRegistry;
 }  // namespace pvpgn::application::ports
 
@@ -44,11 +48,15 @@ struct BnetUseCaseContext {
     std::shared_ptr<application::chat::JoinChannel> join_channel;
     std::shared_ptr<application::chat::PostMessage> post_message;
     std::shared_ptr<application::chat::LeaveChannel> leave_channel;
+    std::shared_ptr<application::chat::ListChannels> list_channels;
     std::shared_ptr<application::game::StartGame> start_game;
     std::shared_ptr<application::game::JoinGame> join_game;
     std::shared_ptr<application::game::LeaveGame> leave_game;
     std::shared_ptr<application::moderation::CheckIpBan> check_ip_ban;
+    std::shared_ptr<application::ports::IAccountRepository> account_repo;
+    std::shared_ptr<application::ports::ICommandRegistry> command_registry;
     std::shared_ptr<application::ports::IMessageRouter> message_router;
+    std::shared_ptr<application::ports::IPermissionChecker> permission_checker;
     std::shared_ptr<application::ports::ISessionRegistry> session_registry;
 };
 

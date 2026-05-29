@@ -9,6 +9,7 @@
 #include "domain/chat/channel.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
+#include "infra/inmemory/session_registry.hpp"
 #include "channel_repository.hpp"
 
 namespace {
@@ -19,6 +20,7 @@ using application::chat::LeaveChannelError;
 
 struct Fixture {
     infra::storage::InMemoryChannelRepository channels;
+    infra::inmemory::InMemorySessionRegistry sessions;
     domain::AccountId alice_id{1};
     domain::AccountId bob_id{2};
     domain::ChannelId channel_id{1};
@@ -30,6 +32,9 @@ struct Fixture {
         (void)ch.admit(alice_id, star_tag);
         (void)ch.admit(bob_id, star_tag);
         REQUIRE(channels.save(ch));
+        // Register sessions so members_to_notify is populated
+        (void)sessions.attach(domain::SessionId{101}, alice_id);
+        (void)sessions.attach(domain::SessionId{102}, bob_id);
     }
 
     void setup_permanent_channel_with_members() {
@@ -41,10 +46,12 @@ struct Fixture {
         (void)ch.admit(alice_id, star_tag);
         (void)ch.admit(bob_id, star_tag);
         REQUIRE(channels.save(ch));
+        (void)sessions.attach(domain::SessionId{101}, alice_id);
+        (void)sessions.attach(domain::SessionId{102}, bob_id);
     }
 
     LeaveChannel make_use_case() {
-        return LeaveChannel{channels};
+        return LeaveChannel{channels, sessions};
     }
 };
 

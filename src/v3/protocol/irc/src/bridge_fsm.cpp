@@ -5,7 +5,7 @@
 namespace pvpgn::protocol::irc {
 
 std::string IrcBridgeFsm::irc_to_bnet_channel(std::string_view irc_channel) {
-    // Strip leading '#' if present
+    // Strip leading '#' if present.
     if (!irc_channel.empty() && irc_channel[0] == '#') {
         return std::string{irc_channel.substr(1)};
     }

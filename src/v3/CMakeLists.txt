@@ -234,6 +234,12 @@ pvpgn_v3_add_library(infra_crypto
         Boost::headers
 )
 
+# R281: NLS/SRP-6a crypto (WAR3/W3XP 1024-bit prime, OpenSSL BN_*).
+# Only built when OpenSSL is available.
+if(OpenSSL_FOUND OR TARGET OpenSSL::Crypto)
+    add_subdirectory(infra/crypto)
+endif()
+
 # Always-available structured logger backends (no third-party deps).
 pvpgn_v3_add_library(infra_log_simple
     STATIC
@@ -271,6 +277,7 @@ if(PVPGN_V3_WITH_TOMLPP)
             infra/config/src/config_watcher.cpp
             infra/config/src/d2cs_server_config.cpp
             infra/config/src/d2dbs_server_config.cpp
+            infra/config/src/channel_config_loader.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/infra/config/include
         PUBLIC_DEPS
@@ -405,8 +412,10 @@ pvpgn_v3_add_library(protocol_irc
     PUBLIC_DEPS
         core
         protocol_common
-        application_chat
         application_auth
+        application_chat
+        domain_chat
+        domain_shared
 )
 
 # ---- protocol/udp -------------------------------------------------------
@@ -522,10 +531,16 @@ pvpgn_v3_add_library(protocol_wol
     STATIC
     SOURCES
         protocol/wol/src/wol_fsm.cpp
+        protocol/wol/src/codec.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/wol/include
     PUBLIC_DEPS
         core
+        protocol_common
+        application_auth
+        application_chat
+        domain_chat
+        domain_shared
 )
 
 # ---- domain/shared (value objects, events, IDs) -------------------------
@@ -673,6 +688,7 @@ pvpgn_v3_add_library(application_auth
     STATIC
     SOURCES
         application/auth/src/login_user.cpp
+        application/auth/src/login_user_nls.cpp
         application/auth/src/login_classifier.cpp
         application/auth/src/password_rotation_observer.cpp
         application/auth/src/change_password.cpp
@@ -688,6 +704,9 @@ pvpgn_v3_add_library(application_auth
         domain_shared
         domain_identity
         domain_moderation
+        infra_crypto_nls
+    PRIVATE_DEPS
+        application_chat
 )
 
 
@@ -1060,6 +1079,40 @@ pvpgn_v3_add_library(infra_inmemory
         domain_ladder
 )
 
+# ---- infra/migrations, infra/sqlite, infra/file -------------------------
+# Must come after infra_inmemory (InMemoryTeamRepository placeholder) and
+# after infra/persistence (port headers). The sqlite/file CMakeLists.txt
+# reference pvpgn_infra_inmemory; create an alias from infra_inmemory.
+if(NOT TARGET pvpgn_infra_inmemory)
+    add_library(pvpgn_infra_inmemory ALIAS infra_inmemory)
+endif()
+if(NOT TARGET pvpgn_core)
+    add_library(pvpgn_core ALIAS core)
+endif()
+if(NOT TARGET pvpgn_application)
+    add_library(pvpgn_application ALIAS application_ports)
+endif()
+
+if(NOT TARGET pvpgn_infra_migrations)
+    add_subdirectory(infra/migrations)
+endif()
+if(NOT TARGET pvpgn_infra_sqlite)
+    add_subdirectory(infra/sqlite)
+endif()
+if(NOT TARGET pvpgn_infra_file)
+    add_subdirectory(infra/file)
+endif()
+
+# Wire backend_registration.cpp link dependencies now that the targets exist.
+# infra_persistence includes backend_registration.cpp which #includes headers
+# from pvpgn_infra_sqlite and pvpgn_infra_file; link them as PRIVATE deps.
+if(TARGET pvpgn_infra_sqlite)
+    target_link_libraries(infra_persistence PRIVATE pvpgn_infra_sqlite)
+endif()
+if(TARGET pvpgn_infra_file)
+    target_link_libraries(infra_persistence PRIVATE pvpgn_infra_file)
+endif()
+
 # ---- infra/storage/repository (Phase 2 in-memory repositories) -----------
 
 add_subdirectory(infra/storage/repository)
@@ -1084,6 +1137,7 @@ pvpgn_v3_add_library(infra_session
     PUBLIC_DEPS
         core
         application_ports
+        application_auth
         infra_net
         infra_routing
         protocol_bnet
@@ -1092,6 +1146,7 @@ pvpgn_v3_add_library(infra_session
         protocol_telnet
         protocol_wolgameres
         domain_shared
+        domain_connection
 )
 
 # ---- infra/legacy_crypto (bnet_hash adapter) ----------------------------
@@ -1485,17 +1540,27 @@ pvpgn_v3_add_library(infra_metrics
 
 # ---- infra/webui (REST API server + HTML dashboard) -----------------------
 
+# Header-only sub-library: JSON serialisers that do NOT require Boost.
+# Testable without a live IoRuntime.
+pvpgn_v3_add_library(infra_webui_json
+    INTERFACE
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/webui/include
+    DEPS
+        application_ports
+        domain_chat
+)
+
 if(PVPGN_V3_WITH_BOOST)
     pvpgn_v3_add_library(infra_webui
         STATIC
         SOURCES
             infra/webui/src/web_server.cpp
-        PUBLIC_INCLUDES
-            ${CMAKE_CURRENT_SOURCE_DIR}/infra/webui/include
         PUBLIC_DEPS
             core
             application_ports
             infra_net
+            infra_webui_json
         DEPS
             Boost::system
     )

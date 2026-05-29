@@ -18,6 +18,7 @@
 
 namespace pvpgn::application::ports {
 class IChannelRepository;
+class ISessionRegistry;
 }  // namespace pvpgn::application::ports
 
 namespace pvpgn::application::chat {
@@ -40,16 +41,18 @@ struct PostMessageResult {
 
 class PostMessage {
 public:
-    explicit PostMessage(application::ports::IChannelRepository& channel_repo)
-        : channel_repo_(channel_repo) {}
+    explicit PostMessage(application::ports::IChannelRepository& channel_repo,
+                         application::ports::ISessionRegistry& session_registry)
+        : channel_repo_(channel_repo), session_registry_(session_registry) {}
 
     /// Execute: validate membership and post message to channel.
-    core::Result<PostMessageResult, PostMessageError>
+    [[nodiscard]] core::Result<PostMessageResult, PostMessageError>
     execute(domain::ChannelId channel_id, domain::AccountId account_id,
             const domain::ChatMessage& message) const;
 
 private:
     application::ports::IChannelRepository& channel_repo_;
+    application::ports::ISessionRegistry&   session_registry_;
 };
 
 }  // namespace pvpgn::application::chat

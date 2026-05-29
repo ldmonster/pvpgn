@@ -1,17 +1,5 @@
-find_package(SQLite3)
-
-if(SQLite3_FOUND)
-    pvpgn_v3_add_library(infra_persistence_sqlite
-        SOURCES
-            src/sqlite_database.cpp
-            src/sqlite_account_repository.cpp
-        HEADERS
-            include/infra/persistence/sqlite/sqlite_database.hpp
-            include/infra/persistence/sqlite/sqlite_account_repository.hpp
-        DEPS
-            pvpgn_v3_application_ports
-            pvpgn_v3_domain_identity
-            pvpgn_v3_core
-            SQLite3::SQLite3
-    )
-endif()
+# R316: infra/persistence/sqlite is DEPRECATED.
+# The canonical SQLite implementation is pvpgn_infra_sqlite (infra/sqlite/).
+# This subdirectory is intentionally disabled. Do not re-enable it.
+# All callers must use: #include "infra/sqlite/account_repository.hpp"
+message(STATUS "infra/persistence/sqlite: DEPRECATED — skipped (use pvpgn_infra_sqlite)")

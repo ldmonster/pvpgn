@@ -143,3 +143,165 @@ Observation bridges across all bnetd, d2cs, d2dbs modules (~147 test cases, ~647
 
 ---
 **Phase D Summary**: 8 tasks complete (R266–R273). Full ports catalogue established (41 port interfaces), 26 InMemory fakes, BnetdService composition root stub, 11 new Catch2 test files, MySQL/PostgreSQL stubs synchronized, AdapterRegistry converted to instance-based factory.
+
+## Phase E — Protocol & Codecs (Plan 06)
+
+### R274 — `DecodeError` enum + `next_frame()` wrapper ✅ COMPLETE
+- **Files created**: `src/v3/protocol/common/include/protocol/common/decode_error.hpp` — `DecodeError` enum with 6 variants: `Truncated`, `UnknownOpcode`, `MalformedString`, `InvalidLength`, `UnsupportedVersion`, `ChecksumMismatch`; `src/v3/protocol/common/include/protocol/common/frame_view.hpp` — `FrameView` struct with `header`, `payload` (both `core::ByteView`), and `opcode` fields; `src/v3/protocol/common/include/protocol/common/next_frame.hpp` — wraps `parse_packet()`, returns `core::Result<std::optional<FrameView>, DecodeError>`
+- **Files modified**: `src/v3/CMakeLists.txt` — added 3 new headers to `protocol_common` INTERFACE_SOURCES
+- **Checklist**: `plans/r274-checklist.md`
+
+### R275 — Fuzz harness wiring ✅ COMPLETE
+- **Files modified**: `tests/fuzz/bnet_codec_fuzz.cpp` — wired to `decode_client()` via `next_frame()`; fallback `main()` guarded by `#ifndef PVPGN_FUZZING_ENABLED`; `tests/fuzz/CMakeLists.txt` — added `protocol_bnet` + `protocol_common` link deps, `-DPVPGN_FUZZING_ENABLED` define
+- **Checklist**: `plans/r275-checklist.md`
+
+### R276 — Fuzz corpus + d2save harness ✅ COMPLETE
+- **Files created**: `tests/fuzz/corpus/bnet/` with 5 seed files: `0x00_null.bin`, `0x25_ping.bin`, `0x50_auth_info.bin`, `0x29_logon_request.bin`, `0x0a_enter_chat.bin`
+- **Files modified**: `tests/fuzz/d2save_codec_fuzz.cpp` — wired to `D2SaveCodec::parse()`, `extract_char_name()`, `extract_level()`, `extract_class()`, `verify_checksum()`
+- **Checklist**: `plans/r276-checklist.md`
+
+### R277 — GitHub Actions fuzz CI workflows ✅ COMPLETE
+- **Files created**: `.github/workflows/fuzz-smoke.yml` — triggers on PRs touching `src/v3/protocol/**` or `tests/fuzz/**`; 60s fuzz smoke; crash artifact upload on failure; `.github/workflows/fuzz-nightly.yml` — cron `0 2 * * *` + `workflow_dispatch`; 1800s fuzz; crash artifacts always uploaded (90-day retention)
+- **Checklist**: `plans/r277-checklist.md`
+
+### R278 — WoL codec with typed message structs ✅ COMPLETE
+- **Files created**: `src/v3/protocol/wol/include/protocol/wol/messages.hpp` — 24 client message structs (`Nick`, `User`, `Pass`, `Ping`, `Pong`, `Quit`, `List`, `Join`, `Part`, `Privmsg`, `Cvers`, `Verchk`, `Apgar`, `Setopt`, `Serial`, `Gameopt`, `Startg`, `Joingame`, `Finduser`, `Page`, `Addbuddy`, `Delbuddy`, `Getbuddy`, `WolCommand`) + 2 server structs (`NumericReply`, `RawLine`); `src/v3/protocol/wol/include/protocol/wol/codec.hpp` — `decode_client()` / `encode_server()` API; `src/v3/protocol/wol/src/codec.cpp` — IRC prefix stripping, case-insensitive dispatch, per-command decoders; `tests/unit/protocol/wol/codec_test.cpp` — 42 Catch2 test cases
+- **Files modified**: `src/v3/CMakeLists.txt` — added `codec.cpp` to `protocol_wol` SOURCES, `protocol_common` to PUBLIC_DEPS; `tests/unit/protocol/wol/CMakeLists.txt` — added `test_protocol_wol_codec` target
+- **Checklist**: `plans/r278-checklist.md`
+
+### R279 — Fix `golden_replay_test.cpp` ✅ COMPLETE
+- **Files modified**: `tests/unit/protocol/bnet/golden_replay_test.cpp` — wired 6 test cases to actual `decode_client()` / `decode_server()` calls via `parse_packet()` for `SID_NULL` and `SID_PING` byte arrays; added `REQUIRE`/`CHECK` assertions for opcode, variant type, and cookie field values
+- **Checklist**: `plans/r279-checklist.md`
+
+### R280 — Variant sub-codecs evaluation ⏸ DEFERRED
+- **Assessment**: Evaluated STAR/D2DV/WAR3 variant sub-codec requirements
+- **Decision**: DEFER — existing flat codec correctly decodes all SID packets; variant-specific behaviour is domain/application logic, not wire-format logic; implementing now would violate Plan 06's "codec has zero dependency on domain types" rule
+- **Deferred to**: Plan 06 extension or Plan 06b, after FSM/session layer (Phase F) is complete
+- **Checklist**: `plans/r280-checklist.md`
+
+---
+**Phase E Summary**: 7 tasks complete/evaluated (R274–R280). `DecodeError` + `FrameView` + `next_frame()` wrapper added to `protocol_common`; fuzz harnesses wired for BNet and D2Save codecs; 5-file BNet fuzz corpus seeded; GitHub Actions smoke (60s) and nightly (1800s) fuzz CI workflows added; WoL codec implemented with 24 client + 2 server typed message structs and 42 Catch2 tests; `golden_replay_test.cpp` wired to real codec calls with assertions; variant sub-codec work deferred to Phase F.
+
+## Phase F — FSM / Session Layer (Plan 07)
+
+### R281 — NLS/SRP-6a Crypto Infrastructure ✅ COMPLETE
+- **Files created**: `src/v3/infra/crypto/include/infra/crypto/nls.hpp` — `NlsServer`, `NlsContext`, `NlsError`; full SRP-6a server using OpenSSL `BN_*` + EVP SHA-1; N=1024-bit prime, g=47, H=SHA-1; `src/v3/infra/crypto/include/infra/crypto/nls_verifier.hpp` — `NlsVerifier` for verifier/salt generation; `src/v3/infra/crypto/src/nls.cpp` — implementation; `src/v3/infra/crypto/CMakeLists.txt` — `infra_crypto_nls` target; `tests/unit/infra/crypto/nls_test.cpp` — 7 test cases, 248 assertions (all passing)
+- **Files modified**: `src/v3/services/d2cs/CMakeLists.txt`, `src/v3/services/d2dbs/CMakeLists.txt` — fixed pre-existing build bug
+
+### R282 — LoginUserNls Use-Case ✅ COMPLETE
+- **Files created**: `src/v3/application/auth/include/application/auth/login_user_nls.hpp` — `INlsCredentialStore` port, `NlsCredentials`, `NlsLoginError`, `NlsChallengeResult`, `NlsProofResult`, `LoginUserNls` class; `src/v3/application/auth/src/login_user_nls.cpp` — two-step challenge/verify flow; `tests/unit/application/auth/login_user_nls_test.cpp` — 6 test cases
+- **Files modified**: `src/v3/application/auth/CMakeLists.txt`, `tests/unit/application/auth/CMakeLists.txt`
+
+### R283+R286 — OLS vs NLS Branching + Per-Session NLS State in ConnectionFsm ✅ COMPLETE
+- **Files modified**: `src/v3/domain/connection/include/domain/connection/connection_fsm.hpp` — added `is_nls_client()`, product-tag constants (`kTagWar3`, `kTagW3xp`), 3 pending-NLS members (`pending_nls_ctx_`, `pending_nls_username_`, `pending_nls_client_key_`), `clear_pending_nls()`; `src/v3/domain/connection/src/connection_fsm.cpp` — OLS guard, NLS challenge, NLS verify, `clear_pending_nls()` impl; `src/v3/domain/connection/CMakeLists.txt` — added `application_auth` + `infra_crypto_nls` deps
+
+### R284+R285 — Wire BnetConnectionAdapter + BnetdService Use-Cases ✅ COMPLETE
+- **Files modified**: `src/v3/app/bnetd/include/app/bnetd/bnet_connection_adapter.hpp` — NLS constructor overload; `src/v3/app/bnetd/src/bnet_connection_adapter.cpp` — NLS constructor body; `src/v3/infra/session/include/infra/session/bnet_session_factory.hpp` — `login_nls_` param, per-session `BnetConnectionAdapter` instantiation; `src/v3/services/bnetd/include/services/bnetd/bnetd_service.hpp` — `INlsCredentialStore&` param, `login_user_nls_` ownership; `src/v3/services/bnetd/src/bnetd_service.cpp` — constructs `LoginUserNls`; CMakeLists for `app_bnetd`, `services_bnetd`, `infra_session`
+
+### R287 — D2 Character Binding in ConnectionFsm ✅ COMPLETE
+- **Files modified**: `src/v3/domain/connection/include/domain/connection/connection_fsm.hpp` + `src/v3/domain/connection/src/connection_fsm.cpp` — added `bind_d2_character()`, `has_d2_character()`, `d2_char_name()`, `d2_char_class()`, `d2_char_level()` accessors; added `on_d2_char_select()` handler for SID `0x68`
+
+### R288 — WAR3 Route Connection Pairing ✅ COMPLETE
+- **Files created**: `src/v3/domain/connection/include/domain/connection/route_registry.hpp` — `RouteRegistry` with `register_primary()`, `unregister()`, `find_primary()`
+- **Files modified**: `src/v3/domain/connection/include/domain/connection/connection_fsm.hpp` + `src/v3/domain/connection/src/connection_fsm.cpp` — added `set_war3_route_token()`, `war3_route_token()`, `on_warcraft_general()` handler for SID `0x44`
+
+### R289 — WolFsm::on_pass() Auth Use-Case Wiring ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/wol/include/protocol/wol/wol_fsm.hpp` — `LoginUser&` constructor; `src/v3/protocol/wol/src/wol_fsm.cpp` — `on_pass()` calls `LoginUser::execute()`; sends `464` on failure, `001`/`002`/`375`/`376` on success; `src/v3/CMakeLists.txt` — added `application_auth` to `protocol_wol` deps
+
+### R290 — IrcFsm PASS Handler ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/irc/include/protocol/irc/fsm.hpp` — `LoginUser&` constructor, `on_pass()`, `pending_password_`; `src/v3/protocol/irc/src/fsm.cpp` — `on_pass()` stores password, `try_complete_registration()` calls `LoginUser`; sends `432`/`464` on failure, `001` on success
+
+### R291 — FSM Unit Tests (43 test cases) ✅ COMPLETE
+- **Files created**: `tests/unit/domain/connection/route_registry_test.cpp` — 12 test cases; `tests/unit/protocol/wol/wol_fsm_auth_test.cpp` — 9 test cases; `tests/unit/protocol/irc/fsm_auth_test.cpp` — 8 test cases
+- **Files modified**: `tests/unit/domain/connection/connection_fsm_test.cpp` — +14 Phase F cases (D2 char binding, WAR3 route token, NLS branching, NLS state cleared after proof); CMakeLists for all new test targets
+
+### R292 — Fix `src/v3/CMakeLists.txt` Inline Target Drift ✅ COMPLETE
+- **Files modified**: `src/v3/CMakeLists.txt` — fixed `application_auth` inline target: added `login_user_nls.cpp` to SOURCES, `infra_crypto_nls` to PRIVATE_DEPS; fixed `infra_session` inline target: added `application_auth` + `domain_connection` to PUBLIC_DEPS
+
+### R293 — Wire LoginUser::execute() for OLS Path in ConnectionFsm ✅ COMPLETE
+- **Files modified**: `src/v3/domain/connection/include/domain/connection/connection_fsm.hpp` — added `LoginUser* login_user_ols_` member, OLS+NLS combined constructor; `src/v3/domain/connection/src/connection_fsm.cpp` — `on_logon_request()` calls `LoginUser::execute()` with parsed OLS credentials, sets real `account_id_` from result; `src/v3/app/bnetd/include/app/bnetd/bnet_connection_adapter.hpp` + `src/v3/app/bnetd/src/bnet_connection_adapter.cpp` — OLS+NLS combined constructor; `src/v3/infra/session/include/infra/session/bnet_session_factory.hpp` — `login_ols_` param, uses OLS+NLS constructor when both non-null
+
+### R294 — Add account_id to NlsProofResult + Thread Real ID Through Auth Paths ✅ COMPLETE
+- **Files modified**: `src/v3/application/auth/include/application/auth/login_user_nls.hpp` — added `AccountId account_id` to `NlsCredentials`, `NlsChallengeResult`, `NlsProofResult`; `src/v3/application/auth/src/login_user_nls.cpp` — populates `account_id` from account lookup; `src/v3/domain/connection/include/domain/connection/connection_fsm.hpp` — added `pending_nls_account_id_` member; `src/v3/domain/connection/src/connection_fsm.cpp` — NLS success path uses `result.value().account_id.value()` instead of hardcoded `1u`
+
+---
+**Phase F Summary**: 14 tasks complete (R281–R294). Full SRP-6a / NLS crypto infrastructure added (`infra_crypto_nls`); `LoginUserNls` two-step use-case implemented; `ConnectionFsm` extended with OLS/NLS branching, per-session NLS state, D2 character binding, and WAR3 route-token pairing; `RouteRegistry` created; `WolFsm` and `IrcFsm` wired to `LoginUser`; 43 new FSM unit tests; CMakeLists inline-target drift fixed; OLS path wired through `LoginUser::execute()`; real `AccountId` threaded through all NLS auth paths. Deferred to Phase G: `on_join_channel()`, `on_chat_command()`, WoL LIST/PRIVMSG relay, `BnetdService` SessionManager/TCP listener wiring.
+
+## Phase G — Chat/Channel Layer (R295–R310) ✅ COMPLETE
+
+### R295 — Fix roster session mapping in JoinChannel/PostMessage/LeaveChannel ✅ COMPLETE
+- `ISessionRegistry` already existed with `session_for(AccountId)` method (Option A chosen)
+- **Files modified**: `join_channel.hpp/cpp`, `post_message.hpp/cpp`, `leave_channel.hpp/cpp` — replaced `AccountId`-cast-as-`SessionId` placeholder with real registry lookup
+- **Test fixtures updated**: `join_channel_test.cpp`, `post_message_test.cpp`, `leave_channel_test.cpp`, `bnet_session_flow_test.cpp`
+
+### R296 — Wire ConnectionFsm::on_join_channel() + on_chat_command() ✅ COMPLETE
+- **Files modified**: `connection_fsm.hpp/cpp` — added `set_join_channel()`, `set_post_message()`, `set_leave_channel()` setters; `on_join_channel()` extracts channel name, calls `JoinChannel::execute()`, sends `EID_CHANNEL` + `EID_SHOWUSER` + drains events; `on_chat_command()` calls `PostMessage::execute()` or logs `/` commands
+- **Files modified**: `domain/connection/CMakeLists.txt` — added `application_chat` to `PUBLIC_DEPS`
+
+### R297 — BnetFsm EID_SHOWUSER real roster ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/bnet/src/fsm.cpp` — replaced hardcoded `username="User"` with real `IAccountRepository::find_by_id()` lookup; sends `SID_CHATEVENT` with `event_id=0x01` per existing member
+- **Files modified**: `src/v3/protocol/bnet/include/protocol/bnet/use_case_context.hpp` — added `list_channels` and `account_repo` fields
+
+### R298 — BnetFsm /cmd dispatch via ICommandRegistry ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/bnet/src/fsm.cpp` — `/`-prefixed messages dispatched via `ICommandRegistry::dispatch()`; result sent as `SID_CHATEVENT` with `EID_INFO` and `username="Battle.net"`
+- **Files modified**: `use_case_context.hpp` — added `ICommandRegistry*` and `IPermissionChecker*` fields
+- **Fixed**: `cmake/v3.cmake` — added `INTERFACE_SOURCES` and `PRIVATE_DEPS` to `mvals` in `pvpgn_v3_add_library`
+
+### R299 — WolFsm::on_list() relay via ListChannels ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/wol/src/wol_fsm.cpp` — `on_list()` calls `ListChannels::execute()`, sends IRC 321/322/323 numerics
+
+### R300 — WolFsm::on_join() + on_privmsg() relay ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/wol/src/wol_fsm.cpp` — `on_join()` calls `JoinChannel::execute()`, sends IRC 353 NAMES + 366; `on_privmsg()` calls `PostMessage::execute()`, echoes message back to sender
+- **Fixed**: `WolFsm::try_authenticate()` extracted to handle PASS-before/after-NICK/USER orderings correctly
+
+### R301 — IrcBridgeFsm full implementation ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/irc/include/protocol/irc/fsm.hpp` — added chat use-case `shared_ptr` members, `account_id_`, `channel_id_`, `session_id_`, `send_names_reply()` helper
+- **Files modified**: `src/v3/protocol/irc/src/fsm.cpp` — implemented JOIN (echo+332+353+366), PART, PRIVMSG (channel→PostMessage, nick→401), LIST (321/322/323), TOPIC (get→331/332, set→482), KICK (→482), NAMES (353+366)
+- **Files modified**: `src/v3/protocol/irc/include/protocol/irc/bridge_fsm.hpp` — `UseCaseContext` wires all 4 use-cases
+- **Files modified**: `src/v3/CMakeLists.txt` — added `domain_chat` and `domain_shared` to `protocol_irc` PUBLIC_DEPS
+- **Tests**: 283 assertions / 46 test cases pass
+
+### R302 — BnetEventDispatcher::dispatch_channel_events() ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/bnet/include/protocol/bnet/event_dispatcher.hpp` — added `dispatch_channel_events(span<DomainEvent>, span<SessionId>)` overload
+- **Files modified**: `src/v3/protocol/bnet/src/event_dispatcher.cpp` — full `SID_CHATEVENT` (0x0F) encoding: `ChannelJoined`→EID_JOIN(2), `ChannelLeft`→EID_LEAVE(3), `ChannelMessageSent`→EID_TALK(5), `ChannelTopicChanged`→EID_INFO(0x12)
+
+### R303 — Channel config loader ✅ COMPLETE
+- **Files created**: `src/v3/infra/config/include/infra/config/channel_config_loader.hpp` — `ChannelConfigEntry` struct + `ChannelConfigLoader` with `load()` and `defaults()`
+- **Files created**: `src/v3/infra/config/src/channel_config_loader.cpp` — parses legacy `channel.conf` tab-separated format
+
+### R304 — BnetdService full use-case wiring ✅ COMPLETE
+- **Files modified**: `src/v3/services/bnetd/include/services/bnetd/bnetd_service.hpp` — owns `JoinChannel`, `PostMessage`, `LeaveChannel`, `ListChannels`, `LogoutUser`; exposes `make_use_case_context()` and `logout_user()` accessors
+- **Files modified**: `src/v3/services/bnetd/src/bnetd_service.cpp` — constructs all chat use-cases; seeds `IChannelRepository` with 5 default permanent channels at startup
+- **Files modified**: `src/v3/services/bnetd/CMakeLists.txt` — added `application_chat` dep
+- **Files modified**: `src/v3/CMakeLists.txt` — added `application_chat` as PRIVATE dep of `application_auth`
+
+### R305 — LogoutUser channel cleanup ✅ COMPLETE
+- **Files modified**: `src/v3/app/bnetd/include/app/bnetd/asio_event_loop.hpp` — `AsioEventLoop` inherits `IEventLoop`; added `is_running()`, `stop()`
+- **Files modified**: `src/v3/app/bnetd/src/asio_event_loop.cpp` — implemented `stop()`, `is_running()`
+- **Files modified**: `src/v3/app/bnetd/src/main.cpp` — `on_close` handler calls `bnetd_svc_.logout_user().execute(req)` on disconnect
+- **Files modified**: `src/v3/app/bnetd/CMakeLists.txt` — added `infra_inmemory` dep
+
+### R306 — BnetFsm channel operation tests ✅ COMPLETE
+- **Files created**: `tests/unit/protocol/bnet/fsm_channel_test.cpp` — 17 test cases, 124 assertions (SID_CHANNELLIST, SID_JOINCHANNEL, SID_CHATCOMMAND with /commands)
+- **Files modified**: `tests/unit/protocol/bnet/CMakeLists.txt`
+
+### R307 — WolFsm channel operation tests ✅ COMPLETE
+- **Files created**: `tests/unit/protocol/wol/wol_fsm_channel_test.cpp` — 23 test cases, 128 assertions (LIST, JOIN, PRIVMSG, PART, TOPIC, KICK, NAMES)
+- **Files modified**: `tests/unit/protocol/wol/CMakeLists.txt`
+
+### R308 — IrcFsm channel operation tests ✅ COMPLETE
+- **Files created**: `tests/unit/protocol/irc/fsm_channel_test.cpp` — 39 test cases, 225 assertions (JOIN, PART, PRIVMSG, LIST, TOPIC, KICK, NAMES)
+- **Files modified**: `tests/unit/protocol/irc/CMakeLists.txt`
+
+### R309 — WebUI /api/v1/channels endpoint ✅ COMPLETE
+- **Files created**: `src/v3/infra/webui/include/infra/webui/channel_json.hpp` — header-only `channels_to_json()` free function
+- **Files modified**: `src/v3/infra/webui/src/web_server.cpp` — wired into `/api/v1/channels` route
+- **Files created**: `tests/unit/infra/webui/channel_json_test.cpp` — 11 test cases, 25 assertions
+- **Files modified**: `src/v3/CMakeLists.txt` — `infra_webui_json` INTERFACE library
+- **Files modified**: `tests/unit/infra/CMakeLists.txt`; **Files created**: `tests/unit/infra/webui/CMakeLists.txt`
+
+### R310 — SID_CHANNELLIST handler in BnetFsm ✅ COMPLETE
+- **Files modified**: `src/v3/protocol/bnet/src/fsm.cpp` — replaced no-op with real `ListChannels::execute()` call; sends `ChannelListReply` via `ctx_->send()`
+
+---
+**Phase G Summary**: 16 tasks complete (R295–R310). Roster session mapping fixed across all chat use-cases; `ConnectionFsm` wired to `JoinChannel`/`PostMessage`/`LeaveChannel`; `BnetFsm` extended with real EID_SHOWUSER roster, `/cmd` dispatch via `ICommandRegistry`, and `SID_CHANNELLIST` handler; `WolFsm` LIST/JOIN/PRIVMSG relayed through chat use-cases; `IrcBridgeFsm` fully implemented (JOIN, PART, PRIVMSG, LIST, TOPIC, KICK, NAMES); `BnetEventDispatcher` extended with `dispatch_channel_events()` for full `SID_CHATEVENT` encoding; `ChannelConfigLoader` added for legacy `channel.conf` parsing; `BnetdService` wired with all 5 chat use-cases and seeds 5 default permanent channels; `AsioEventLoop` implements `IEventLoop` with `stop()`/`is_running()`; `LogoutUser` called on disconnect; `infra_webui` `/api/v1/channels` endpoint added; ~90 new test cases, ~402 new assertions across 4 test binaries (BnetFsm: 17/124, WolFsm: 23/128, IrcFsm: 39/225, WebUI: 11/25).

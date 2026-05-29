@@ -1,23 +1,45 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// LibFuzzer entry point for D2 save file codec fuzzing
+// LibFuzzer entry point for D2 save file codec fuzzing.
+// Build with: clang++ -fsanitize=fuzzer,address ...
+//
+// Wires the fuzzer to the real D2SaveCodec::parse() path:
+//   1. parse() validates the signature, version, and minimum size.
+//      Any error returned is silently discarded; the invariant is
+//      "no crash on any input".
+//   2. On a successful parse we also exercise extract_char_name(),
+//      extract_level(), and extract_class() to cover more decode paths.
 
-#include <cstdint>
+#include "protocol/d2save/codec.hpp"
+
 #include <cstddef>
-
-// Forward declarations for D2Save codec (would be included in real build)
-// #include "protocol/d2save/codec.hpp"
+#include <cstdint>
+#include <span>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-    if (size < 16) return 0;  // Minimal D2S header size
+    const std::span<const uint8_t> buf{data, size};
 
-    // Try to parse as D2 save file
-    // In a real build, this would call:
-    // auto result = pvpgn::protocol::d2save::D2SaveCodec::parse(data, size);
-    // The invariant is: don't crash on any input
+    // Step 1: attempt to parse the raw bytes as a D2 save file.
+    //   - Err(InvalidArgument) → too small or bad signature/version; not a crash.
+    //   - Ok(D2SaveFile)       → parsed successfully; exercise further helpers.
+    auto result = pvpgn::protocol::d2save::D2SaveCodec::parse(buf);
+    if (!result) return 0;  // decode error — not a crash
 
-    // Placeholder: just validate the data pointer is accessible
-    (void)data;
-    (void)size;
+    // Step 2: exercise additional extraction helpers on the parsed save.
+    // Any error returned by these helpers is intentionally ignored;
+    // the only invariant we enforce is "no crash / no UB".
+    (void)pvpgn::protocol::d2save::D2SaveCodec::extract_char_name(buf);
+    (void)pvpgn::protocol::d2save::D2SaveCodec::extract_level(buf);
+    (void)pvpgn::protocol::d2save::D2SaveCodec::extract_class(buf);
+    (void)pvpgn::protocol::d2save::D2SaveCodec::verify_checksum(buf);
 
     return 0;
 }
+
+// ---------------------------------------------------------------------------
+// Fallback main() for non-fuzzing builds (PVPGN_ENABLE_FUZZING=OFF).
+// When LibFuzzer is not linked, LLVMFuzzerTestOneInput is never called by
+// the runtime, so we provide a trivial driver that just returns success.
+// ---------------------------------------------------------------------------
+#ifndef PVPGN_FUZZING_ENABLED
+int main() { return 0; }
+#endif

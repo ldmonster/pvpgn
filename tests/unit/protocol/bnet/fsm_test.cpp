@@ -31,17 +31,21 @@ public:
 // Create a minimal BnetUseCaseContext for testing
 BnetUseCaseContext make_test_context() {
     return BnetUseCaseContext{
-        .login_user = nullptr,
-        .change_password = nullptr,
-        .join_channel = nullptr,
-        .post_message = nullptr,
-        .leave_channel = nullptr,
-        .start_game = nullptr,
-        .join_game = nullptr,
-        .leave_game = nullptr,
-        .check_ip_ban = nullptr,
-        .message_router = nullptr,
-        .session_registry = nullptr,
+        .login_user        = nullptr,
+        .change_password   = nullptr,
+        .join_channel      = nullptr,
+        .post_message      = nullptr,
+        .leave_channel     = nullptr,
+        .list_channels     = nullptr,
+        .start_game        = nullptr,
+        .join_game         = nullptr,
+        .leave_game        = nullptr,
+        .check_ip_ban      = nullptr,
+        .account_repo      = nullptr,
+        .command_registry  = nullptr,
+        .message_router    = nullptr,
+        .permission_checker = nullptr,
+        .session_registry  = nullptr,
     };
 }
 

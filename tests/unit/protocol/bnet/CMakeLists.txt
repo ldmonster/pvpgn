@@ -83,3 +83,7 @@ pvpgn_v3_add_test(test_protocol_bnet_anongame_tags
 pvpgn_v3_add_test(test_protocol_bnet_golden_replay
     SOURCES golden_replay_test.cpp
     DEPS    protocol_bnet)
+
+pvpgn_v3_add_test(test_protocol_bnet_fsm_channel
+    SOURCES fsm_channel_test.cpp
+    DEPS    protocol_bnet)

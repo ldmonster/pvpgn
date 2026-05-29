@@ -25,6 +25,16 @@
 ///                                                        └─────────────┘
 ///
 /// All states accept PING (→ PONG) and QUIT (→ Disconnecting).
+///
+/// ## R289 — LoginUser auth wiring
+///
+/// When constructed with a `LoginUser&` reference, `on_pass()` calls
+/// `login_user_.execute(LoginRequest{...})` using OLS (old-style) auth.
+/// On success the FSM transitions to Authenticated and sends 001 RPL_WELCOME.
+/// On failure it sends 464 :Password incorrect and closes the connection.
+///
+/// When constructed without a `LoginUser` (legacy skeleton mode) the FSM
+/// accepts any non-empty nick+user combination as before.
 
 #include <cstddef>
 #include <cstdint>
@@ -34,8 +44,22 @@
 #include <string_view>
 #include <vector>
 
+#include "application/auth/login_user.hpp"
 #include "core/result.hpp"
+#include "domain/shared/ids.hpp"
 #include "protocol/wol/wol_session_context.hpp"
+
+// Forward-declare use-case types to avoid pulling in all their headers into
+// every translation unit that includes wol_fsm.hpp.
+namespace pvpgn::application::auth {
+class LoginUser;
+}  // namespace pvpgn::application::auth
+
+namespace pvpgn::application::chat {
+class JoinChannel;
+class ListChannels;
+class PostMessage;
+}  // namespace pvpgn::application::chat
 
 namespace pvpgn::protocol::wol {
 
@@ -55,8 +79,36 @@ enum class WolState : std::uint8_t {
 /// dispatches each complete line to the appropriate command handler.
 class WolFsm {
 public:
+    /// Construct without auth use-case (skeleton / test mode).
+    /// on_pass() accepts any non-empty nick+user combination.
     explicit WolFsm(std::shared_ptr<IWolSessionContext> ctx) noexcept
-        : ctx_(std::move(ctx)) {}
+        : ctx_(std::move(ctx)), login_user_(nullptr) {}
+
+    /// Construct with a LoginUser use-case (R289 — production mode).
+    /// on_pass() calls login_user_.execute() for OLS credential check.
+    /// @param ctx        Session I/O context. Non-owning shared ownership.
+    /// @param login_user OLS authentication use-case. Non-owning ref;
+    ///                   must outlive the FSM.
+    WolFsm(std::shared_ptr<IWolSessionContext> ctx,
+           application::auth::LoginUser& login_user) noexcept
+        : ctx_(std::move(ctx)), login_user_(&login_user) {}
+
+    /// Construct with full chat use-cases (R299/R300 — production mode).
+    /// @param ctx          Session I/O context.
+    /// @param login_user   OLS authentication use-case (non-owning, may be null).
+    /// @param list_channels ListChannels use-case for LIST command.
+    /// @param join_channel  JoinChannel use-case for JOIN command.
+    /// @param post_message  PostMessage use-case for PRIVMSG command.
+    WolFsm(std::shared_ptr<IWolSessionContext> ctx,
+           application::auth::LoginUser* login_user,
+           std::shared_ptr<application::chat::ListChannels> list_channels,
+           std::shared_ptr<application::chat::JoinChannel>  join_channel,
+           std::shared_ptr<application::chat::PostMessage>  post_message) noexcept
+        : ctx_(std::move(ctx))
+        , login_user_(login_user)
+        , list_channels_(std::move(list_channels))
+        , join_channel_(std::move(join_channel))
+        , post_message_(std::move(post_message)) {}
 
     /// Feed raw bytes from the TCP stream into the FSM.
     /// Returns ok() on success; error causes the session to close.
@@ -116,6 +168,15 @@ private:
     /// PRIVMSG <target> :<message>
     core::Status<> on_privmsg(std::string_view params);
 
+    /// Attempt authentication with the current nick_/user_/pass_ credentials.
+    /// Called from on_pass() and on_user() once all three are available.
+    /// @param close_on_bad_credentials  When true, close the connection on any
+    ///   auth failure (used when PASS arrived before NICK/USER — the client
+    ///   cannot retry in that ordering).  When false, only close on
+    ///   UnknownUser; InvalidCredentials keeps the connection open for retry.
+    /// Returns ok() in all cases (auth failure is communicated via IRC numerics).
+    core::Status<> try_authenticate(bool close_on_bad_credentials);
+
     // -----------------------------------------------------------------------
     // Reply helpers
     // -----------------------------------------------------------------------
@@ -134,12 +195,30 @@ private:
 
     std::shared_ptr<IWolSessionContext> ctx_;
 
+    /// Non-owning pointer to the OLS auth use-case (R289).
+    /// Null when constructed without auth (skeleton / test mode).
+    application::auth::LoginUser* login_user_;
+
+    /// Chat use-cases (R299/R300). Null when not wired (stub mode).
+    std::shared_ptr<application::chat::ListChannels> list_channels_;
+    std::shared_ptr<application::chat::JoinChannel>  join_channel_;
+    std::shared_ptr<application::chat::PostMessage>  post_message_;
+
     WolState    state_   = WolState::Connecting;
     std::string nick_;
     std::string user_;
     std::string realname_;
     std::string pass_;
     std::string channel_;
+
+    /// Account ID resolved after successful login (0 until authenticated).
+    domain::AccountId account_id_{0};
+
+    /// Channel ID of the currently joined channel (0 until JOIN succeeds).
+    domain::ChannelId channel_id_{0};
+
+    /// Session ID for this connection (used in use-case calls).
+    domain::SessionId session_id_{};
 
     /// Accumulation buffer for partial lines.
     std::string line_buf_;

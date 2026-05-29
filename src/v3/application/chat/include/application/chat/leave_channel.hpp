@@ -16,6 +16,7 @@
 
 namespace pvpgn::application::ports {
 class IChannelRepository;
+class ISessionRegistry;
 }  // namespace pvpgn::application::ports
 
 namespace pvpgn::application::chat {
@@ -36,16 +37,18 @@ struct LeaveChannelResult {
 
 class LeaveChannel {
 public:
-    explicit LeaveChannel(application::ports::IChannelRepository& channel_repo)
-        : channel_repo_(channel_repo) {}
+    explicit LeaveChannel(application::ports::IChannelRepository& channel_repo,
+                          application::ports::ISessionRegistry& session_registry)
+        : channel_repo_(channel_repo), session_registry_(session_registry) {}
 
     /// Execute: remove account from channel.
     /// If channel becomes empty and is non-permanent, it is deleted.
-    core::Result<LeaveChannelResult, LeaveChannelError>
+    [[nodiscard]] core::Result<LeaveChannelResult, LeaveChannelError>
     execute(domain::ChannelId channel_id, domain::AccountId account_id) const;
 
 private:
     application::ports::IChannelRepository& channel_repo_;
+    application::ports::ISessionRegistry&   session_registry_;
 };
 
 }  // namespace pvpgn::application::chat

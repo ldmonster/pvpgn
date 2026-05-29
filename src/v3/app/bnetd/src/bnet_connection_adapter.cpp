@@ -6,6 +6,8 @@
 #include <span>
 #include <string>
 
+#include "application/auth/login_user.hpp"
+#include "application/auth/login_user_nls.hpp"
 #include "core/result.hpp"
 #include "domain/connection/connection_context.hpp"
 #include "domain/connection/connection_fsm.hpp"
@@ -13,7 +15,7 @@
 namespace pvpgn::app::bnetd {
 
 // ---------------------------------------------------------------------------
-// Constructor
+// Constructors
 // ---------------------------------------------------------------------------
 
 BnetConnectionAdapter::BnetConnectionAdapter(
@@ -21,6 +23,28 @@ BnetConnectionAdapter::BnetConnectionAdapter(
     std::uint32_t session_id) noexcept
     : ctx_(ctx)
     , fsm_(std::make_unique<domain::connection::ConnectionFsm>(*this,
+                                                                session_id))
+{}
+
+BnetConnectionAdapter::BnetConnectionAdapter(
+    domain::connection::IConnectionContext&  ctx,
+    application::auth::LoginUserNls&         login_user_nls,
+    std::uint32_t                            session_id) noexcept
+    : ctx_(ctx)
+    , fsm_(std::make_unique<domain::connection::ConnectionFsm>(*this,
+                                                                login_user_nls,
+                                                                session_id))
+{}
+
+BnetConnectionAdapter::BnetConnectionAdapter(
+    domain::connection::IConnectionContext&  ctx,
+    application::auth::LoginUser&            login_user_ols,
+    application::auth::LoginUserNls&         login_user_nls,
+    std::uint32_t                            session_id) noexcept
+    : ctx_(ctx)
+    , fsm_(std::make_unique<domain::connection::ConnectionFsm>(*this,
+                                                                login_user_ols,
+                                                                login_user_nls,
                                                                 session_id))
 {}
 

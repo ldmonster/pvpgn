@@ -18,6 +18,7 @@
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
 #include "infra/inmemory/account_repository.hpp"
+#include "infra/inmemory/session_registry.hpp"
 #include "channel_repository.hpp"
 #include "game_repository.hpp"
 
@@ -43,6 +44,7 @@ struct BNetSessionFixture {
     infra::inmemory::InMemoryAccountRepository accounts;
     infra::storage::InMemoryChannelRepository channels;
     infra::storage::InMemoryGameRepository games;
+    infra::inmemory::InMemorySessionRegistry sessions;
 
     domain::AccountId alice_id{1};
     domain::AccountId bob_id{2};
@@ -62,6 +64,10 @@ struct BNetSessionFixture {
             domain::Locale{}).value();
         (void)bob.drain_events();
         REQUIRE(accounts.save(bob));
+
+        // Register sessions for both accounts
+        (void)sessions.attach(domain::SessionId{1001}, alice_id);
+        (void)sessions.attach(domain::SessionId{1002}, bob_id);
     }
 };
 
@@ -73,7 +79,7 @@ TEST_CASE("BNet session: channel join and chat round-trip",
     f.setup_accounts();
 
     // Step 1: Alice joins a channel (simulating EnterChat response)
-    auto join_uc = chat::JoinChannel{f.channels, f.accounts};
+    auto join_uc = chat::JoinChannel{f.channels, f.accounts, f.sessions};
     auto join_r = join_uc.execute(f.alice_id, "Lobby", f.star_tag);
     REQUIRE(join_r);
     auto channel_id = join_r.value().channel.id();
@@ -84,14 +90,14 @@ TEST_CASE("BNet session: channel join and chat round-trip",
     REQUIRE(bob_join.value().channel.id() == channel_id);
 
     // Step 3: Alice posts a message
-    auto post_uc = chat::PostMessage{f.channels};
+    auto post_uc = chat::PostMessage{f.channels, f.sessions};
     auto msg = make_message("Hello everyone!");
     auto post_r = post_uc.execute(channel_id, f.alice_id, msg);
     REQUIRE(post_r);
     REQUIRE(!post_r.value().recipients.empty());
 
     // Step 4: Alice leaves the channel
-    auto leave_uc = chat::LeaveChannel{f.channels};
+    auto leave_uc = chat::LeaveChannel{f.channels, f.sessions};
     auto leave_r = leave_uc.execute(channel_id, f.alice_id);
     REQUIRE(leave_r);
     REQUIRE(!leave_r.value().channel_deleted);  // Bob is still there
@@ -149,7 +155,7 @@ TEST_CASE("BNet session: full chat + game integration",
     f.setup_accounts();
 
     // Chat phase: join channel
-    auto join_ch = chat::JoinChannel{f.channels, f.accounts};
+    auto join_ch = chat::JoinChannel{f.channels, f.accounts, f.sessions};
     auto ch_r = join_ch.execute(f.alice_id, "Game Lobby", f.star_tag);
     REQUIRE(ch_r);
     auto channel_id = ch_r.value().channel.id();
@@ -158,7 +164,7 @@ TEST_CASE("BNet session: full chat + game integration",
     (void)join_ch.execute(f.bob_id, "Game Lobby", f.star_tag);
 
     // Post message in chat
-    auto post_msg = chat::PostMessage{f.channels};
+    auto post_msg = chat::PostMessage{f.channels, f.sessions};
     (void)post_msg.execute(channel_id, f.alice_id, make_message("Starting game!"));
 
     // Game phase: Alice creates game
@@ -181,7 +187,7 @@ TEST_CASE("BNet session: full chat + game integration",
     (void)leave_game.execute(game_id, f.bob_id);
 
     // Clean up: leave channel
-    auto leave_ch = chat::LeaveChannel{f.channels};
+    auto leave_ch = chat::LeaveChannel{f.channels, f.sessions};
     (void)leave_ch.execute(channel_id, f.alice_id);
     (void)leave_ch.execute(channel_id, f.bob_id);
 

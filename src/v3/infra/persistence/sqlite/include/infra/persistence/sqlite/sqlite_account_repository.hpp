@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
-#include "application/ports/account_repository.hpp"
-#include "core/result.hpp"
-#include <filesystem>
-#include <memory>
-
-struct sqlite3;
-
-namespace pvpgn::infra::persistence::sqlite {
+// R316: This implementation has been superseded by infra/sqlite/SQLiteAccountRepository.
+// Do NOT include this header in new code.
+// Use: #include "infra/sqlite/account_repository.hpp"
+#error "infra/persistence/sqlite is deprecated. Use infra/sqlite instead (pvpgn_infra_sqlite)."
 
 class SqliteDatabase;
 

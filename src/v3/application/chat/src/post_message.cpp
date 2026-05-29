@@ -2,6 +2,7 @@
 #include "application/chat/post_message.hpp"
 
 #include "application/ports/channel_repository.hpp"
+#include "application/ports/session_registry.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -40,19 +41,19 @@ PostMessage::execute(domain::ChannelId channel_id, domain::AccountId account_id,
         channel_id, account_id, domain::ChatMessage{message}};
 
     for (const auto& ev : events) {
-        // Extract the message event if it's in the events vector
-        (void)ev;
+        (void)ev;  // Events will be processed by caller
     }
 
     // 6. Build notification list (all channel members except sender)
+    // Look up real SessionIds via the session registry; skip members without
+    // an active session.
     std::vector<domain::SessionId> recipients;
-    // In real implementation, would look up session IDs from connection registry
-    // For now, create placeholder session IDs for each member
     auto member_ids = channel.member_ids();
     for (const auto& member_id : member_ids) {
         if (member_id.value() != account_id.value()) {
-            // Create a placeholder session ID based on account ID
-            recipients.push_back(domain::SessionId{member_id.value()});
+            if (auto sid = session_registry_.session_for(member_id)) {
+                recipients.push_back(sid.value());
+            }
         }
     }
 

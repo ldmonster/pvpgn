@@ -2,11 +2,13 @@
 #include "protocol/bnet/fsm.hpp"
 
 #include <span>
+#include <string>
 #include <variant>
 #include <vector>
 
 #include "application/auth/login_user.hpp"
 #include "application/chat/join_channel.hpp"
+#include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
 #include "application/chat/leave_channel.hpp"
 #include "application/chat/whisper_use_case.hpp"
@@ -14,7 +16,10 @@
 #include "application/game/join_game.hpp"
 #include "application/game/leave_game.hpp"
 #include "application/moderation/check_ip_ban.hpp"
+#include "application/ports/account_repository.hpp"
+#include "application/ports/command_registry.hpp"
 #include "application/ports/message_router.hpp"
+#include "application/ports/permission_checker.hpp"
 #include "application/ports/session_registry.hpp"
 #include "core/error.hpp"
 #include "protocol/bnet/codec.hpp"
@@ -244,20 +249,40 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
     current_channel_id_ = join_result.value().channel.id();
     state_ = BnetState::InChat;
     
-    // Send EID_SHOWUSER for each existing member to this client
-    for ([[maybe_unused]] const auto& member_session_id : join_result.value().members_to_notify) {
-        // In a real implementation, we would query account info for each member
-        // For now, send a placeholder showing the join
-        if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    2,  // EID_SHOWUSER
-            /*flags*/       0,
-            /*ping_ms*/     0,
-            /*user_ip*/     0,
-            /*acct_number*/ 0,
-            /*registration*/0,
-            /*username*/    "User",
-            /*text*/        ""}}); !send_status) {
-            return send_status;
+    // Send EID_SHOWUSER (0x01) for each existing member to this client.
+    // We iterate the channel's member list (excluding the newly joined account)
+    // and look up each member's display name via IAccountRepository.
+    {
+        const auto& joined_channel = join_result.value().channel;
+        for (const auto& member_id : joined_channel.member_ids()) {
+            // Skip the account that just joined — they get EID_JOIN, not EID_SHOWUSER.
+            if (member_id.value() == current_account_id_.value()) continue;
+
+            // Resolve display name: use account_repo if available, else stringify ID.
+            std::string member_name;
+            if (use_cases_.account_repo) {
+                auto acct = use_cases_.account_repo->find_by_id(
+                    static_cast<uint32_t>(member_id.value()));
+                if (acct) {
+                    member_name = std::string{acct.value().name().display()};
+                } else {
+                    member_name = std::to_string(member_id.value());
+                }
+            } else {
+                member_name = std::to_string(member_id.value());
+            }
+
+            if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
+                /*event_id*/    0x01,  // EID_SHOWUSER
+                /*flags*/       0x00,
+                /*ping_ms*/     0,
+                /*user_ip*/     0x00000000u,
+                /*acct_number*/ 0xBADC0FFEu,
+                /*registration*/0xBADC0FFEu,
+                /*username*/    member_name,
+                /*text*/        ""}}); !send_status) {
+                return send_status;
+            }
         }
     }
     
@@ -296,21 +321,60 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
     if (state_ != BnetState::InChat) {
         return reject("bnet fsm: CHATCOMMAND outside chat");
     }
-    
-    // Parse the message text to check for commands
-    // TODO: Whisper command handling will be implemented in a future phase
-    
-    if (m.text[0] == '/') {
-        // Unknown command - stub handler
+
+    if (!m.text.empty() && m.text[0] == '/') {
+        // --- R298: /cmd dispatch via CommandRegistry ---
+        // Strip the leading '/' and split into command name + args.
+        std::string_view rest{m.text};
+        rest.remove_prefix(1);  // drop '/'
+
+        std::string result_text;
+
+        if (use_cases_.command_registry && use_cases_.permission_checker) {
+            // Full dispatch: registry + permission check.
+            auto dispatch_result = use_cases_.command_registry->dispatch(
+                current_account_id_,
+                rest,
+                *use_cases_.permission_checker);
+
+            if (dispatch_result) {
+                result_text = std::move(dispatch_result).value();
+            } else {
+                const auto& err = dispatch_result.error();
+                if (err.code() == core::StatusCode::NotFound) {
+                    result_text = "Unknown command. Type /help for a list of commands.";
+                } else if (err.code() == core::StatusCode::PermissionDenied) {
+                    result_text = "You do not have permission to use that command.";
+                } else {
+                    result_text = "Command error: ";
+                    result_text += err.message();
+                }
+            }
+        } else {
+            // No registry wired — minimal built-in fallback.
+            // Extract command name (first word of rest).
+            auto sp = rest.find(' ');
+            std::string_view cmd_name = (sp == std::string_view::npos) ? rest : rest.substr(0, sp);
+
+            if (cmd_name == "help") {
+                result_text = "Available commands: /help /who /time";
+            } else if (cmd_name == "who") {
+                result_text = "Channel member count unavailable (no registry).";
+            } else {
+                result_text = "Unknown command. Type /help for a list of commands.";
+            }
+        }
+
+        // Send result as SID_CHATEVENT EID_INFO (4).
         return ctx_->send(ServerMessage{ChatEvent{
             /*event_id*/    4,  // EID_INFO
             /*flags*/       0,
             /*ping_ms*/     0,
-            /*user_ip*/     0,
-            /*acct_number*/ 0,
-            /*registration*/0,
-            /*username*/    "",
-            /*text*/        "Command not available"}});
+            /*user_ip*/     0x00000000u,
+            /*acct_number*/ 0xBADC0FFEu,
+            /*registration*/0xBADC0FFEu,
+            /*username*/    "Battle.net",
+            /*text*/        result_text}});
     }
     
     // Regular channel message
@@ -549,9 +613,32 @@ core::Status<> BnetFsm::on(const MotdRequest&) {
     return require_clan_state(state_, "bnet fsm: MOTDREQ before login");
 }
 core::Status<> BnetFsm::on(const ChannelListRequest&) {
-    // PROGIDENT2 is part of the early handshake; it can arrive before login
-    // (alongside AUTH_INFO) so we accept it in any state.
-    return core::ok();
+    // SID_CHANNELLIST (0x0B) — client requests the list of available channels.
+    // Legal in any state (arrives during early handshake alongside AUTH_INFO).
+    if (!use_cases_.list_channels) {
+        // No use-case available — reply with an empty list so the client
+        // doesn't stall waiting for a response.
+        return ctx_->send(ServerMessage{ChannelListReply{}});
+    }
+
+    // Request up to 50 channels; no tag filter (show all).
+    application::chat::ListChannelsRequest req;
+    req.max_results  = 50;
+    req.filter_by_tag = std::nullopt;
+
+    auto list_result = use_cases_.list_channels->execute(req);
+    if (!list_result) {
+        // On error, send an empty list rather than tearing down the session.
+        return ctx_->send(ServerMessage{ChannelListReply{}});
+    }
+
+    ChannelListReply reply;
+    reply.channels.reserve(list_result.value().size());
+    for (const auto& info : list_result.value()) {
+        reply.channels.push_back(info.name);
+    }
+
+    return ctx_->send(ServerMessage{reply});
 }
 core::Status<> BnetFsm::on(const LeaveChannel&) {
     auto s = require_clan_state(state_, "bnet fsm: LEAVECHANNEL before login");

@@ -11,6 +11,7 @@
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
 #include "infra/inmemory/account_repository.hpp"
+#include "infra/inmemory/session_registry.hpp"
 #include "channel_repository.hpp"
 
 namespace {
@@ -34,6 +35,7 @@ domain::BNHash make_hash(std::uint8_t fill) {
 struct Fixture {
     infra::inmemory::InMemoryAccountRepository accounts;
     infra::storage::InMemoryChannelRepository channels;
+    infra::inmemory::InMemorySessionRegistry sessions;
 
     domain::AccountId alice_id{1};
     domain::AccountId bob_id{2};
@@ -48,7 +50,7 @@ struct Fixture {
     }
 
     JoinChannel make_use_case() {
-        return JoinChannel{channels, accounts};
+        return JoinChannel{channels, accounts, sessions};
     }
 };
 

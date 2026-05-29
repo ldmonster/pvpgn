@@ -28,7 +28,9 @@ AsioEventLoop::~AsioEventLoop() {
 // ---------------------------------------------------------------------------
 
 void AsioEventLoop::run() {
+    running_.store(true, std::memory_order_relaxed);
     ctx_.run();
+    running_.store(false, std::memory_order_relaxed);
 }
 
 void AsioEventLoop::run_for(std::chrono::milliseconds budget) {
@@ -44,11 +46,12 @@ void AsioEventLoop::run_for(std::chrono::milliseconds budget) {
     work_guard_.emplace(boost::asio::make_work_guard(ctx_.get_executor()));
 }
 
-void AsioEventLoop::stop() {
+void AsioEventLoop::stop() noexcept {
     // Release the work guard first so that run() can return once the
     // current handler (if any) finishes.
     work_guard_.reset();
     ctx_.stop();
+    running_.store(false, std::memory_order_relaxed);
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +65,10 @@ void AsioEventLoop::post(std::function<void()> fn) {
 // ---------------------------------------------------------------------------
 // Accessors
 // ---------------------------------------------------------------------------
+
+bool AsioEventLoop::is_running() const noexcept {
+    return running_.load(std::memory_order_relaxed);
+}
 
 boost::asio::io_context& AsioEventLoop::io_context() noexcept {
     return ctx_;

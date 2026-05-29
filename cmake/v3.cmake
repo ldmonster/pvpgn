@@ -80,7 +80,7 @@ endfunction()
 function(pvpgn_v3_add_library name)
     set(opts INTERFACE STATIC)
     set(svals)
-    set(mvals SOURCES PUBLIC_INCLUDES PRIVATE_INCLUDES DEPS PUBLIC_DEPS)
+    set(mvals SOURCES PUBLIC_INCLUDES PRIVATE_INCLUDES DEPS PUBLIC_DEPS PRIVATE_DEPS INTERFACE_SOURCES)
     cmake_parse_arguments(P "${opts}" "${svals}" "${mvals}" ${ARGN})
 
     if(P_INTERFACE)
@@ -89,6 +89,12 @@ function(pvpgn_v3_add_library name)
             target_include_directories(${name} INTERFACE
                 $<BUILD_INTERFACE:${_d}>)
         endforeach()
+        if(P_INTERFACE_SOURCES)
+            # Register header-only sources so IDEs can see them; they are not
+            # compiled but must not be passed as -l flags to the linker.
+            target_sources(${name} INTERFACE
+                $<BUILD_INTERFACE:${P_INTERFACE_SOURCES}>)
+        endif()
         if(P_DEPS OR P_PUBLIC_DEPS)
             target_link_libraries(${name} INTERFACE ${P_PUBLIC_DEPS} ${P_DEPS})
         endif()
@@ -107,6 +113,9 @@ function(pvpgn_v3_add_library name)
         endif()
         if(P_DEPS)
             target_link_libraries(${name} PRIVATE ${P_DEPS})
+        endif()
+        if(P_PRIVATE_DEPS)
+            target_link_libraries(${name} PRIVATE ${P_PRIVATE_DEPS})
         endif()
     endif()
 

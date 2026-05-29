@@ -2,11 +2,9 @@
 
 #include "infra/sqlite/unit_of_work.hpp"
 
-#include "infra/inmemory/channel_repository.hpp"
-#include "infra/inmemory/game_repository.hpp"
-
 namespace pvpgn::infra::sqlite {
 
+// R317: channels_ and games_ are per-instance members — no static locals.
 SQLiteUnitOfWork::SQLiteUnitOfWork(std::shared_ptr<SQLiteConnection> conn)
     : conn_(std::move(conn)),
       accounts_(std::make_unique<SQLiteAccountRepository>(conn_)),
@@ -15,7 +13,10 @@ SQLiteUnitOfWork::SQLiteUnitOfWork(std::shared_ptr<SQLiteConnection> conn)
       ip_bans_(std::make_unique<SQLiteIpBanRepository>(conn_)),
       account_bans_(std::make_unique<SQLiteAccountBanRepository>(conn_)),
       friend_lists_(std::make_unique<SQLiteFriendListRepository>(conn_)),
-      realms_(std::make_unique<SQLiteRealmRepository>(conn_)) {}
+      realms_(std::make_unique<SQLiteRealmRepository>(conn_)),
+      channels_(std::make_unique<inmemory::InMemoryChannelRepository>()),
+      games_(std::make_unique<inmemory::InMemoryGameRepository>()),
+      teams_(std::make_unique<inmemory::InMemoryTeamRepository>()) {}
 
 core::Result<void, core::Error> SQLiteUnitOfWork::begin() {
     return conn_->begin();
@@ -35,16 +36,12 @@ application::ports::IAccountRepository& SQLiteUnitOfWork::accounts() {
 
 application::ports::IChannelRepository& SQLiteUnitOfWork::channels() {
     // Channels are session-scoped, not persisted to DB
-    // Return an in-memory implementation instead
-    static auto channel_repo = std::make_unique<inmemory::InMemoryChannelRepository>();
-    return *channel_repo;
+    return *channels_;
 }
 
 application::ports::IGameRepository& SQLiteUnitOfWork::games() {
     // Games are session-scoped, not persisted to DB
-    // Return an in-memory implementation instead
-    static auto game_repo = std::make_unique<inmemory::InMemoryGameRepository>();
-    return *game_repo;
+    return *games_;
 }
 
 application::ports::IClanRepository& SQLiteUnitOfWork::clans() {
@@ -69,6 +66,11 @@ application::ports::IFriendListRepository& SQLiteUnitOfWork::friend_lists() {
 
 application::ports::IRealmRepository& SQLiteUnitOfWork::realms() {
     return *realms_;
+}
+
+application::ports::ITeamRepository& SQLiteUnitOfWork::teams() {
+    // Teams are not yet persisted to SQL — backed by in-memory store
+    return *teams_;
 }
 
 }  // namespace pvpgn::infra::sqlite

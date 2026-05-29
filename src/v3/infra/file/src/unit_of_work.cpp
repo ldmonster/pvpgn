@@ -2,27 +2,29 @@
 
 #include "infra/file/unit_of_work.hpp"
 
-#include "infra/inmemory/channel_repository.hpp"
-#include "infra/inmemory/game_repository.hpp"
-#include "infra/inmemory/clan_repository.hpp"
-#include "infra/inmemory/ladder_repository.hpp"
-#include "infra/inmemory/account_ban_repository.hpp"
-#include "infra/inmemory/friend_list_repository.hpp"
-#include "infra/inmemory/realm_repository.hpp"
-
 namespace pvpgn::infra::file {
 
+// R317: all in-memory repos are per-instance members — no static locals.
 FileUnitOfWork::FileUnitOfWork(
     std::unique_ptr<FileAccountRepository> accounts,
     std::unique_ptr<FileIpBanRepository> ip_bans)
-    : accounts_(std::move(accounts)), ip_bans_(std::move(ip_bans)) {}
+    : accounts_(std::move(accounts)),
+      ip_bans_(std::move(ip_bans)),
+      channels_(std::make_unique<inmemory::InMemoryChannelRepository>()),
+      games_(std::make_unique<inmemory::InMemoryGameRepository>()),
+      clans_(std::make_unique<inmemory::InMemoryClanRepository>()),
+      ladder_(std::make_unique<inmemory::InMemoryLadderRepository>()),
+      account_bans_(std::make_unique<inmemory::InMemoryAccountBanRepository>()),
+      friend_lists_(std::make_unique<inmemory::InMemoryFriendListRepository>()),
+      realms_(std::make_unique<inmemory::InMemoryRealmRepository>()),
+      teams_(std::make_unique<inmemory::InMemoryTeamRepository>()) {}
 
 core::Result<void, core::Error> FileUnitOfWork::begin() {
     return core::ok();  // No-op for file-based backend
 }
 
 core::Result<void, core::Error> FileUnitOfWork::commit() {
-    return core::ok();  // Changes are committed immediately
+    return core::ok();  // Changes are committed immediately on save()
 }
 
 void FileUnitOfWork::rollback() noexcept {
@@ -34,23 +36,19 @@ application::ports::IAccountRepository& FileUnitOfWork::accounts() {
 }
 
 application::ports::IChannelRepository& FileUnitOfWork::channels() {
-    static auto channel_repo = std::make_unique<inmemory::InMemoryChannelRepository>();
-    return *channel_repo;
+    return *channels_;
 }
 
 application::ports::IGameRepository& FileUnitOfWork::games() {
-    static auto game_repo = std::make_unique<inmemory::InMemoryGameRepository>();
-    return *game_repo;
+    return *games_;
 }
 
 application::ports::IClanRepository& FileUnitOfWork::clans() {
-    static auto clan_repo = std::make_unique<inmemory::InMemoryClanRepository>();
-    return *clan_repo;
+    return *clans_;
 }
 
 application::ports::ILadderRepository& FileUnitOfWork::ladder() {
-    static auto ladder_repo = std::make_unique<inmemory::InMemoryLadderRepository>();
-    return *ladder_repo;
+    return *ladder_;
 }
 
 application::ports::IIpBanRepository& FileUnitOfWork::ip_bans() {
@@ -58,20 +56,19 @@ application::ports::IIpBanRepository& FileUnitOfWork::ip_bans() {
 }
 
 application::ports::IAccountBanRepository& FileUnitOfWork::account_bans() {
-    static auto account_ban_repo =
-        std::make_unique<inmemory::InMemoryAccountBanRepository>();
-    return *account_ban_repo;
+    return *account_bans_;
 }
 
 application::ports::IFriendListRepository& FileUnitOfWork::friend_lists() {
-    static auto friend_list_repo =
-        std::make_unique<inmemory::InMemoryFriendListRepository>();
-    return *friend_list_repo;
+    return *friend_lists_;
 }
 
 application::ports::IRealmRepository& FileUnitOfWork::realms() {
-    static auto realm_repo = std::make_unique<inmemory::InMemoryRealmRepository>();
-    return *realm_repo;
+    return *realms_;
+}
+
+application::ports::ITeamRepository& FileUnitOfWork::teams() {
+    return *teams_;
 }
 
 }  // namespace pvpgn::infra::file

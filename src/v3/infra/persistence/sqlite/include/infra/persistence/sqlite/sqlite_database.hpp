@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
+// R316: This implementation has been superseded by infra/sqlite/.
+// Do NOT include this header in new code.
+#error "infra/persistence/sqlite is deprecated. Use infra/sqlite instead (pvpgn_infra_sqlite)."
+
 #include "core/result.hpp"
 #include <filesystem>
 #include <string>

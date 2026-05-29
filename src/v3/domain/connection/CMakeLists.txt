@@ -7,6 +7,8 @@
 # and dispatches raw BNCS packets to per-state handlers.
 #
 # Phase 3 Step 2 — R136
+# R283: Added pvpgn_application_auth dependency for LoginUserNls (NLS auth).
+# R296: Added application_chat dependency for JoinChannel/PostMessage/LeaveChannel.
 
 pvpgn_v3_add_library(domain_connection
     STATIC
@@ -17,4 +19,7 @@ pvpgn_v3_add_library(domain_connection
     PUBLIC_DEPS
         core
         domain_shared
+        infra_crypto_nls
+        application_auth
+        application_chat
 )

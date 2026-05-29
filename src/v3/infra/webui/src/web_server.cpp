@@ -10,6 +10,7 @@
 #include "application/ports/account_repository.hpp"
 #include "application/ports/metrics_registry.hpp"
 #include "infra/net/io_runtime.hpp"
+#include "infra/webui/channel_json.hpp"
 #include "infra/webui/dashboard_html.hpp"
 
 namespace pvpgn::infra::webui {
@@ -111,8 +112,7 @@ std::string EmbeddedWebServer::get_players_json() const {
 }
 
 std::string EmbeddedWebServer::get_channels_json() const {
-    // Stub: Iterate channels and build channel list
-    return "[]";
+    return channels_to_json(channels_.get());
 }
 
 std::string EmbeddedWebServer::get_games_json() const {

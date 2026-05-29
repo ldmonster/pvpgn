@@ -2,7 +2,7 @@
 /// @file connection_fsm_test.cpp
 /// Unit tests for domain::connection::ConnectionFsm.
 ///
-/// Test count: 43 TEST_CASEs, 200+ CHECK/REQUIRE assertions.
+/// Test count: 57 TEST_CASEs (43 original + 14 Phase-F additions).
 
 #include <array>
 #include <cstddef>
@@ -1363,4 +1363,206 @@ TEST_CASE("ConnectionFsm: SID_NULL keepalive accepted in InGame",
     REQUIRE(result.has_value());
     CHECK(fsm.state() == ConnectionState::InGame);
     CHECK_FALSE(ctx.closed);
+}
+
+// ===========================================================================
+// Phase-F additions (R291): D2 character binding, WAR3 route token,
+// NLS state lifecycle, OLS/NLS product-tag branching
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 44. D2 character binding — bind_d2_character() / has_d2_character()
+// ---------------------------------------------------------------------------
+
+TEST_CASE("ConnectionFsm: bind_d2_character sets has_d2_character true",
+          "[connection_fsm][d2char]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    REQUIRE_FALSE(fsm.has_d2_character());
+
+    fsm.bind_d2_character("Sorceress", 1u, 42u);
+
+    REQUIRE(fsm.has_d2_character());
+}
+
+TEST_CASE("ConnectionFsm: bind_d2_character stores name correctly",
+          "[connection_fsm][d2char]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    fsm.bind_d2_character("Necromancer", 2u, 30u);
+
+    REQUIRE(fsm.d2_char_name().has_value());
+    CHECK(*fsm.d2_char_name() == "Necromancer");
+}
+
+TEST_CASE("ConnectionFsm: bind_d2_character stores class and level",
+          "[connection_fsm][d2char]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    fsm.bind_d2_character("Paladin", 3u, 99u);
+
+    REQUIRE(fsm.d2_char_class().has_value());
+    CHECK(*fsm.d2_char_class() == 3u);
+    REQUIRE(fsm.d2_char_level().has_value());
+    CHECK(*fsm.d2_char_level() == 99u);
+}
+
+TEST_CASE("ConnectionFsm: bind_d2_character overwrites previous binding",
+          "[connection_fsm][d2char]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    fsm.bind_d2_character("Amazon", 0u, 10u);
+    fsm.bind_d2_character("Barbarian", 4u, 55u);
+
+    REQUIRE(fsm.has_d2_character());
+    CHECK(*fsm.d2_char_name()  == "Barbarian");
+    CHECK(*fsm.d2_char_class() == 4u);
+    CHECK(*fsm.d2_char_level() == 55u);
+}
+
+TEST_CASE("ConnectionFsm: d2_char accessors return empty optional before binding",
+          "[connection_fsm][d2char]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    CHECK_FALSE(fsm.d2_char_name().has_value());
+    CHECK_FALSE(fsm.d2_char_class().has_value());
+    CHECK_FALSE(fsm.d2_char_level().has_value());
+}
+
+// ---------------------------------------------------------------------------
+// 49. WAR3 route token — set_war3_route_token() / war3_route_token()
+// ---------------------------------------------------------------------------
+
+TEST_CASE("ConnectionFsm: war3_route_token is empty before set",
+          "[connection_fsm][war3token]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    CHECK_FALSE(fsm.war3_route_token().has_value());
+}
+
+TEST_CASE("ConnectionFsm: set_war3_route_token stores the token",
+          "[connection_fsm][war3token]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    fsm.set_war3_route_token(0xDEADBEEFu);
+
+    REQUIRE(fsm.war3_route_token().has_value());
+    CHECK(*fsm.war3_route_token() == 0xDEADBEEFu);
+}
+
+TEST_CASE("ConnectionFsm: set_war3_route_token overwrites previous value",
+          "[connection_fsm][war3token]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    fsm.set_war3_route_token(0x11111111u);
+    fsm.set_war3_route_token(0x22222222u);
+
+    REQUIRE(fsm.war3_route_token().has_value());
+    CHECK(*fsm.war3_route_token() == 0x22222222u);
+}
+
+TEST_CASE("ConnectionFsm: set_war3_route_token accepts zero token",
+          "[connection_fsm][war3token]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    fsm.set_war3_route_token(0u);
+
+    REQUIRE(fsm.war3_route_token().has_value());
+    CHECK(*fsm.war3_route_token() == 0u);
+}
+
+// ---------------------------------------------------------------------------
+// 53. is_nls_client() — product-tag branching (R283)
+// ---------------------------------------------------------------------------
+
+TEST_CASE("ConnectionFsm: is_nls_client false before AUTH_INFO",
+          "[connection_fsm][nlsbranch]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    CHECK_FALSE(fsm.is_nls_client());
+}
+
+TEST_CASE("ConnectionFsm: is_nls_client true after AUTH_INFO with WAR3 tag",
+          "[connection_fsm][nlsbranch]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    // WAR3 product tag = 0x57415233
+    auto payload = make_auth_info(kTagWar3);
+    REQUIRE(fsm.dispatch(sid::kAuthInfo,
+                         std::span<const std::byte>{payload}).has_value());
+
+    CHECK(fsm.is_nls_client());
+    CHECK(fsm.client_product_tag() == kTagWar3);
+}
+
+TEST_CASE("ConnectionFsm: is_nls_client true after AUTH_INFO with W3XP tag",
+          "[connection_fsm][nlsbranch]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    // W3XP product tag = 0x57335850
+    auto payload = make_auth_info(kTagW3xp);
+    REQUIRE(fsm.dispatch(sid::kAuthInfo,
+                         std::span<const std::byte>{payload}).has_value());
+
+    CHECK(fsm.is_nls_client());
+    CHECK(fsm.client_product_tag() == kTagW3xp);
+}
+
+TEST_CASE("ConnectionFsm: is_nls_client false after AUTH_INFO with STAR tag",
+          "[connection_fsm][nlsbranch]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    // STAR product tag = 0x52415453 (OLS client)
+    auto payload = make_auth_info(0x52415453u);
+    REQUIRE(fsm.dispatch(sid::kAuthInfo,
+                         std::span<const std::byte>{payload}).has_value());
+
+    CHECK_FALSE(fsm.is_nls_client());
+}
+
+// ---------------------------------------------------------------------------
+// 57. NLS pending state is cleared after on_auth_accountlogonproof()
+// ---------------------------------------------------------------------------
+
+TEST_CASE("ConnectionFsm: pending_nls_ctx cleared after successful proof",
+          "[connection_fsm][nlsbranch]") {
+    FakeContext ctx;
+    ConnectionFsm fsm{ctx};
+
+    // Drive through AUTH_INFO → ACCOUNTLOGON (challenge stored)
+    auto ai = make_auth_info();
+    REQUIRE(fsm.dispatch(sid::kAuthInfo,
+                         std::span<const std::byte>{ai}).has_value());
+
+    auto al = make_accountlogon("alice");
+    REQUIRE(fsm.dispatch(sid::kAuthAccountLogon,
+                         std::span<const std::byte>{al}).has_value());
+    // Still Authenticating — pending NLS state is held
+    CHECK(fsm.state() == ConnectionState::Authenticating);
+
+    // PROOF — clears pending state and transitions to LoggedIn
+    auto proof = make_accountlogonproof();
+    REQUIRE(fsm.dispatch(sid::kAuthAccountLogonProof,
+                         std::span<const std::byte>{proof}).has_value());
+
+    CHECK(fsm.state() == ConnectionState::LoggedIn);
+    // After proof the FSM must not hold stale NLS state:
+    // a second PROOF in LoggedIn state must be rejected (not crash)
+    auto result2 = fsm.dispatch(sid::kAuthAccountLogonProof,
+                                std::span<const std::byte>{proof});
+    CHECK_FALSE(result2.has_value());
+    CHECK(fsm.state() == ConnectionState::Disconnecting);
 }

@@ -18,6 +18,7 @@
 namespace pvpgn::application::ports {
 class IAccountRepository;
 class IChannelRepository;
+class ISessionRegistry;
 }  // namespace pvpgn::application::ports
 
 namespace pvpgn::application::chat {
@@ -46,18 +47,21 @@ struct JoinChannelResult {
 class JoinChannel {
 public:
     explicit JoinChannel(application::ports::IChannelRepository& channel_repo,
-                         application::ports::IAccountRepository& account_repo)
-        : channel_repo_(channel_repo), account_repo_(account_repo) {}
+                         application::ports::IAccountRepository& account_repo,
+                         application::ports::ISessionRegistry& session_registry)
+        : channel_repo_(channel_repo), account_repo_(account_repo),
+          session_registry_(session_registry) {}
 
     /// Execute: attempt to join or create channel.
     /// Caller is responsible for encoding the domain events.
-    core::Result<JoinChannelResult, JoinChannelError>
+    [[nodiscard]] core::Result<JoinChannelResult, JoinChannelError>
     execute(domain::AccountId account_id, const std::string& channel_name,
             domain::ClientTag client_tag) const;
 
 private:
     application::ports::IChannelRepository&  channel_repo_;
     application::ports::IAccountRepository&  account_repo_;
+    application::ports::ISessionRegistry&    session_registry_;
 };
 
 }  // namespace pvpgn::application::chat

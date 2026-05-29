@@ -20,3 +20,11 @@ if(PVPGN_BUILD_LEGACY)
     # unused warnings; don't fail this test on them.
     target_compile_options(test_infra_crypto_parity PRIVATE -w)
 endif()
+
+# NLS/SRP-6a tests (R281). Only built when OpenSSL is available since
+# the implementation depends on OpenSSL::Crypto.
+if(TARGET OpenSSL::Crypto)
+    pvpgn_v3_add_test(test_infra_crypto_nls
+        SOURCES nls_test.cpp
+        DEPS    infra_crypto_nls OpenSSL::Crypto)
+endif()

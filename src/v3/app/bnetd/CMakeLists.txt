@@ -44,6 +44,8 @@ pvpgn_v3_add_library(app_bnetd_legacy_bridge STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC_DEPS
         Boost::system
+        application_auth
+        domain_connection
 )
 
 # R194: both impl TUs gate their bodies on PVPGN_V3_BNETD_INTEGRATION.
@@ -73,10 +75,12 @@ target_link_libraries(pvpgn_v3_bnetd
     PRIVATE
         core
         domain_connection
+        application_auth
         protocol_bnet
         protocol_file
         protocol_wol
         infra_net
+        infra_inmemory
         app_bnetd_legacy_bridge
         services_bnetd
         Boost::system

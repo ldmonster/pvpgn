@@ -1,6 +1,9 @@
 # Header-only session factory module
 # Provides protocol-specific session factories (BNet, IRC, File, Telnet, WOL)
 # that wire together TcpSession, context impls, and protocol FSMs.
+#
+# R284: BnetSessionFactory now includes BnetConnectionAdapter (app/bnetd) and
+# LoginUserNls (application/auth) to wire ConnectionFsm into each session.
 
 pvpgn_v3_add_library(infra_session
     INTERFACE
@@ -9,6 +12,7 @@ pvpgn_v3_add_library(infra_session
     PUBLIC_DEPS
         core
         application_ports
+        application_auth
         infra_net
         infra_routing
         protocol_bnet
@@ -17,4 +21,5 @@ pvpgn_v3_add_library(infra_session
         protocol_telnet
         protocol_wolgameres
         domain_shared
+        domain_connection
 )
