@@ -1,18 +1,151 @@
 # Plugin Sandboxing Integration Guide
 
+> **Updated for PvPGN v3 R347** — This document covers both the legacy
+> `infra/sandbox/` infrastructure and the new lightweight seccomp wrapper
+> introduced in R347 (`src/v3/infra/plugin/`).
+
+---
+
 ## Overview
 
-PvPGN-PRO v3 provides a comprehensive sandboxing infrastructure for plugin isolation using Linux seccomp and AppArmor. This defense-in-depth approach ensures that even if a malicious plugin escapes the Lua sandbox, the OS-level sandbox prevents damage to the host system.
+PvPGN v3 provides two complementary sandboxing layers for plugin isolation:
 
-## Architecture
+| Layer | Location | Scope |
+|-------|----------|-------|
+| **Legacy full sandbox** | `src/v3/infra/sandbox/` | AppArmor + rlimits + seccomp categories |
+| **R347 lightweight sandbox** | `src/v3/infra/plugin/` | Minimal seccomp allowlist for native plugin callbacks |
 
-The sandboxing system consists of three layers:
+Both layers are opt-in and can be combined for defence-in-depth.
 
-1. **Resource Limits (rlimits)** — Restrict memory, file descriptors, and process spawning
-2. **Seccomp-BPF Filtering** — Restrict syscalls at the kernel level
-3. **AppArmor Confinement** — Restrict file access and capabilities
+---
 
-## Quick Start
+## R347 Lightweight Sandbox (`pvpgn_infra_plugin`)
+
+### Enabling seccomp
+
+Pass `-DPVPGN_V3_WITH_SECCOMP=ON` to CMake:
+
+```bash
+cmake -B build -DPVPGN_V3_WITH_SECCOMP=ON ..
+cmake --build build
+```
+
+This requires `libseccomp` development headers:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install libseccomp-dev
+
+# Fedora/RHEL
+sudo dnf install libseccomp-devel
+
+# Alpine
+apk add libseccomp-dev
+```
+
+### Using `run_sandboxed()`
+
+```cpp
+#include "infra/plugin/sandbox.hpp"
+
+using namespace pvpgn::infra::plugin;
+
+// Wrap a plugin init call in the sandbox:
+int rc = run_sandboxed([&]() -> int {
+    return plugin_init_fn(&ctx);
+});
+```
+
+On Linux with seccomp enabled, the lambda runs with the syscall allowlist
+active.  On other platforms it runs without restriction.
+
+### Checking availability at runtime
+
+```cpp
+if (sandbox_available()) {
+    // seccomp is compiled in and active
+} else {
+    // running without OS-level sandboxing
+}
+```
+
+---
+
+## Syscall Allowlist Rationale
+
+The R347 allowlist is intentionally minimal — it covers only what a well-behaved
+plugin callback needs:
+
+| Syscall | Rationale |
+|---------|-----------|
+| `read` | Read from already-open file descriptors (e.g. config files opened before sandbox) |
+| `write` | Write to already-open file descriptors (e.g. log pipe) |
+| `mmap` | Heap allocation (`malloc`/`new`) |
+| `munmap` | Heap deallocation (`free`/`delete`) |
+| `brk` | Heap growth (glibc allocator) |
+| `exit` | Normal thread exit |
+| `exit_group` | Normal process exit |
+| `futex` | Mutex / condition variable (C++ standard library) |
+| `clock_gettime` | Monotonic / wall-clock time queries |
+| `gettimeofday` | Legacy time queries |
+
+Default action: **`SCMP_ACT_KILL`** — any syscall not in the list terminates
+the process immediately.
+
+### Extending the allowlist
+
+If your plugin legitimately needs additional syscalls, add them in
+[`src/v3/infra/plugin/src/sandbox.cpp`](../src/v3/infra/plugin/src/sandbox.cpp)
+inside the `#ifdef PVPGN_V3_SECCOMP_ENABLED` block:
+
+```cpp
+// Example: allow getpid for plugins that need their own PID
+if (!allow(SCMP_SYS(getpid))) return false;
+```
+
+Document the rationale in a comment next to the rule.
+
+### Strict mode
+
+By default, if seccomp setup fails (e.g. the kernel does not support it),
+`run_sandboxed()` falls back to running the callback without sandboxing and
+logs a warning.
+
+To make sandbox failures fatal, set the environment variable:
+
+```bash
+export PVPGN_PLUGIN_STRICT_SANDBOX=1
+```
+
+Or define the compile-time macro:
+
+```cmake
+target_compile_definitions(my_target PRIVATE PVPGN_PLUGIN_STRICT_SANDBOX)
+```
+
+In strict mode, `run_sandboxed()` throws `std::runtime_error` if seccomp
+setup fails.
+
+---
+
+## Non-Linux Fallback Behaviour
+
+On macOS, Windows, and other non-Linux platforms:
+
+- `sandbox_available()` returns `false`.
+- `run_sandboxed(fn)` calls `fn()` directly without any OS-level restriction.
+- No compile-time errors or warnings are emitted.
+- The `PVPGN_V3_WITH_SECCOMP` option is accepted but has no effect.
+
+This allows the same plugin code to compile and run on all platforms while
+providing hardening on Linux production deployments.
+
+---
+
+## Legacy Full Sandbox (`infra/sandbox/`)
+
+The legacy sandbox provides a richer policy model with AppArmor confinement,
+rlimits, and categorised syscall allowlists.
 
 ### Basic Plugin Sandboxing
 
@@ -31,7 +164,6 @@ policy.allowed_paths = {"/var/pvpgn/plugins/my-plugin"};
 // Apply the sandbox
 auto result = PluginSandbox::apply(policy);
 if (!result) {
-    // Handle error
     auto error = std::move(result).error();
     std::cerr << "Sandbox failed: " << error.message() << std::endl;
     return;
@@ -41,292 +173,34 @@ if (!result) {
 // ...
 ```
 
-## Syscall Categories
+### Syscall Categories
 
 The `SyscallCategory` enum defines allowlists for different types of plugins:
 
-### Category Definitions
-
 | Category | Syscalls | Use Case |
 |----------|----------|----------|
-| `BasicIO` | read, write, close, fstat, lseek | Basic I/O operations |
-| `Memory` | mmap, mprotect, munmap, brk | Memory management |
-| `Time` | clock_gettime, gettimeofday, nanosleep | Time queries and delays |
-| `Process` | getpid, exit, exit_group | Process lifecycle |
-| `FileRead` | open, openat, stat, access | Read-only file access |
-| `FileWrite` | creat, unlink, rename | File creation/deletion |
-| `NetworkRecv` | recv, recvfrom, recvmsg | Inbound network I/O |
-| `NetworkSend` | send, sendto, sendmsg | Outbound network I/O |
-| `Threading` | clone, futex, set_robust_list | Thread operations |
-| `Signals` | rt_sigaction, rt_sigprocmask | Signal handling |
-
-### Preset Combinations
-
-- **`Lua`** = BasicIO | Memory | Time | Process
-  - Minimal set for Lua scripts
-  - No file or network access
-
-- **`Plugin`** = Lua | FileRead | Signals
-  - Standard plugin set
-  - Read-only file access, signal handling
-
-- **`Trusted`** = 0xFFFFFFFF
-  - All syscalls allowed (no restriction)
-
-## Policy Configuration
-
-### SandboxPolicy Structure
-
-```cpp
-struct SandboxPolicy {
-    std::string plugin_name;                    // For logging/profile naming
-    SyscallCategory allowed_syscalls{SyscallCategory::Plugin};
-    AppArmorLevel apparmor_level{AppArmorLevel::Disabled};
-    std::string apparmor_profile;               // Empty = auto-generate
-    bool enable_seccomp{true};                  // Apply seccomp BPF filter
-    bool allow_new_privs{false};                // PR_SET_NO_NEW_PRIVS
-    uint64_t max_memory_bytes{64 * 1024 * 1024}; // 64 MiB default
-    uint32_t max_open_files{64};                // rlimit NOFILE
-    std::vector<std::string> allowed_paths;     // Paths plugin may read
-};
-```
-
-### Example Policies
-
-#### Read-Only Plugin
-
-```cpp
-SandboxPolicy policy;
-policy.plugin_name = "stats-reader";
-policy.allowed_syscalls = SyscallCategory::Lua | SyscallCategory::FileRead;
-policy.enable_seccomp = true;
-policy.apparmor_level = AppArmorLevel::Enforce;
-policy.allowed_paths = {"/var/pvpgn/stats", "/var/pvpgn/data"};
-policy.max_memory_bytes = 32 * 1024 * 1024;  // 32 MiB
-policy.max_open_files = 16;
-```
-
-#### Network-Capable Plugin
-
-```cpp
-SandboxPolicy policy;
-policy.plugin_name = "network-plugin";
-policy.allowed_syscalls = SyscallCategory::Plugin | SyscallCategory::NetworkRecv | SyscallCategory::NetworkSend;
-policy.enable_seccomp = true;
-policy.apparmor_level = AppArmorLevel::Complain;  // Log violations, don't enforce
-policy.allowed_paths = {"/var/pvpgn/plugins/network-plugin"};
-policy.max_memory_bytes = 128 * 1024 * 1024;  // 128 MiB
-policy.max_open_files = 64;
-```
-
-#### Minimal Lua Script
-
-```cpp
-SandboxPolicy policy;
-policy.plugin_name = "simple-script";
-policy.allowed_syscalls = SyscallCategory::Lua;
-policy.enable_seccomp = true;
-policy.apparmor_level = AppArmorLevel::Disabled;  // No file access needed
-policy.max_memory_bytes = 16 * 1024 * 1024;  // 16 MiB
-policy.max_open_files = 4;
-```
-
-## AppArmor Levels
-
-### AppArmorLevel Enum
-
-- **`Disabled`** — No AppArmor confinement (default)
-- **`Complain`** — Log violations but don't enforce (audit mode)
-- **`Enforce`** — Enforce and deny violations (production mode)
-
-### Profile Generation
-
-AppArmor profiles are automatically generated from the policy:
-
-```cpp
-auto profile_text = AppArmorConfinement::generate_profile(policy);
-// Generates a profile like:
-// profile pvpgn-plugin-my-plugin flags=(attach_disconnected) {
-//   deny /** rwklmx,
-//   /var/pvpgn/plugins/my-plugin/** r,
-//   capability setuid,
-//   network inet stream,
-// }
-```
-
-## Capability Detection
-
-Check which sandbox features are available on the current system:
-
-```cpp
-auto caps = PluginSandbox::probe_capabilities();
-if (caps.seccomp_available) {
-    std::cout << "Seccomp is available" << std::endl;
-}
-if (caps.apparmor_available) {
-    std::cout << "AppArmor is available" << std::endl;
-}
-if (caps.rlimits_available) {
-    std::cout << "Resource limits are available" << std::endl;
-}
-```
-
-## Build Configuration
-
-### CMake Options
-
-The sandbox module is built by default on Linux systems. To explicitly enable or disable:
-
-```bash
-cmake -DPVPGN_ENABLE_SANDBOX=ON ..
-```
-
-### AppArmor Support
-
-AppArmor support is optional and detected automatically:
-
-```bash
-# Install AppArmor development libraries (Ubuntu/Debian)
-sudo apt-get install libapparmor-dev
-
-# Install AppArmor development libraries (Fedora/RHEL)
-sudo dnf install apparmor-devel
-```
-
-If AppArmor is not available, the sandbox will gracefully fall back to seccomp-only mode.
-
-## Error Handling
-
-All sandbox operations return `Result<void, core::Error>`:
-
-```cpp
-auto result = PluginSandbox::apply(policy);
-if (!result) {
-    const auto& error = result.error();
-    std::cerr << "Error: " << error.message() << std::endl;
-    
-    // Check error code
-    switch (error.code()) {
-        case core::StatusCode::Unavailable:
-            std::cerr << "Sandbox feature not available" << std::endl;
-            break;
-        case core::StatusCode::Internal:
-            std::cerr << "Sandbox application failed" << std::endl;
-            break;
-        default:
-            std::cerr << "Unknown error" << std::endl;
-    }
-}
-```
-
-## Platform Support
-
-### Linux
-
-Full support for all sandbox features:
-- ✅ Seccomp-BPF filtering
-- ✅ AppArmor confinement (if available)
-- ✅ Resource limits (rlimits)
-
-### Other Platforms
-
-Graceful degradation:
-- ❌ Seccomp (Linux-only)
-- ❌ AppArmor (Linux-only)
-- ⚠️ Resource limits (POSIX, may have limited support)
-
-## Best Practices
-
-### 1. Principle of Least Privilege
-
-Grant only the minimum syscalls and file access needed:
-
-```cpp
-// ❌ Bad: Too permissive
-policy.allowed_syscalls = SyscallCategory::Trusted;
-
-// ✅ Good: Minimal required access
-policy.allowed_syscalls = SyscallCategory::Lua | SyscallCategory::FileRead;
-```
-
-### 2. Resource Limits
-
-Set reasonable limits to prevent resource exhaustion:
-
-```cpp
-// ❌ Bad: Unlimited
-policy.max_memory_bytes = UINT64_MAX;
-policy.max_open_files = UINT32_MAX;
-
-// ✅ Good: Reasonable limits
-policy.max_memory_bytes = 64 * 1024 * 1024;   // 64 MiB
-policy.max_open_files = 32;
-```
-
-### 3. AppArmor Profiles
-
-Use `Complain` mode during development, `Enforce` in production:
-
-```cpp
-#ifdef DEBUG
-policy.apparmor_level = AppArmorLevel::Complain;
-#else
-policy.apparmor_level = AppArmorLevel::Enforce;
-#endif
-```
-
-### 4. Path Allowlisting
-
-Be specific with allowed paths:
-
-```cpp
-// ❌ Bad: Too broad
-policy.allowed_paths = {"/"};
-
-// ✅ Good: Specific paths
-policy.allowed_paths = {
-    "/var/pvpgn/plugins/my-plugin",
-    "/var/pvpgn/data/read-only"
-};
-```
-
-## Testing
-
-Run the sandbox unit tests:
-
-```bash
-ctest --output-on-failure -R SandboxTest
-```
-
-## Troubleshooting
-
-### Seccomp Not Available
-
-**Symptom:** `seccomp not available on this system`
-
-**Solution:**
-- Ensure kernel version ≥ 3.17 (seccomp-bpf support)
-- Check: `grep CONFIG_SECCOMP_FILTER /boot/config-$(uname -r)`
-
-### AppArmor Not Available
-
-**Symptom:** `AppArmor is not available on this system`
-
-**Solution:**
-- Ensure AppArmor is enabled in kernel
-- Check: `cat /sys/kernel/security/apparmor/profiles`
-- Install libapparmor: `sudo apt-get install libapparmor-dev`
-
-### Permission Denied
-
-**Symptom:** `failed to set PR_SET_NO_NEW_PRIVS`
-
-**Solution:**
-- Ensure process has appropriate capabilities
-- May require running as root or with CAP_SYS_ADMIN
-
-## References
-
-- [Linux Seccomp Documentation](https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html)
-- [AppArmor Documentation](https://gitlab.com/apparmor/apparmor/-/wikis/home)
-- [Linux Resource Limits](https://man7.org/linux/man-pages/man2/setrlimit.2.html)
+| `Basic` | read, write, mmap, munmap, brk, exit, exit_group, futex, clock_gettime, gettimeofday | Minimal computation |
+| `Network` | Basic + socket, connect, send, recv, poll | Network-enabled plugins |
+| `FileIO` | Basic + open, openat, close, stat, fstat, lstat, read, write, lseek | File-access plugins |
+| `Full` | All of the above | Trusted plugins |
+
+---
+
+## Choosing the Right Sandbox Layer
+
+| Scenario | Recommendation |
+|----------|---------------|
+| New native plugin, Linux production | Use R347 `run_sandboxed()` + legacy `SandboxPolicy` |
+| Lua plugin | Legacy sandbox only (Lua VM provides its own isolation) |
+| Development / testing | Disable seccomp (`PVPGN_V3_WITH_SECCOMP=OFF`) |
+| macOS / Windows | No OS sandbox; rely on Lua VM isolation |
+| Untrusted third-party plugin | Both layers + AppArmor profile |
+
+---
+
+## See Also
+
+- [`src/v3/infra/plugin/include/infra/plugin/sandbox.hpp`](../src/v3/infra/plugin/include/infra/plugin/sandbox.hpp) — R347 API
+- [`src/v3/infra/plugin/include/infra/plugin/api.h`](../src/v3/infra/plugin/include/infra/plugin/api.h) — C ABI 1.0
+- [`docs/plugin-versioning-guide.md`](plugin-versioning-guide.md) — Plugin versioning
+- [`docs/lua-api-v2.md`](lua-api-v2.md) — Lua API v2 reference

@@ -6,7 +6,7 @@ pvpgn_v3_add_test(test_application_ports_clan_repository
 # src/v3/application/ports/include/application/ports/ must compile in
 # isolation.
 pvpgn_v3_add_header_selfcheck(test_application_ports_headers_selfcontained
-    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/v3/application/ports/include
+    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/application/ports/include
     HEADERS
         application/ports/account_ban_repository.hpp
         application/ports/account_repository.hpp

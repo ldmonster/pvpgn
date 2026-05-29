@@ -38,6 +38,28 @@
 path = "file:mode=plain;dir=${LOCALSTATEDIR}/users;clan=${LOCALSTATEDIR}/clans;team=${LOCALSTATEDIR}/teams;default=${SYSCONFDIR}/bnetd_default_user.plain"
 
 ##############################################################################
+# [persistence]  — v3 hexagonal-architecture persistence back-end           #
+##############################################################################
+#
+# Selects which IUnitOfWorkFactory implementation the v3 bnetd binary uses.
+#
+# backend   — one of: "inmemory", "sqlite", "mysql", "postgres"
+#             Default: "sqlite"
+#
+# dsn       — Data Source Name / connection string, interpreted per backend:
+#   inmemory : ignored
+#   sqlite   : filesystem path to the SQLite database file
+#              e.g. "${LOCALSTATEDIR}/pvpgn.db"
+#   mysql    : "host:port:user:password:database"
+#              e.g. "127.0.0.1:3306:pvpgn:secret:pvpgn"
+#   postgres : "host:port:user:password:database"
+#              e.g. "127.0.0.1:5432:pvpgn:secret:pvpgn"
+
+[persistence]
+backend = "sqlite"
+dsn     = "${LOCALSTATEDIR}/pvpgn.db"
+
+##############################################################################
 # [files]  — Paths to data files and directories                            #
 # Use absolute paths to avoid problems.                                     #
 ##############################################################################

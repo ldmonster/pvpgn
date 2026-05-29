@@ -14,7 +14,7 @@ pvpgn_v3_add_test(test_protocol_replay
 # R213a: every public header in src/v3/protocol/common/include/protocol/common/
 # must compile in isolation.
 pvpgn_v3_add_header_selfcheck(test_protocol_common_headers_selfcontained
-    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/v3/protocol/common/include
+    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/protocol/common/include
     HEADERS
         protocol/common/packet.hpp
         protocol/common/reader.hpp

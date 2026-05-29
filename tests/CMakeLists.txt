@@ -2,3 +2,6 @@
 # Tests for v3 sub-tree
 # NOTE: This file is included by src/v3/CMakeLists.txt when PVPGN_V3_BUILD_TESTS=ON
 # The test subdirectories are added there, not here.
+
+# Integration tests are opt-in (PVPGN_V3_INTEGRATION_TESTS=ON).
+add_subdirectory(integration)

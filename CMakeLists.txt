@@ -14,7 +14,8 @@ endif()
 # since cmake 2.4.1
 set(CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE ON)
 
-project(pvpgn VERSION 4.0.0 LANGUAGES C CXX)
+# v3 integration is mandatory as of vN.0 — PVPGN_V3_BNETD_INTEGRATION removed
+project(pvpgn VERSION 3.0.0 LANGUAGES C CXX)
 # R210 (plans/01-modern-cpp-baseline.md): raised global floor from C++11
 # to C++20. The v3 sub-tree already targeted C++20 per-target via
 # PVPGN_V3_CXX_STANDARD in cmake/v3.cmake; this bump aligns the legacy
@@ -31,36 +32,11 @@ if(MSVC AND DEFINED VCPKG_TARGET_TRIPLET AND VCPKG_TARGET_TRIPLET MATCHES "-stat
     message(STATUS "pvpgn: static vcpkg triplet detected (${VCPKG_TARGET_TRIPLET}); forcing /MT runtime")
 endif()
 
-option(WITH_BNETD "compile the bnetd target" ON)
-option(WITH_D2CS "compile the d2cs target" ON)
-option(WITH_D2DBS "compile the d2dbs target" ON)
-option(WITH_LUA "enable Lua support" OFF)
-if(WIN32)
-	option(WITH_WIN32_GUI "enable GUI building (default on)" ON)
-endif(WIN32)
-
-#storage backends flags
-option(WITH_MYSQL "include MySQL user accounts support" OFF)
-option(WITH_SQLITE3 "include SQLite3 user accounts support" OFF)
-option(WITH_PGSQL "include PostgreSQL user accounts support" OFF)
-option(WITH_ODBC "include ODBC user accounts support" OFF)
-
-# ---- v3 refactor opt-in -------------------------------------------------
-# v3 is the supported build path -- TOML configuration, hexagonal
-# layering, Catch2 test suite. The legacy tree is still buildable via
-# PVPGN_BUILD_LEGACY for transitional setups but is no longer developed.
-# PVPGN_BUILD_V3 stays as an option only so downstream packagers can opt
-# out for now; defaulting to ON.
-option(PVPGN_BUILD_V3        "Build the refactored v3 sub-tree (default)"      ON)
-option(PVPGN_BUILD_LEGACY    "Build the legacy bnetd/d2cs/d2dbs tree"          ON)
-option(PVPGN_V3_BUILD_TESTS  "Build unit tests for the v3 sub-tree"            ${PVPGN_BUILD_V3})
+# ---- v3 build options ---------------------------------------------------
+option(PVPGN_V3_BUILD_TESTS  "Build unit tests for the v3 sub-tree"  ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
-
-if(PVPGN_BUILD_LEGACY)
-    include(ConfigureChecks.cmake)
-endif()
 
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -84,21 +60,10 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 		message(FATAL_ERROR "Visual Studio 2015 or higher required")
 	endif()
 
-	# UNICODE flags belong to the legacy daemons only — the v3 sub-tree
-	# (and its Catch2 test harness) expects narrow `main()` entry points.
-	if(PVPGN_BUILD_LEGACY)
-		add_definitions(
-			-D_CRT_SECURE_NO_DEPRECATE
-			-D_CRT_NONSTDC_NO_DEPRECATE
-			-DUNICODE
-			-D_UNICODE
-		)
-	else()
-		add_definitions(
-			-D_CRT_SECURE_NO_DEPRECATE
-			-D_CRT_NONSTDC_NO_DEPRECATE
-		)
-	endif()
+	add_definitions(
+		-D_CRT_SECURE_NO_DEPRECATE
+		-D_CRT_NONSTDC_NO_DEPRECATE
+	)
 	
 	# DEBUG compiler flags:
 	#	/Zi create debugging information PDB file
@@ -118,146 +83,8 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
 endif()
 
-if(PVPGN_BUILD_LEGACY)
-    add_subdirectory(conf)
-    add_subdirectory(files)
-    # Prefer system / vcpkg `fmt` (modern, 10.x+). When no package is
-    # found we fall back to FetchContent-ing the upstream fmtlib so a
-    # checkout without a vcpkg toolchain still builds (network
-    # required on first configure).
-    find_package(fmt CONFIG QUIET)
-    if(fmt_FOUND)
-        message(STATUS "Using external fmt ${fmt_VERSION} (vcpkg/system)")
-        # Consumers do `target_link_libraries(... fmt)`. Modern fmt
-        # exports `fmt::fmt`; alias bare `fmt` to it so consumer
-        # sites stay identical regardless of how fmt was obtained.
-        if(NOT TARGET fmt)
-            add_library(fmt INTERFACE IMPORTED GLOBAL)
-            target_link_libraries(fmt INTERFACE fmt::fmt)
-        endif()
-    else()
-        message(STATUS "External fmt not found; fetching fmtlib/fmt via FetchContent")
-        include(FetchContent)
-        FetchContent_Declare(
-            fmt
-            GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-            GIT_TAG        11.2.0
-            GIT_SHALLOW    TRUE
-        )
-        # fmt's tests / docs aren't needed for our consumers.
-        set(FMT_TEST     OFF CACHE BOOL "" FORCE)
-        set(FMT_DOC      OFF CACHE BOOL "" FORCE)
-        set(FMT_INSTALL  OFF CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(fmt)
-        # FetchContent'd fmt already exposes the bare `fmt` target,
-        # so no alias is needed.
-    endif()
-
-    # Prefer system / vcpkg `nlohmann_json`. The previous in-tree
-    # `src/json/json.hpp` snapshot (v3.1.2, 2018) has been retired in
-    # favour of the upstream package; legacy consumers
-    # (`adbanner.cpp`, `versioncheck.cpp`) now `#include
-    # <nlohmann/json.hpp>`. Fall back to FetchContent so a checkout
-    # without a vcpkg toolchain still builds.
-    find_package(nlohmann_json CONFIG QUIET)
-    if(nlohmann_json_FOUND)
-        message(STATUS "Using external nlohmann_json ${nlohmann_json_VERSION} (vcpkg/system)")
-    else()
-        message(STATUS "External nlohmann_json not found; fetching nlohmann/json via FetchContent")
-        include(FetchContent)
-        FetchContent_Declare(
-            nlohmann_json
-            GIT_REPOSITORY https://github.com/nlohmann/json.git
-            GIT_TAG        v3.11.3
-            GIT_SHALLOW    TRUE
-        )
-        set(JSON_BuildTests OFF CACHE INTERNAL "")
-        set(JSON_Install    OFF CACHE INTERNAL "")
-        FetchContent_MakeAvailable(nlohmann_json)
-    endif()
-
-    # When WITH_BNETD is ON, migrated bnetd source files include
-    # "infra/xml/xml_document.hpp" which in turn includes <pugixml.hpp>.
-    # Fetch pugixml early so it's available to both legacy and v3 builds.
-    if(WITH_BNETD)
-        find_package(pugixml CONFIG QUIET)
-        if(NOT pugixml_FOUND AND NOT TARGET pugixml-static)
-            include(FetchContent)
-            set(PUGIXML_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-            FetchContent_Declare(
-                pugixml
-                GIT_REPOSITORY https://github.com/zeux/pugixml.git
-                GIT_TAG        v1.14
-                GIT_SHALLOW    TRUE
-            )
-            FetchContent_MakeAvailable(pugixml)
-            if(TARGET pugixml-static AND NOT TARGET pugixml::static)
-                add_library(pugixml::static ALIAS pugixml-static)
-            endif()
-        endif()
-    endif()
-
-    add_subdirectory(man)
-    if(PVPGN_BUILD_V3)
-        # The v3 sub-tree must be added before src (legacy) so that v3 targets
-        # like infra_compat are available when legacy code needs them.
-        # The v3 sub-tree (and its Catch2 test harness) expects a narrow
-        # `main()`. When PVPGN_BUILD_LEGACY=ON we added `-DUNICODE
-        # -D_UNICODE` globally for the legacy daemons, which would force
-        # MSVC's CRT to expect `wmain` in every executable, breaking the
-        # v3 test targets. Strip those flags before descending into the
-        # v3 subdirectory so v3 targets see narrow `main()`.
-        if (MSVC)
-            remove_definitions(-DUNICODE -D_UNICODE)
-        endif()
-        add_subdirectory(src/v3)
-    endif()
-    add_subdirectory(src)
-    if(PVPGN_BUILD_V3)
-        # R193.fix (Strategy B, two-pass `src/v3`): the integration target
-        # `integration_legacy_bnetd_linked` and the bnetd / bnetd_legacy
-        # strangler wiring depend on the legacy `bnetd_legacy` target
-        # existing, so they are added AFTER `add_subdirectory(src)`.
-        # See plans/r192-checklist.md + plans/r193-audit-checklist.md.
-        add_subdirectory(src/v3/integration/legacy_bnetd)
-        # R196.b: same systemic ordering bug as R193.fix, but for d2cs.
-        # The integration_legacy_d2cs_linked target + d2cs strangler
-        # wiring depend on `d2cs_legacy` existing. See
-        # plans/r196b-checklist.md.
-        add_subdirectory(src/v3/integration/legacy_d2cs)
-        # R199: same systemic ordering bug as R193.fix / R196.b, but for
-        # d2dbs. The integration_legacy_d2dbs_linked target + d2dbs
-        # strangler wiring depend on `d2dbs_legacy` existing. See
-        # plans/r199-checklist.md.
-        add_subdirectory(src/v3/integration/legacy_d2dbs)
-    endif()
-    if(WITH_LUA)
-        add_subdirectory(lua)
-    endif(WITH_LUA)
-endif()
+add_subdirectory(src)
 
 enable_testing()
 
-if(PVPGN_BUILD_V3)
-    add_subdirectory(tests)
-endif()
-
-# uninstall target
-if(PVPGN_BUILD_LEGACY)
-configure_file(
-    "${CMAKE_MODULE_PATH}/cmake_uninstall.cmake.in"
-    "${CMAKE_MODULE_PATH}/cmake_uninstall.cmake"
-    IMMEDIATE @ONLY)
-
-add_custom_target(uninstall
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_MODULE_PATH}/cmake_uninstall.cmake)
-	
-# purge target
-configure_file(
-    "${CMAKE_MODULE_PATH}/cmake_purge.cmake.in"
-    "${CMAKE_MODULE_PATH}/cmake_purge.cmake"
-    IMMEDIATE @ONLY)
-
-add_custom_target(purge
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_MODULE_PATH}/cmake_purge.cmake)
-endif()
+add_subdirectory(tests)

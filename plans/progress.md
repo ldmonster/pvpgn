@@ -305,3 +305,294 @@ Observation bridges across all bnetd, d2cs, d2dbs modules (~147 test cases, ~647
 
 ---
 **Phase G Summary**: 16 tasks complete (R295–R310). Roster session mapping fixed across all chat use-cases; `ConnectionFsm` wired to `JoinChannel`/`PostMessage`/`LeaveChannel`; `BnetFsm` extended with real EID_SHOWUSER roster, `/cmd` dispatch via `ICommandRegistry`, and `SID_CHANNELLIST` handler; `WolFsm` LIST/JOIN/PRIVMSG relayed through chat use-cases; `IrcBridgeFsm` fully implemented (JOIN, PART, PRIVMSG, LIST, TOPIC, KICK, NAMES); `BnetEventDispatcher` extended with `dispatch_channel_events()` for full `SID_CHATEVENT` encoding; `ChannelConfigLoader` added for legacy `channel.conf` parsing; `BnetdService` wired with all 5 chat use-cases and seeds 5 default permanent channels; `AsioEventLoop` implements `IEventLoop` with `stop()`/`is_running()`; `LogoutUser` called on disconnect; `infra_webui` `/api/v1/channels` endpoint added; ~90 new test cases, ~402 new assertions across 4 test binaries (BnetFsm: 17/124, WolFsm: 23/128, IrcFsm: 39/225, WebUI: 11/25).
+
+## Phase H — Persistence & Migrations (R311–R330) ✅ COMPLETE
+
+### R311 — `IUnitOfWorkFactory` port interface ✅ COMPLETE
+- **Files created**: `src/v3/application/ports/include/application/ports/unit_of_work_factory.hpp` — `IUnitOfWorkFactory` with `create()` returning `std::unique_ptr<IUnitOfWork>`
+
+### R312 — `teams()` in SQLiteUnitOfWork + FileUnitOfWork ✅ COMPLETE
+- **Files modified**: `infra/sqlite/unit_of_work.hpp` + `infra/file/unit_of_work.hpp` — added `InMemoryTeamRepository` per-instance member to both UoW classes; `teams()` override returns reference to that member
+
+### R313 — Wire infra/migrations + infra/sqlite + infra/file into CMakeLists ✅ COMPLETE
+- **Files modified**: `src/v3/CMakeLists.txt` — added `add_subdirectory` calls for `infra/migrations`, `infra/sqlite`, `infra/file`; added alias targets; re-enabled `backend_registration.cpp`
+
+### R314 — `FileAccountRepository::load_account_file()` ✅ COMPLETE
+- **Assessment**: Already implemented — parses legacy `.plain` format via `flat_db_reader` utility, maps `BNET\acct\` keys to domain fields
+
+### R315 — Atomic file write-back in `FileAccountRepository::save()` ✅ COMPLETE
+- **Assessment**: Already implemented — tmp+fsync+rename pattern using POSIX `::open`/`::write`/`::fsync`
+
+### R316 — Reconcile dual SQLite implementations ✅ COMPLETE
+- **Assessment**: `infra/persistence/sqlite/` disabled (CMakeLists has only a status message, header has `#error` guard); canonical `infra/sqlite/` is the only compiled implementation
+
+### R317 — Fix static-local data race in UoW `channels()`/`games()` ✅ COMPLETE
+- **Assessment**: Already fixed — all repos are per-instance `std::unique_ptr` members in both `SQLiteUnitOfWork` and `FileUnitOfWork`
+
+### R318 — Wire `MigrationRunner` into `SQLiteUnitOfWorkFactory` ✅ COMPLETE
+- **Assessment**: Already implemented — constructor calls `runner.ensure_migration_table()` + `runner.migrate_to_latest()`
+
+### R319 — Replace trivial checksum with CRC32 ✅ COMPLETE
+- **Files modified**: `src/v3/infra/migrations/src/migration_runner.cpp` — replaced trivial checksum with compile-time CRC32 lookup table using IEEE 802.3 polynomial `0xEDB88320`
+
+### R320 — `channels` table + `SqliteChannelRepository` ✅ COMPLETE
+- **Files created**: `src/v3/infra/sqlite/migrations/002_channels.sql` — migration adding `channels` table; `src/v3/infra/sqlite/include/infra/sqlite/channel_repository.hpp` + `src/v3/infra/sqlite/src/channel_repository.cpp` — `SqliteChannelRepository` implementing `IChannelRepository`
+- **Files modified**: `src/v3/infra/sqlite/src/unit_of_work.cpp` — wired `SqliteChannelRepository` into `SQLiteUnitOfWork::channels()`
+
+### R321 — `pvpgn-migrate` tool skeleton ✅ COMPLETE
+- **Files created**: `src/v3/app/pvpgn-migrate/main.cpp` — CLI argument parser dispatching to migration functions; `src/v3/app/pvpgn-migrate/CMakeLists.txt` — build target
+
+### R322 — `pvpgn-migrate --from-plain --to-sqlite` ✅ COMPLETE
+- **Files modified**: `src/v3/app/pvpgn-migrate/main.cpp` — `--from-plain --to-sqlite` mode enumerates `*.plain` files, parses via `flat_db_reader`, saves via `SQLiteAccountRepository`
+
+### R323 — `pvpgn-migrate --from-plain --to-toml-file` ✅ COMPLETE
+- **Files modified**: `src/v3/app/pvpgn-migrate/main.cpp` — `--from-plain --to-toml-file` mode converts `.plain` files to TOML format with `[account]`, `[timestamps]`, `[network]` sections
+
+### R324 — Shadow-write infrastructure + feature flag ✅ COMPLETE
+- **Files created**: `src/v3/infra/shadow/include/infra/shadow/shadow_account_repository.hpp` + `src/v3/infra/shadow/src/shadow_account_repository.cpp` — `ShadowAccountRepository`; `src/v3/infra/shadow/include/infra/shadow/shadow_unit_of_work.hpp` + `src/v3/infra/shadow/src/shadow_unit_of_work.cpp` — `ShadowUnitOfWork`; `src/v3/infra/shadow/include/infra/shadow/shadow_unit_of_work_factory.hpp` + `src/v3/infra/shadow/src/shadow_unit_of_work_factory.cpp` — `ShadowUnitOfWorkFactory`; `src/v3/infra/shadow/CMakeLists.txt`
+- **Feature flag**: `bool shadow_enabled` controls whether writes are mirrored to the shadow backend
+
+### R325 — Tests: `SQLiteAccountRepository` ✅ COMPLETE
+- **Files created**: `tests/unit/infra/sqlite/sqlite_account_repository_test.cpp` — 5 Catch2 test cases using in-memory `:memory:` SQLite with `MigrationRunner`; `tests/unit/infra/sqlite/CMakeLists.txt`
+- **Files modified**: `tests/unit/infra/CMakeLists.txt` — added `add_subdirectory(sqlite)`
+
+### R326 — Tests: `FileAccountRepository` ✅ COMPLETE
+- **Files created**: `tests/unit/infra/file/file_account_repository_test.cpp` — 5 Catch2 test cases using `TempDir` RAII fixture; `tests/unit/infra/file/CMakeLists.txt`
+- **Files modified**: `tests/unit/infra/CMakeLists.txt` — added `add_subdirectory(file)`
+
+### R327 — Tests: `MigrationRunner` ✅ COMPLETE
+- **Files created**: `tests/unit/infra/migrations/migration_runner_test.cpp` — 10 Catch2 test cases with `FakeExecutor`/`FakeVersionQuery` stubs; all 27 assertions pass; `tests/unit/infra/migrations/CMakeLists.txt`
+- **Files modified**: `tests/unit/infra/CMakeLists.txt` — added `add_subdirectory(migrations)`
+
+### R328 — MySQL adapter ✅ COMPLETE
+- **Files created**: `src/v3/infra/mysql/` — full MySQL C API implementation (`account_repository.hpp/cpp`, `unit_of_work.hpp/cpp`, `unit_of_work_factory.hpp/cpp`, `CMakeLists.txt`)
+- **Build**: conditionally compiled via `find_package(MySQL QUIET)`
+
+### R329 — PostgreSQL adapter ✅ COMPLETE
+- **Files created**: `src/v3/infra/postgres/` — full libpq implementation (`account_repository.hpp/cpp`, `unit_of_work.hpp/cpp`, `unit_of_work_factory.hpp/cpp`, `CMakeLists.txt`)
+- **Build**: conditionally compiled via `find_package(PostgreSQL QUIET)`
+
+### R330 — Wire `BnetdService` to configurable backend ✅ COMPLETE
+- **Files modified**: `conf/bnetd.toml.in` — added `[persistence]` section with `backend` key (values: `sqlite`, `mysql`, `postgres`, `file`, `inmemory`)
+- **Files modified**: `src/v3/app/bnetd/src/main.cpp` — dispatches to `SQLiteUnitOfWorkFactory` / `MySQLUnitOfWorkFactory` / `PostgresUnitOfWorkFactory` / `FileUnitOfWorkFactory` / `InMemoryUnitOfWorkFactory` based on `persistence.backend` config value
+
+---
+**Phase H Summary**: 20 tasks complete (R311–R330). `IUnitOfWorkFactory` port interface added; `teams()` wired into `SQLiteUnitOfWork` and `FileUnitOfWork`; `infra/migrations`, `infra/sqlite`, `infra/file` subdirectories wired into CMake; `FileAccountRepository` load/save already correct (atomic tmp+fsync+rename); dual SQLite conflict resolved (canonical `infra/sqlite/` only); static-local data race already fixed; `MigrationRunner` already wired into `SQLiteUnitOfWorkFactory`; CRC32 (IEEE 802.3) replaces trivial checksum; `channels` table migration + `SqliteChannelRepository` added; `pvpgn-migrate` CLI tool created with `--from-plain --to-sqlite` and `--from-plain --to-toml-file` modes; shadow-write infrastructure (`ShadowAccountRepository`, `ShadowUnitOfWork`, `ShadowUnitOfWorkFactory`) with `shadow_enabled` feature flag; 3 new Catch2 test suites (SQLiteAccountRepository: 5 cases, FileAccountRepository: 5 cases, MigrationRunner: 10 cases / 27 assertions); full MySQL C API and PostgreSQL libpq adapters added (conditionally compiled); `BnetdService` wired to configurable backend via `[persistence]` TOML section.
+
+## Phase I — Config & Secrets (R331–R333) ✅ COMPLETE
+
+### R331 — `core::Secret<T>` + env-var override layer ✅ COMPLETE
+- **Files created**: `src/v3/core/include/core/secret.hpp` — `Secret<T>` template (non-copyable, movable, `operator<<` → `"***"`, `reveal()`); `Secret<std::string>` specialisation with zeroing destructor and `from_string()` factory supporting `env:VAR`, `file:/path`, and literal values
+- **Files modified**: `src/v3/infra/config/include/infra/config/server_config.hpp` — `PersistenceConfig::dsn`, `StorageConfig::dsn`, `WolConfig::wol_autoupdate_password` changed to `core::Secret<std::string>`
+- **Files modified**: `src/v3/infra/config/src/server_config.cpp` — added `apply_env_overrides()` scanning `PVPGN_BNETD__<SECTION>__<KEY>` env vars; `load_server_config()` calls it after TOML parsing
+- **Files modified**: `src/v3/app/bnetd/src/main.cpp` — `persistence_dsn = result.value().persistence.dsn.reveal()`
+- **Files created**: `tests/unit/core/secret_test.cpp` — 10 Catch2 tests covering `operator<<`, `reveal()`, all three `from_string()` modes, and move semantics
+
+### R332 — `pvpgn-config` CLI tool ✅ COMPLETE
+- **Files created**: `src/v3/app/pvpgn-config/main.cpp` — `--validate`, `--print-effective` (secrets auto-redacted via `operator<<`), `--print-schema` (full Markdown table for all 20 TOML sections), `--help`
+- **Files created**: `src/v3/app/pvpgn-config/CMakeLists.txt` — `pvpgn_config_tool` executable linking `pvpgn_infra_config` + `pvpgn_core`
+- **Files modified**: `src/v3/CMakeLists.txt` — added `add_subdirectory(app/pvpgn-config)`
+
+### R333 — Doc generator + `legacy_prefs.hpp` retirement ✅ COMPLETE
+- **Files created**: `scripts/dev/gen-config-docs.sh` — runs `pvpgn_config_tool --print-schema`, wraps output with header/footer, writes `docs/config-reference.md`; made executable
+- **Files created**: `docs/config-reference.md` — static initial version covering all 20 TOML sections with key/type/default/description tables, env-var override pattern, and `env:`/`file:` indirection documentation
+- **Files modified**: `src/v3/infra/config/include/infra/config/legacy_prefs.hpp` — added `TODO(R333)` retirement comment; `wol_autoupdate_password_str_` init and `storage_dsn()` accessor use `.reveal()`
+
+---
+**Phase I Summary**: 3 tasks complete (R331–R333). `core::Secret<T>` template added with non-copyable/movable semantics, `operator<<` redaction, and `Secret<std::string>` specialisation with zeroing destructor and `from_string()` factory supporting `env:VAR`, `file:/path`, and literal indirection; env-var override layer (`PVPGN_BNETD__<SECTION>__<KEY>`) wired into `load_server_config()`; `PersistenceConfig::dsn`, `StorageConfig::dsn`, and `WolConfig::wol_autoupdate_password` converted to `Secret<std::string>`; `pvpgn-config` CLI tool added with `--validate`, `--print-effective` (auto-redacted), `--print-schema` (Markdown table for all 20 TOML sections), and `--help`; `gen-config-docs.sh` script generates `docs/config-reference.md` from the tool; `legacy_prefs.hpp` marked for retirement with `TODO(R333)` and updated to use `.reveal()`; 10 Catch2 unit tests for `Secret<T>`.
+
+## Phase J — Observability (R334–R337) ✅ COMPLETE
+
+### R334 — `core::trace::Span` + tracing ports ✅ COMPLETE
+- **Files created**: `src/v3/core/include/core/trace.hpp` — `SpanContext`, RAII `Span` (pImpl, move-only), `SpanSink` typedef, `set_global_span_sink()` / `get_global_span_sink()`, `PVPGN_SPAN(name)` macro
+- **Files created**: `src/v3/core/src/trace.cpp` — `random_hex()` via `std::mt19937_64`, `Span::Impl`, global sink protected by mutex
+- **Files created**: `src/v3/application/ports/include/application/ports/trace_sink.hpp` — `ITraceSink` port with `virtual void record(const Span&) noexcept = 0`
+- **Files modified**: `src/v3/CMakeLists.txt` — `core/src/trace.cpp` added to `core` library SOURCES
+
+### R335 — `/healthz`, `/readyz`, `/version` admin endpoints ✅ COMPLETE
+- **Files modified**: `src/v3/infra/metrics/include/infra/metrics/http_metrics_server.hpp` — added `set_ready(bool)`, `is_ready()`, `std::atomic<bool> ready_`
+- **Files modified**: `src/v3/infra/metrics/src/http_metrics_server.cpp` — routes for `/healthz` (200 always), `/readyz` (503→200 after `set_ready(true)`), `/version` (static JSON), `/config/effective` (stub); `send_json()`, `send_raw()` helpers
+- **Files modified**: `src/v3/app/bnetd/src/main.cpp` — creates `HttpMetricsServer`, calls `set_ready(true)` after all listeners start
+
+### R336 — Instrument use cases with spans + Prometheus text format ✅ COMPLETE
+- **Files modified**: `src/v3/application/chat/src/join_channel.cpp` — `PVPGN_SPAN("JoinChannel")` as first statement in `execute()`
+- **Files modified**: `src/v3/application/auth/src/login_user.cpp` — `PVPGN_SPAN("LoginUser")` as first statement in `execute()`
+- **Verified**: Prometheus text format in `InMemoryMetricsRegistry::serialize()` — emits `# HELP` / `# TYPE` lines, served with `Content-Type: text/plain; version=0.0.4`
+
+### R337 — OTLP exporter adapter + `docs/observability.md` ✅ COMPLETE
+- **Files created**: `src/v3/infra/tracing/include/infra/tracing/log_trace_sink.hpp` — `LogTraceSink : ITraceSink`, always available
+- **Files created**: `src/v3/infra/tracing/src/log_trace_sink.cpp` — emits structured `[trace] span=… op=… dur_us=… status=ok|error` via `SPDLOG_INFO`
+- **Files created**: `src/v3/infra/tracing/include/infra/tracing/otlp_trace_sink.hpp` — `OtlpTraceSink : ITraceSink` guarded by `#ifdef PVPGN_V3_WITH_OTLP`
+- **Files created**: `src/v3/infra/tracing/src/otlp_trace_sink.cpp` — synchronous Boost.Beast HTTP POST of OTLP/HTTP JSON payload; `noexcept`, logs WARN on failure
+- **Files created**: `src/v3/infra/tracing/CMakeLists.txt` — `pvpgn_v3_add_library(infra_tracing)` with `option(PVPGN_V3_WITH_OTLP OFF)`
+- **Files modified**: `src/v3/CMakeLists.txt` — `add_subdirectory(infra/tracing)`
+- **Files created**: `docs/observability.md` — full guide covering metrics, health probes, version endpoint, `Span` API, `PVPGN_SPAN` macro, `LogTraceSink`, `OtlpTraceSink`, Kubernetes probe YAML, Jaeger docker-compose snippet
+
+---
+**Phase J Summary**: 4 tasks complete (R334–R337). `core::trace::Span` RAII type added (pImpl, move-only) with `SpanContext`, `SpanSink` typedef, global sink registry protected by mutex, and `PVPGN_SPAN(name)` convenience macro; `ITraceSink` port interface added to `application/ports`; `/healthz` (always 200), `/readyz` (503→200 after `set_ready(true)`), `/version` (static JSON), and `/config/effective` (stub) admin endpoints added to `HttpMetricsServer`; `main.cpp` calls `set_ready(true)` after all listeners start; `JoinChannel` and `LoginUser` use-cases instrumented with `PVPGN_SPAN`; Prometheus text format (`# HELP`/`# TYPE` lines, `Content-Type: text/plain; version=0.0.4`) verified in `InMemoryMetricsRegistry::serialize()`; `LogTraceSink` (always available, structured spdlog output) and `OtlpTraceSink` (Boost.Beast HTTP POST of OTLP/HTTP JSON, guarded by `PVPGN_V3_WITH_OTLP`) added as `infra_tracing` library; `docs/observability.md` written covering metrics, health probes, version endpoint, `Span` API, `PVPGN_SPAN` macro, both sink implementations, Kubernetes liveness/readiness probe YAML, and Jaeger docker-compose snippet.
+
+## Phase K — Testing Strategy (R338–R341) ✅ COMPLETE
+
+### R338 — Integration test skeleton + docker-compose.integration.yml ✅ COMPLETE
+- **Files created**: `tests/integration/` directory skeleton with placeholder test files; `docker-compose.integration.yml` — MySQL 8.0 + PostgreSQL 16 services with health checks (`mysqladmin ping` / `pg_isready`), named volumes, and `PVPGN_TEST_MYSQL_DSN` / `PVPGN_TEST_PG_DSN` env vars
+- **Files modified**: `tests/CMakeLists.txt` — added `add_subdirectory(integration)` guarded by `PVPGN_V3_INTEGRATION_TESTS` option
+
+### R339 — CMakePresets.json with 6 presets ✅ COMPLETE
+- **Files created/modified**: `CMakePresets.json` — 6 configure presets: `v3-dev` (Debug, Ninja, warnings-as-errors), `v3-release` (Release, Ninja, LTO), `v3-asan` (Debug + ASan+UBSan, clang-18), `v3-tsan` (Debug + TSan, clang-18), `v3-coverage` (Debug + `--coverage`, gcc-14, lcov), `v3-fuzz` (Debug + libFuzzer, clang-18); matching build and test presets for each
+
+### R340 — GitHub Actions coverage + sanitizer workflows ✅ COMPLETE
+- **Files created**: `.github/workflows/v3-coverage.yml` — lcov capture → filter → Codecov upload + artifact; `.github/workflows/v3-sanitizers.yml` — parallel `asan-ubsan` and `tsan` jobs using `v3-asan` and `v3-tsan` presets respectively
+
+### R341 — Domain value object unit tests backfilled ✅ COMPLETE
+- **Files created**: `tests/unit/domain/shared/user_name_test.cpp` (12 cases), `tests/unit/domain/shared/ip_address_test.cpp` (14 cases), `tests/unit/domain/shared/bn_hash_test.cpp` (11 cases), `tests/unit/domain/shared/account_id_test.cpp` (14 cases)
+- **Files modified**: `tests/unit/domain/shared/CMakeLists.txt` — added all 4 new test sources to `test_domain_shared_values` target
+
+---
+**Phase K Summary**: 4 tasks complete (R338–R341). Integration test skeleton created with `docker-compose.integration.yml` (MySQL 8.0 + PostgreSQL 16 with health checks); `CMakePresets.json` updated with 6 presets (`v3-dev`, `v3-release`, `v3-asan`, `v3-tsan`, `v3-coverage`, `v3-fuzz`) each with matching build and test presets; `.github/workflows/v3-coverage.yml` (lcov + Codecov) and `.github/workflows/v3-sanitizers.yml` (ASan+UBSan, TSan parallel jobs) added; domain value object unit tests backfilled — `user_name_test.cpp` (12 cases), `ip_address_test.cpp` (14 cases), `bn_hash_test.cpp` (11 cases), `account_id_test.cpp` (14 cases); `tests/unit/domain/shared/CMakeLists.txt` updated.
+
+## Phase L — Persistence & Config (R342–R345) ✅ COMPLETE
+
+### R342 — SQLite WAL mode + connection pool ✅ COMPLETE
+- **Files created**: `src/v3/infra/sqlite/include/infra/sqlite/connection_pool.hpp`, `src/v3/infra/sqlite/src/connection_pool.cpp` — RAII pool with configurable size, WAL mode enabled on first open, `PRAGMA journal_mode=WAL` + `PRAGMA synchronous=NORMAL` applied per connection
+- **Files modified**: `src/v3/infra/sqlite/CMakeLists.txt` — added `connection_pool.cpp`
+
+### R343 — TOML config hot-reload watcher ✅ COMPLETE
+- **Files created**: `src/v3/infra/config/include/infra/config/file_watcher.hpp`, `src/v3/infra/config/src/file_watcher.cpp` — `inotify`-based (Linux) / `kqueue`-based (macOS) / polling fallback watcher; `ConfigReloadCallback = std::function<void(const TomlConfig&)>`; debounce 200 ms
+- **Files modified**: `src/v3/infra/config/CMakeLists.txt`
+
+### R344 — `pvpgn-dump` diagnostic CLI ✅ COMPLETE
+- **Files created**: `src/v3/app/pvpgn-dump/main.cpp`, `src/v3/app/pvpgn-dump/CMakeLists.txt` — reads `bnetd.toml`, dumps effective config as JSON to stdout; `--section` flag filters to a single TOML table; exit 1 on parse error with human-readable message
+
+### R345 — Docs: architecture decision records (ADRs) ✅ COMPLETE
+- **Files created**: `docs/adr/0001-hexagonal-architecture.md`, `docs/adr/0002-c20-baseline.md`, `docs/adr/0003-sqlite-primary-store.md`, `docs/adr/0004-lua-scripting-sol2.md` — each ADR follows the Nygard template (Status, Context, Decision, Consequences)
+
+---
+**Phase L Summary**: 4 tasks complete (R342–R345). SQLite WAL mode + RAII connection pool added (`connection_pool.hpp/cpp`); TOML config hot-reload watcher implemented with `inotify`/`kqueue`/polling fallback and 200 ms debounce; `pvpgn-dump` diagnostic CLI tool created (dumps effective config as JSON, `--section` filter, exit 1 on error); four Architecture Decision Records written covering hexagonal architecture, C++20 baseline, SQLite primary store, and Lua/sol2 scripting choices.
+
+## Phase M — Plugin & Scripting Infrastructure (R346–R350) ✅ COMPLETE
+
+### R346 — Plugin C ABI 1.0 + plugin loader ✅ COMPLETE
+- **Files created**: `src/v3/infra/plugin/include/infra/plugin/api.h` — C99-compatible ABI 1.0 header (`pvpgn_plugin_context_t`, `pvpgn_plugin_info_t`, `PVPGN_PLUGIN_EXPORT_INFO` macro, `PVPGN_PLUGIN_API_VERSION = 1`); `src/v3/infra/plugin/include/infra/plugin/plugin_loader.hpp` + `src/v3/infra/plugin/src/plugin_loader.cpp` — `PluginLoader` class with `dlopen`/`LoadLibrary` platform abstraction, ABI version check, reverse-order shutdown; `src/v3/infra/plugin/CMakeLists.txt`; `plugins/example-quiz/native/main.c` + `plugins/example-quiz/native/CMakeLists.txt` — minimal C99 example plugin
+
+### R347 — seccomp sandbox for Linux plugins ✅ COMPLETE
+- **Files created**: `src/v3/infra/plugin/include/infra/plugin/sandbox.hpp` — `run_sandboxed(fn)` + `sandbox_available()` API; `src/v3/infra/plugin/src/sandbox.cpp` — libseccomp path (`SCMP_ACT_KILL` default, 10-syscall allowlist) + no-op fallback for non-Linux
+- **Files modified**: `src/v3/infra/plugin/CMakeLists.txt` — `PVPGN_V3_WITH_SECCOMP` option + `pkg_check_modules(LIBSECCOMP)`; `docs/sandbox-integration-guide.md` — R347 lightweight sandbox section, syscall allowlist table, strict mode, non-Linux fallback, comparison table
+
+### R348 — sol2 adapter + ScriptHost port ✅ COMPLETE
+- **Files created**: `src/v3/application/ports/include/application/ports/script_host.hpp` — `IScriptHost` abstract port (`load_file`, `exec`, `register_function`, `dispatch_event`, `has_handler`); `src/v3/infra/scripting/include/infra/scripting/sol2_script_host.hpp` + `src/v3/infra/scripting/src/sol2_script_host.cpp` — `Sol2ScriptHost` with Pimpl hiding sol2 headers, `SOL_ALL_SAFETIES_ON`, `sol::protected_function` for safe dispatch
+- **Files modified**: `src/v3/infra/scripting/CMakeLists.txt` — `PVPGN_V3_WITH_LUA` option, `find_package(Lua 5.4)`, sol2 FetchContent fallback, new sources wired in
+
+### R349 — Lua API v2 surface + legacy shim ✅ COMPLETE
+- **Files created**: `src/v3/infra/scripting/include/infra/scripting/lua_api_v2.hpp` + `src/v3/infra/scripting/src/lua_api_v2.cpp` — `pvpgn.*` table with 6 functions (`log`, `send_chat`, `get_account`, `ban_account`, `kick_user`, `broadcast`), JSON payloads via `std::format`; `src/v3/infra/scripting/include/infra/scripting/legacy_shim.hpp` + `src/v3/infra/scripting/src/legacy_shim.cpp` — Lua shim mapping `bnetd_*` → `pvpgn.*` (6 mappings, guard if `pvpgn` table absent); `docs/lua-api-v2.md` — full reference with parameter tables, migration guide, complete example
+- **Files modified**: `plugins/example-quiz/main.lua` — migrated to `pvpgn.*` namespace
+
+### R350 — Plugin/Lua docs generators ✅ COMPLETE
+- **Files created**: `scripts/dev/gen-plugin-docs.sh` — extracts `/** ... */` Doxygen comments from `api.h`, outputs `docs/plugin-api.md`; `scripts/dev/gen-lua-docs.sh` — extracts separator comments and `pvpgn.set_function(...)` calls from `lua_api_v2.cpp`, outputs `docs/lua-api-reference.md`; `.github/workflows/v3-docs.yml` — push-to-main trigger, runs all three doc generators, auto-commits changed `docs/`, optional `mkdocs gh-deploy` via `PAGES_DEPLOY` variable
+
+---
+**Phase M Summary**: 5 tasks complete (R346–R350). Native plugin C ABI 1.0 stabilised with `api.h` (C99, `PVPGN_PLUGIN_API_VERSION=1`), `PluginLoader` (dlopen/LoadLibrary, ABI check, reverse shutdown), and example C plugin; seccomp-BPF sandbox added (`run_sandboxed`, 10-syscall allowlist, `SCMP_ACT_KILL` default, non-Linux no-op fallback, `PVPGN_V3_WITH_SECCOMP` CMake option); `IScriptHost` port + `Sol2ScriptHost` adapter (Pimpl, `SOL_ALL_SAFETIES_ON`, `sol::protected_function`) wired with `PVPGN_V3_WITH_LUA` option and sol2 FetchContent fallback; Lua API v2 `pvpgn.*` table (6 functions, JSON payloads) + `bnetd_*` → `pvpgn.*` legacy shim + `docs/lua-api-v2.md` reference; three doc-generator scripts (`gen-config-docs.sh`, `gen-plugin-docs.sh`, `gen-lua-docs.sh`) and `.github/workflows/v3-docs.yml` (auto-commit + optional Pages deploy) complete the phase.
+
+## Phase N: Legacy Retirement (R351-R354) ✅ COMPLETE
+
+### R351 — PVPGN_V3_BNETD_INTEGRATION made mandatory
+- Removed CMake-level option; v3 integration always compiled in
+- Removed `#ifdef PVPGN_V3_BNETD_INTEGRATION` / `#else` no-op branch from `src/bnetd/server_v3_hook.cpp`
+- Updated `src/bnetd/server_v3_hook.h` comment to remove conditional language
+- Added `# v3 integration is mandatory as of vN.0 — PVPGN_V3_BNETD_INTEGRATION removed` comment to `CMakeLists.txt`
+- **Files modified**: `CMakeLists.txt`, `src/bnetd/server_v3_hook.cpp`, `src/bnetd/server_v3_hook.h`
+- **Files created**: `plans/r351-checklist.md`
+
+### R352 — PVPGN_BUILD_LEGACY defaults to OFF
+- Changed `option(PVPGN_BUILD_LEGACY ...)` default from `ON` to `OFF` in `CMakeLists.txt`
+- Added `message(WARNING ...)` deprecation warning when `PVPGN_BUILD_LEGACY=ON`
+- Wrapped legacy subdirectories (`common`, `compat`, `win32`, `bnetd`, `d2cs`, `d2dbs`) in `if(PVPGN_BUILD_LEGACY)` guard in `src/CMakeLists.txt`
+- Updated `README.md` with v3-first build instructions and legacy opt-in note
+- **Files modified**: `CMakeLists.txt`, `src/CMakeLists.txt`, `README.md`
+- **Files created**: `plans/r352-checklist.md`
+
+### R353 — Release vN.0 preparation
+- Version bumped to `3.0.0` in `CMakeLists.txt` (`project(pvpgn VERSION 3.0.0 ...)`)
+- `CHANGELOG.md` created with full 3.0.0 entry (breaking changes, added, deprecated, migration guide)
+- `docs/release-notes-v3.md` created with detailed release notes (architecture overview, new binaries, config migration, plugin system, observability, persistence backends, build system, breaking changes, known limitations, deprecation schedule, upgrade path)
+- **Files modified**: `CMakeLists.txt`
+- **Files created**: `CHANGELOG.md`, `docs/release-notes-v3.md`, `plans/r353-checklist.md`
+
+### R354 — Legacy retirement plan
+- `scripts/dev/retire-legacy.sh` created (dry-run + `--apply` mode, `chmod +x`)
+- `docs/legacy-retirement-plan.md` created with full retirement process documentation
+- Actual deletion deferred to PvPGN 4.0.0
+- **Files created**: `scripts/dev/retire-legacy.sh`, `docs/legacy-retirement-plan.md`, `plans/r354-checklist.md`
+
+---
+**Phase N Summary**: The strangler-fig migration is complete. The v3 DDD+Hexagonal
+architecture is the primary codebase. `PVPGN_V3_BNETD_INTEGRATION` is now
+unconditional at the `server_v3_hook.cpp` level. Legacy sources remain available
+via `PVPGN_BUILD_LEGACY=ON` (now opt-in, with deprecation warning) but are
+scheduled for removal in 4.0.0. Version bumped to 3.0.0. CHANGELOG and detailed
+release notes created. Legacy retirement script and plan documented.
+
+---
+
+## Phase O: Legacy Retirement Execution (2026-05-29)
+
+### R355 — Legacy retirement executed ✅ COMPLETE
+
+The legacy retirement plan documented in R354 was executed. The `src/v3/` sub-tree
+has been promoted to `src/` and all legacy sources have been deleted.
+
+**Directories deleted** (legacy sources):
+- `src/bnetd/` — Legacy Battle.net daemon sources (~200 files)
+- `src/d2cs/` — Legacy Diablo 2 Character Server sources
+- `src/d2dbs/` — Legacy Diablo 2 Database Server sources
+- `src/compat/` — Legacy POSIX/Win32 compatibility shims
+
+**Directories moved** (`src/v3/*` → `src/*`):
+- `src/v3/app/`         → `src/app/`
+- `src/v3/application/` → `src/application/`
+- `src/v3/core/`        → `src/core/`
+- `src/v3/domain/`      → `src/domain/`
+- `src/v3/infra/`       → `src/infra/`
+- `src/v3/integration/` → `src/integration/`
+- `src/v3/protocol/`    → `src/protocol/`
+- `src/v3/runtime/`     → `src/runtime/`
+- `src/v3/scripting/`   → `src/scripting/`
+- `src/v3/services/`    → `src/services/`
+- `src/v3/tools/`       → `src/tools/`
+
+**CMakeLists.txt files updated**:
+- `CMakeLists.txt` (root) — removed all `PVPGN_BUILD_LEGACY` blocks, removed
+  `add_subdirectory(src/v3)` and `add_subdirectory(src/v3/integration/legacy_*)`,
+  replaced with single `add_subdirectory(src)` + `add_subdirectory(tests)`
+- `src/CMakeLists.txt` — replaced legacy-only file with `src/v3/CMakeLists.txt`
+  (the full 1733-line v3 build file); `${CMAKE_CURRENT_SOURCE_DIR}` paths resolve
+  correctly since the file now lives at `src/`
+- `src/app/d2cs/CMakeLists.txt` — updated `src/v3/` → `src/` path references
+- `src/integration/legacy_bnetd/CMakeLists.txt` — updated path references
+- `src/integration/legacy_d2cs/CMakeLists.txt` — updated path references
+- `src/integration/legacy_d2dbs/CMakeLists.txt` — updated path references
+- `tests/unit/app/bnetd/CMakeLists.txt` — updated path references
+- `tests/unit/application/ports/CMakeLists.txt` — updated path references
+- `tests/unit/core/CMakeLists.txt` — updated path references
+- `tests/unit/domain/shared/CMakeLists.txt` — updated path references
+- `tests/unit/infra/sandbox/CMakeLists.txt` — updated path references
+- `tests/unit/protocol/common/CMakeLists.txt` — updated path references
+- `plugins/example-quiz/native/CMakeLists.txt` — updated `src/v3/infra/plugin/include`
+  → `src/infra/plugin/include`
+- `CMakePresets.json` — `v3-dev` and `v3-release` presets now inherit from `_base`
+  (gains `WITH_BNETD=OFF`, `WITH_D2CS=OFF`, `WITH_D2DBS=OFF`, `PVPGN_V3_BUILD_TESTS=ON`)
+
+**Build verification**:
+- `cmake --preset v3-dev` configures successfully (Configuring done, Generating done)
+- Note: Lua 5.4 (`liblua5.4-dev`) not installed on this system; `PVPGN_V3_WITH_LUA`
+  defaults to OFF via `_base` preset inheritance. Install `liblua5.4-dev` to enable
+  Lua scripting support.
+- PostgreSQL client found; MySQL not found (stub built); OpenSSL optional (peer_link
+  excluded when absent)
+
+**Files modified**: `CMakeLists.txt`, `CMakePresets.json`, `src/CMakeLists.txt`,
+`src/app/d2cs/CMakeLists.txt`, `src/integration/legacy_bnetd/CMakeLists.txt`,
+`src/integration/legacy_d2cs/CMakeLists.txt`, `src/integration/legacy_d2dbs/CMakeLists.txt`,
+`tests/unit/app/bnetd/CMakeLists.txt`, `tests/unit/application/ports/CMakeLists.txt`,
+`tests/unit/core/CMakeLists.txt`, `tests/unit/domain/shared/CMakeLists.txt`,
+`tests/unit/infra/sandbox/CMakeLists.txt`, `tests/unit/protocol/common/CMakeLists.txt`,
+`plugins/example-quiz/native/CMakeLists.txt`, `plans/progress.md`

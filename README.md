@@ -58,7 +58,39 @@ Set `loglevels = "fatal,error,warn,info,debug,trace"` in `bnetd.toml` (`[log]` t
 Submit pull requests to contribute to this project. Utilize C++11 features and adhere to the [C++ Core Guidelines](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md) whenever possible.
 
 ## Building
-See [docs/ports.md](https://github.com/pvpgn/pvpgn-server/blob/master/docs/ports.md) for operating systems and compilers that have been confirmed to work with PvPGN. Any operating system that supports WinAPI or POSIX, and any C++11 compliant compiler should be able to build PvPGN. The CMake files have been hardcoded to reject compilers older than Visual Studio 2015 and GCC 5.1.
+
+### v3 (recommended — default as of 3.0.0)
+
+The v3 build uses CMake presets and produces the `bnetd-v3`, `pvpgn-migrate`, and `pvpgn-config` binaries.
+
+```sh
+cmake --preset v3-dev
+cmake --build --preset v3-dev
+```
+
+For a release build:
+
+```sh
+cmake --preset v3-release
+cmake --build --preset v3-release
+```
+
+See [docs/toml-migration.md](docs/toml-migration.md) for configuration migration from legacy `.conf` files to TOML.
+
+### Legacy (deprecated, opt-in)
+
+The legacy `bnetd`, `d2cs`, and `d2dbs` binaries are still buildable but are **deprecated** and will be removed in PvPGN 4.0.0.
+
+```sh
+cmake -DPVPGN_BUILD_LEGACY=ON -DPVPGN_BUILD_V3=ON -B build
+cmake --build build
+```
+
+> **Warning:** `PVPGN_BUILD_LEGACY=ON` triggers a deprecation warning at configure time.
+
+---
+
+See [docs/ports.md](https://github.com/pvpgn/pvpgn-server/blob/master/docs/ports.md) for operating systems and compilers that have been confirmed to work with PvPGN. Any operating system that supports WinAPI or POSIX, and any C++20 compliant compiler should be able to build PvPGN. The CMake files have been hardcoded to reject compilers older than Visual Studio 2015 and GCC 5.1.
 
 #### Windows
 Use [Magic Builder](https://github.com/pvpgn/pvpgn-magic-builder).

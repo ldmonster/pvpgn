@@ -15,6 +15,9 @@
 
 include_guard(GLOBAL)
 
+# R342: pull in the dedicated warning-flag helpers.
+include(v3_warnings)
+
 set(PVPGN_V3_CXX_STANDARD 20 CACHE STRING "C++ standard for the v3 sub-tree")
 
 option(PVPGN_V3_WARNINGS_AS_ERRORS "Treat warnings as errors in v3 targets"
@@ -33,33 +36,29 @@ function(pvpgn_v3_apply_flags target)
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS        OFF)
 
+    # R342: apply the comprehensive warning set from v3_warnings.cmake.
+    pvpgn_v3_target_warnings(${target})
+
     if(MSVC)
+        # MSVC-only extras not covered by pvpgn_v3_target_warnings:
         target_compile_options(${target} PRIVATE
-            /W4 /permissive- /Zc:__cplusplus /Zc:preprocessor /utf-8 /EHsc
+            /Zc:__cplusplus /Zc:preprocessor /utf-8 /EHsc
             # R214: a discarded [[nodiscard]] return value is a hard build
             # error on all v3 targets (Result<T,E>, Status<T>, observers).
             /we4834
             $<$<CONFIG:Debug>:/Od /Zi>)
-        if(PVPGN_V3_WARNINGS_AS_ERRORS)
-            target_compile_options(${target} PRIVATE /WX)
-        endif()
     else()
+        # GCC/Clang extras not covered by pvpgn_v3_target_warnings:
         target_compile_options(${target} PRIVATE
-            -Wall -Wextra -Wpedantic
-            -Wshadow -Wnon-virtual-dtor
-            -Wold-style-cast -Wcast-align
-            -Woverloaded-virtual -Wnull-dereference
-            -Wdouble-promotion -Wformat=2
             -Wno-unused-parameter
             # R214: a discarded [[nodiscard]] return value is a hard build
             # error on all v3 targets (Result<T,E>, Status<T>, observers).
-            -Werror=unused-result
-            # GCC's -Wmaybe-uninitialized has well-known false positives
-            # around std::variant/optional with non-trivial alternatives.
-            -Wno-maybe-uninitialized)
-        if(PVPGN_V3_WARNINGS_AS_ERRORS)
-            target_compile_options(${target} PRIVATE -Werror)
-        endif()
+            -Werror=unused-result)
+    endif()
+
+    if(PVPGN_V3_WARNINGS_AS_ERRORS)
+        # R342: use the dedicated werror macro from v3_warnings.cmake.
+        pvpgn_v3_target_werror(${target})
     endif()
 
     if(PVPGN_V3_SANITIZERS)

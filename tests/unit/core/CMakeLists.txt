@@ -13,12 +13,14 @@ pvpgn_v3_add_test(test_core_bnettime  SOURCES bnettime_test.cpp      DEPS core)
 pvpgn_v3_add_test(test_core_hexdump      SOURCES hexdump_test.cpp         DEPS core)
 pvpgn_v3_add_test(test_core_string_utils SOURCES string_utils_test.cpp    DEPS core)
 pvpgn_v3_add_test(test_core_contract     SOURCES contract_test.cpp        DEPS core)
+# R331: Secret<T> — prevents accidental logging of sensitive values
+pvpgn_v3_add_test(test_core_secret       SOURCES secret_test.cpp          DEPS core)
 
 # R213 (plans/01-modern-cpp-baseline.md S3): every public header in
 # src/v3/core/include/core/ must compile in isolation. Adding a new
 # header? Append it to the HEADERS list below.
 pvpgn_v3_add_header_selfcheck(test_core_headers_selfcontained
-    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/v3/core/include
+    INCLUDE_ROOT ${CMAKE_SOURCE_DIR}/src/core/include
     HEADERS
         core/bnettime.hpp
         core/bytes.hpp
@@ -34,6 +36,7 @@ pvpgn_v3_add_header_selfcheck(test_core_headers_selfcontained
         core/logging.hpp
         core/result.hpp
         core/scheduler.hpp
+        core/secret.hpp
         core/string_utils.hpp
         core/strong_typedef.hpp
         core/version.hpp

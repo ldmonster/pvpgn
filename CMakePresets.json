@@ -53,13 +53,91 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "PVPGN_BUILD_V3": "OFF"
             }
+        },
+        {
+            "name": "v3-dev",
+            "inherits": "_base",
+            "displayName": "V3 Development",
+            "binaryDir": "${sourceDir}/build/v3-dev",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "PVPGN_BUILD_LEGACY": "OFF"
+            }
+        },
+        {
+            "name": "v3-release",
+            "inherits": "_base",
+            "displayName": "V3 Release",
+            "binaryDir": "${sourceDir}/build/v3-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "PVPGN_BUILD_LEGACY": "OFF"
+            }
+        },
+        {
+            "name": "v3-asan",
+            "displayName": "V3 AddressSanitizer",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/v3-asan",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "PVPGN_BUILD_V3": "ON",
+                "PVPGN_BUILD_LEGACY": "OFF",
+                "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+            }
+        },
+        {
+            "name": "v3-tsan",
+            "displayName": "V3 ThreadSanitizer",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/v3-tsan",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "PVPGN_BUILD_V3": "ON",
+                "PVPGN_BUILD_LEGACY": "OFF",
+                "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
+            }
+        },
+        {
+            "name": "v3-coverage",
+            "displayName": "V3 Coverage",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/v3-coverage",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "PVPGN_BUILD_V3": "ON",
+                "PVPGN_BUILD_LEGACY": "OFF",
+                "CMAKE_CXX_FLAGS": "--coverage -fprofile-arcs -ftest-coverage",
+                "CMAKE_EXE_LINKER_FLAGS": "--coverage"
+            }
+        },
+        {
+            "name": "v3-fuzz",
+            "displayName": "V3 Fuzzing",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/v3-fuzz",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "PVPGN_BUILD_V3": "ON",
+                "PVPGN_BUILD_LEGACY": "OFF",
+                "CMAKE_CXX_FLAGS": "-fsanitize=fuzzer,address",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=fuzzer,address"
+            }
         }
     ],
     "buildPresets": [
         { "name": "dev-debug",    "configurePreset": "dev-debug" },
         { "name": "dev-release",  "configurePreset": "dev-release" },
         { "name": "dev-asan",     "configurePreset": "dev-asan" },
-        { "name": "ci-coverage",  "configurePreset": "ci-coverage" }
+        { "name": "ci-coverage",  "configurePreset": "ci-coverage" },
+        { "name": "v3-dev",       "configurePreset": "v3-dev" },
+        { "name": "v3-release",   "configurePreset": "v3-release" },
+        { "name": "v3-asan",      "configurePreset": "v3-asan" },
+        { "name": "v3-tsan",      "configurePreset": "v3-tsan" },
+        { "name": "v3-coverage",  "configurePreset": "v3-coverage" },
+        { "name": "v3-fuzz",      "configurePreset": "v3-fuzz" }
     ],
     "testPresets": [
         {
@@ -81,6 +159,26 @@
         {
             "name": "ci-coverage",
             "configurePreset": "ci-coverage",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "v3-dev",
+            "configurePreset": "v3-dev",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "v3-asan",
+            "configurePreset": "v3-asan",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "v3-tsan",
+            "configurePreset": "v3-tsan",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "v3-coverage",
+            "configurePreset": "v3-coverage",
             "output": { "outputOnFailure": true }
         }
     ]
