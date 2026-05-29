@@ -108,18 +108,23 @@ pvpgn_v3_add_test(test_app_bnetd_connection_adapter
     SOURCES
         bnet_connection_adapter_test.cpp
         ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/src/bnet_connection_adapter.cpp
-        ${CMAKE_SOURCE_DIR}/src/v3/domain/connection/src/connection_fsm.cpp
+        ${CMAKE_SOURCE_DIR}/src/v3/application/connection/src/connection_fsm.cpp
     DEPS
         core
         domain_connection
+        application_connection
+        application_auth
+        application_chat
         infra_net
 )
 
-# Expose the app/bnetd and domain/connection include directories.
+# Expose the app/bnetd, domain/connection and application/* include directories.
 target_include_directories(test_app_bnetd_connection_adapter
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src/v3/app/bnetd/include
         ${CMAKE_SOURCE_DIR}/src/v3/domain/connection/include
+        ${CMAKE_SOURCE_DIR}/src/v3/application/connection/include
+        ${CMAKE_SOURCE_DIR}/src/v3/application/auth/include
 )
 
 # ---------------------------------------------------------------------------

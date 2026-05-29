@@ -34,4 +34,5 @@ pvpgn_v3_add_library(services_bnetd
         application_chat
         domain_chat
         protocol_bnet
+        infra_crypto_nls_adapter
 )

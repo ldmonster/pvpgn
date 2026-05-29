@@ -32,7 +32,7 @@ namespace pvpgn::application::auth { class LoginUser; }
 #include "protocol/bnet/session_context_impl.hpp"
 #include "protocol/bnet/use_case_context.hpp"
 
-namespace pvpgn::infra::session {
+namespace pvpgn::app::bnetd {
 
 /// Forward declare MessageRouterImpl.
 class MessageRouterImpl;
@@ -186,4 +186,4 @@ private:
     static std::atomic<std::uint64_t>                     next_session_id_;
 };
 
-}  // namespace pvpgn::infra::session
+}  // namespace pvpgn::app::bnetd

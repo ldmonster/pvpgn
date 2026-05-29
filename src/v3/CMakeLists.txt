@@ -704,9 +704,48 @@ pvpgn_v3_add_library(application_auth
         domain_shared
         domain_identity
         domain_moderation
-        infra_crypto_nls
     PRIVATE_DEPS
         application_chat
+)
+
+# ---- application/connection (ConnectionFsm) -----------------------------
+#
+# Application-layer state machine driving a single BNet client connection.
+# Composes auth and chat use-cases via abstract ports; uses the
+# `domain::connection::IConnectionContext` port for I/O.
+#
+# R298: moved here from `domain/connection` so the FSM can depend on
+# application use-cases without violating the hexagonal layering rule
+# `domain MUST NOT depend on application`.
+pvpgn_v3_add_library(application_connection
+    STATIC
+    SOURCES
+        application/connection/src/connection_fsm.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/connection/include
+    PUBLIC_DEPS
+        core
+        domain_shared
+        domain_connection
+        application_auth
+        application_chat
+)
+
+# ---- infra/crypto/nls_crypto_adapter ------------------------------------
+#
+# Concrete `application::auth::INlsCryptoService` adapter backed by
+# `infra::crypto::NlsServer`. Defined AFTER application_auth so we can
+# link to it without forward-reference issues.
+pvpgn_v3_add_library(infra_crypto_nls_adapter
+    STATIC
+    SOURCES
+        infra/crypto/src/nls_crypto_adapter.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/crypto/include
+    PUBLIC_DEPS
+        core
+        infra_crypto_nls
+        application_auth
 )
 
 
@@ -1105,13 +1144,16 @@ endif()
 
 # Wire backend_registration.cpp link dependencies now that the targets exist.
 # infra_persistence includes backend_registration.cpp which #includes headers
-# from pvpgn_infra_sqlite and pvpgn_infra_file; link them as PRIVATE deps.
-if(TARGET pvpgn_infra_sqlite)
-    target_link_libraries(infra_persistence PRIVATE pvpgn_infra_sqlite)
-endif()
-if(TARGET pvpgn_infra_file)
-    target_link_libraries(infra_persistence PRIVATE pvpgn_infra_file)
-endif()
+# Wire backend_registration.cpp link dependencies now that the targets exist.
+# Disabled: `backend_registration.cpp` is no longer built (see
+# infra/persistence/CMakeLists.txt). The pvpgn_infra_sqlite / pvpgn_infra_file
+# targets are still defined so they can be opted into directly if needed.
+# if(TARGET pvpgn_infra_sqlite)
+#     target_link_libraries(infra_persistence PRIVATE pvpgn_infra_sqlite)
+# endif()
+# if(TARGET pvpgn_infra_file)
+#     target_link_libraries(infra_persistence PRIVATE pvpgn_infra_file)
+# endif()
 
 # ---- infra/storage/repository (Phase 2 in-memory repositories) -----------
 

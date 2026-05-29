@@ -74,11 +74,11 @@
 #include <string_view>
 #include <vector>
 
+#include "application/auth/nls_crypto.hpp"
 #include "core/result.hpp"
 #include "domain/connection/connection_context.hpp"
 #include "domain/shared/events.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/crypto/nls.hpp"
 
 // Forward-declare use-cases to avoid pulling in all their headers
 // into every translation unit that includes connection_fsm.hpp.
@@ -93,7 +93,15 @@ class PostMessage;
 class LeaveChannel;
 }  // namespace pvpgn::application::chat
 
-namespace pvpgn::domain::connection {
+namespace pvpgn::application::connection {
+
+// Re-export the I/O port from domain::connection so existing call sites
+// that wrote `pvpgn::application::connection::IConnectionContext` work
+// without churn. The port itself still lives in the domain layer; this
+// is purely a namespace alias for ergonomic use.
+using IConnectionContext = pvpgn::domain::connection::IConnectionContext;
+using GameInfo           = pvpgn::domain::connection::GameInfo;
+using GameType           = pvpgn::domain::connection::GameType;
 
 // ---------------------------------------------------------------------------
 // BNCS packet IDs handled by this FSM
@@ -534,7 +542,7 @@ private:
 
     /// Opaque SRP-6a server state produced by LoginUserNls::challenge().
     /// Held between the challenge (0x53) and proof (0x54) steps.
-    std::optional<infra::crypto::NlsContext> pending_nls_ctx_;
+    std::optional<application::auth::NlsCryptoContext> pending_nls_ctx_;
 
     /// Username received in SID_AUTH_ACCOUNTLOGON (0x53).
     /// Stored so that on_auth_accountlogonproof() can pass it to verify().
@@ -571,4 +579,4 @@ private:
     std::optional<std::uint32_t> war3_route_token_;
 };
 
-}  // namespace pvpgn::domain::connection
+}  // namespace pvpgn::application::connection

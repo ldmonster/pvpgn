@@ -20,10 +20,11 @@
 
 #include "app/bnetd/bnet_connection_adapter.hpp"
 #include "domain/connection/connection_context.hpp"
-#include "domain/connection/connection_fsm.hpp"
+#include "application/connection/connection_fsm.hpp"
 
 using namespace pvpgn::app::bnetd;
 using namespace pvpgn::domain::connection;
+using namespace pvpgn::application::connection;
 
 // ---------------------------------------------------------------------------
 // Test doubles

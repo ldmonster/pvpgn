@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "domain/connection/connection_fsm.hpp"
+#include "application/connection/connection_fsm.hpp"
 
 #include <array>
 #include <cstring>
@@ -15,7 +15,7 @@
 #include "core/bytes.hpp"
 #include "core/error.hpp"
 
-namespace pvpgn::domain::connection {
+namespace pvpgn::application::connection {
 
 // ---------------------------------------------------------------------------
 // Internal helpers — BNCS packet building
@@ -1009,4 +1009,4 @@ core::Status<> ConnectionFsm::on_warcraft_general(
     return core::ok();
 }
 
-}  // namespace pvpgn::domain::connection
+}  // namespace pvpgn::application::connection

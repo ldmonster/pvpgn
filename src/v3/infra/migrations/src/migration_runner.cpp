@@ -87,7 +87,7 @@ core::Result<std::uint32_t, core::Error> MigrationRunner::migrate_to(
     for (std::size_t i = 1; i < migrations.size(); ++i) {
         if (migrations[i].version <= migrations[i - 1].version) {
             return core::fail(core::Error{
-                core::StatusCode::Invalid,
+                core::StatusCode::InvalidArgument,
                 "migrations: not sorted by version"});
         }
     }

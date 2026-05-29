@@ -37,6 +37,7 @@
 #include <vector>
 
 #include "application/auth/login_user_nls.hpp"
+#include "infra/crypto/nls_crypto_adapter.hpp"
 #include "application/auth/logout_user.hpp"
 #include "application/chat/join_channel.hpp"
 #include "application/chat/leave_channel.hpp"
@@ -97,8 +98,11 @@ BnetdService::BnetdService(
     , session_reg_(session_reg)
     , game_repo_(game_repo)
     , event_bus_(event_bus)
+    // NLS crypto port (constructed before use-case that holds a ref to it)
+    , nls_crypto_(std::make_unique<infra::crypto::NlsCryptoAdapter>())
     // Auth use-case
-    , login_user_nls_(std::make_unique<application::auth::LoginUserNls>(nls_store))
+    , login_user_nls_(std::make_unique<application::auth::LoginUserNls>(
+          nls_store, *nls_crypto_))
     // Chat use-cases
     , join_channel_(std::make_unique<application::chat::JoinChannel>(
           channel_repo_, account_repo_, session_reg_))

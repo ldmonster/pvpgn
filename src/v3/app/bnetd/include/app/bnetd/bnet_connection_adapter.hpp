@@ -74,9 +74,9 @@
 #include <string>
 
 #include "application/auth/login_user_nls.hpp"
+#include "application/connection/connection_fsm.hpp"
 #include "core/result.hpp"
 #include "domain/connection/connection_context.hpp"
-#include "domain/connection/connection_fsm.hpp"
 
 namespace pvpgn::application::auth {
 class LoginUser;
@@ -166,13 +166,13 @@ public:
     // -----------------------------------------------------------------------
 
     /// Access the underlying `ConnectionFsm` (read-only).
-    [[nodiscard]] const domain::connection::ConnectionFsm& connection_fsm()
+    [[nodiscard]] const application::connection::ConnectionFsm& connection_fsm()
         const noexcept {
         return *fsm_;
     }
 
     /// Access the underlying `ConnectionFsm` (mutable — for testing).
-    [[nodiscard]] domain::connection::ConnectionFsm& connection_fsm()
+    [[nodiscard]] application::connection::ConnectionFsm& connection_fsm()
         noexcept {
         return *fsm_;
     }
@@ -213,7 +213,7 @@ private:
     /// Owned `ConnectionFsm` instance.
     /// Stored via `unique_ptr` because `ConnectionFsm` is non-movable
     /// (it holds a reference to `ctx_` which is `*this`).
-    std::unique_ptr<domain::connection::ConnectionFsm> fsm_;
+    std::unique_ptr<application::connection::ConnectionFsm> fsm_;
 };
 
 }  // namespace pvpgn::app::bnetd

@@ -45,6 +45,7 @@ pvpgn_v3_add_library(app_bnetd_legacy_bridge STATIC
     PUBLIC_DEPS
         Boost::system
         application_auth
+        application_connection
         domain_connection
 )
 
@@ -76,6 +77,7 @@ target_link_libraries(pvpgn_v3_bnetd
         core
         domain_connection
         application_auth
+        application_connection
         protocol_bnet
         protocol_file
         protocol_wol

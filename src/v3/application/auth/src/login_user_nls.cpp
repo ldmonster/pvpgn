@@ -3,8 +3,6 @@
 
 #include <span>
 
-#include "infra/crypto/nls.hpp"
-
 namespace pvpgn::application::auth {
 
 // ---------------------------------------------------------------------------
@@ -21,14 +19,11 @@ LoginUserNls::challenge(std::string_view username,
         return core::fail(NlsLoginError::AccountNotFound);
     }
 
-    // 2. Generate the server challenge.
-    //    NlsServer::create_challenge() is noexcept-ish but may throw on
-    //    catastrophic OpenSSL failure; we let that propagate as a hard error.
-    infra::crypto::NlsContext ctx =
-        infra::crypto::NlsServer::create_challenge(
-            username,
-            std::span<const std::byte>{creds->verifier},
-            std::span<const std::byte>{creds->salt});
+    // 2. Generate the server challenge via the abstract crypto port.
+    NlsCryptoContext ctx = crypto_.create_challenge(
+        username,
+        std::span<const std::byte>{creds->verifier},
+        std::span<const std::byte>{creds->salt});
 
     // 3. Build the result.  The salt in the context is the one we just
     //    passed in (create_challenge copies it into ctx.salt).
@@ -47,32 +42,31 @@ LoginUserNls::challenge(std::string_view username,
 // ---------------------------------------------------------------------------
 
 core::Result<NlsProofResult, NlsLoginError>
-LoginUserNls::verify(std::string_view                  username,
-                     const infra::crypto::NlsContext&  ctx,
-                     core::ByteView                    client_public_key_A,
-                     core::ByteView                    client_proof_M1,
-                     domain::AccountId                 account_id)
+LoginUserNls::verify(std::string_view        username,
+                     const NlsCryptoContext& ctx,
+                     core::ByteView          client_public_key_A,
+                     core::ByteView          client_proof_M1,
+                     domain::AccountId       account_id)
 {
-    // NlsServer::verify_proof() takes a mutable context (it writes the
+    // The port's verify_proof() takes a mutable context (it writes the
     // session key K into it).  We work on a local copy so the caller's
     // const reference is not violated.
-    infra::crypto::NlsContext mutable_ctx = ctx;
+    NlsCryptoContext mutable_ctx = ctx;
 
-    auto proof_result = infra::crypto::NlsServer::verify_proof(
+    auto proof_result = crypto_.verify_proof(
         mutable_ctx,
         username,
         client_public_key_A,
         client_proof_M1);
 
     if (!proof_result) {
-        const auto nls_err = proof_result.error();
-        switch (nls_err) {
-            case infra::crypto::NlsError::InvalidProof:
+        switch (proof_result.error()) {
+            case NlsCryptoError::InvalidProof:
                 return core::fail(NlsLoginError::InvalidProof);
-            case infra::crypto::NlsError::InvalidPublicKey:
+            case NlsCryptoError::InvalidPublicKey:
                 // Treat a zero/invalid A as a proof failure (protocol violation).
                 return core::fail(NlsLoginError::InvalidProof);
-            case infra::crypto::NlsError::CryptoError:
+            case NlsCryptoError::CryptoError:
                 return core::fail(NlsLoginError::CryptoError);
         }
         // Unreachable, but keeps compilers happy.

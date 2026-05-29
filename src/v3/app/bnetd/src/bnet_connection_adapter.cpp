@@ -8,9 +8,9 @@
 
 #include "application/auth/login_user.hpp"
 #include "application/auth/login_user_nls.hpp"
+#include "application/connection/connection_fsm.hpp"
 #include "core/result.hpp"
 #include "domain/connection/connection_context.hpp"
-#include "domain/connection/connection_fsm.hpp"
 
 namespace pvpgn::app::bnetd {
 
@@ -22,7 +22,7 @@ BnetConnectionAdapter::BnetConnectionAdapter(
     domain::connection::IConnectionContext& ctx,
     std::uint32_t session_id) noexcept
     : ctx_(ctx)
-    , fsm_(std::make_unique<domain::connection::ConnectionFsm>(*this,
+    , fsm_(std::make_unique<application::connection::ConnectionFsm>(*this,
                                                                 session_id))
 {}
 
@@ -31,7 +31,7 @@ BnetConnectionAdapter::BnetConnectionAdapter(
     application::auth::LoginUserNls&         login_user_nls,
     std::uint32_t                            session_id) noexcept
     : ctx_(ctx)
-    , fsm_(std::make_unique<domain::connection::ConnectionFsm>(*this,
+    , fsm_(std::make_unique<application::connection::ConnectionFsm>(*this,
                                                                 login_user_nls,
                                                                 session_id))
 {}
@@ -42,7 +42,7 @@ BnetConnectionAdapter::BnetConnectionAdapter(
     application::auth::LoginUserNls&         login_user_nls,
     std::uint32_t                            session_id) noexcept
     : ctx_(ctx)
-    , fsm_(std::make_unique<domain::connection::ConnectionFsm>(*this,
+    , fsm_(std::make_unique<application::connection::ConnectionFsm>(*this,
                                                                 login_user_ols,
                                                                 login_user_nls,
                                                                 session_id))

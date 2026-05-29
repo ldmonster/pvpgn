@@ -30,10 +30,10 @@
 #include <string>
 #include <string_view>
 
+#include "application/auth/nls_crypto.hpp"
 #include "core/bytes.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "infra/crypto/nls.hpp"
 
 namespace pvpgn::application::auth {
 
@@ -90,7 +90,7 @@ struct NlsChallengeResult {
     /// 128-byte server public key (B) — sent to client.
     std::array<std::byte, 128> server_public_key;
     /// Opaque per-session SRP state.  Must be passed unchanged to verify().
-    infra::crypto::NlsContext  crypto_ctx;
+    NlsCryptoContext  crypto_ctx;
     /// Account ID of the looked-up account.  Carried through to verify() so
     /// the FSM can populate NlsProofResult::account_id without a second lookup.
     domain::AccountId account_id{0};
@@ -115,8 +115,11 @@ struct NlsProofResult {
 /// intentionally left to the FSM layer so this use-case stays pure.
 class LoginUserNls {
 public:
-    explicit LoginUserNls(INlsCredentialStore& credentials) noexcept
-        : credentials_(credentials) {}
+    /// Construct the use-case with credential lookup + crypto port refs.
+    /// Both references must outlive the use-case.
+    LoginUserNls(INlsCredentialStore& credentials,
+                 INlsCryptoService&   crypto) noexcept
+        : credentials_(credentials), crypto_(crypto) {}
 
     /// Step 1: generate a server challenge for the given username.
     ///
@@ -149,14 +152,15 @@ public:
     ///                             through into NlsProofResult::account_id.
     /// @returns NlsProofResult (M2 + account_id) on success, NlsLoginError on failure.
     [[nodiscard]] core::Result<NlsProofResult, NlsLoginError>
-    verify(std::string_view                  username,
-           const infra::crypto::NlsContext&  ctx,
-           core::ByteView                    client_public_key_A,
-           core::ByteView                    client_proof_M1,
-           domain::AccountId                 account_id);
+    verify(std::string_view        username,
+           const NlsCryptoContext& ctx,
+           core::ByteView          client_public_key_A,
+           core::ByteView          client_proof_M1,
+           domain::AccountId       account_id);
 
 private:
     INlsCredentialStore& credentials_;
+    INlsCryptoService&   crypto_;
 };
 
 }  // namespace pvpgn::application::auth

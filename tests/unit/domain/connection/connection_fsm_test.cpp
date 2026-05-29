@@ -14,9 +14,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "domain/connection/connection_context.hpp"
-#include "domain/connection/connection_fsm.hpp"
+#include "application/connection/connection_fsm.hpp"
 
 using namespace pvpgn::domain::connection;
+using namespace pvpgn::application::connection;
 
 // ---------------------------------------------------------------------------
 // Test doubles

@@ -49,6 +49,10 @@
 #include "application/ports/unit_of_work_factory.hpp"
 #include "protocol/bnet/use_case_context.hpp"
 
+namespace pvpgn::infra::crypto {
+class NlsCryptoAdapter;
+}
+
 namespace pvpgn::services::bnetd {
 
 /// Composition root for the bnetd server.
@@ -144,6 +148,11 @@ private:
     application::ports::ISessionRegistry&   session_reg_;
     application::ports::IGameRepository&    game_repo_;
     application::ports::IEventBus&          event_bus_;
+
+    /// Owned NLS crypto adapter (concrete `INlsCryptoService`). Declared
+    /// before `login_user_nls_` so it is constructed first and outlives
+    /// the use-case that holds a reference to it.
+    std::unique_ptr<infra::crypto::NlsCryptoAdapter> nls_crypto_;
 
     /// Owned NLS authentication use-case (stateless; safe to share across
     /// sessions via non-owning pointer/reference).

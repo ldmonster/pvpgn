@@ -59,7 +59,7 @@
 #include "core/bytes.hpp"
 #include "core/format.hpp"
 #include "domain/connection/connection_context.hpp"
-#include "domain/connection/connection_fsm.hpp"
+#include "application/connection/connection_fsm.hpp"
 #include "infra/net/io_runtime.hpp"
 #include "infra/net/tcp_acceptor.hpp"
 #include "infra/net/tcp_session.hpp"
