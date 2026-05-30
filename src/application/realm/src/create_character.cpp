@@ -61,7 +61,7 @@ CreateCharacterUseCase::execute(const CreateCharacterCommand& cmd) {
                            ? domain::realm::CharacterHardcore::hardcore
                            : domain::realm::CharacterHardcore::softcore;
 
-    domain::realm::Character character{id, stats};
+    domain::realm::Character character{id, stats, core::SystemTime{}};
 
     // Add to the list aggregate
     auto add_result = char_list.add(character);

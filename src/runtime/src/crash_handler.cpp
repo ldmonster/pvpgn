@@ -10,9 +10,16 @@
 #include <cstring>
 
 #ifndef _WIN32
-#include <execinfo.h>
-#include <cxxabi.h>
-#include <dlfcn.h>
+#  if defined(__has_include)
+#    if __has_include(<execinfo.h>)
+#      define PVPGN_HAVE_EXECINFO 1
+#    endif
+#  endif
+#  ifdef PVPGN_HAVE_EXECINFO
+#    include <execinfo.h>
+#    include <cxxabi.h>
+#    include <dlfcn.h>
+#  endif
 #else
 #include <windows.h>
 #include <dbghelp.h>
@@ -43,7 +50,11 @@ public:
     static void print_stack_trace()
     {
 #ifndef _WIN32
+#  ifdef PVPGN_HAVE_EXECINFO
         print_stack_trace_unix();
+#  else
+        std::cerr << "  <stack trace unavailable: execinfo.h not present (musl libc?)>\n";
+#  endif
 #else
         print_stack_trace_windows();
 #endif
@@ -63,7 +74,7 @@ private:
         raise(sig);
     }
     
-#ifndef _WIN32
+#if !defined(_WIN32) && defined(PVPGN_HAVE_EXECINFO)
     static void print_stack_trace_unix()
     {
         const int max_frames = 64;
@@ -119,7 +130,8 @@ private:
         
         free(symbollist);
     }
-#else
+#endif
+#ifdef _WIN32
     static void print_stack_trace_windows()
     {
         const int max_frames = 64;

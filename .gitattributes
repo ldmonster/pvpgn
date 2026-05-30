@@ -1,0 +1,6 @@
+# Force LF for files executed inside Linux containers / POSIX shells.
+# Prevents Windows CRLF checkouts from breaking Docker builds and shell scripts.
+*.sh        text eol=lf
+Dockerfile* text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf

@@ -40,7 +40,7 @@ public:
 
     core::Result<void, core::Error>
     save(const domain::realm::Realm& realm) override {
-        by_name_[lower(realm.name())] = realm;
+        by_name_.insert_or_assign(lower(realm.name()), realm);
         return core::Result<void, core::Error>();
     }
 

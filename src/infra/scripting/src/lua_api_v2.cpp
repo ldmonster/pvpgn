@@ -102,7 +102,7 @@ void register_v2_api(sol::state& lua, HandlerMap& handlers) {
             // A production implementation would use a proper JSON parser.
             try {
                 lua.script("_pvpgn_tmp = " + response);
-                sol::object result = lua["_pvpgn_tmp"];
+                sol::object result = lua["_pvpgn_tmp"].get<sol::object>();
                 lua["_pvpgn_tmp"] = sol::nil;
                 return result;
             } catch (...) {

@@ -72,5 +72,12 @@ macro(pvpgn_v3_target_werror target)
         target_compile_options(${target} PRIVATE /WX)
     else()
         target_compile_options(${target} PRIVATE -Werror)
+        # gcc 15 emits a false-positive `-Wfree-nonheap-object` for
+        # `std::vector<std::byte>::push_back` after `reserve()`. Demote
+        # to a warning so it doesn't break the build under -Werror.
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            target_compile_options(${target} PRIVATE
+                -Wno-error=free-nonheap-object)
+        endif()
     endif()
 endmacro()

@@ -369,6 +369,10 @@ pvpgn_v3_add_library(infra_compression
 
 add_subdirectory(infra/scripting)
 
+# ---- scripting/plugin (PluginManifest, SemVer, DependencyResolver) ---------
+add_subdirectory(scripting/plugin)
+add_subdirectory(infra/scripting/plugin)
+
 # ---- infra/lua --------------------------------------------------------------
 #
 # Clean C++20 RAII wrapper around a Lua VM (`lua_State*`).
@@ -552,6 +556,9 @@ pvpgn_v3_add_library(protocol_d2dbs
         core
         protocol_common
 )
+
+# ---- protocol/d2save ----------------------------------------------------
+add_subdirectory(protocol/d2save)
 
 # ---- protocol/wolgameres ------------------------------------------------
 
@@ -738,6 +745,9 @@ pvpgn_v3_add_library(application_ports
 # ---- infra/persistence (adapter registry + shared SQL helpers) ----------
 add_subdirectory(infra/persistence)
 
+# ---- infra/persistence/realm (D2CS character/save adapters) -------------
+add_subdirectory(infra/persistence/realm)
+
 # ---- application/auth (LoginUser) ---------------------------------------
 
 pvpgn_v3_add_library(application_auth
@@ -811,13 +821,26 @@ pvpgn_v3_add_library(application_realm
     STATIC
     SOURCES
         application/realm/src/character_lock.cpp
+        application/realm/src/character_persistence.cpp
+        application/realm/src/create_character.cpp
+        application/realm/src/delete_character.cpp
         application/realm/src/gs_queue.cpp
+        application/realm/src/heartbeat_realm.cpp
+        application/realm/src/join_game_server.cpp
+        application/realm/src/list_characters.cpp
+        application/realm/src/load_character.cpp
+        application/realm/src/realm_auth.cpp
         application/realm/src/realm_list.cpp
+        application/realm/src/register_realm.cpp
+        application/realm/src/save_character.cpp
+        application/realm/src/unregister_realm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/realm/include
     PUBLIC_DEPS
         core
         domain_realm
+        application_ports
+        protocol_d2save
 )
 # ---- application/anongame_infoply ---------------------------------------
 #
@@ -827,10 +850,10 @@ pvpgn_v3_add_library(application_realm
 pvpgn_v3_add_library(application_anongame_infoply
     STATIC
     SOURCES
-        application/anongame_infoply/src/inforeply_builder.cpp
-        application/anongame_infoply/src/type_composer.cpp
+        application/anongame_inforeply/src/inforeply_builder.cpp
+        application/anongame_inforeply/src/type_composer.cpp
     PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/application/anongame_infoply/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/anongame_inforeply/include
     PUBLIC_DEPS
         core
         application_ports
@@ -1765,39 +1788,7 @@ add_subdirectory(app/pvpgn-migrate)
 # Supports --validate, --print-effective, --print-schema.  No Boost dependency.
 add_subdirectory(app/pvpgn-config)
 
-# ---- tests --------------------------------------------------------------
-
-if(PVPGN_V3_BUILD_TESTS)
-    # Set up Catch2 for all test subdirectories
-    include(FetchContent)
-    
-    FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG        v3.5.4
-        GIT_SHALLOW    TRUE
-    )
-    FetchContent_MakeAvailable(Catch2)
-    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
-    
-    # Ensure Catch2 is built with C++20 to support std::string_view
-    foreach(_t Catch2 Catch2WithMain)
-        if(TARGET ${_t})
-            target_compile_features(${_t} PUBLIC cxx_std_20)
-            set_target_properties(${_t} PROPERTIES SYSTEM TRUE)
-        endif()
-    endforeach()
-    
-    enable_testing()
-    include(CTest)
-    
-    add_subdirectory(
-        ${CMAKE_SOURCE_DIR}/tests/unit
-        ${CMAKE_BINARY_DIR}/tests/unit)
-    add_subdirectory(
-        ${CMAKE_SOURCE_DIR}/tests/functional
-        ${CMAKE_BINARY_DIR}/tests/functional)
-    add_subdirectory(
-        ${CMAKE_SOURCE_DIR}/tests/e2e
-        ${CMAKE_BINARY_DIR}/tests/e2e)
-endif()
+# NOTE: the test subtree (tests/unit, tests/functional, tests/e2e) is
+# registered from the top-level CMakeLists.txt via `add_subdirectory(tests)`,
+# guarded by PVPGN_V3_BUILD_TESTS. Catch2 FetchContent setup lives there too
+# so the test tree gets a single, canonical configuration.

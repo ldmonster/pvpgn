@@ -11,7 +11,7 @@
 #include <variant>
 #include <vector>
 
-#include "messages/messages_common.hpp"
+#include "messages_common.hpp"
 #include "messages/messages_auth.hpp"
 #include "messages/messages_chat.hpp"
 #include "messages/messages_game.hpp"

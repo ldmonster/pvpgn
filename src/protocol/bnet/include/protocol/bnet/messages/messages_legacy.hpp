@@ -11,7 +11,7 @@
 #include <variant>
 #include <vector>
 
-#include "messages/messages_common.hpp"
+#include "messages_common.hpp"
 
 namespace pvpgn::protocol::bnet {
 

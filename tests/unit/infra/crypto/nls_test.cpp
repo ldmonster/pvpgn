@@ -96,9 +96,11 @@ std::string ascii_upper(std::string_view s)
 {
     std::string out;
     out.reserve(s.size());
-    for (unsigned char c : s)
+    for (char raw : s) {
+        const unsigned char c = static_cast<unsigned char>(raw);
         out.push_back(c < 0x80u ? static_cast<char>(std::toupper(c))
                                  : static_cast<char>(c));
+    }
     return out;
 }
 

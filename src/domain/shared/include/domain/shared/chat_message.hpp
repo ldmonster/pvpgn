@@ -30,7 +30,8 @@ public:
             return core::fail(core::Error{
                 core::StatusCode::InvalidArgument, "chat message too long"});
         }
-        for (unsigned char c : body) {
+        for (char ch : body) {
+            const unsigned char c = static_cast<unsigned char>(ch);
             if (c == '\n' || c == '\r' || c == '\0') {
                 return core::fail(core::Error{
                     core::StatusCode::InvalidArgument,

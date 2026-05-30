@@ -4,9 +4,9 @@ pvpgn_v3_add_library(service_d2cs
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     DEPS
-        pvpgn_v3_runtime
-        pvpgn_v3_application_realm
-        pvpgn_v3_protocol_d2cs
-        pvpgn_v3_infra_persistence_realm
-        pvpgn_v3_core
+        runtime
+        application_realm
+        protocol_d2cs
+        infra_persistence_realm
+        core
 )

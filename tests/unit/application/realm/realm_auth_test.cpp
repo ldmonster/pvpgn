@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "application/realm/realm_auth.hpp"
+#include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/realm/realm.hpp"
 
@@ -39,7 +40,7 @@ public:
 
     core::Result<void, core::Error>
     save(const domain::realm::Realm& realm) override {
-        by_name_[realm.name()] = realm;
+        by_name_.insert_or_assign(realm.name(), realm);
         return core::Result<void, core::Error>();
     }
 

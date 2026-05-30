@@ -35,8 +35,8 @@ pvpgn_v3_apply_flags(pvpgn_config_tool)
 
 target_link_libraries(pvpgn_config_tool
     PRIVATE
-        pvpgn_infra_config
-        pvpgn_core
+        infra_config
+        core
 )
 
 install(TARGETS pvpgn_config_tool

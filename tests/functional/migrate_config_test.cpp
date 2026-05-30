@@ -12,6 +12,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <string>
 
 namespace fs = std::filesystem;
@@ -48,11 +49,11 @@ void write_motd(const fs::path& dir) {
 
 /// Read a file into a string.
 std::string read_file(const fs::path& path) {
-    std::ifstream in{path};
+    std::ifstream in{path, std::ios::binary};
     if (!in.is_open()) return {};
-    std::string content{std::istreambuf_iterator<char>(in),
-                        std::istreambuf_iterator<char>()};
-    return content;
+    std::ostringstream oss;
+    oss << in.rdbuf();
+    return oss.str();
 }
 
 /// Check that a string contains a substring.

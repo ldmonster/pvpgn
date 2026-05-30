@@ -61,7 +61,8 @@ bool action_from_name(std::string_view s, ap::AuditAction& out) noexcept {
 std::string json_escape(std::string_view in) {
     std::string out;
     out.reserve(in.size() + 4);
-    for (unsigned char c : in) {
+    for (char ch : in) {
+        const unsigned char c = static_cast<unsigned char>(ch);
         switch (c) {
             case '"':  out += "\\\""; break;
             case '\\': out += "\\\\"; break;

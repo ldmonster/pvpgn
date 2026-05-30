@@ -37,11 +37,19 @@ FilesystemSaveStore::load(std::string_view account, std::string_view char_name) 
     
     // Read entire file
     file.seekg(0, std::ios::end);
-    size_t size = file.tellg();
+    const auto raw_size = file.tellg();
+    if (raw_size < 0) {
+        return core::fail(core::Error(
+            core::StatusCode::Internal,
+            "Failed to determine save file size: " + path.string()
+        ));
+    }
+    const size_t size = static_cast<size_t>(raw_size);
     file.seekg(0, std::ios::beg);
     
     std::vector<uint8_t> data(size);
-    file.read(reinterpret_cast<char*>(data.data()), size);
+    file.read(reinterpret_cast<char*>(data.data()),
+              static_cast<std::streamsize>(size));
     
     if (!file) {
         return core::fail(core::Error(
@@ -78,7 +86,8 @@ FilesystemSaveStore::store(std::string_view account, std::string_view char_name,
         ));
     }
     
-    file.write(reinterpret_cast<const char*>(data.data()), data.size());
+    file.write(reinterpret_cast<const char*>(data.data()),
+               static_cast<std::streamsize>(data.size()));
     
     if (!file) {
         return core::fail(core::Error(

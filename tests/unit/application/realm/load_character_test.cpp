@@ -35,7 +35,7 @@ public:
 
     core::Result<void, core::Error>
     save(const domain::realm::Character& c) override {
-        chars_[c.id().account_name + "/" + c.id().char_name] = c;
+        chars_.insert_or_assign(c.id().account_name + "/" + c.id().char_name, c);
         return core::Result<void, core::Error>();
     }
 

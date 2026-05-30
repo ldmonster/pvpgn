@@ -1,0 +1,150 @@
+# =============================================================================
+# Dockerfile.windows
+#
+# Cross-compiles PvPGN v3 to 64-bit Windows .exe binaries from a Linux build
+# host using MinGW-w64 + vcpkg (x64-mingw-static triplet). The final stage is
+# `FROM scratch` containing only the produced .exe files so they can be
+# exported directly with `docker buildx build --output type=local,dest=...`.
+#
+# Quick start (PowerShell):
+#   docker buildx build -f Dockerfile.windows --output type=local,dest=./dist/windows .
+#
+# Or interactively:
+#   docker build -f Dockerfile.windows --target export -t pvpgn:windows-build .
+#   docker run --rm -v ${PWD}/dist/windows:/out pvpgn:windows-build \
+#       sh -c "cp /exes/*.exe /out/"
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage: toolchain
+# Debian base + MinGW-w64 cross-toolchain + CMake/Ninja + vcpkg prerequisites.
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim AS toolchain
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        git \
+        curl \
+        zip \
+        unzip \
+        tar \
+        pkg-config \
+        build-essential \
+        cmake \
+        ninja-build \
+        python3 \
+        bison \
+        flex \
+        autoconf \
+        automake \
+        libtool \
+        nasm \
+        mingw-w64 \
+        mingw-w64-tools \
+    && update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix \
+    && update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix \
+    && rm -rf /var/lib/apt/lists/*
+
+
+# -----------------------------------------------------------------------------
+# Stage: vcpkg
+# Bootstrap vcpkg pinned to the baseline declared in the project's vcpkg.json.
+# We only need the bootstrap; actual port installs happen during configure.
+# -----------------------------------------------------------------------------
+FROM toolchain AS vcpkg
+
+ENV VCPKG_ROOT=/opt/vcpkg \
+    VCPKG_DEFAULT_TRIPLET=x64-mingw-static \
+    VCPKG_DEFAULT_HOST_TRIPLET=x64-linux \
+    VCPKG_FORCE_SYSTEM_BINARIES=1 \
+    VCPKG_DISABLE_METRICS=1
+
+RUN git clone --depth=1 https://github.com/microsoft/vcpkg.git ${VCPKG_ROOT} \
+    && ${VCPKG_ROOT}/bootstrap-vcpkg.sh -disableMetrics
+
+
+# -----------------------------------------------------------------------------
+# Stage: src
+# Copy project source after the heavy toolchain layers so source edits don't
+# bust the toolchain/vcpkg layer caches.
+# -----------------------------------------------------------------------------
+FROM vcpkg AS src
+
+COPY . /src
+WORKDIR /src
+
+
+# -----------------------------------------------------------------------------
+# Stage: build
+# Configure + build only the targets the user asked for (daemons + client tools).
+#
+# Notes:
+#   * PVPGN_BUILD_V3=ON     — modern v3 tree (the only one that targets Windows)
+#   * PVPGN_BUILD_LEGACY=OFF — legacy POSIX-only daemons are skipped
+#   * WITH_BNETD/WITH_D2CS/WITH_D2DBS=OFF — legacy autotools-era flags
+#   * PVPGN_V3_WARNINGS_AS_ERRORS=OFF — mingw emits warnings MSVC does not;
+#       don't fail the cross-build on them.
+#   * PVPGN_V3_BUILD_TESTS=OFF — tests need Catch2 + run on host, skip for ship
+# -----------------------------------------------------------------------------
+FROM src AS build
+
+ARG JOBS
+
+RUN cmake -S . -B build/windows -G Ninja \
+        -D CMAKE_BUILD_TYPE=Release \
+        -D CMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
+        -D VCPKG_TARGET_TRIPLET=x64-mingw-static \
+        -D VCPKG_HOST_TRIPLET=x64-linux \
+        -D VCPKG_CHAINLOAD_TOOLCHAIN_FILE=/src/cmake/toolchain-mingw-w64-x86_64.cmake \
+        -D PVPGN_BUILD_V3=ON \
+        -D PVPGN_BUILD_LEGACY=OFF \
+        -D WITH_BNETD=OFF \
+        -D WITH_D2CS=OFF \
+        -D WITH_D2DBS=OFF \
+        -D WITH_LUA=OFF \
+        -D WITH_MYSQL=OFF \
+        -D WITH_PGSQL=OFF \
+        -D WITH_SQLITE3=OFF \
+        -D WITH_ODBC=OFF \
+        -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
+        -D PVPGN_V3_BUILD_TESTS=OFF \
+        -D PVPGN_V3_PLUGIN_TESTS=OFF \
+    && cmake --build build/windows --config Release \
+         --target \
+           bnetd \
+           pvpgn_v3_d2cs \
+           bnchat \
+           bnftp \
+           bnbot \
+           bnstat \
+           pvpgn-bnpass \
+           bnilist \
+           bni2tga \
+           bniextract \
+           bnibuild \
+           tgainfo \
+           bntrackd \
+         -j${JOBS:-4}
+
+
+# -----------------------------------------------------------------------------
+# Stage: collect
+# Gather every produced .exe under /exes so the export stage can grab them.
+# -----------------------------------------------------------------------------
+FROM build AS collect
+
+RUN mkdir -p /exes \
+    && find /src/build/windows -maxdepth 8 -type f -name '*.exe' \
+         -exec cp -v {} /exes/ \;
+
+
+# -----------------------------------------------------------------------------
+# Stage: export  (DEFAULT)
+# Empty image whose only contents are the produced .exe files. Use
+# `docker buildx build --output type=local,dest=./dist/windows .` to copy
+# them straight to the host filesystem.
+# -----------------------------------------------------------------------------
+FROM scratch AS export
+COPY --from=collect /exes/ /

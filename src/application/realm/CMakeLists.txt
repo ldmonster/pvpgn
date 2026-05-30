@@ -14,16 +14,10 @@ pvpgn_v3_add_library(application_realm
         src/unregister_realm.cpp
         src/heartbeat_realm.cpp
         src/realm_auth.cpp
-    HEADERS
-        include/application/realm/character_lock.hpp
-        include/application/realm/character_persistence.hpp
-        include/application/realm/gs_queue.hpp
-        include/application/realm/realm_list.hpp
-        include/application/realm/register_realm.hpp
-        include/application/realm/unregister_realm.hpp
-        include/application/realm/heartbeat_realm.hpp
-        include/application/realm/realm_auth.hpp
-    DEPS
-        pvpgn_v3_domain_realm
-        pvpgn_v3_core
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PUBLIC_DEPS
+        application_ports
+        domain_realm
+        core
 )

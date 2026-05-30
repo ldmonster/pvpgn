@@ -91,13 +91,14 @@ std::string Sol2ScriptHost::dispatch_event(std::string_view event,
     const std::string event_str(event);
 
     // Check if the global exists and is callable.
-    sol::object obj = impl_->lua[event_str];
+    sol::object obj = impl_->lua[event_str].get<sol::object>();
     if (!obj.valid() || obj.get_type() != sol::type::function) {
         return {};
     }
 
     try {
-        sol::protected_function fn = impl_->lua[event_str];
+        sol::protected_function fn =
+            impl_->lua[event_str].get<sol::protected_function>();
         sol::protected_function_result result = fn(std::string(payload));
 
         if (!result.valid()) {
@@ -125,7 +126,8 @@ std::string Sol2ScriptHost::dispatch_event(std::string_view event,
 
 bool Sol2ScriptHost::has_handler(std::string_view event) const noexcept {
     try {
-        sol::object obj = impl_->lua[std::string(event)];
+        sol::object obj =
+            impl_->lua[std::string(event)].get<sol::object>();
         return obj.valid() && obj.get_type() == sol::type::function;
     } catch (...) {
         return false;

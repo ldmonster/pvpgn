@@ -190,7 +190,8 @@ std::string ascii_upper(std::string_view s)
 {
     std::string out;
     out.reserve(s.size());
-    for (unsigned char c : s) {
+    for (char ch : s) {
+        const unsigned char c = static_cast<unsigned char>(ch);
         if (c < 0x80u)
             out.push_back(static_cast<char>(
                 std::toupper(static_cast<int>(c))));

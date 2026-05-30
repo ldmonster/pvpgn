@@ -241,7 +241,8 @@ inline void append_percent_hex(std::string& out, unsigned char c) {
 [[nodiscard]] inline std::string escape_fs_chars(std::string_view in) {
     std::string out;
     out.reserve(in.size());
-    for (const unsigned char c : in) {
+    for (const char raw : in) {
+        const unsigned char c = static_cast<unsigned char>(raw);
         if (c == '\0' || c == '%' || c == '/' || c == '\\' || c == ':')
             detail::append_percent_hex(out, c);
         else
@@ -276,7 +277,8 @@ inline void append_octal3(std::string& out, unsigned char c) {
 [[nodiscard]] inline std::string escape_chars(std::string_view in) {
     std::string out;
     out.reserve(in.size() * 2u);
-    for (const unsigned char c : in) {
+    for (const char raw : in) {
+        const unsigned char c = static_cast<unsigned char>(raw);
         switch (c) {
         case '\\': out += "\\\\"; break;
         case '"':  out += "\\\""; break;
@@ -357,7 +359,8 @@ inline void append_octal3(std::string& out, unsigned char c) {
 [[nodiscard]] inline std::string bytes_to_hex_str(std::string_view data) {
     std::string out;
     out.reserve(data.size() * 3u);
-    for (const unsigned char c : data) {
+    for (const char raw : data) {
+        const unsigned char c = static_cast<unsigned char>(raw);
         out += detail::kHexUpper[c >> 4];
         out += detail::kHexUpper[c & 0x0f];
         out += ' ';

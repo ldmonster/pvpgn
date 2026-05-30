@@ -93,7 +93,7 @@ core::Result<D2SaveFile, core::Error> D2SaveCodec::parse(std::span<const uint8_t
     result.header.unk4[2] = data[offset++];
     result.header.unk4[3] = data[offset++];
 
-    for (int i = 0; i < 16; ++i) {
+    for (std::size_t i = 0; i < 16; ++i) {
         std::memcpy(&result.header.assigned_skills[i], data.data() + offset, sizeof(uint32_t));
         offset += sizeof(uint32_t);
     }

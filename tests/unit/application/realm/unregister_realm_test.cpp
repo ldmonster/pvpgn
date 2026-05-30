@@ -4,8 +4,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "application/realm/register_realm.hpp"
 #include "application/realm/unregister_realm.hpp"
 #include "application/ports/realm_repository.hpp"
+#include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/realm/realm.hpp"
 
@@ -38,7 +40,7 @@ public:
 
     core::Result<void, core::Error>
     save(const domain::realm::Realm& realm) override {
-        by_name_[lower(realm.name())] = realm;
+        by_name_.insert_or_assign(lower(realm.name()), realm);
         return core::Result<void, core::Error>();
     }
 

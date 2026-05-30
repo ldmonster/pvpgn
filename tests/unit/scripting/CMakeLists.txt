@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Catch2 v3 conformance tests for the plugin and scripting subsystem (Plan 11)
 
+# The scripting tests depend on pvpgn_scripting_plugin / pvpgn_infra_scripting
+# which only exist when Lua is enabled (see src/infra/scripting/CMakeLists.txt).
+if(NOT PVPGN_V3_WITH_LUA)
+    return()
+endif()
+
 # Existing GTest-based plugin unit tests
 add_subdirectory(plugin)
 

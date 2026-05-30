@@ -21,6 +21,12 @@
 #include <sstream>
 #include <string>
 
+#if defined(_WIN32)
+#  include <stdlib.h>   // _environ
+#else
+extern "C" char** environ;
+#endif
+
 namespace pvpgn::infra::config {
 
 namespace {
@@ -500,12 +506,13 @@ void apply_env_overrides(ServerConfig& sc)
 
     // Scan the process environment.
     // `environ` is POSIX-standard; on Windows use `_environ`.
+    // Note: must reference the global `::environ`/`::_environ`; an
+    // `extern` declaration inside an anonymous namespace creates a
+    // namespace-local symbol that the linker can't resolve.
 #if defined(_WIN32)
-    extern char** _environ;
-    char** env = _environ;
+    char** env = ::_environ;
 #else
-    extern char** environ;
-    char** env = environ;
+    char** env = ::environ;
 #endif
 
     if (!env) return;

@@ -30,17 +30,17 @@ std::uint16_t threshold_for(
     if (is_tourney_column) {
         if (row_index < 0 ||
             row_index >= static_cast<int>(req.tourney.size())) return 0;
-        return req.tourney[row_index];
+        return req.tourney[static_cast<std::size_t>(row_index)];
     }
     if (tag == Clienttag::War3) {
         if (row_index < 0 ||
             row_index >= static_cast<int>(req.war3.size())) return 0;
-        return req.war3[row_index];
+        return req.war3[static_cast<std::size_t>(row_index)];
     }
     // W3xp
     if (row_index < 0 ||
         row_index >= static_cast<int>(req.w3xp.size())) return 0;
-    return req.w3xp[row_index];
+    return req.w3xp[static_cast<std::size_t>(row_index)];
 }
 
 }  // namespace
@@ -73,7 +73,9 @@ IconReplyTable build_icon_reply_table(
     for (int j = 0; j < out.height; ++j) {
         for (int i = 0; i < out.width; ++i) {
             IconEntry e{};
-            e.icon_code = {icon_pos[j], kRaceChars[i], '3', 'W'};
+            e.icon_code = {icon_pos[static_cast<std::size_t>(j)],
+                           kRaceChars[static_cast<std::size_t>(i)],
+                           '3', 'W'};
             e.race      = static_cast<std::uint8_t>(i);
             e.portrait_code = resolver
                 ? resolver(e.icon_code, resolver_user)
@@ -116,7 +118,7 @@ bool validate_user_icon(
     // Find the race column.
     int col = -1;
     for (int i = 0; i < static_cast<int>(kRaceChars.size()); ++i) {
-        if (kRaceChars[i] == race_char) { col = i; break; }
+        if (kRaceChars[static_cast<std::size_t>(i)] == race_char) { col = i; break; }
     }
     if (col < 0) return false;
 
@@ -126,8 +128,10 @@ bool validate_user_icon(
     // clienttag, matching the bnetd_default behaviour).
     const std::uint16_t threshold =
         (col == 5)
-            ? (row < static_cast<int>(req.tourney.size()) ? req.tourney[row] : 0)
-            : (row < static_cast<int>(req.w3xp.size())    ? req.w3xp[row]    : 0);
+            ? (row < static_cast<int>(req.tourney.size())
+                   ? req.tourney[static_cast<std::size_t>(row)] : 0)
+            : (row < static_cast<int>(req.w3xp.size())
+                   ? req.w3xp[static_cast<std::size_t>(row)]    : 0);
 
     return race_wins[static_cast<std::size_t>(col)] >= threshold;
 }

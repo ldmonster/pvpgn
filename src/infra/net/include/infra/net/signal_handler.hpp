@@ -23,7 +23,12 @@ class ConfigWatcher;
 }
 namespace pvpgn::application::ports {
 class IUnitOfWorkFactory;
+}
+namespace pvpgn::core {
 class IMetricsRegistry;
+}
+namespace pvpgn::application::ports {
+using IMetricsRegistry = core::IMetricsRegistry;
 }
 
 namespace pvpgn::infra::net {

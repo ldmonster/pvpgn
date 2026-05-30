@@ -65,13 +65,15 @@ public:
     void stop_watch();
 
     /// Get the current (loaded) configuration.
-    /// Thread-safe; acquires a shared lock.
-    /// @return Copy of the current ServerConfig
-    ServerConfig current() const;
+    /// Thread-safe; acquires a shared lock. Returns a snapshot pointer
+    /// that callers may hold past a subsequent `reload()` — the watcher
+    /// will swap its internal pointer rather than mutate the snapshot.
+    /// May return nullptr if no successful load has happened yet.
+    [[nodiscard]] std::shared_ptr<const ServerConfig> current() const;
 
 private:
     std::string config_path_;
-    ServerConfig current_config_;
+    std::shared_ptr<const ServerConfig> current_config_;
     std::vector<std::weak_ptr<application::ports::IConfigSubscriber>> subscribers_;
     mutable std::shared_mutex mu_;
 

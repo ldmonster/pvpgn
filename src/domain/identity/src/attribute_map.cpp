@@ -100,7 +100,7 @@ std::uint32_t AttributeMap::wins(ClientTag tag) const noexcept {
     auto val = get(make_stat_key("wins", tag));
     if (!val) return 0;
     try {
-        return std::stoul(std::string{val.value()});
+        return static_cast<std::uint32_t>(std::stoul(std::string{val.value()}));
     } catch (...) {
         return 0;
     }
@@ -110,7 +110,7 @@ std::uint32_t AttributeMap::losses(ClientTag tag) const noexcept {
     auto val = get(make_stat_key("losses", tag));
     if (!val) return 0;
     try {
-        return std::stoul(std::string{val.value()});
+        return static_cast<std::uint32_t>(std::stoul(std::string{val.value()}));
     } catch (...) {
         return 0;
     }
@@ -120,7 +120,7 @@ std::uint32_t AttributeMap::disconnects(ClientTag tag) const noexcept {
     auto val = get(make_stat_key("disconnects", tag));
     if (!val) return 0;
     try {
-        return std::stoul(std::string{val.value()});
+        return static_cast<std::uint32_t>(std::stoul(std::string{val.value()}));
     } catch (...) {
         return 0;
     }
@@ -130,7 +130,7 @@ std::uint32_t AttributeMap::ladder_wins(ClientTag tag) const noexcept {
     auto val = get(make_stat_key("ladder_wins", tag));
     if (!val) return 0;
     try {
-        return std::stoul(std::string{val.value()});
+        return static_cast<std::uint32_t>(std::stoul(std::string{val.value()}));
     } catch (...) {
         return 0;
     }
@@ -140,7 +140,7 @@ std::uint32_t AttributeMap::ladder_losses(ClientTag tag) const noexcept {
     auto val = get(make_stat_key("ladder_losses", tag));
     if (!val) return 0;
     try {
-        return std::stoul(std::string{val.value()});
+        return static_cast<std::uint32_t>(std::stoul(std::string{val.value()}));
     } catch (...) {
         return 0;
     }

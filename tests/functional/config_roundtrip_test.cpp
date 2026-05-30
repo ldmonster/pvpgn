@@ -54,7 +54,7 @@ pool = 8
     REQUIRE(config.log.rotate_files == 3u);
     REQUIRE_FALSE(config.log.stdout_sink);
     REQUIRE(config.storage.driver == "sqlite");
-    REQUIRE(config.storage.dsn == "file:pvpgn.db");
+    REQUIRE(config.storage.dsn.reveal() == "file:pvpgn.db");
     REQUIRE(config.storage.pool == 8u);
     
     // Cleanup

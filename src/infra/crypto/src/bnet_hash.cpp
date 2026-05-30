@@ -49,7 +49,7 @@ void do_hash(BnetDigest& digest, std::array<std::uint32_t, 80>& tmp,
     // while the true-SHA-1 variant uses ROTL32(x, 1).
     for (std::size_t i = 0; i < 64; ++i) {
         const std::uint32_t mix = tmp[i] ^ tmp[i + 8] ^ tmp[i + 2] ^ tmp[i + 13];
-        tmp[i + 16] = (variant == HashVariant::Blizzard) ? rotl32(1, mix)
+        tmp[i + 16] = (variant == HashVariant::Blizzard) ? rotl32(1, static_cast<int>(mix))
                                                          : rotl32(mix, 1);
     }
 

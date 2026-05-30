@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <functional>
+#include <mutex>
 #include <shared_mutex>
 
 #include "application/ports/ip_ban_repository.hpp"

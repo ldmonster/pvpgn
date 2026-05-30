@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # PvPGN v3 build-verification Dockerfile
 # =============================================================================
 # Builds the experimental v3 sub-tree (under src/v3/) using Alpine packages
@@ -30,6 +30,10 @@ RUN apk --quiet --no-cache add \
       openssl-dev \
       zlib-dev \
       curl-dev \
+      bash \
+      lua5.4-dev \
+      sqlite-dev \
+      spdlog-dev \
     && rm -rf /var/cache/apk/*
 
 COPY . /src
@@ -44,7 +48,7 @@ WORKDIR /src
 # -----------------------------------------------------------------------------
 FROM v3-base AS v3-layer-check
 
-RUN sh /src/scripts/v3_layering_check.sh /src/src/v3
+RUN sh /src/scripts/v3_layering_check.sh /src/src
 
 
 # -----------------------------------------------------------------------------
@@ -53,14 +57,21 @@ RUN sh /src/scripts/v3_layering_check.sh /src/src/v3
 # -----------------------------------------------------------------------------
 FROM v3-layer-check AS v3-build
 
+# Configure once, then build every v3 target. The legacy bnetd/d2cs/d2dbs
+# servers are disabled (WITH_BNETD/D2CS/D2DBS=OFF); only the v3 sub-tree
+# plus its tests are compiled. Alpine ships Lua 5.4 headers/libs under
+# /usr/include/lua5.4 and /usr/lib/lua5.4, which CMake's FindLua does not
+# probe by default -- point it at them via CMAKE_INCLUDE_PATH / CMAKE_LIBRARY_PATH.
 RUN cmake -S . -B build/v3 \
       -D PVPGN_BUILD_V3=ON \
       -D PVPGN_BUILD_LEGACY=ON \
       -D WITH_BNETD=OFF \
       -D WITH_D2CS=OFF \
       -D WITH_D2DBS=OFF \
+      -D CMAKE_INCLUDE_PATH=/usr/include/lua5.4 \
+      -D CMAKE_LIBRARY_PATH=/usr/lib/lua5.4 \
       -D CMAKE_BUILD_TYPE=Release \
-    && cmake --build build/v3 --config Release --target infra_compat test_infra_compat_process test_infra_xml_document infra_crypto test_infra_crypto_bnet_hash common test_infra_crypto_parity test_protocol_udp_wire_types test_protocol_bnet_init_wire_types test_protocol_bnet_init_codec test_protocol_bnet_bot_wire_types test_protocol_d2cs_bnetd_wire_types test_protocol_file_wire_types test_protocol_d2gs_wire_types test_protocol_wolgameres_wire_types test_protocol_d2cs_wire_types test_protocol_d2gs_game_wire_types test_protocol_irc_wire_types test_protocol_bnet_anongame_wire_types test_protocol_bnet_wire_types test_protocol_bnet_w3route_wire_types test_protocol_bnet_auth_wire_types test_protocol_bnet_account_wire_types test_protocol_bnet_cdkey_wire_types test_protocol_bnet_realm_wire_types test_protocol_bnet_chat_wire_types test_protocol_bnet_game_wire_types test_protocol_bnet_clan_wire_types test_protocol_bnet_misc_wire_types test_protocol_packet test_protocol_reader test_protocol_writer test_integration_legacy_bnetd_send_packet_bridge test_application_init_conn_dispatch test_application_email_management test_application_ads application_realm_realm_list_test test_application_anongame_lobby test_application_anongame_lobby_game_type test_application_bnet_packet_pump_lifecycle test_application_bnet_packet_pump_driver test_integration_legacy_bnetd_init_conn_bridge test_integration_legacy_bnetd_ads_bridge test_integration_legacy_bnetd_realm_list_bridge test_integration_legacy_bnetd_anongame_lobby_bridge test_integration_legacy_bnetd_send_authreq1_server_bridge test_integration_legacy_bnetd_send_authreply1_bridge test_integration_legacy_bnetd_send_authreply109_bridge test_integration_legacy_bnetd_send_handshake_bridge test_integration_legacy_bnetd_send_echoreq_bridge test_integration_legacy_bnetd_send_messagebox_bridge test_integration_legacy_bnetd_send_friend_acks_bridges test_integration_legacy_bnetd_send_antihack_bridges test_integration_legacy_bnetd_send_clan_invitereply_bridge test_integration_legacy_bnetd_send_clan_membernewchief_reply_bridge test_integration_legacy_bnetd_send_clanmember_remove_reply_bridge test_integration_legacy_bnetd_send_clanmember_rankupdate_reply_bridge test_integration_legacy_bnetd_send_changepassack_bridge test_integration_legacy_d2cs_send_packet_bridge test_integration_legacy_d2cs_send_loginreply_bridge test_integration_legacy_d2cs_send_createcharreply_bridge test_integration_legacy_d2cs_send_charloginreply_bridge test_integration_legacy_d2cs_send_gamereply_bridges test_integration_legacy_d2cs_send_handle_bnetd_bridges test_integration_legacy_d2cs_send_handle_d2gs_bridges test_integration_legacy_d2cs_send_simple_replies test_integration_legacy_d2cs_send_listreply_bridges test_integration_legacy_d2dbs_send_packet_bridge test_integration_legacy_d2dbs_send_echorequest_bridge test_integration_legacy_d2dbs_charlock_bridge test_integration_legacy_d2dbs_d2ladder_bridge test_integration_legacy_d2dbs_dbsdupecheck_bridge test_integration_legacy_d2dbs_dbserver_bridge test_integration_legacy_d2dbs_handle_signal_bridge test_integration_legacy_d2dbs_dbspacket_bridge test_integration_legacy_bnetd_send_authinfo_reply_bridge test_integration_legacy_bnetd_send_loginreply_bridge test_integration_legacy_bnetd_send_loginreply_w3_bridge test_integration_legacy_bnetd_send_logonproof_reply_bridge test_integration_legacy_bnetd_send_createacct_reply_bridge test_integration_legacy_bnetd_send_iconreply_bridge test_integration_legacy_bnetd_send_channellist_bridge test_integration_legacy_bnetd_channel_state_bridge test_integration_legacy_bnetd_game_report_bridge test_integration_legacy_bnetd_startgame_bridge test_integration_legacy_bnetd_gamelist_join_bridge test_integration_legacy_bnetd_anongame_dispatch_bridge test_integration_legacy_bnetd_anongame_entry_bridge test_integration_legacy_bnetd_anongame_infos_bridge test_integration_legacy_bnetd_anongame_infos_get_bridge test_integration_legacy_bnetd_runprog_bridge test_integration_legacy_bnetd_news_bridge test_integration_legacy_bnetd_userlog_bridge test_integration_legacy_bnetd_versioncheck_bridge test_integration_legacy_bnetd_clan_dispatch_bridge test_integration_legacy_bnetd_clan_send_bridge test_integration_legacy_bnetd_friends_dispatch_bridge test_integration_legacy_bnetd_auth_dispatch_bridge test_integration_legacy_bnetd_keepalive_dispatch_bridge test_integration_legacy_bnetd_realm_dispatch_bridge test_integration_legacy_bnetd_account_dispatch_bridge test_integration_legacy_bnetd_profile_dispatch_bridge test_integration_legacy_bnetd_ladder_dispatch_bridge test_integration_legacy_bnetd_d2_character_dispatch_bridge test_integration_legacy_bnetd_telemetry_dispatch_bridge test_integration_legacy_bnetd_ad_dispatch_bridge test_integration_legacy_bnetd_progident_dispatch_bridge test_integration_legacy_bnetd_gameport_dispatch_bridge test_integration_legacy_bnetd_cdkey_dispatch_bridge test_integration_legacy_bnetd_passemail_dispatch_bridge test_integration_legacy_bnetd_handshake_dispatch_bridge test_integration_legacy_bnetd_stub_dispatch_bridge test_integration_legacy_bnetd_file_dispatch_bridge test_integration_legacy_bnetd_send_fileinforeply_bridge test_integration_legacy_bnetd_send_passchange_bridge test_integration_legacy_bnetd_send_statsreply_bridge test_integration_legacy_bnetd_send_friendslist_bridge test_integration_legacy_bnetd_send_friendinfo_bridge test_integration_legacy_bnetd_send_atfriendscreen_bridge test_integration_legacy_bnetd_send_atinvitefriend_bridge test_integration_legacy_bnetd_send_atacceptdecline_bridge test_integration_legacy_bnetd_send_cdkey_reply_bridge test_integration_legacy_bnetd_send_chatevent_compose_bridge test_integration_legacy_bnetd_send_chatevent_compose_e2e test_application_chat_event_compose test_common_bigint test_common_bnetsrp3 pvpgn-bnpass bnilist bni2tga bniextract bnibuild tgainfo bntrackd bnchat bnftp bnbot bnstat test_integration_legacy_bnetd_send_motdw3_bridge test_integration_legacy_bnetd_send_realmlist_bridge test_integration_legacy_bnetd_send_realmlistlegacy_bridge test_integration_legacy_bnetd_send_claninfo_bridge test_integration_legacy_bnetd_send_profilereply_bridge test_integration_legacy_bnetd_send_realmjoin_bridge test_integration_legacy_bnetd_send_charlistreply_bridge test_integration_legacy_bnetd_send_adreply_bridge test_integration_legacy_bnetd_send_adclick2reply_bridge test_integration_legacy_bnetd_send_playerinforeply_bridge test_integration_legacy_bnetd_send_gamelistreply_bridge test_integration_legacy_bnetd_send_startgame1ack_bridge test_integration_legacy_bnetd_send_startgame3ack_bridge test_integration_legacy_bnetd_send_startgame4ack_bridge test_integration_legacy_bnetd_send_ladderreply_bridge test_integration_legacy_bnetd_send_laddersearchreply_bridge test_integration_legacy_bnetd_send_mapauthreply1_bridge test_integration_legacy_bnetd_send_mapauthreply2_bridge test_integration_legacy_bnetd_send_clandisbandreply_bridge test_integration_legacy_bnetd_send_clancreateinviteforward_bridge test_integration_legacy_bnetd_send_clancreateinvitereply_bridge test_integration_legacy_bnetd_d2cs_link_dispatch_bridge test_integration_legacy_bnetd_bot_dispatch_bridge test_integration_legacy_bnetd_telnet_dispatch_bridge test_integration_legacy_bnetd_wol_dispatch_bridge test_integration_legacy_bnetd_irc_dispatch_bridge test_integration_legacy_bnetd_connection_dispatch_bridge test_integration_legacy_bnetd_message_dispatch_bridge test_integration_legacy_bnetd_server_dispatch_bridge test_application_admin_commands_router test_application_admin_commands_help_corpus_parser test_application_admin_commands_file_help_responder test_integration_legacy_bnetd_send_clan_motdreply_bridge test_integration_legacy_bnetd_encode_clanmemberupdate_bridge test_integration_legacy_bnetd_clan_bridges test_integration_legacy_bnetd_send_raw_text_bridge test_integration_legacy_bnetd_send_anongame_search_reply_bridge test_integration_legacy_bnetd_send_anongame_found_bridge test_integration_legacy_bnetd_send_w3route_bridge test_integration_legacy_bnetd_send_d2cs_bnetd_bridges test_protocol_bnet_codec test_infra_tracker_client test_infra_process_external_program test_infra_audit_file_audit_log test_protocol_telnet_admin_fsm test_infra_persistence_connection_string test_protocol_d2cs_ladderreply_encoder test_protocol_d2cs_charlistreply_encoder test_integration_legacy_d2cs_send_ladderreply_bridge test_integration_legacy_d2cs_send_outbound_obs_bridges test_integration_legacy_d2cs_d2ladder_bridge test_integration_legacy_d2cs_s2s_bridge test_integration_legacy_d2cs_handle_signal_bridge test_integration_legacy_d2cs_server_bridge test_integration_legacy_d2cs_handle_init_bridge test_integration_legacy_d2cs_conn_bridge test_integration_legacy_d2cs_handle_d2cs_packet_bridge test_integration_legacy_d2cs_handle_d2gs_packet_bridge test_integration_legacy_d2cs_handle_bnetd_packet_bridge test_integration_legacy_d2cs_gamequeue_bridge test_integration_legacy_d2cs_serverqueue_bridge test_integration_legacy_d2cs_d2gs_bridge test_integration_legacy_d2cs_game_bridge test_integration_legacy_d2cs_net_bridge test_integration_legacy_bnetd_send_anongame_cancel_bridge test_integration_legacy_bnetd_send_file_bridge test_integration_legacy_bnetd_timer_bridge test_integration_legacy_bnetd_ipban_bridge test_integration_legacy_bnetd_lifecycle_bridges test_integration_legacy_bnetd_lifecycle_bridges_r246 test_integration_legacy_bnetd_lifecycle_bridges_r247 test_core_bnettime test_core_hexdump test_core_string_utils test_core_headers_selfcontained test_domain_shared_headers_selfcontained test_protocol_common_headers_selfcontained test_application_ports_headers_selfcontained test_domain_shared_client_tag test_infra_config_d2cs_server test_infra_config_d2dbs_server test_infra_config_d2cs_legacy_prefs test_infra_config_d2dbs_legacy_prefs test_infra_config_conf_templates test_infra_config_prefs_dump -j"$(nproc)"
+    && cmake --build build/v3 --config Release -j"$(nproc)"
 
 
 # -----------------------------------------------------------------------------
@@ -300,10 +311,10 @@ RUN chmod +x /src/scripts/v3-e2e-bnftp-smoke.sh \
              /src/tests/e2e/fake_bnftp_server.py \
              /src/tests/e2e/fake_bnet_server.py \
              /src/tests/e2e/fake_bnbot_server.py \
- && /src/scripts/v3-e2e-bnftp-smoke.sh  /src/build/v3/src/v3/tools/client/bnftp  \
- && /src/scripts/v3-e2e-bnchat-smoke.sh /src/build/v3/src/v3/tools/client/bnchat \
- && /src/scripts/v3-e2e-bnstat-smoke.sh /src/build/v3/src/v3/tools/client/bnstat \
- && /src/scripts/v3-e2e-bnbot-smoke.sh  /src/build/v3/src/v3/tools/client/bnbot
+ && /src/scripts/v3-e2e-bnftp-smoke.sh  /src/build/v3/src/tools/client/bnftp  \
+ && /src/scripts/v3-e2e-bnchat-smoke.sh /src/build/v3/src/tools/client/bnchat \
+ && /src/scripts/v3-e2e-bnstat-smoke.sh /src/build/v3/src/tools/client/bnstat \
+ && /src/scripts/v3-e2e-bnbot-smoke.sh  /src/build/v3/src/tools/client/bnbot
 
 # -----------------------------------------------------------------------------
 # Stage: v3-runtime (PREVIEW, soft-fail)
@@ -333,7 +344,7 @@ RUN ( cmake -S . -B build/v3-runtime \
    && cmake --build build/v3-runtime --config Release \
         --target pvpgn_v3_bnetd -j"$(nproc)" \
    && install -D -m 0755 \
-        build/v3-runtime/src/v3/app/bnetd/pvpgn_v3_bnetd \
+        build/v3-runtime/src/app/bnetd/pvpgn_v3_bnetd \
         /usr/local/bin/pvpgn_v3_bnetd ) \
    || echo "PREVIEW: pvpgn_v3_bnetd build skipped (expected during Phase 3 work)"; \
    install -D -m 0644 conf/bnetd.toml.in /etc/pvpgn/bnetd.toml
@@ -543,7 +554,7 @@ RUN cmake -S . -B build/v3-smoke \
    && test -x build/v3-smoke/src/bnetd/bnetd \
    && test -x build/v3-smoke/src/d2cs/d2cs \
    && test -x build/v3-smoke/src/d2dbs/d2dbs \
-   && test -x build/v3-smoke/src/v3/tools/client/bnchat
+   && test -x build/v3-smoke/src/tools/client/bnchat
 
 RUN chmod +x scripts/dev/v3-daemon-entry.sh \
               scripts/dev/v3-compose-smoke.sh

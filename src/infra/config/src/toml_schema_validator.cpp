@@ -25,7 +25,7 @@ std::string_view trim_sv(std::string_view s) noexcept {
 }
 
 /// Returns true if the line is a comment or blank.
-bool is_comment_or_blank(std::string_view line) noexcept {
+[[maybe_unused]] bool is_comment_or_blank(std::string_view line) noexcept {
     line = trim_sv(line);
     return line.empty() || line[0] == '#';
 }
@@ -103,7 +103,9 @@ TomlSchemaValidator::validate(std::string_view toml_content) {
                 }
 
                 // Ensure there is no trailing garbage (e.g. "3abc")
-                std::string_view after = trim_sv(std::string_view(ptr, rest.data() + rest.size() - ptr));
+                std::string_view after = trim_sv(std::string_view(
+                    ptr,
+                    static_cast<std::size_t>(rest.data() + rest.size() - ptr)));
                 if (!after.empty()) {
                     return core::fail(core::Error(
                         core::StatusCode::ConfigError,

@@ -24,8 +24,25 @@ InMemoryCharacterRepository::save(const domain::realm::Character& character) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     std::string key = make_key(character.id());
-    characters_[key] = character;
+    // `Character` has no default ctor; use insert_or_assign to copy-construct
+    // directly without requiring `map[key] = ...` to default-construct first.
+    characters_.insert_or_assign(key, character);
     
+    return core::Result<void, core::Error>();
+}
+
+core::Result<void, core::Error>
+InMemoryCharacterRepository::remove(const domain::realm::CharacterId& id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    std::string key = make_key(id);
+    auto it = characters_.find(key);
+    if (it == characters_.end()) {
+        return core::fail(core::make_error(
+            core::StatusCode::NotFound,
+            "Character not found: " + id.account_name + "/" + id.char_name));
+    }
+    characters_.erase(it);
     return core::Result<void, core::Error>();
 }
 

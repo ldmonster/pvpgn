@@ -21,6 +21,15 @@ set(_bniutils_dir ${CMAKE_CURRENT_SOURCE_DIR})
 function(_pvpgn_v3_add_bniutils_tool name)
     add_executable(${name} ${ARGN})
     pvpgn_v3_apply_flags(${name})
+    # These legacy image-manipulation tools mix int/size_t/uint*_t
+    # liberally on every index expression. A surgical fix would touch
+    # ~80 call sites without semantic benefit, so the strict sign /
+    # narrowing warnings are downgraded from errors for this target.
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(${name} PRIVATE
+            -Wno-error=sign-conversion
+            -Wno-error=conversion)
+    endif()
     target_include_directories(${name} PRIVATE ${_bniutils_dir})
     target_link_libraries(${name} PRIVATE core)
     if(DEFINED PVPGN_VERSION AND NOT PVPGN_VERSION STREQUAL "")

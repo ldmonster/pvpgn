@@ -36,7 +36,8 @@ private:
 
 inline std::optional<GameName> GameName::parse(std::string_view raw) noexcept {
     if (raw.size() < kMinLen || raw.size() > kMaxLen) return std::nullopt;
-    for (unsigned char c : raw) {
+    for (char ch : raw) {
+        const unsigned char c = static_cast<unsigned char>(ch);
         if (c < 0x20 || c > 0x7E) return std::nullopt;
     }
     return GameName{std::string(raw)};

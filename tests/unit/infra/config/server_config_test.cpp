@@ -119,7 +119,7 @@ pool   = 8
     auto& c = r.value();
     REQUIRE(c.storage.path   == "file:mode=plain;dir=/var/pvpgn/users");
     REQUIRE(c.storage.driver == "sqlite");
-    REQUIRE(c.storage.dsn    == "file:pvpgn.db");
+    REQUIRE(c.storage.dsn.reveal()    == "file:pvpgn.db");
     REQUIRE(c.storage.pool   == 8u);
 }
 

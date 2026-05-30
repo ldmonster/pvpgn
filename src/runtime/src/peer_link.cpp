@@ -83,7 +83,7 @@ Result<CapabilityToken, std::string> CapabilityToken::decode(const std::string& 
         } else if (key == "subject") {
             token.subject = value;
         } else if (key == "expiration") {
-            token.expiration = std::stoul(value);
+            token.expiration = static_cast<long>(std::stoul(value));
         } else if (key == "capability") {
             token.capabilities.push_back(value);
         }
@@ -128,7 +128,8 @@ public:
             }
             
             // Create acceptor
-            tcp::endpoint endpoint(tcp::v4(), port_);
+            tcp::endpoint endpoint(tcp::v4(),
+                                   static_cast<boost::asio::ip::port_type>(port_));
             acceptor_.open(endpoint.protocol());
             acceptor_.set_option(tcp::acceptor::reuse_address(true));
             acceptor_.bind(endpoint);

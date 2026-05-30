@@ -59,15 +59,18 @@ core::Result<void, core::Error> ConfigWatcher::reload() {
         return core::fail(result.error());
     }
 
-    ServerConfig new_config = result.value();
+    // ServerConfig contains non-copyable `Secret<T>` members; move the
+    // freshly-parsed value into an immutable, shareable snapshot.
+    auto new_snapshot =
+        std::make_shared<const ServerConfig>(std::move(result).value());
 
-    // Update and notify
+    // Update the published pointer atomically under the writer lock.
     {
         std::unique_lock lock(mu_);
-        current_config_ = new_config;
+        current_config_ = new_snapshot;
     }
 
-    notify_subscribers(new_config);
+    notify_subscribers(*new_snapshot);
     return core::ok();
 }
 
@@ -83,7 +86,7 @@ void ConfigWatcher::stop_watch() {
     // TODO: Cancel any running timer/thread
 }
 
-ServerConfig ConfigWatcher::current() const {
+std::shared_ptr<const ServerConfig> ConfigWatcher::current() const {
     std::shared_lock lock(mu_);
     return current_config_;
 }

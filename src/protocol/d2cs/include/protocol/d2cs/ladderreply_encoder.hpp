@@ -105,13 +105,15 @@ encode(std::uint8_t              type,
 
     const auto count = static_cast<std::uint32_t>(entries.size());
     const std::uint32_t npacket =
-        (count + kEntriesPerPacket - 1) / kEntriesPerPacket;
+        (count + static_cast<std::uint32_t>(kEntriesPerPacket) - 1u)
+        / static_cast<std::uint32_t>(kEntriesPerPacket);
 
     // total_len = count * 28 + 8 (ladderheader) + 4 * npacket (infoheaders)
     //             - 4 (legacy correction)
     const std::uint32_t total_len_full =
-        count * kLadderInfoSize + kLadderHeaderSize +
-        kLadderInfoHeaderSize * npacket;
+        count * static_cast<std::uint32_t>(kLadderInfoSize)
+              + static_cast<std::uint32_t>(kLadderHeaderSize)
+              + static_cast<std::uint32_t>(kLadderInfoHeaderSize) * npacket;
     const std::uint16_t total_len =
         static_cast<std::uint16_t>(total_len_full - 4);
 

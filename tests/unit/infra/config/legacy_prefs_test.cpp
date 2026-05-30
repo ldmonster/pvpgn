@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "infra/config/legacy_prefs.hpp"
+#include "core/secret.hpp"
 
 using namespace pvpgn;
 
@@ -15,7 +16,7 @@ TEST_CASE("LegacyPrefs exposes typed config through prefs-like surface",
     cfg.files.scriptdir      = "/var/pvpgn/lua";
     cfg.script_dir           = "/var/pvpgn/lua";  // compat alias
     cfg.storage.driver       = "sqlite";
-    cfg.storage.dsn          = "file:pvpgn.db";
+    cfg.storage.dsn          = core::Secret<std::string>{std::string{"file:pvpgn.db"}};
     cfg.storage.pool         = 8;
     cfg.log.level            = core::LogLevel::Debug;
     cfg.files.logfile        = "/var/log/pvpgn.log";

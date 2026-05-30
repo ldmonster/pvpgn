@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "application/realm/heartbeat_realm.hpp"
+#include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/realm/realm.hpp"
 
@@ -45,7 +46,7 @@ public:
     core::Result<void, core::Error>
     save(const domain::realm::Realm& realm) override {
         ++save_call_count;
-        by_id_[realm.id()] = realm;
+        by_id_.insert_or_assign(realm.id(), realm);
         return core::Result<void, core::Error>();
     }
 

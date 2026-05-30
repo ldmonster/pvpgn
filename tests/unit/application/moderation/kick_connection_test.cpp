@@ -98,6 +98,6 @@ TEST_CASE("KickConnection: detach is not called when session not found",
     f.registry->session_exists = false;
     auto uc = f.make_use_case();
 
-    uc.execute(domain::SessionId{999}, "admin kick");
+    (void)uc.execute(domain::SessionId{999}, "admin kick");
     REQUIRE_FALSE(f.registry->detach_called);
 }

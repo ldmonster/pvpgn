@@ -124,8 +124,8 @@ public:
 private:
     static Result<void, std::string> change_user_group(const ServiceConfig& config)
     {
-        gid_t gid = -1;
-        uid_t uid = -1;
+        gid_t gid = static_cast<gid_t>(-1);
+        uid_t uid = static_cast<uid_t>(-1);
         
         // Get group ID if specified
         if (!config.run_as_group.empty()) {

@@ -47,7 +47,8 @@ public:
             return core::fail(core::Error{
                 core::StatusCode::InvalidArgument, "clan tag must be 2..4 chars"});
         }
-        for (unsigned char c : tag) {
+        for (char ch : tag) {
+            const unsigned char c = static_cast<unsigned char>(ch);
             if (c < 0x21 || c > 0x7E) {
                 return core::fail(core::Error{
                     core::StatusCode::InvalidArgument, "clan tag must be printable ASCII"});
