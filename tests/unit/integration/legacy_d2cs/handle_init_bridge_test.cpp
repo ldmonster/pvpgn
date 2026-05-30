@@ -65,7 +65,7 @@ TEST_CASE("d2cs init-packet bridge logs scalars",
           "[integration][legacy_d2cs][handle_init_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_handle_init_packet_try(7, 1u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_handle_init_packet(7, 1u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Trace);
@@ -80,7 +80,7 @@ TEST_CASE("d2cs init-packet bridge renders d2gs class id",
           "[integration][legacy_d2cs][handle_init_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_handle_init_packet_try(42, 2u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_handle_init_packet(42, 2u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(field_value(r, "sd")     == "42");
@@ -92,10 +92,10 @@ TEST_CASE("d2cs init-packet bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_handle_init_packet_try(1, 1u) == 0);
+        REQUIRE(::pvpgn_v3_d2cs_handle_init_packet(1, 1u) == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_handle_init_packet_try(2, 2u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_handle_init_packet(2, 2u) == 0);
     REQUIRE(sink.records.size() == before);
 }
 
@@ -103,7 +103,7 @@ TEST_CASE("d2cs on_d2gs_initconn bridge logs at info",
           "[integration][legacy_d2cs][handle_init_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_on_d2gs_initconn_try(11, 0x7F000001u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_on_d2gs_initconn(11, 0x7F000001u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -118,7 +118,7 @@ TEST_CASE("d2cs on_d2cs_initconn bridge logs at info",
           "[integration][legacy_d2cs][handle_init_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_on_d2cs_initconn_try(13) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_on_d2cs_initconn(13) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);

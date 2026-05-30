@@ -29,7 +29,7 @@ std::string_view render_uint(std::array<char, 20>& buf,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_d2dbs_dupecheck_try(
+extern "C" int pvpgn_v3_d2dbs_dupecheck(
     char const* data, unsigned int datalen) noexcept {
     std::array<char, 20> dbuf{};
     const char* data_state = (data != nullptr) ? "present" : "null";

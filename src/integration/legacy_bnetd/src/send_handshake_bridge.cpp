@@ -24,7 +24,7 @@ int encode_and_send(void* conn_ptr, const Msg& m) noexcept {
     if (bytes.size() > pvpgn::integration::legacy_bnetd::kSendPacketMaxSize) {
         return 0;
     }
-    return ::pvpgn_v3_send_packet_try(
+    return ::pvpgn_v3_send_packet(
         conn_ptr,
         bytes.data(),
         static_cast<unsigned int>(bytes.size()));

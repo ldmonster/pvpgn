@@ -9,7 +9,7 @@
 /// or more 0x11 packets onto `conn_d2cs_outqueue`. The v3 replacement
 /// takes a flat array of ladder entries already extracted by the
 /// caller and emits the same byte sequences via the
-/// `pvpgn_v3_d2cs_send_packet_try` bridge.
+/// `pvpgn_v3_d2cs_send_packet` bridge.
 
 #include <cstdint>
 

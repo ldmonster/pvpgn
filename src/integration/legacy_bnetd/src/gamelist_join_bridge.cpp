@@ -24,7 +24,7 @@ std::string to_hex32(unsigned int v) {
 
 }  // namespace
 
-extern "C" int pvpgn_v3_gamelistreq_try(void* conn_ptr,
+extern "C" int pvpgn_v3_gamelistreq(void* conn_ptr,
                                         char const* gamename,
                                         unsigned int bngtype) noexcept {
     if (conn_ptr == nullptr) return 0;
@@ -52,7 +52,7 @@ extern "C" int pvpgn_v3_gamelistreq_try(void* conn_ptr,
     return 0;
 }
 
-extern "C" int pvpgn_v3_joingame_try(void* conn_ptr,
+extern "C" int pvpgn_v3_joingame(void* conn_ptr,
                                      char const* gamename) noexcept {
     if (conn_ptr == nullptr) return 0;
 

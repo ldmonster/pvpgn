@@ -8,7 +8,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_ladderreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_ladder_dispatch_try(c, "ladderreq");
+			(void)pvpgn_v3_ladder_dispatch(c, "ladderreq");
 			t_packet *rpacket;
 
 
@@ -185,7 +185,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_laddersearchreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_ladder_dispatch_try(c, "laddersearchreq");
+			(void)pvpgn_v3_ladder_dispatch(c, "laddersearchreq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_laddersearchreq)) {
@@ -284,7 +284,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_mapauthreq1(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_gameport_dispatch_try(c, "mapauthreq1");
+			(void)pvpgn_v3_gameport_dispatch(c, "mapauthreq1");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_mapauthreq1)) {
@@ -355,7 +355,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_mapauthreq2(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_gameport_dispatch_try(c, "mapauthreq2");
+			(void)pvpgn_v3_gameport_dispatch(c, "mapauthreq2");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_mapauthreq2)) {

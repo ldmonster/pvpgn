@@ -42,19 +42,19 @@ constexpr const char* kModule = "v3_bnetd_ipban_bridge";
 
 }  // namespace
 
-extern "C" int pvpgn_v3_bnetd_ipban_create_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_ipban_create(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         kModule, "ipbanlist create observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_ipban_destroy_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_ipban_destroy(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         kModule, "ipbanlist destroy observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_ipban_load_try(
+extern "C" int pvpgn_v3_bnetd_ipban_load(
     const char* filename) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"filename", safe_str(filename)},
@@ -65,7 +65,7 @@ extern "C" int pvpgn_v3_bnetd_ipban_load_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_ipban_save_try(
+extern "C" int pvpgn_v3_bnetd_ipban_save(
     const char* filename) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"filename", safe_str(filename)},
@@ -76,7 +76,7 @@ extern "C" int pvpgn_v3_bnetd_ipban_save_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_ipban_check_try(
+extern "C" int pvpgn_v3_bnetd_ipban_check(
     const char* ipaddr) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"ipaddr", safe_str(ipaddr)},
@@ -87,7 +87,7 @@ extern "C" int pvpgn_v3_bnetd_ipban_check_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_ipban_add_try(
+extern "C" int pvpgn_v3_bnetd_ipban_add(
     int sd,
     const char* ipaddr,
     unsigned long long endtime) noexcept {
@@ -104,7 +104,7 @@ extern "C" int pvpgn_v3_bnetd_ipban_add_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_ipban_unload_expired_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_ipban_unload_expired(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         kModule, "ipbanlist unload_expired observed", {});
     return 0;

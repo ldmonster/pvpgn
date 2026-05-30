@@ -22,6 +22,9 @@ cmake_minimum_required(VERSION 3.20)
 
 add_executable(pvpgn_migrate
     main.cpp
+    migrate_cli.cpp
+    migrate_accounts.cpp
+    migrate_config.cpp
 )
 
 # Apply v3 warning flags + C++20 standard

@@ -5,7 +5,7 @@
 /// Strangler-fig hook for the legacy `SERVER_AUTHREPLY_109` (0x51)
 /// reply emission (used by Diablo II 1.09 and later auth flow).
 /// Builds the on-wire bytes via `protocol::common::Writer` and
-/// ships them through `pvpgn_v3_send_packet_try`.
+/// ships them through `pvpgn_v3_send_packet`.
 
 #include <cstdint>
 

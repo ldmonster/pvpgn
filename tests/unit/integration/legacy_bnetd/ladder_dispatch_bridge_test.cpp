@@ -63,7 +63,7 @@ TEST_CASE("ladder dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][ladder_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ladder_dispatch_try(nullptr,
+    REQUIRE(::pvpgn_v3_ladder_dispatch(nullptr,
                                             "ladderreq") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -73,7 +73,7 @@ TEST_CASE("ladder dispatch bridge logs ladderreq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ladder_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_ladder_dispatch(&marker,
                                             "ladderreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_ladder_dispatch_bridge");
@@ -86,7 +86,7 @@ TEST_CASE("ladder dispatch bridge logs laddersearchreq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ladder_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_ladder_dispatch(&marker,
                                             "laddersearchreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "laddersearchreq");
@@ -97,7 +97,7 @@ TEST_CASE("ladder dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ladder_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_ladder_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

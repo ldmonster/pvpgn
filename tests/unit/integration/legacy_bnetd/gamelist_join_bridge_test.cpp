@@ -65,7 +65,7 @@ TEST_CASE("gamelistreq bridge null-conn is no-op",
           "[integration][legacy_bnetd][gamelist_join_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_gamelistreq_try(nullptr, "g", 0u) == 0);
+    REQUIRE(::pvpgn_v3_gamelistreq(nullptr, "g", 0u) == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -74,7 +74,7 @@ TEST_CASE("gamelistreq bridge public_list scope",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_gamelistreq_try(&marker, "", 0x0a) == 0);
+    REQUIRE(::pvpgn_v3_gamelistreq(&marker, "", 0x0a) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module == "v3_gamelist_join_bridge");
@@ -89,7 +89,7 @@ TEST_CASE("gamelistreq bridge specific scope",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_gamelistreq_try(&marker, "MyGame", 0x4) == 0);
+    REQUIRE(::pvpgn_v3_gamelistreq(&marker, "MyGame", 0x4) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "scope") == "specific");
     REQUIRE(field_value(sink.records[0], "game")  == "MyGame");
@@ -100,7 +100,7 @@ TEST_CASE("gamelistreq bridge null gamename -> public_list",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_gamelistreq_try(&marker, nullptr, 0u) == 0);
+    REQUIRE(::pvpgn_v3_gamelistreq(&marker, nullptr, 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "scope") == "public_list");
 }
@@ -109,7 +109,7 @@ TEST_CASE("joingame bridge null-conn is no-op",
           "[integration][legacy_bnetd][gamelist_join_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_joingame_try(nullptr, "g") == 0);
+    REQUIRE(::pvpgn_v3_joingame(nullptr, "g") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -118,7 +118,7 @@ TEST_CASE("joingame bridge happy path",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_joingame_try(&marker, "BNet") == 0);
+    REQUIRE(::pvpgn_v3_joingame(&marker, "BNet") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module == "v3_gamelist_join_bridge");
@@ -131,7 +131,7 @@ TEST_CASE("joingame bridge null gamename",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_joingame_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_joingame(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "game").empty());
 }

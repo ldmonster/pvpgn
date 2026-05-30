@@ -58,7 +58,52 @@ namespace pvpgn
 #endif
 
 #include <fmt/format.h>
-#include "common/fmt_compat.h"
+#include <cstddef>
+#include <type_traits>
+
+#if FMT_VERSION >= 90000
+    /* Wrap a non-constexpr format string so modern fmt accepts it
+       without applying compile-time format-string checking. */
+    #define PVPGN_FMT_RUNTIME(s) ::fmt::runtime(s)
+
+    namespace fmt {
+        /* Generic formatter for any enum: forwards to the underlying
+           integer type's formatter. */
+        template <typename E>
+        struct formatter<E, char, typename std::enable_if<std::is_enum<E>::value>::type>
+            : formatter<typename std::underlying_type<E>::type, char>
+        {
+            template <typename FormatContext>
+            auto format(E e, FormatContext& ctx) const
+                -> decltype(ctx.out())
+            {
+                return formatter<typename std::underlying_type<E>::type, char>::format(
+                    static_cast<typename std::underlying_type<E>::type>(e), ctx);
+            }
+        };
+
+        /* Legacy d2dbs / bnetd code stores IP-as-string in
+           `unsigned char[16]` fields and logs them through {} format
+           specifiers. These specializations forward to the const-char*
+           formatter so the buffer is rendered as a NUL-terminated C string. */
+        template <std::size_t N>
+        struct formatter<unsigned char[N], char>
+            : formatter<const char*, char>
+        {
+            template <typename FormatContext>
+            auto format(const unsigned char (&arr)[N], FormatContext& ctx) const
+                -> decltype(ctx.out())
+            {
+                return formatter<const char*, char>::format(
+                    reinterpret_cast<const char*>(arr), ctx);
+            }
+        };
+    }
+#else
+    /* Old vendored fmt v5: format strings are accepted as-is, and
+       enums already format implicitly via their underlying type. */
+    #define PVPGN_FMT_RUNTIME(s) (s)
+#endif
 
 namespace pvpgn
 {

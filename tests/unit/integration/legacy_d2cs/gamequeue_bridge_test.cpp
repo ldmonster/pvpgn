@@ -57,7 +57,7 @@ TEST_CASE("d2cs gqlist create bridge logs at debug",
           "[integration][legacy_d2cs][gamequeue_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_gqlist_create_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_gqlist_create() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -70,7 +70,7 @@ TEST_CASE("d2cs gqlist destroy bridge logs at debug",
           "[integration][legacy_d2cs][gamequeue_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_gqlist_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_gqlist_destroy() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2cs_gamequeue_bridge");
@@ -82,9 +82,9 @@ TEST_CASE("d2cs gqlist bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_gqlist_create_try() == 0);
+        REQUIRE(::pvpgn_v3_d2cs_gqlist_create() == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_gqlist_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_gqlist_destroy() == 0);
     REQUIRE(sink.records.size() == before);
 }

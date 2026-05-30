@@ -52,7 +52,7 @@ using protocol::bnet::serialize_findanongame_reply;
 
 TEST_CASE("strangler parity: clan_profile bridge bytes equal legacy stub",
           "[integration][strangler][parity][golden]") {
-    // Mirrors `pvpgn_v3_clan_profile_try`'s construction for an
+    // Mirrors `pvpgn_v3_clan_profile`'s construction for an
     // arbitrary echo count.
     AnonGameClanProfileReply reply{};
     reply.count    = 0xCAFEBABEu;

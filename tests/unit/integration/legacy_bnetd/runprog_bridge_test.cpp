@@ -69,7 +69,7 @@ TEST_CASE("runprog open bridge logs command",
           "[integration][legacy_bnetd][runprog_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_runprog_open_try(
+    REQUIRE(::pvpgn_v3_runprog_open(
         "/usr/local/bin/pvpgn-ad-pick") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
@@ -83,7 +83,7 @@ TEST_CASE("runprog open bridge null command",
           "[integration][legacy_bnetd][runprog_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_runprog_open_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_runprog_open(nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "command").empty());
 }
@@ -92,7 +92,7 @@ TEST_CASE("runprog close bridge logs",
           "[integration][legacy_bnetd][runprog_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_runprog_close_try() == 0);
+    REQUIRE(::pvpgn_v3_runprog_close() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_runprog_bridge");

@@ -11,7 +11,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_news_load_try(char const* filename) noexcept {
+extern "C" int pvpgn_v3_news_load(char const* filename) noexcept {
     std::string_view name = (filename != nullptr)
                                 ? std::string_view{filename}
                                 : std::string_view{};
@@ -25,7 +25,7 @@ extern "C" int pvpgn_v3_news_load_try(char const* filename) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_news_unload_try(void) noexcept {
+extern "C" int pvpgn_v3_news_unload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_news_bridge",
         "news unload observed",

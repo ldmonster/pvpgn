@@ -65,7 +65,7 @@ TEST_CASE("d2cs d2gslist create bridge logs at debug",
           "[integration][legacy_d2cs][d2gs_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_d2gslist_create_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_d2gslist_create() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -78,7 +78,7 @@ TEST_CASE("d2cs d2gslist destroy bridge logs at debug",
           "[integration][legacy_d2cs][d2gs_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_d2gslist_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_d2gslist_destroy() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2cs_d2gs_bridge");
@@ -90,7 +90,7 @@ TEST_CASE("d2cs d2gslist reload bridge logs gslist string",
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
     const char* gslist = "10.0.0.1:6113,10.0.0.2:6113";
-    REQUIRE(::pvpgn_v3_d2cs_d2gslist_reload_try(gslist) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_d2gslist_reload(gslist) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.message == "d2gslist reload observed");
@@ -102,7 +102,7 @@ TEST_CASE("d2cs d2gslist reload bridge handles null gslist",
           "[integration][legacy_d2cs][d2gs_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_d2gslist_reload_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_d2gslist_reload(nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records.front(), "gslist") == "<null>");
 }
@@ -112,9 +112,9 @@ TEST_CASE("d2cs d2gslist bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_d2gslist_create_try() == 0);
+        REQUIRE(::pvpgn_v3_d2cs_d2gslist_create() == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_d2gslist_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_d2gslist_destroy() == 0);
     REQUIRE(sink.records.size() == before);
 }

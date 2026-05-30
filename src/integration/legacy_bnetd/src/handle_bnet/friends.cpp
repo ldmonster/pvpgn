@@ -8,7 +8,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_friendslistreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_friends_dispatch_try(c, "friendslistreq");
+			(void)pvpgn_v3_friends_dispatch(c, "friendslistreq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_friendslistreq)) {
@@ -157,7 +157,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_friendinforeq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_friends_dispatch_try(c, "friendinforeq");
+			(void)pvpgn_v3_friends_dispatch(c, "friendinforeq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_friendinforeq)) {

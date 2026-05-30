@@ -413,6 +413,12 @@ pvpgn_v3_add_library(protocol_bnet
         protocol/bnet/src/codec/codec_legacy_ols.cpp
         protocol/bnet/src/codec/codec_w3.cpp
         protocol/bnet/src/fsm.cpp
+        # R-split: fsm.cpp (914 LOC) split by state group into focused sub-TUs
+        protocol/bnet/src/fsm/fsm_auth.cpp   # Init→AuthInfoReceived→LoggedIn + legacy OLS
+        protocol/bnet/src/fsm/fsm_chat.cpp   # InChat: channel/chat/friends/realm/ladder
+        protocol/bnet/src/fsm/fsm_game.cpp   # InGame: start/join/close game, map auth
+        protocol/bnet/src/fsm/fsm_clan.cpp   # Clan + ArrangedTeam handlers
+        protocol/bnet/src/fsm/fsm_misc.cpp   # Advisory/no-op handlers
         protocol/bnet/src/anongame.cpp
         protocol/bnet/src/anongame_tags.cpp
         protocol/bnet/src/event_dispatcher.cpp
@@ -442,9 +448,14 @@ pvpgn_v3_add_library(protocol_irc
     SOURCES
         protocol/irc/src/codec.cpp
         protocol/irc/src/fsm.cpp
+        # R-split: fsm.cpp (717 LOC) split by concern into focused sub-TUs
+        protocol/irc/src/fsm/irc_registration.cpp  # try_complete_registration, on_pass/nick/user
+        protocol/irc/src/fsm/irc_commands.cpp       # on_ping/quit/motd/join/part/privmsg/notice/away/whois/who/mode/topic/names/kick/list
         protocol/irc/src/bridge_fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/irc/include
+    PRIVATE_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/protocol/irc/src
     PUBLIC_DEPS
         core
         protocol_common
@@ -504,6 +515,10 @@ pvpgn_v3_add_library(protocol_d2cs
     SOURCES
         protocol/d2cs/src/codec.cpp
         protocol/d2cs/src/fsm.cpp
+        # R-split: fsm.cpp (841 LOC) split by concern into focused sub-TUs
+        protocol/d2cs/src/fsm/d2cs_io.cpp       # read_cstring / read_u*le / push_* helpers
+        protocol/d2cs/src/fsm/d2cs_handlers.cpp # handle_* methods (one per D2CS opcode)
+        protocol/d2cs/src/fsm/d2cs_builders.cpp # make_* packet-builder methods
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/d2cs/include
     PUBLIC_DEPS
@@ -567,9 +582,14 @@ pvpgn_v3_add_library(protocol_wol
     STATIC
     SOURCES
         protocol/wol/src/wol_fsm.cpp
+        # R-split: wol_fsm.cpp (625 LOC) split by concern into focused sub-TUs
+        protocol/wol/src/wol_fsm/wol_auth.cpp  # on_nick, on_user, on_pass, try_authenticate
+        protocol/wol/src/wol_fsm/wol_chat.cpp  # on_ping, on_quit, on_list, on_join, on_part, on_privmsg
         protocol/wol/src/codec.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/wol/include
+    PRIVATE_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/protocol/wol/src
     PUBLIC_DEPS
         core
         protocol_common
@@ -1241,8 +1261,10 @@ pvpgn_v3_add_library(infra_session
 # Adapts the legacy `pvpgn::bnet_hash` (broken-SHA-1) implementation
 # to the v3 `IPasswordHasher` port. Linked against the legacy
 # `common` library so we never reimplement the algorithm.
+# R-strangler: PVPGN_BUILD_LEGACY removed; infra_legacy_crypto is now
+# always built when the `common` target exists (legacy tree present).
 
-if(PVPGN_BUILD_LEGACY)
+if(TARGET common)
     pvpgn_v3_add_library(infra_legacy_crypto
         STATIC
         SOURCES
@@ -1421,7 +1443,7 @@ pvpgn_v3_add_library(integration_legacy_bnetd
 #
 # Dispatcher-only scaffold for the d2cs server, mirroring the
 # legacy_bnetd pattern. Provides the v3->legacy send_packet
-# C ABI (`pvpgn_v3_d2cs_send_packet_try`) and a runtime-pluggable
+# C ABI (`pvpgn_v3_d2cs_send_packet`) and a runtime-pluggable
 # handler. The linked half (which would call legacy
 # `packet_create(packet_class_d2cs)` + `conn_d2cs_outqueue`) is
 # deferred to a future round, pending extraction of a

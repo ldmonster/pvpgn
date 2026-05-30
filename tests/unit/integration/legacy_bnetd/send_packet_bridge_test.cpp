@@ -66,7 +66,7 @@ TEST_CASE("send_packet_try returns 0 when no handler is installed",
 
     int conn_marker = 0;
     unsigned char buf[1] = {0xff};
-    REQUIRE(::pvpgn_v3_send_packet_try(&conn_marker, buf, 1) == 0);
+    REQUIRE(::pvpgn_v3_send_packet(&conn_marker, buf, 1) == 0);
 
     ila::set_send_packet_handler(saved);
 }
@@ -75,7 +75,7 @@ TEST_CASE("send_packet_try rejects null conn pointer",
           "[integration][legacy_bnetd][send_packet_bridge]") {
     ScopedHandler scope;
     unsigned char buf[4] = {1, 2, 3, 4};
-    REQUIRE(::pvpgn_v3_send_packet_try(nullptr, buf, 4) == 0);
+    REQUIRE(::pvpgn_v3_send_packet(nullptr, buf, 4) == 0);
     REQUIRE(FakeSink::call_count == 0);
 }
 
@@ -83,7 +83,7 @@ TEST_CASE("send_packet_try rejects null byte pointer",
           "[integration][legacy_bnetd][send_packet_bridge]") {
     ScopedHandler scope;
     int conn_marker = 0;
-    REQUIRE(::pvpgn_v3_send_packet_try(&conn_marker, nullptr, 4) == 0);
+    REQUIRE(::pvpgn_v3_send_packet(&conn_marker, nullptr, 4) == 0);
     REQUIRE(FakeSink::call_count == 0);
 }
 
@@ -92,7 +92,7 @@ TEST_CASE("send_packet_try rejects zero size",
     ScopedHandler scope;
     int conn_marker = 0;
     unsigned char buf[1] = {0};
-    REQUIRE(::pvpgn_v3_send_packet_try(&conn_marker, buf, 0u) == 0);
+    REQUIRE(::pvpgn_v3_send_packet(&conn_marker, buf, 0u) == 0);
     REQUIRE(FakeSink::call_count == 0);
 }
 
@@ -101,7 +101,7 @@ TEST_CASE("send_packet_try rejects oversize payloads",
     ScopedHandler scope;
     int conn_marker = 0;
     std::vector<unsigned char> buf(ila::kSendPacketMaxSize + 1u, 0xaa);
-    REQUIRE(::pvpgn_v3_send_packet_try(
+    REQUIRE(::pvpgn_v3_send_packet(
                 &conn_marker, buf.data(),
                 static_cast<unsigned int>(buf.size())) == 0);
     REQUIRE(FakeSink::call_count == 0);
@@ -114,7 +114,7 @@ TEST_CASE("send_packet_try forwards a valid payload verbatim",
     unsigned char buf[] = {0xde, 0xad, 0xbe, 0xef, 0x00, 0x01, 0x02};
     FakeSink::return_value = 1;
 
-    const int rc = ::pvpgn_v3_send_packet_try(
+    const int rc = ::pvpgn_v3_send_packet(
         &conn_marker, buf, static_cast<unsigned int>(sizeof(buf)));
     REQUIRE(rc == 1);
     REQUIRE(FakeSink::call_count == 1);
@@ -131,7 +131,7 @@ TEST_CASE("send_packet_try forwards exactly at the size boundary",
     std::vector<unsigned char> buf(ila::kSendPacketMaxSize, 0x5a);
     FakeSink::return_value = 1;
 
-    const int rc = ::pvpgn_v3_send_packet_try(
+    const int rc = ::pvpgn_v3_send_packet(
         &conn_marker, buf.data(),
         static_cast<unsigned int>(buf.size()));
     REQUIRE(rc == 1);
@@ -147,6 +147,6 @@ TEST_CASE("send_packet_try propagates handler failure return code",
     unsigned char buf[3] = {1, 2, 3};
     FakeSink::return_value = 0;  // simulate legacy enqueue failure
 
-    REQUIRE(::pvpgn_v3_send_packet_try(&conn_marker, buf, 3) == 0);
+    REQUIRE(::pvpgn_v3_send_packet(&conn_marker, buf, 3) == 0);
     REQUIRE(FakeSink::call_count == 1);
 }

@@ -65,7 +65,7 @@ TEST_CASE("charlock init bridge logs sizing",
           "[integration][legacy_d2dbs][charlock_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_charlock_init_try(65000u, 32u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_charlock_init(65000u, 32u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2dbs_charlock_bridge");
@@ -78,7 +78,7 @@ TEST_CASE("charlock init bridge zero arguments",
           "[integration][legacy_d2dbs][charlock_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_charlock_init_try(0u, 0u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_charlock_init(0u, 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "tbllen") == "0");
     REQUIRE(field_value(sink.records[0], "maxgs")  == "0");
@@ -88,7 +88,7 @@ TEST_CASE("charlock destroy bridge logs",
           "[integration][legacy_d2dbs][charlock_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_charlock_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_charlock_destroy() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2dbs_charlock_bridge");

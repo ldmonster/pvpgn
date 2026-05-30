@@ -63,7 +63,7 @@ TEST_CASE("progident dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][progident_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_progident_dispatch_try(nullptr,
+    REQUIRE(::pvpgn_v3_progident_dispatch(nullptr,
                                                "progident") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -73,7 +73,7 @@ TEST_CASE("progident dispatch bridge logs progident",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_progident_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_progident_dispatch(&marker,
                                                "progident") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module
@@ -88,7 +88,7 @@ TEST_CASE("progident dispatch bridge logs progident2",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_progident_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_progident_dispatch(&marker,
                                                "progident2") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "progident2");
@@ -99,7 +99,7 @@ TEST_CASE("progident dispatch bridge logs changeclient",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_progident_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_progident_dispatch(&marker,
                                                "changeclient") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "changeclient");
@@ -110,7 +110,7 @@ TEST_CASE("progident dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_progident_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_progident_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

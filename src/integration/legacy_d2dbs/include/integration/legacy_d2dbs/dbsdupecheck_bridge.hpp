@@ -14,5 +14,5 @@
 /// the real scanner; the bridge MUST NOT inspect the data buffer
 /// (it may contain unsanitised wire bytes).
 
-extern "C" int pvpgn_v3_d2dbs_dupecheck_try(
+extern "C" int pvpgn_v3_d2dbs_dupecheck(
     char const* data, unsigned int datalen) noexcept;

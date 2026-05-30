@@ -9,7 +9,7 @@
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 
-extern "C" int pvpgn_v3_d2cs_sqlist_create_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_sqlist_create(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_serverqueue_bridge",
         "sqlist create observed",
@@ -17,7 +17,7 @@ extern "C" int pvpgn_v3_d2cs_sqlist_create_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_sqlist_destroy_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_sqlist_destroy(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_serverqueue_bridge",
         "sqlist destroy observed",

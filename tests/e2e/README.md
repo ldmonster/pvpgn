@@ -1,12 +1,12 @@
 # E2E Tests
 
-End-to-end tests drive a real `bnetd-v3` instance using the actual client tools
+End-to-end tests drive a real `bnetd` instance using the actual client tools
 (`bnbot`, `bnchat`, `bnftp`, `bnstat`).
 
 ## Running
 
 ```bash
-# Start bnetd-v3 first (e.g. via docker-compose)
+# Start bnetd first (e.g. via docker-compose)
 docker-compose -f docker-compose.v3.yml up -d bnetd
 
 # Run e2e tests

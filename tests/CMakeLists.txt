@@ -5,13 +5,13 @@
 #   unit/        — per-class/per-function; no I/O, no network, no Lua
 #   functional/  — single use-case with InMemory infra adapters
 #   integration/ — real infra adapters (SQLite, Asio loopback); opt-in
-#   e2e/         — real bnetd-v3 + real client tools; opt-in
+#   e2e/         — real bnetd + real client tools; opt-in
 #   fuzz/        — libFuzzer targets; opt-in
 #
 # CMake options:
 #   PVPGN_V3_BUILD_TESTS=ON         (default: ON in dev/asan/tsan/coverage presets)
 #   PVPGN_V3_INTEGRATION_TESTS=ON   (default: OFF; requires real infra)
-#   PVPGN_V3_E2E_TESTS=ON           (default: OFF; requires running bnetd-v3)
+#   PVPGN_V3_E2E_TESTS=ON           (default: OFF; requires running bnetd)
 #   PVPGN_V3_FUZZ_TESTS=ON          (default: OFF; requires clang + libFuzzer)
 
 add_subdirectory(unit)

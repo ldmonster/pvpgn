@@ -69,7 +69,7 @@ TEST_CASE("aliasfile load bridge logs filename at Info",
           "[integration][legacy_bnetd][alias_command_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_aliasfile_load_try("/etc/pvpgn/bnalias.conf") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_aliasfile_load("/etc/pvpgn/bnalias.conf") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Info);
@@ -83,7 +83,7 @@ TEST_CASE("aliasfile load tolerates null filename",
           "[integration][legacy_bnetd][alias_command_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_aliasfile_load_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_aliasfile_load(nullptr) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "filename")}
             == "<null>");
 }
@@ -92,7 +92,7 @@ TEST_CASE("aliasfile unload bridge logs at Info",
           "[integration][legacy_bnetd][alias_command_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_aliasfile_unload_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_aliasfile_unload() == 0);
     REQUIRE(std::string{sink.records.front().message}
             == "aliasfile unload observed");
 }
@@ -101,7 +101,7 @@ TEST_CASE("handle_alias_command bridge logs sd and text at Debug",
           "[integration][legacy_bnetd][alias_command_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_handle_alias_command_try(11, "/away brb") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_handle_alias_command(11, "/away brb") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Debug);
@@ -114,7 +114,7 @@ TEST_CASE("handle_alias_command encodes null sentinel and null text",
           "[integration][legacy_bnetd][alias_command_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_handle_alias_command_try(-1, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_handle_alias_command(-1, nullptr) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "sd")}   == "-1");
     REQUIRE(std::string{field_value(sink.records.front(), "text")} == "<null>");
 }
@@ -125,7 +125,7 @@ TEST_CASE("command_groups load bridge logs filename at Info",
           "[integration][legacy_bnetd][command_groups_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_command_groups_load_try(
+    REQUIRE(::pvpgn_v3_bnetd_command_groups_load(
                 "/etc/pvpgn/command_groups.conf") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
@@ -140,7 +140,7 @@ TEST_CASE("command_groups unload bridge logs at Info",
           "[integration][legacy_bnetd][command_groups_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_command_groups_unload_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_command_groups_unload() == 0);
     REQUIRE(std::string{sink.records.front().message}
             == "command_groups unload observed");
 }
@@ -149,7 +149,7 @@ TEST_CASE("command_groups reload bridge logs filename at Info",
           "[integration][legacy_bnetd][command_groups_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_command_groups_reload_try("cg.conf") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_command_groups_reload("cg.conf") == 0);
     REQUIRE(std::string{sink.records.front().message}
             == "command_groups reload observed");
     REQUIRE(std::string{field_value(sink.records.front(), "filename")}
@@ -162,7 +162,7 @@ TEST_CASE("anongame_maplists create bridge logs at Info",
           "[integration][legacy_bnetd][anongame_maplists_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_anongame_maplists_create_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_anongame_maplists_create() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Info);
@@ -176,7 +176,7 @@ TEST_CASE("anongame_maplists destroy bridge logs at Info",
           "[integration][legacy_bnetd][anongame_maplists_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_anongame_maplists_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_anongame_maplists_destroy() == 0);
     REQUIRE(std::string{sink.records.front().message}
             == "anongame_maplists destroy observed");
 }
@@ -185,7 +185,7 @@ TEST_CASE("anongame_tournament_maplists destroy bridge logs at Info",
           "[integration][legacy_bnetd][anongame_maplists_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_anongame_tournament_maplists_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_anongame_tournament_maplists_destroy() == 0);
     REQUIRE(std::string{sink.records.front().message}
             == "anongame_tournament_maplists destroy observed");
 }
@@ -196,7 +196,7 @@ TEST_CASE("handle_udp_packet bridge logs all fields at Trace",
           "[integration][legacy_bnetd][handle_udp_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_handle_udp_packet_try(
+    REQUIRE(::pvpgn_v3_bnetd_handle_udp_packet(
                 42, 0xC0A80101u, 6112u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();

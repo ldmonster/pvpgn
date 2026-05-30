@@ -7,7 +7,7 @@
 // These packets are sent over the bnetd↔D2CS link protocol using
 // packet_class_d2cs_bnetd.  The v3 D2CS-bnetd link encoder is not yet
 // complete.  When the encoder is ready, each function can be upgraded to
-// encode and send the packet via pvpgn_v3_send_packet_try.
+// encode and send the packet via pvpgn_v3_send_packet.
 //
 // Packet types:
 //   BNETD_D2CS_AUTHREQ          - bnetd initiates auth handshake with d2cs

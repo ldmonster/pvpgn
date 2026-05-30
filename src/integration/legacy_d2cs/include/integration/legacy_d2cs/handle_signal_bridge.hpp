@@ -13,6 +13,6 @@
 /// Contract: always return 0 -- legacy MUST fall through and run the
 /// real body.
 
-extern "C" int pvpgn_v3_d2cs_handle_signal_init_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_handle_signal_init(void) noexcept;
 
-extern "C" int pvpgn_v3_d2cs_handle_signal_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_handle_signal(void) noexcept;

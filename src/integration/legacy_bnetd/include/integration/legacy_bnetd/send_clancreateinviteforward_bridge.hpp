@@ -7,7 +7,7 @@
 /// prospective clan member during clan creation.
 ///
 /// `pvpgn_v3_send_clancreateinviteforward` encodes a `ClanCreateInviteForward`
-/// via the v3 codec and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// via the v3 codec and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (server → invited member):
 ///   header(4) + cookie(4) + clan_tag(4) + clan_name(cstr) +

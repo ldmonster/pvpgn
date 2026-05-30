@@ -27,11 +27,11 @@ extern "C" {
 // Returns 0 -- both bridges are observation-only; the legacy state
 // machine always continues. A non-zero return is reserved for a
 // future opt-in v3 take-over of the join logic.
-int pvpgn_v3_joinchannel_try(void* conn_ptr,
+int pvpgn_v3_joinchannel(void* conn_ptr,
                              char const* channel_name,
                              unsigned int flag);
 
-int pvpgn_v3_leavechannel_try(void* conn_ptr);
+int pvpgn_v3_leavechannel(void* conn_ptr);
 
 #ifdef __cplusplus
 }

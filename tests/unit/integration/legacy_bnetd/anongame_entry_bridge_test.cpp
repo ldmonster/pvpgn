@@ -65,7 +65,7 @@ TEST_CASE("anongame entry bridge null-conn is no-op",
           "[integration][legacy_bnetd][anongame_entry_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_anongame_entry_try(nullptr, "search") == 0);
+    REQUIRE(::pvpgn_v3_anongame_entry(nullptr, "search") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -74,8 +74,8 @@ TEST_CASE("anongame entry bridge logs kind",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_anongame_entry_try(&marker, "search") == 0);
-    REQUIRE(::pvpgn_v3_anongame_entry_try(&marker, "join")   == 0);
+    REQUIRE(::pvpgn_v3_anongame_entry(&marker, "search") == 0);
+    REQUIRE(::pvpgn_v3_anongame_entry(&marker, "join")   == 0);
     REQUIRE(sink.records.size() == 2u);
     REQUIRE(sink.records[0].module  == "v3_anongame_entry_bridge");
     REQUIRE(sink.records[0].message == "anongame entry observed");
@@ -88,7 +88,7 @@ TEST_CASE("anongame entry bridge null kind -> ?",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_anongame_entry_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_anongame_entry(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "kind") == "?");
 }

@@ -9,7 +9,7 @@
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 
-extern "C" int pvpgn_v3_d2cs_handle_signal_init_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_handle_signal_init(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_signal_bridge",
         "signal init observed",
@@ -17,7 +17,7 @@ extern "C" int pvpgn_v3_d2cs_handle_signal_init_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_handle_signal_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_handle_signal(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Trace,
         "v3_d2cs_signal_bridge",
         "signal dispatch observed",

@@ -63,7 +63,7 @@ TEST_CASE("d2 character dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][d2_character_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2_character_dispatch_try(nullptr,
+    REQUIRE(::pvpgn_v3_d2_character_dispatch(nullptr,
                                                   "charlistreq") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -73,7 +73,7 @@ TEST_CASE("d2 character dispatch bridge logs charlistreq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2_character_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_d2_character_dispatch(&marker,
                                                   "charlistreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module
@@ -88,7 +88,7 @@ TEST_CASE("d2 character dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2_character_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_d2_character_dispatch(&marker,
                                                   nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
@@ -99,7 +99,7 @@ TEST_CASE("d2 character dispatch bridge empty op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2_character_dispatch_try(&marker, "") == 0);
+    REQUIRE(::pvpgn_v3_d2_character_dispatch(&marker, "") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

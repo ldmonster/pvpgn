@@ -7,7 +7,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_server_dispatch_try(void* opaque, char const* op) noexcept {
+extern "C" int pvpgn_v3_server_dispatch(void* opaque, char const* op) noexcept {
     (void)opaque;  // server-level observation is keyed only by op.
     std::string_view op_sv = (op != nullptr) ? std::string_view{op} : std::string_view{"?"};
     if (op_sv.empty()) op_sv = std::string_view{"?"};

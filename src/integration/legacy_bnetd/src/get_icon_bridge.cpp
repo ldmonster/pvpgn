@@ -100,7 +100,7 @@ bool dispatch_one_frame(void*                          conn_ptr,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_get_icon_try(
+extern "C" int pvpgn_v3_get_icon(
     void* conn_ptr, void const* body, unsigned int body_size) {
     if (conn_ptr == nullptr || body == nullptr || body_size == 0) return 0;
     auto* conn = static_cast<pvpgn::bnetd::t_connection*>(conn_ptr);

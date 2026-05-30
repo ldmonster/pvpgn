@@ -57,7 +57,7 @@ TEST_CASE("signal init bridge logs",
           "[integration][legacy_d2dbs][signal_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_handle_signal_init_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_handle_signal_init() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2dbs_signal_bridge");
@@ -69,7 +69,7 @@ TEST_CASE("signal dispatch bridge logs",
           "[integration][legacy_d2dbs][signal_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_handle_signal_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_handle_signal() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2dbs_signal_bridge");
@@ -81,8 +81,8 @@ TEST_CASE("signal bridges return 0 (legacy fallthrough)",
           "[integration][legacy_d2dbs][signal_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_handle_signal_init_try() == 0);
-    REQUIRE(::pvpgn_v3_d2dbs_handle_signal_try() == 0);
-    REQUIRE(::pvpgn_v3_d2dbs_handle_signal_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_handle_signal_init() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_handle_signal() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_handle_signal() == 0);
     REQUIRE(sink.records.size() == 3u);
 }

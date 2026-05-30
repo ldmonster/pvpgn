@@ -34,7 +34,7 @@ std::string_view render_uint(std::array<char, 20>& buf,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_d2dbs_packet_handle_try(
+extern "C" int pvpgn_v3_d2dbs_packet_handle(
     int sd,
     unsigned int stats,
     unsigned int type) noexcept {
@@ -53,7 +53,7 @@ extern "C" int pvpgn_v3_d2dbs_packet_handle_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2dbs_check_timeout_try(void) noexcept {
+extern "C" int pvpgn_v3_d2dbs_check_timeout(void) noexcept {
     pld::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2dbs_dbspacket_bridge",
         "check_timeout observed",
@@ -61,7 +61,7 @@ extern "C" int pvpgn_v3_d2dbs_check_timeout_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2dbs_keepalive_try(void) noexcept {
+extern "C" int pvpgn_v3_d2dbs_keepalive(void) noexcept {
     pld::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2dbs_dbspacket_bridge",
         "keepalive observed",

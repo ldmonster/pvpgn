@@ -26,7 +26,7 @@ void install_change_password_handler();
 void install_login_user_handler();
 
 /// Installs the legacy-bnetd implementation of the v3
-/// `pvpgn_v3_send_packet_try` ABI (wraps bytes in a
+/// `pvpgn_v3_send_packet` ABI (wraps bytes in a
 /// `packet_class_raw` `t_packet` and pushes via
 /// `conn_push_outqueue`). No-op on second call. Must be available
 /// before any ported v3 handler attempts to reply through the

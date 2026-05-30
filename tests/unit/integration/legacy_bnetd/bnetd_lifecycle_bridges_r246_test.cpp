@@ -69,7 +69,7 @@ TEST_CASE("i18n load bridge logs at Info",
           "[integration][legacy_bnetd][i18n_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_i18n_load_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_i18n_load() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -81,7 +81,7 @@ TEST_CASE("i18n reload bridge logs at Info",
           "[integration][legacy_bnetd][i18n_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_i18n_reload_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_i18n_reload() == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(std::string{sink.records.front().message}
             == "i18n reload observed");
@@ -93,7 +93,7 @@ TEST_CASE("icons load bridge logs filename at Info",
           "[integration][legacy_bnetd][icons_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_icons_load_try("/etc/pvpgn/bnicons.conf") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_icons_load("/etc/pvpgn/bnicons.conf") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Info);
@@ -107,7 +107,7 @@ TEST_CASE("icons load tolerates null filename",
           "[integration][legacy_bnetd][icons_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_icons_load_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_icons_load(nullptr) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "filename")}
             == "<null>");
 }
@@ -116,7 +116,7 @@ TEST_CASE("icons unload bridge logs at Info",
           "[integration][legacy_bnetd][icons_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_icons_unload_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_icons_unload() == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(std::string{sink.records.front().message}
             == "customicons unload observed");
@@ -128,7 +128,7 @@ TEST_CASE("attrlayer init bridge logs at Debug",
           "[integration][legacy_bnetd][attrlayer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_attrlayer_init_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_attrlayer_init() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Debug);
@@ -140,7 +140,7 @@ TEST_CASE("attrlayer cleanup bridge logs at Debug",
           "[integration][legacy_bnetd][attrlayer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_attrlayer_cleanup_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_attrlayer_cleanup() == 0);
     REQUIRE(std::string{sink.records.front().message}
             == "attrlayer cleanup observed");
 }
@@ -149,7 +149,7 @@ TEST_CASE("attrlayer save bridge logs flags at Info",
           "[integration][legacy_bnetd][attrlayer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_attrlayer_save_try(7) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_attrlayer_save(7) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Info);
@@ -161,7 +161,7 @@ TEST_CASE("attrlayer flush bridge logs flags at Info",
           "[integration][legacy_bnetd][attrlayer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_attrlayer_flush_try(3) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_attrlayer_flush(3) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "flags")}
             == "3");
 }
@@ -172,7 +172,7 @@ TEST_CASE("tracker set_servers bridge logs servers at Info",
           "[integration][legacy_bnetd][tracker_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_tracker_set_servers_try(
+    REQUIRE(::pvpgn_v3_bnetd_tracker_set_servers(
                 "track.pvpgn.pro:6114") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
@@ -187,7 +187,7 @@ TEST_CASE("tracker set_servers tolerates null",
           "[integration][legacy_bnetd][tracker_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_tracker_set_servers_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_tracker_set_servers(nullptr) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "servers")}
             == "<null>");
 }
@@ -196,7 +196,7 @@ TEST_CASE("tracker send_report bridge logs at Trace",
           "[integration][legacy_bnetd][tracker_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_tracker_send_report_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_tracker_send_report() == 0);
     REQUIRE(sink.records.front().level
             == pvpgn::core::LogLevel::Trace);
     REQUIRE(std::string{sink.records.front().message}
@@ -209,7 +209,7 @@ TEST_CASE("team load bridge logs at Debug",
           "[integration][legacy_bnetd][team_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_team_load_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_team_load() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Debug);
@@ -221,7 +221,7 @@ TEST_CASE("team unload bridge logs at Debug",
           "[integration][legacy_bnetd][team_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_team_unload_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_team_unload() == 0);
     REQUIRE(std::string{sink.records.front().message}
             == "teamlist unload observed");
 }
@@ -232,7 +232,7 @@ TEST_CASE("udptest send bridge logs sd at Trace",
           "[integration][legacy_bnetd][udptest_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_udptest_send_try(42) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_udptest_send(42) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Trace);
@@ -245,7 +245,7 @@ TEST_CASE("udptest send bridge encodes null-connection sentinel",
           "[integration][legacy_bnetd][udptest_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_udptest_send_try(-1) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_udptest_send(-1) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "sd")}
             == "-1");
 }

@@ -26,7 +26,7 @@ extern "C" int pvpgn_v3_send_cdkeyreply(void* conn_ptr,
     if (bytes.empty()) return 0;
     if (bytes.size() > pvpgn::integration::legacy_bnetd::kSendPacketMaxSize)
         return 0;
-    return ::pvpgn_v3_send_packet_try(
+    return ::pvpgn_v3_send_packet(
         conn_ptr,
         bytes.data(),
         static_cast<unsigned int>(bytes.size()));
@@ -49,7 +49,7 @@ extern "C" int pvpgn_v3_send_cdkeyreply2(void* conn_ptr,
     if (bytes.empty()) return 0;
     if (bytes.size() > pvpgn::integration::legacy_bnetd::kSendPacketMaxSize)
         return 0;
-    return ::pvpgn_v3_send_packet_try(
+    return ::pvpgn_v3_send_packet(
         conn_ptr,
         bytes.data(),
         static_cast<unsigned int>(bytes.size()));
@@ -73,7 +73,7 @@ extern "C" int pvpgn_v3_send_cdkeyreply3(void* conn_ptr,
     if (bytes.empty()) return 0;
     if (bytes.size() > pvpgn::integration::legacy_bnetd::kSendPacketMaxSize)
         return 0;
-    return ::pvpgn_v3_send_packet_try(
+    return ::pvpgn_v3_send_packet(
         conn_ptr,
         bytes.data(),
         static_cast<unsigned int>(bytes.size()));

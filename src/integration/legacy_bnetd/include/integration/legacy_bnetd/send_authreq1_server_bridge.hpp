@@ -8,7 +8,7 @@
 /// versioncheck filename, and the checksum equation string.
 ///
 /// Builds the on-wire bytes via the v3 `encode(AuthReq1Server)` codec
-/// and ships them through `pvpgn_v3_send_packet_try`. No installer
+/// and ships them through `pvpgn_v3_send_packet`. No installer
 /// required — the bridge is a pure deterministic byte builder + dispatch.
 
 #include <cstdint>

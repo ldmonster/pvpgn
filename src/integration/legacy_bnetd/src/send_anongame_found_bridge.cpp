@@ -8,7 +8,7 @@
 //
 // Returning 0 causes the legacy code path to run unchanged.  When the v3
 // encoder is complete, this function can be upgraded to encode and send the
-// packet via pvpgn_v3_send_packet_try.
+// packet via pvpgn_v3_send_packet.
 
 extern "C" int pvpgn_v3_observe_anongame_found(void* /*conn_ptr*/) noexcept {
     // Observation-only: always fall back to legacy.

@@ -12,7 +12,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_userlog_init_try(void) noexcept {
+extern "C" int pvpgn_v3_userlog_init(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_userlog_bridge",
         "userlog init observed",
@@ -20,7 +20,7 @@ extern "C" int pvpgn_v3_userlog_init_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_userlog_append_try(char const* username,
+extern "C" int pvpgn_v3_userlog_append(char const* username,
                                             char const* text) noexcept {
     std::string_view user = (username != nullptr)
                                 ? std::string_view{username}

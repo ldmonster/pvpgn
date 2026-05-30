@@ -112,7 +112,7 @@ extern "C" int pvpgn_v3_send_clan_clanack(void*         conn_ptr,
                                       buf, sizeof(buf), &size) != 1) {
         return 0;
     }
-    return ::pvpgn_v3_send_packet_try(conn_ptr, buf, size);
+    return ::pvpgn_v3_send_packet(conn_ptr, buf, size);
 }
 
 extern "C" int pvpgn_v3_encode_clan_quitnotify(unsigned char  status,
@@ -134,5 +134,5 @@ extern "C" int pvpgn_v3_send_clan_quitnotify(void*         conn_ptr,
     if (pvpgn_v3_encode_clan_quitnotify(status, buf, sizeof(buf), &size) != 1) {
         return 0;
     }
-    return ::pvpgn_v3_send_packet_try(conn_ptr, buf, size);
+    return ::pvpgn_v3_send_packet(conn_ptr, buf, size);
 }

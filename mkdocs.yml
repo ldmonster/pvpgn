@@ -27,7 +27,9 @@ nav:
   - Operator Guide:
     - Building: operator/building.md
     - TOML Migration: operator/toml-migration.md
+    - TOML Schema Versioning: operator/toml-schema-versioning.md
   - Developer Guide:
+    - Extending PvPGN: developer/extending-pvpgn.md
     - Lua API v2: developer/lua-api-v2.md
     - Plugin Versioning: developer/plugin-versioning-guide.md
     - Sandbox Integration: developer/sandbox-integration-guide.md
@@ -38,13 +40,17 @@ nav:
     - Overview: reference/index.md
   - ADRs:
     - Template: adr/NNNN-template.md
+    - "0001 — TOML Configuration": adr/0001-use-toml-for-configuration.md
+    - "0002 — Hexagonal Architecture": adr/0002-hexagonal-architecture.md
+    - "0003 — Lua Plugin API v2": adr/0003-lua-plugin-api-v2.md
+    - "0004 — Strangler Fig Pattern": adr/0004-strangler-fig-pattern.md
+    - "0005 — Catch2 Test Framework": adr/0005-catch2-test-framework.md
   - History:
     - Alloc Survey: history/alloc-survey.md
     - Compat Survey: history/compat-survey.md
     - xalloc Migration: history/migration-xalloc-to-stl.md
     - fdwatch: history/fdwatch.md
     - Storage Backends: history/storage.md
-  - Progress: refactoring-progress.md
 
 markdown_extensions:
   - admonition

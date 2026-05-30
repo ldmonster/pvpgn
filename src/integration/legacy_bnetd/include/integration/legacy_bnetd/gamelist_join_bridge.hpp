@@ -14,9 +14,9 @@
 // composition. These bridges run before legacy mutates state and
 // always return 0 -- structured-log telemetry only at this slice.
 
-extern "C" int pvpgn_v3_gamelistreq_try(void* conn_ptr,
+extern "C" int pvpgn_v3_gamelistreq(void* conn_ptr,
                                         char const* gamename,
                                         unsigned int bngtype) noexcept;
 
-extern "C" int pvpgn_v3_joingame_try(void* conn_ptr,
+extern "C" int pvpgn_v3_joingame(void* conn_ptr,
                                      char const* gamename) noexcept;

@@ -57,7 +57,7 @@ TEST_CASE("d2cs server_process bridge logs at info",
           "[integration][legacy_d2cs][server_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_server_process_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_server_process() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -71,9 +71,9 @@ TEST_CASE("d2cs server_process bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_server_process_try() == 0);
+        REQUIRE(::pvpgn_v3_d2cs_server_process() == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_server_process_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_server_process() == 0);
     REQUIRE(sink.records.size() == before);
 }

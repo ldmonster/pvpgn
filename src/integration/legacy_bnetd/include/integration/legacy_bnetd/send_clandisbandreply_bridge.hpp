@@ -5,7 +5,7 @@
 /// Strangler-fig hook for SERVER_CLAN_DISBANDREPLY (SID_CLAN_DISBAND, 0x73).
 ///
 /// `pvpgn_v3_send_clandisbandreply` encodes a `ClanGenericResultReply` via
-/// the v3 codec and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// the v3 codec and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (server → client):
 ///   header(4) + cookie(4) + result(1)   — total 9 bytes.

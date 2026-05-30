@@ -8,7 +8,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_changegameport(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_gameport_dispatch_try(c, "changegameport");
+			(void)pvpgn_v3_gameport_dispatch(c, "changegameport");
 			if (packet_get_size(packet) < sizeof(t_client_changegameport)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad changegameport packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_changegameport), packet_get_size(packet));
 				return -1;
@@ -52,7 +52,7 @@ namespace pvpgn { namespace bnetd {
 			// v3 telemetry layer sees every JOINCHANNEL. Bridge always
 			// returns 0 -- legacy retains full ownership of the
 			// channel-state side effects.
-			(void)pvpgn_v3_joinchannel_try(
+			(void)pvpgn_v3_joinchannel(
 				c, cname,
 				static_cast<unsigned int>(bn_int_get(
 					packet->u.client_joinchannel.channelflag)));
@@ -163,7 +163,7 @@ namespace pvpgn { namespace bnetd {
 		int _client_leavechannel(t_connection * c, t_packet const *const packet)
 		{
 			// Observation-only: structured-log the leave intent.
-			(void)pvpgn_v3_leavechannel_try(c);
+			(void)pvpgn_v3_leavechannel(c);
 			/* If this user in a channel, notify everyone that the user has left */
 			if (conn_get_channel(c))
 				conn_part_channel(c);

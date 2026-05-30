@@ -34,7 +34,7 @@ std::string_view render_uint(std::array<char, 20>& buf,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_d2cs_net_socket_try(int type) noexcept {
+extern "C" int pvpgn_v3_d2cs_net_socket(int type) noexcept {
     std::array<char, 20> tbuf{};
     const pvpgn::core::ILogger::Field fields[] = {
         {"type", render_int(tbuf, type)},
@@ -46,7 +46,7 @@ extern "C" int pvpgn_v3_d2cs_net_socket_try(int type) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_net_check_connected_try(int sock) noexcept {
+extern "C" int pvpgn_v3_d2cs_net_check_connected(int sock) noexcept {
     std::array<char, 20> sbuf{};
     const pvpgn::core::ILogger::Field fields[] = {
         {"sock", render_int(sbuf, sock)},
@@ -58,7 +58,7 @@ extern "C" int pvpgn_v3_d2cs_net_check_connected_try(int sock) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_net_listen_try(
+extern "C" int pvpgn_v3_d2cs_net_listen(
     unsigned int ip,
     unsigned int port,
     int type) noexcept {

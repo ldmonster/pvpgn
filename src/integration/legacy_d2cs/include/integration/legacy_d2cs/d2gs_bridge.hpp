@@ -17,6 +17,6 @@
 /// Contract: always return 0 -- legacy MUST fall through and run the
 /// real body.
 
-extern "C" int pvpgn_v3_d2cs_d2gslist_create_try(void)  noexcept;
-extern "C" int pvpgn_v3_d2cs_d2gslist_destroy_try(void) noexcept;
-extern "C" int pvpgn_v3_d2cs_d2gslist_reload_try(const char* gslist) noexcept;
+extern "C" int pvpgn_v3_d2cs_d2gslist_create(void)  noexcept;
+extern "C" int pvpgn_v3_d2cs_d2gslist_destroy(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_d2gslist_reload(const char* gslist) noexcept;

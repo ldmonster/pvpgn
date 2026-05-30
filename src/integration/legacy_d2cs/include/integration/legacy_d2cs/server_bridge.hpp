@@ -13,4 +13,4 @@
 /// Contract: always returns 0 -- legacy MUST fall through and run the
 /// real `d2cs_server_process` body.
 
-extern "C" int pvpgn_v3_d2cs_server_process_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_server_process(void) noexcept;

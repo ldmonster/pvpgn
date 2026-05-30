@@ -4,7 +4,7 @@
 // pipeline.
 //
 // `bnetd_legacy` calls the C-linkage entry point
-// `pvpgn_v3_anongame_inforeply_try` from `handle_anongame.cpp`. We
+// `pvpgn_v3_anongame_inforeply` from `handle_anongame.cpp`. We
 // lazily build a per-process `AnonGameSnapshotCache` from
 // `prefs_get_anongame_infos_file()` + `prefs_get_mapsfile()`, then
 // run the v3 typed pipeline (parse -> resolve -> encode -> split into
@@ -153,7 +153,7 @@ bool dispatch_frames(void*                         conn_ptr,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_anongame_inforeply_try(
+extern "C" int pvpgn_v3_anongame_inforeply(
     void* conn_ptr, void const* body, unsigned int body_size) {
     if (conn_ptr == nullptr || body == nullptr || body_size == 0) return 0;
 

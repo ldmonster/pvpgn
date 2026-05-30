@@ -39,7 +39,7 @@ std::string_view render_int(std::array<char, 20>& buf, int v) noexcept {
 
 }  // namespace
 
-extern "C" int pvpgn_v3_d2dbs_server_main_try(void) noexcept {
+extern "C" int pvpgn_v3_d2dbs_server_main(void) noexcept {
     pld::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_d2dbs_server_bridge",
         "server main entry observed",
@@ -47,7 +47,7 @@ extern "C" int pvpgn_v3_d2dbs_server_main_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2dbs_server_shutdown_connection_try(
+extern "C" int pvpgn_v3_d2dbs_server_shutdown_connection(
     int sd,
     unsigned int serverid,
     unsigned int conn_type,

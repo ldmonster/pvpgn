@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# E2E tests — drive real bnetd-v3 via real client tools (bnbot, bnchat, bnftp, bnstat)
+# E2E tests — drive real bnetd via real client tools (bnbot, bnchat, bnftp, bnstat)
 #
 # These tests are driven by the shell scripts in scripts/:
 #   scripts/v3-e2e-bnbot-smoke.sh
@@ -8,7 +8,7 @@
 #   scripts/v3-e2e-bnstat-smoke.sh
 #
 # They are registered as CTest tests so they appear in ctest output.
-# Requires: PVPGN_V3_E2E_TESTS=ON and a running bnetd-v3 instance.
+# Requires: PVPGN_V3_E2E_TESTS=ON and a running bnetd instance.
 
 find_program(BASH_EXECUTABLE bash REQUIRED)
 

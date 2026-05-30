@@ -6,7 +6,7 @@
 /// been migrated to the v3 strangler-fig pipeline.
 ///
 /// The legacy `handle_command()` in `src/bnetd/command.cpp` calls
-/// `pvpgn_v3_command_dispatch_try()` for each incoming command. The
+/// `pvpgn_v3_command_dispatch()` for each incoming command. The
 /// bridge in `integration_legacy_bnetd_linked` adapts the legacy
 /// `t_connection*` world to this router. This header owns ONLY the
 /// pure decision logic: name normalisation, alias resolution, and the

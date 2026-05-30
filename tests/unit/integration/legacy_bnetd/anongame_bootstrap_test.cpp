@@ -209,7 +209,7 @@ TEST_CASE("anongame_bootstrap: unknown clienttag falls back to first entry",
 // compose_inforeply_bytes -- end-to-end "live bridge" exercise.
 //
 // These tests drive the same helper that
-// `pvpgn_v3_anongame_inforeply_try` calls in production, using a raw
+// `pvpgn_v3_anongame_inforeply` calls in production, using a raw
 // legacy-style packet body (no FF/SID/size BNet header -- just the
 // sub-option byte and the inforeq payload). They cover the full
 // vertical: parse -> resolve -> encode -> framed bytes ready to be

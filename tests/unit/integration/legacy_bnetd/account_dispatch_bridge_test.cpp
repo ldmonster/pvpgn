@@ -63,7 +63,7 @@ TEST_CASE("account dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][account_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_account_dispatch_try(nullptr,
+    REQUIRE(::pvpgn_v3_account_dispatch(nullptr,
                                              "createacctreq1") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -73,7 +73,7 @@ TEST_CASE("account dispatch bridge logs op",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_account_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_account_dispatch(&marker,
                                              "changepassreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_account_dispatch_bridge");
@@ -86,13 +86,13 @@ TEST_CASE("account dispatch bridge logs multiple ops in sequence",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_account_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_account_dispatch(&marker,
                                              "createaccountw3") == 0);
-    REQUIRE(::pvpgn_v3_account_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_account_dispatch(&marker,
                                              "createacctreq2") == 0);
-    REQUIRE(::pvpgn_v3_account_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_account_dispatch(&marker,
                                              "setemailreply") == 0);
-    REQUIRE(::pvpgn_v3_account_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_account_dispatch(&marker,
                                              "changeemailreq") == 0);
     REQUIRE(sink.records.size() == 4u);
     REQUIRE(field_value(sink.records[0], "op") == "createaccountw3");
@@ -106,7 +106,7 @@ TEST_CASE("account dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_account_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_account_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

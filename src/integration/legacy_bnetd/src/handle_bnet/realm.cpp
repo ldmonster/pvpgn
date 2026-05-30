@@ -8,7 +8,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_realmlistreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_realm_dispatch_try(c, "realmlistreq");
+			(void)pvpgn_v3_realm_dispatch(c, "realmlistreq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_realmlistreq)) {
@@ -36,7 +36,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_realmlistreq110(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_realm_dispatch_try(c, "realmlistreq110");
+			(void)pvpgn_v3_realm_dispatch(c, "realmlistreq110");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_realmlistreq_110)) {
@@ -60,7 +60,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_realmjoinreq109(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_realm_dispatch_try(c, "realmjoinreq109");
+			(void)pvpgn_v3_realm_dispatch(c, "realmjoinreq109");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_realmjoinreq_109)) {
@@ -239,7 +239,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_charlistreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_d2_character_dispatch_try(c, "charlistreq");
+			(void)pvpgn_v3_d2_character_dispatch(c, "charlistreq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_unknown_37)) {
@@ -341,7 +341,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_unknown39(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_stub_dispatch_try(c, "unknown39");
+			(void)pvpgn_v3_stub_dispatch(c, "unknown39");
 			if (packet_get_size(packet) < sizeof(t_client_unknown_39)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad UNKNOWN_39 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_unknown_39), packet_get_size(packet));
 				return -1;

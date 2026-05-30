@@ -7,7 +7,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_bot_dispatch_try(void* conn_ptr, char const* op) noexcept {
+extern "C" int pvpgn_v3_bot_dispatch(void* conn_ptr, char const* op) noexcept {
     if (conn_ptr == nullptr) return 0;
     std::string_view op_sv = (op != nullptr) ? std::string_view{op} : std::string_view{"?"};
     if (op_sv.empty()) op_sv = std::string_view{"?"};

@@ -5,7 +5,7 @@
 /// Strangler-fig hook for SERVER_MAPAUTHREPLY1 (SID_MAPAUTH1, 0x32).
 ///
 /// `pvpgn_v3_send_mapauthreply1` encodes a `MapAuthReply1` via the v3 codec
-/// and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (server → client):
 ///   header(4) + response(4)   — total 8 bytes.

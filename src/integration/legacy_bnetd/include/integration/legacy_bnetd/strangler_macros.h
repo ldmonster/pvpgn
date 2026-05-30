@@ -41,15 +41,15 @@
  * If a new bridge is added, also add a forward declaration below.
  */
 extern "C" {
-    int pvpgn_v3_clan_profile_try        (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
-    int pvpgn_v3_profile_try             (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
-    int pvpgn_v3_get_icon_try            (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
-    int pvpgn_v3_set_icon_try            (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
-    int pvpgn_v3_anongame_inforeply_try  (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
-    int pvpgn_v3_tournament_try          (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
-    int pvpgn_v3_change_password_try     (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
-    int pvpgn_v3_login_user_try          (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
-    int pvpgn_v3_chat_command_try        (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_clan_profile        (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_profile             (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_get_icon            (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_set_icon            (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_anongame_inforeply  (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_tournament          (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_change_password     (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_login_user          (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
+    int pvpgn_v3_chat_command        (void* conn_ptr, void const* body_ptr, unsigned int body_sz);
 }
 
 /* The macro now expands to a single `if(...) return 0;` -- no

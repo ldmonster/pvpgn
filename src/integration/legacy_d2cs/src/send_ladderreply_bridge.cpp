@@ -43,7 +43,7 @@ extern "C" int pvpgn_v3_d2cs_send_ladderreply(
             pvpgn::integration::legacy_d2cs::kSendPacketMaxSize) {
             return 0;
         }
-        const int rc = ::pvpgn_v3_d2cs_send_packet_try(
+        const int rc = ::pvpgn_v3_d2cs_send_packet(
             conn_ptr, p.bytes.data(),
             static_cast<unsigned int>(p.bytes.size()));
         if (rc != 1) return 0;

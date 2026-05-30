@@ -65,7 +65,7 @@ TEST_CASE("d2dbs packet_handle bridge logs sd/stats/type at trace",
           "[integration][legacy_d2dbs][dbspacket_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_packet_handle_try(11, 1u, 7u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_packet_handle(11, 1u, 7u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Trace);
@@ -81,7 +81,7 @@ TEST_CASE("d2dbs check_timeout bridge logs at debug",
           "[integration][legacy_d2dbs][dbspacket_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_check_timeout_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_check_timeout() == 0);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
     REQUIRE(r.message == "check_timeout observed");
@@ -92,7 +92,7 @@ TEST_CASE("d2dbs keepalive bridge logs at debug",
           "[integration][legacy_d2dbs][dbspacket_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_keepalive_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_keepalive() == 0);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
     REQUIRE(r.message == "keepalive observed");
@@ -104,9 +104,9 @@ TEST_CASE("d2dbs dbspacket bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ild::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2dbs_keepalive_try() == 0);
+        REQUIRE(::pvpgn_v3_d2dbs_keepalive() == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2dbs_check_timeout_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_check_timeout() == 0);
     REQUIRE(sink.records.size() == before);
 }

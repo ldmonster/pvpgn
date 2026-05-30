@@ -58,7 +58,7 @@ extern "C" int pvpgn_v3_send_anongame_search_reply(void*          conn_ptr,
     write_le32(body.data(), 5, static_cast<std::uint32_t>(reply));
     write_le16(body.data(), 9, static_cast<std::uint16_t>(search_time));
 
-    return ::pvpgn_v3_send_packet_try(
+    return ::pvpgn_v3_send_packet(
         conn_ptr,
         body.data(),
         static_cast<unsigned int>(kBodySize));

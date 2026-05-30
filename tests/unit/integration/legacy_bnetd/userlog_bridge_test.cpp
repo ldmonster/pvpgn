@@ -65,7 +65,7 @@ TEST_CASE("userlog init bridge logs",
           "[integration][legacy_bnetd][userlog_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_userlog_init_try() == 0);
+    REQUIRE(::pvpgn_v3_userlog_init() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_userlog_bridge");
@@ -77,7 +77,7 @@ TEST_CASE("userlog append bridge logs user and text",
           "[integration][legacy_bnetd][userlog_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_userlog_append_try("alice", "/kick bob") == 0);
+    REQUIRE(::pvpgn_v3_userlog_append("alice", "/kick bob") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_userlog_bridge");
@@ -90,7 +90,7 @@ TEST_CASE("userlog append bridge null params",
           "[integration][legacy_bnetd][userlog_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_userlog_append_try(nullptr, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_userlog_append(nullptr, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "user").empty());
     REQUIRE(field_value(sink.records[0], "text").empty());

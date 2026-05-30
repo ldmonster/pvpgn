@@ -7,3 +7,7 @@ pvpgn_v3_add_test(test_functional_config_roundtrip
 pvpgn_v3_add_test(test_functional_plugin_lifecycle
     SOURCES plugin_lifecycle_test.cpp
     DEPS    core pvpgn_v3_plugin)
+
+pvpgn_v3_add_test(test_functional_migrate_config
+    SOURCES migrate_config_test.cpp
+    DEPS    core)

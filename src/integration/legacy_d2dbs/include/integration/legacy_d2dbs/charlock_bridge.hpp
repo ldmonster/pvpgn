@@ -12,7 +12,7 @@
 /// Contract: always returns 0 -- legacy MUST fall through and run the
 /// real `cl_init` / `cl_destroy` body.
 
-extern "C" int pvpgn_v3_d2dbs_charlock_init_try(
+extern "C" int pvpgn_v3_d2dbs_charlock_init(
     unsigned int tbllen, unsigned int maxgs) noexcept;
 
-extern "C" int pvpgn_v3_d2dbs_charlock_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_charlock_destroy(void) noexcept;

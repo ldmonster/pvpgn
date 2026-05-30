@@ -57,7 +57,7 @@ TEST_CASE("d2ladder init bridge logs",
           "[integration][legacy_d2dbs][d2ladder_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_d2ladder_init_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_d2ladder_init() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2dbs_d2ladder_bridge");
@@ -69,7 +69,7 @@ TEST_CASE("d2ladder destroy bridge logs",
           "[integration][legacy_d2dbs][d2ladder_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_d2ladder_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_d2ladder_destroy() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2dbs_d2ladder_bridge");
@@ -82,11 +82,11 @@ TEST_CASE("d2ladder bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ild::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2dbs_d2ladder_init_try() == 0);
+        REQUIRE(::pvpgn_v3_d2dbs_d2ladder_init() == 0);
     }
     // After guard goes out of scope, the override is cleared and the
     // sink must NOT receive any further records.
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2dbs_d2ladder_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_d2ladder_destroy() == 0);
     REQUIRE(sink.records.size() == before);
 }

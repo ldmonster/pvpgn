@@ -53,7 +53,7 @@ std::string_view render_uint(std::array<char, 24>& buf,
 // R245: helpfile
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_helpfile_init_try(
+extern "C" int pvpgn_v3_bnetd_helpfile_init(
     const char* filename) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"filename", safe_str(filename)},
@@ -65,7 +65,7 @@ extern "C" int pvpgn_v3_bnetd_helpfile_init_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_helpfile_unload_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_helpfile_unload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_helpfile_bridge",
         "helpfile unload observed",
@@ -77,7 +77,7 @@ extern "C" int pvpgn_v3_bnetd_helpfile_unload_try(void) noexcept {
 // R245: autoupdate
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_autoupdate_load_try(
+extern "C" int pvpgn_v3_bnetd_autoupdate_load(
     const char* filename) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"filename", safe_str(filename)},
@@ -89,7 +89,7 @@ extern "C" int pvpgn_v3_bnetd_autoupdate_load_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_autoupdate_unload_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_autoupdate_unload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_autoupdate_bridge",
         "autoupdate unload observed",
@@ -101,7 +101,7 @@ extern "C" int pvpgn_v3_bnetd_autoupdate_unload_try(void) noexcept {
 // R245: output
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_output_init_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_output_init(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_bnetd_output_bridge",
         "output init observed",
@@ -109,7 +109,7 @@ extern "C" int pvpgn_v3_bnetd_output_init_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_output_write_to_file_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_output_write_to_file(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_bnetd_output_bridge",
         "output write_to_file observed",
@@ -121,7 +121,7 @@ extern "C" int pvpgn_v3_bnetd_output_write_to_file_try(void) noexcept {
 // R245: support
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_support_check_files_try(
+extern "C" int pvpgn_v3_bnetd_support_check_files(
     const char* supportfile) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"supportfile", safe_str(supportfile)},
@@ -137,7 +137,7 @@ extern "C" int pvpgn_v3_bnetd_support_check_files_try(
 // R245: mail
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_mail_handle_command_try(
+extern "C" int pvpgn_v3_bnetd_mail_handle_command(
     int sd,
     const char* text) noexcept {
     std::array<char, 24> sdbuf{};
@@ -152,7 +152,7 @@ extern "C" int pvpgn_v3_bnetd_mail_handle_command_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_mail_check_try(int sd) noexcept {
+extern "C" int pvpgn_v3_bnetd_mail_check(int sd) noexcept {
     std::array<char, 24> sdbuf{};
     const pvpgn::core::ILogger::Field fields[] = {
         {"sd", render_int(sdbuf, sd)},
@@ -168,14 +168,14 @@ extern "C" int pvpgn_v3_bnetd_mail_check_try(int sd) noexcept {
 // R246: i18n
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_i18n_load_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_i18n_load(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_i18n_bridge",
         "i18n load observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_i18n_reload_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_i18n_reload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_i18n_bridge",
         "i18n reload observed", {});
@@ -186,7 +186,7 @@ extern "C" int pvpgn_v3_bnetd_i18n_reload_try(void) noexcept {
 // R246: icons
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_icons_load_try(
+extern "C" int pvpgn_v3_bnetd_icons_load(
     const char* filename) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"filename", safe_str(filename)},
@@ -198,7 +198,7 @@ extern "C" int pvpgn_v3_bnetd_icons_load_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_icons_unload_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_icons_unload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_icons_bridge",
         "customicons unload observed", {});
@@ -209,21 +209,21 @@ extern "C" int pvpgn_v3_bnetd_icons_unload_try(void) noexcept {
 // R246: attrlayer
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_attrlayer_init_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_attrlayer_init(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_bnetd_attrlayer_bridge",
         "attrlayer init observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_attrlayer_cleanup_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_attrlayer_cleanup(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_bnetd_attrlayer_bridge",
         "attrlayer cleanup observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_attrlayer_save_try(int flags) noexcept {
+extern "C" int pvpgn_v3_bnetd_attrlayer_save(int flags) noexcept {
     std::array<char, 24> buf{};
     const pvpgn::core::ILogger::Field fields[] = {
         {"flags", render_int(buf, flags)},
@@ -235,7 +235,7 @@ extern "C" int pvpgn_v3_bnetd_attrlayer_save_try(int flags) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_attrlayer_flush_try(int flags) noexcept {
+extern "C" int pvpgn_v3_bnetd_attrlayer_flush(int flags) noexcept {
     std::array<char, 24> buf{};
     const pvpgn::core::ILogger::Field fields[] = {
         {"flags", render_int(buf, flags)},
@@ -251,7 +251,7 @@ extern "C" int pvpgn_v3_bnetd_attrlayer_flush_try(int flags) noexcept {
 // R246: tracker
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_tracker_set_servers_try(
+extern "C" int pvpgn_v3_bnetd_tracker_set_servers(
     const char* servers) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"servers", safe_str(servers)},
@@ -263,7 +263,7 @@ extern "C" int pvpgn_v3_bnetd_tracker_set_servers_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_tracker_send_report_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_tracker_send_report(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Trace,
         "v3_bnetd_tracker_bridge",
         "tracker send_report observed", {});
@@ -274,14 +274,14 @@ extern "C" int pvpgn_v3_bnetd_tracker_send_report_try(void) noexcept {
 // R246: team
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_team_load_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_team_load(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_bnetd_team_bridge",
         "teamlist load observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_team_unload_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_team_unload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_bnetd_team_bridge",
         "teamlist unload observed", {});
@@ -292,7 +292,7 @@ extern "C" int pvpgn_v3_bnetd_team_unload_try(void) noexcept {
 // R246: udptest
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_udptest_send_try(int sd) noexcept {
+extern "C" int pvpgn_v3_bnetd_udptest_send(int sd) noexcept {
     std::array<char, 24> buf{};
     const pvpgn::core::ILogger::Field fields[] = {
         {"sd", render_int(buf, sd)},
@@ -308,7 +308,7 @@ extern "C" int pvpgn_v3_bnetd_udptest_send_try(int sd) noexcept {
 // R247: alias_command
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_aliasfile_load_try(
+extern "C" int pvpgn_v3_bnetd_aliasfile_load(
     const char* filename) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"filename", safe_str(filename)},
@@ -320,14 +320,14 @@ extern "C" int pvpgn_v3_bnetd_aliasfile_load_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_aliasfile_unload_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_aliasfile_unload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_alias_command_bridge",
         "aliasfile unload observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_handle_alias_command_try(
+extern "C" int pvpgn_v3_bnetd_handle_alias_command(
     int sd, const char* text) noexcept {
     std::array<char, 24> buf{};
     const pvpgn::core::ILogger::Field fields[] = {
@@ -345,7 +345,7 @@ extern "C" int pvpgn_v3_bnetd_handle_alias_command_try(
 // R247: command_groups
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_command_groups_load_try(
+extern "C" int pvpgn_v3_bnetd_command_groups_load(
     const char* filename) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"filename", safe_str(filename)},
@@ -357,14 +357,14 @@ extern "C" int pvpgn_v3_bnetd_command_groups_load_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_command_groups_unload_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_command_groups_unload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_command_groups_bridge",
         "command_groups unload observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_command_groups_reload_try(
+extern "C" int pvpgn_v3_bnetd_command_groups_reload(
     const char* filename) noexcept {
     const pvpgn::core::ILogger::Field fields[] = {
         {"filename", safe_str(filename)},
@@ -380,21 +380,21 @@ extern "C" int pvpgn_v3_bnetd_command_groups_reload_try(
 // R247: anongame_maplists
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_anongame_maplists_create_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_anongame_maplists_create(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_anongame_maplists_bridge",
         "anongame_maplists create observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_anongame_maplists_destroy_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_anongame_maplists_destroy(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_anongame_maplists_bridge",
         "anongame_maplists destroy observed", {});
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_anongame_tournament_maplists_destroy_try(
+extern "C" int pvpgn_v3_bnetd_anongame_tournament_maplists_destroy(
     void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_bnetd_anongame_maplists_bridge",
@@ -406,7 +406,7 @@ extern "C" int pvpgn_v3_bnetd_anongame_tournament_maplists_destroy_try(
 // R247: handle_udp
 // ===========================================================================
 
-extern "C" int pvpgn_v3_bnetd_handle_udp_packet_try(
+extern "C" int pvpgn_v3_bnetd_handle_udp_packet(
     int usock, unsigned int src_addr,
     unsigned int src_port) noexcept {
     std::array<char, 24> b1{};

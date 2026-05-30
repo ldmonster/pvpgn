@@ -11,7 +11,7 @@
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 
-extern "C" int pvpgn_v3_d2cs_d2gslist_create_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_d2gslist_create(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_d2gs_bridge",
         "d2gslist create observed",
@@ -19,7 +19,7 @@ extern "C" int pvpgn_v3_d2cs_d2gslist_create_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_d2gslist_destroy_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_d2gslist_destroy(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_d2gs_bridge",
         "d2gslist destroy observed",
@@ -27,7 +27,7 @@ extern "C" int pvpgn_v3_d2cs_d2gslist_destroy_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_d2gslist_reload_try(const char* gslist) noexcept {
+extern "C" int pvpgn_v3_d2cs_d2gslist_reload(const char* gslist) noexcept {
     // The reload bridge is observation-only: do NOT parse `gslist`.
     // Log the pointer's null-state plus, when non-null, the raw
     // string view -- it is owned by the caller (prefs subsystem) and

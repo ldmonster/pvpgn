@@ -33,7 +33,7 @@
 #else
 #  include <sys/select.h>
 #endif
-#include "common/scoped_ptr.h"
+#include <memory>
 #include "fdwatch.h"
 #include "fdwbackend.h"
 
@@ -55,7 +55,7 @@ namespace pvpgn
 
 	private:
 		int sr, smaxfd;
-		scoped_ptr<fd_set> rfds, wfds, /* working sets (updated often) */
+		std::unique_ptr<fd_set> rfds, wfds, /* working sets (updated often) */
 			trfds, twfds; /* templates (updated rare) */
 	};
 

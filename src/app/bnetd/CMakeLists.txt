@@ -55,33 +55,33 @@ pvpgn_v3_add_library(app_bnetd_legacy_bridge STATIC
 target_compile_definitions(app_bnetd_legacy_bridge PUBLIC
     PVPGN_V3_BNETD_INTEGRATION=1)
 
-# TODO: rename pvpgn_v3_bnetd → bnetd once the legacy `bnetd` executable
-# target is removed (Plan 06 §7.3 + §7.4). The rename cannot be done now
-# because both `bnetd` (legacy exe) and `pvpgn_v3_bnetd` (v3 exe) are
-# defined in the same build, and CMake target names must be unique.
-# When the legacy target is gone, also update:
-#   - install() target name below
-#   - add_test() names + PASS_REGULAR_EXPRESSION strings below
-#   - Dockerfile, CI scripts, smoke test scripts, docs
-# See: plans/16-strangler-completion-detail.md §7.4
-add_executable(pvpgn_v3_bnetd
+# R-strangler: PVPGN_BUILD_LEGACY removed; legacy `bnetd` target is gone.
+# Renamed pvpgn_v3_bnetd → bnetd (Plan 06 §7.3 + §7.4).
+add_executable(bnetd
     src/main.cpp
     src/session_manager.cpp
     src/bnet_connection_adapter.cpp
     src/lua_connection_context.cpp
+    # main/ sub-modules (split from main.cpp for SRP)
+    src/main/cli_args.cpp
+    src/main/server_setup.cpp
+    src/main/bnet_bnftp_dispatch.cpp
+    src/main/wol_session.cpp
 )
 
 # Apply v3 warning flags + C++20 standard
-pvpgn_v3_apply_flags(pvpgn_v3_bnetd)
+pvpgn_v3_apply_flags(bnetd)
 
 # Public include path for app/bnetd headers
-target_include_directories(pvpgn_v3_bnetd
+# PRIVATE src/ allows main/ sub-TUs to use #include "main/foo.hpp" paths.
+target_include_directories(bnetd
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # Core link dependencies
-target_link_libraries(pvpgn_v3_bnetd
+target_link_libraries(bnetd
     PRIVATE
         core
         domain_connection
@@ -100,55 +100,55 @@ target_link_libraries(pvpgn_v3_bnetd
 
 # Optional: infra_config (TOML loading) — available when PVPGN_V3_WITH_TOMLPP=ON
 if(TARGET infra_config)
-    target_link_libraries(pvpgn_v3_bnetd PRIVATE infra_config)
-    target_compile_definitions(pvpgn_v3_bnetd PRIVATE PVPGN_V3_BNETD_HAVE_CONFIG=1)
+    target_link_libraries(bnetd PRIVATE infra_config)
+    target_compile_definitions(bnetd PRIVATE PVPGN_V3_BNETD_HAVE_CONFIG=1)
 endif()
 
 # Optional: infra_log (spdlog logger factory) — available when PVPGN_V3_WITH_SPDLOG=ON
 if(TARGET infra_log)
-    target_link_libraries(pvpgn_v3_bnetd PRIVATE infra_log)
+    target_link_libraries(bnetd PRIVATE infra_log)
 endif()
 
 # PVPGN_VERSION (supplied by top-level CMakeLists.txt) for --version output.
-target_compile_definitions(pvpgn_v3_bnetd PRIVATE
+target_compile_definitions(bnetd PRIVATE
     $<$<BOOL:${PVPGN_VERSION}>:PVPGN_VERSION="${PVPGN_VERSION}">)
 
 # R167 smoke tests: --help and --version must succeed and emit output.
 # These catch link-time + startup regressions in CI without needing a
 # functional config or accept()-ing real clients.
 if(BUILD_TESTING)
-    add_test(NAME pvpgn_v3_bnetd_help    COMMAND pvpgn_v3_bnetd --help)
-    add_test(NAME pvpgn_v3_bnetd_version COMMAND pvpgn_v3_bnetd --version)
-    set_tests_properties(pvpgn_v3_bnetd_help PROPERTIES
-        PASS_REGULAR_EXPRESSION "Usage: pvpgn_v3_bnetd")
-    set_tests_properties(pvpgn_v3_bnetd_version PROPERTIES
-        PASS_REGULAR_EXPRESSION "pvpgn_v3_bnetd ")
+    add_test(NAME bnetd_help    COMMAND bnetd --help)
+    add_test(NAME bnetd_version COMMAND bnetd --version)
+    set_tests_properties(bnetd_help PROPERTIES
+        PASS_REGULAR_EXPRESSION "Usage: bnetd")
+    set_tests_properties(bnetd_version PROPERTIES
+        PASS_REGULAR_EXPRESSION "bnetd ")
 endif()
 
 # Optional: protocol_irc — IrcFsm wired via IrcTcpSession + IrcSessionFactory (R128)
 if(TARGET protocol_irc)
-    target_link_libraries(pvpgn_v3_bnetd PRIVATE protocol_irc)
-    target_compile_definitions(pvpgn_v3_bnetd PRIVATE PVPGN_V3_BNETD_HAVE_IRC=1)
+    target_link_libraries(bnetd PRIVATE protocol_irc)
+    target_compile_definitions(bnetd PRIVATE PVPGN_V3_BNETD_HAVE_IRC=1)
 endif()
 
 # Optional: infra_lua — LuaRuntime + LuaConnectionContext (R141)
 if(TARGET infra_lua)
-    target_link_libraries(pvpgn_v3_bnetd PRIVATE infra_lua)
+    target_link_libraries(bnetd PRIVATE infra_lua)
 endif()
 
 # R330: persistence back-end targets (always link; compile-time guards handle availability)
 if(TARGET pvpgn_infra_sqlite)
-    target_link_libraries(pvpgn_v3_bnetd PRIVATE pvpgn_infra_sqlite)
+    target_link_libraries(bnetd PRIVATE pvpgn_infra_sqlite)
 endif()
 if(TARGET pvpgn_infra_mysql)
-    target_link_libraries(pvpgn_v3_bnetd PRIVATE pvpgn_infra_mysql)
+    target_link_libraries(bnetd PRIVATE pvpgn_infra_mysql)
 endif()
 if(TARGET pvpgn_infra_postgresql)
-    target_link_libraries(pvpgn_v3_bnetd PRIVATE pvpgn_infra_postgresql)
+    target_link_libraries(bnetd PRIVATE pvpgn_infra_postgresql)
 endif()
 
 # Install
-install(TARGETS pvpgn_v3_bnetd
+install(TARGETS bnetd
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 

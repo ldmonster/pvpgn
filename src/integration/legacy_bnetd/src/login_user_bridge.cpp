@@ -22,7 +22,7 @@ void set_login_user_handler(LoginUserHandler handler) noexcept {
 
 }  // namespace pvpgn::integration::legacy_bnetd
 
-extern "C" int pvpgn_v3_login_user_try(void* conn_ptr,
+extern "C" int pvpgn_v3_login_user(void* conn_ptr,
                                        void const* req_body,
                                        unsigned int req_size) noexcept {
     auto* h = pvpgn::integration::legacy_bnetd::g_handler.load(

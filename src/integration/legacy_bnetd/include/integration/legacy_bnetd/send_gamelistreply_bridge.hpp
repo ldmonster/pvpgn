@@ -5,7 +5,7 @@
 /// Strangler-fig hook for SERVER_GAMELISTREPLY (SID_GETADVLISTEX, 0x09).
 ///
 /// `pvpgn_v3_send_gamelistreply` encodes a `GameListReply` via the v3 codec
-/// and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (server → client):
 ///   header(4) + gamecount(4) + sstatus(4)

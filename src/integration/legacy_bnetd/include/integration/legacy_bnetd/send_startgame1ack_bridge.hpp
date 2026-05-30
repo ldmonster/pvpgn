@@ -5,7 +5,7 @@
 /// Strangler-fig hook for SERVER_STARTGAME1_ACK (SID_STARTADVEX, 0x08).
 ///
 /// `pvpgn_v3_send_startgame1ack` encodes a `StartGame1Ack` via the v3 codec
-/// and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (server → client):
 ///   header(4) + reply(4)   — total 8 bytes.

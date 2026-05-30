@@ -34,7 +34,7 @@ SendPacketHandler get_send_packet_handler() noexcept {
 
 }  // namespace pvpgn::integration::legacy_d2cs
 
-extern "C" int pvpgn_v3_d2cs_send_packet_try(void* conn_ptr,
+extern "C" int pvpgn_v3_d2cs_send_packet(void* conn_ptr,
                                               void const* bytes,
                                               unsigned int size) noexcept {
     if (conn_ptr == nullptr || bytes == nullptr) return 0;

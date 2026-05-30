@@ -16,7 +16,7 @@
 /// Contract: always returns 0 -- legacy MUST fall through and run the
 /// real classification + dispatch.
 
-extern "C" int pvpgn_v3_d2cs_handle_init_packet_try(
+extern "C" int pvpgn_v3_d2cs_handle_init_packet(
     int sd,
     unsigned int cclass) noexcept;
 
@@ -27,7 +27,7 @@ extern "C" int pvpgn_v3_d2cs_handle_init_packet_try(
 ///   * `addr` -- IPv4 address of the peer (host-byte-order uint32, as
 ///               returned by `d2cs_conn_get_addr()`).
 /// Always returns 0.
-extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn_try(
+extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn(
     int sd,
     unsigned int addr) noexcept;
 
@@ -36,5 +36,5 @@ extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn_try(
 /// client attaching to this d2cs. Parameters:
 ///   * `sd` -- raw socket descriptor.
 /// Always returns 0.
-extern "C" int pvpgn_v3_d2cs_on_d2cs_initconn_try(
+extern "C" int pvpgn_v3_d2cs_on_d2cs_initconn(
     int sd) noexcept;

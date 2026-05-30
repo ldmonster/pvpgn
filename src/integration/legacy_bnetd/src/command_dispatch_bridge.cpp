@@ -8,7 +8,7 @@
 // First migration set: `/version` (alias `/ver`), `/uptime`,
 // `/help` (alias `/?`).
 //
-// Contract of the exported `pvpgn_v3_command_dispatch_try` symbol:
+// Contract of the exported `pvpgn_v3_command_dispatch` symbol:
 //   return 0      -> v3 did not consume this command; legacy MUST
 //                    fall through and dispatch it itself.
 //   return non-0  -> v3 consumed the command (either the handler ran,
@@ -357,7 +357,7 @@ void log_bridge(std::string_view event, std::string_view command)
 
 }  // namespace pvpgn::integration::legacy_bnetd
 
-extern "C" int pvpgn_v3_command_dispatch_try(void* conn_ptr, char const* op) noexcept {
+extern "C" int pvpgn_v3_command_dispatch(void* conn_ptr, char const* op) noexcept {
     using namespace pvpgn::integration::legacy_bnetd;
     namespace ac = pvpgn::application::admin_commands;
 

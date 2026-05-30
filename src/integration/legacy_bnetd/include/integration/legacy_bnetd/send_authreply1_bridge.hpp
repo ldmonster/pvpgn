@@ -5,7 +5,7 @@
 /// Strangler-fig hook for the legacy `SERVER_AUTHREPLY1` (0x07)
 /// reply emission. Builds the on-wire bytes via the v3
 /// `encode(AuthReply1)` codec and ships them through
-/// `pvpgn_v3_send_packet_try`. No installer required -- the bridge
+/// `pvpgn_v3_send_packet`. No installer required -- the bridge
 /// is a pure deterministic byte builder + dispatch.
 
 #include <cstdint>

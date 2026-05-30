@@ -14,11 +14,11 @@
 /// pointer never crosses the seam. Contract: always returns 0, legacy
 /// MUST fall through and run the real packet handling.
 
-extern "C" int pvpgn_v3_d2dbs_packet_handle_try(
+extern "C" int pvpgn_v3_d2dbs_packet_handle(
     int sd,
     unsigned int stats,
     unsigned int type) noexcept;
 
-extern "C" int pvpgn_v3_d2dbs_check_timeout_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_check_timeout(void) noexcept;
 
-extern "C" int pvpgn_v3_d2dbs_keepalive_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_keepalive(void) noexcept;

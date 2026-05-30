@@ -7,5 +7,5 @@
 // call distribution before promoting any individual sender to v3.
 // Always returns 0; null conn = no log.
 
-extern "C" int pvpgn_v3_clan_send_try(void* conn_ptr,
+extern "C" int pvpgn_v3_clan_send(void* conn_ptr,
                                       char const* op) noexcept;

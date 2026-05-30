@@ -8,7 +8,7 @@
 // usernames, race, addresses, level info) and are sent to w3route connections.
 // The v3 w3route encoder does not yet have full support for all these packet
 // types.  When the encoder is complete, each function can be upgraded to
-// encode and send the packet via pvpgn_v3_send_packet_try.
+// encode and send the packet via pvpgn_v3_send_packet.
 
 extern "C" int pvpgn_v3_observe_w3route_echoreq(void* /*conn_ptr*/,
                                                   unsigned int /*ticks*/) noexcept {

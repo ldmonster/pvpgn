@@ -31,7 +31,7 @@ std::string_view safe_str(const char* s) noexcept {
 
 }  // namespace
 
-extern "C" int pvpgn_v3_d2cs_gamelist_create_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_gamelist_create(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_game_bridge",
         "gamelist create observed",
@@ -39,7 +39,7 @@ extern "C" int pvpgn_v3_d2cs_gamelist_create_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_gamelist_destroy_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_gamelist_destroy(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_game_bridge",
         "gamelist destroy observed",
@@ -47,7 +47,7 @@ extern "C" int pvpgn_v3_d2cs_gamelist_destroy_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_game_create_try(
+extern "C" int pvpgn_v3_d2cs_game_create(
     unsigned int id,
     const char* gamename,
     unsigned int gameflag) noexcept {
@@ -65,7 +65,7 @@ extern "C" int pvpgn_v3_d2cs_game_create_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_game_destroy_try(
+extern "C" int pvpgn_v3_d2cs_game_destroy(
     unsigned int id,
     const char* gamename) noexcept {
     std::array<char, 20> idbuf{};
@@ -81,7 +81,7 @@ extern "C" int pvpgn_v3_d2cs_game_destroy_try(
 }
 
 // R239(1): observation bridge for game_set_d2gs_gameid.
-extern "C" int pvpgn_v3_d2cs_game_set_d2gs_gameid_try(
+extern "C" int pvpgn_v3_d2cs_game_set_d2gs_gameid(
     unsigned int game_id,
     unsigned int d2gs_gameid) noexcept {
     std::array<char, 20> gidbuf{};
@@ -98,7 +98,7 @@ extern "C" int pvpgn_v3_d2cs_game_set_d2gs_gameid_try(
 }
 
 // R239(2): observation bridge for game_set_d2gs.
-extern "C" int pvpgn_v3_d2cs_game_set_d2gs_try(
+extern "C" int pvpgn_v3_d2cs_game_set_d2gs(
     unsigned int game_id,
     unsigned int d2gs_id) noexcept {
     std::array<char, 20> gidbuf{};
@@ -115,7 +115,7 @@ extern "C" int pvpgn_v3_d2cs_game_set_d2gs_try(
 }
 
 // R239(3): observation bridge for game_set_created.
-extern "C" int pvpgn_v3_d2cs_game_set_created_try(
+extern "C" int pvpgn_v3_d2cs_game_set_created(
     unsigned int game_id,
     unsigned int created) noexcept {
     std::array<char, 20> gidbuf{};
@@ -132,7 +132,7 @@ extern "C" int pvpgn_v3_d2cs_game_set_created_try(
 }
 
 // R240(1): observation bridge for game_add_character.
-extern "C" int pvpgn_v3_d2cs_game_add_character_try(
+extern "C" int pvpgn_v3_d2cs_game_add_character(
     unsigned int game_id,
     const char* charname,
     unsigned int chclass,
@@ -154,7 +154,7 @@ extern "C" int pvpgn_v3_d2cs_game_add_character_try(
 }
 
 // R240(2): observation bridge for game_del_character.
-extern "C" int pvpgn_v3_d2cs_game_del_character_try(
+extern "C" int pvpgn_v3_d2cs_game_del_character(
     unsigned int game_id,
     const char* charname) noexcept {
     std::array<char, 20> gidbuf{};

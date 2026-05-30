@@ -106,14 +106,14 @@ extern "C" int pvpgn_v3_send_iconreply(void* conn_ptr,
 extern "C" int pvpgn_v3_send_channellist(void* conn_ptr,
                                          char const* const* names,
                                          unsigned int count) noexcept;
-extern "C" int pvpgn_v3_joinchannel_try(void* conn_ptr,
+extern "C" int pvpgn_v3_joinchannel(void* conn_ptr,
                                         char const* channel_name,
                                         unsigned int flag) noexcept;
-extern "C" int pvpgn_v3_leavechannel_try(void* conn_ptr) noexcept;
-extern "C" int pvpgn_v3_gamereport_try(void* conn_ptr,
+extern "C" int pvpgn_v3_leavechannel(void* conn_ptr) noexcept;
+extern "C" int pvpgn_v3_gamereport(void* conn_ptr,
                                        char const* username,
                                        unsigned int player_count) noexcept;
-extern "C" int pvpgn_v3_startgame_try(void* conn_ptr,
+extern "C" int pvpgn_v3_startgame(void* conn_ptr,
                                       unsigned int version,
                                       char const* gamename,
                                       char const* gameinfo,
@@ -121,44 +121,44 @@ extern "C" int pvpgn_v3_startgame_try(void* conn_ptr,
                                       unsigned int status,
                                       unsigned int flag,
                                       unsigned int option) noexcept;
-extern "C" int pvpgn_v3_gamelistreq_try(void* conn_ptr,
+extern "C" int pvpgn_v3_gamelistreq(void* conn_ptr,
                                         char const* gamename,
                                         unsigned int bngtype) noexcept;
-extern "C" int pvpgn_v3_joingame_try(void* conn_ptr,
+extern "C" int pvpgn_v3_joingame(void* conn_ptr,
                                      char const* gamename) noexcept;
-extern "C" int pvpgn_v3_clan_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_clan_dispatch(void* conn_ptr,
                                           char const* op) noexcept;
-extern "C" int pvpgn_v3_friends_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_friends_dispatch(void* conn_ptr,
                                              char const* op) noexcept;
-extern "C" int pvpgn_v3_auth_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_auth_dispatch(void* conn_ptr,
                                           char const* op) noexcept;
-extern "C" int pvpgn_v3_keepalive_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_keepalive_dispatch(void* conn_ptr,
                                                char const* op) noexcept;
-extern "C" int pvpgn_v3_realm_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_realm_dispatch(void* conn_ptr,
                                            char const* op) noexcept;
-extern "C" int pvpgn_v3_account_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_account_dispatch(void* conn_ptr,
                                              char const* op) noexcept;
-extern "C" int pvpgn_v3_profile_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_profile_dispatch(void* conn_ptr,
                                              char const* op) noexcept;
-extern "C" int pvpgn_v3_ladder_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_ladder_dispatch(void* conn_ptr,
                                             char const* op) noexcept;
-extern "C" int pvpgn_v3_d2_character_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_d2_character_dispatch(void* conn_ptr,
                                                    char const* op) noexcept;
-extern "C" int pvpgn_v3_telemetry_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_telemetry_dispatch(void* conn_ptr,
                                                char const* op) noexcept;
-extern "C" int pvpgn_v3_ad_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_ad_dispatch(void* conn_ptr,
                                         char const* op) noexcept;
-extern "C" int pvpgn_v3_progident_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_progident_dispatch(void* conn_ptr,
                                                char const* op) noexcept;
-extern "C" int pvpgn_v3_gameport_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_gameport_dispatch(void* conn_ptr,
                                               char const* op) noexcept;
-extern "C" int pvpgn_v3_cdkey_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_cdkey_dispatch(void* conn_ptr,
                                            char const* op) noexcept;
-extern "C" int pvpgn_v3_passemail_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_passemail_dispatch(void* conn_ptr,
                                                char const* op) noexcept;
-extern "C" int pvpgn_v3_handshake_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_handshake_dispatch(void* conn_ptr,
                                                char const* op) noexcept;
-extern "C" int pvpgn_v3_stub_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_stub_dispatch(void* conn_ptr,
                                           char const* op) noexcept;
 extern "C" int pvpgn_v3_send_logonproof_reply(void* conn_ptr,
                                               unsigned int response,

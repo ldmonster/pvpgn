@@ -1,3 +1,3 @@
 #pragma once
 
-extern "C" int pvpgn_v3_connection_dispatch_try(void* conn_ptr, char const* op) noexcept;
+extern "C" int pvpgn_v3_connection_dispatch(void* conn_ptr, char const* op) noexcept;

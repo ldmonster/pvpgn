@@ -19,9 +19,9 @@
 /// object; the shutdown hook receives only POD scalars extracted at
 /// the call site.
 
-extern "C" int pvpgn_v3_d2dbs_server_main_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_server_main(void) noexcept;
 
-extern "C" int pvpgn_v3_d2dbs_server_shutdown_connection_try(
+extern "C" int pvpgn_v3_d2dbs_server_shutdown_connection(
     int sd,
     unsigned int serverid,
     unsigned int conn_type,

@@ -14,5 +14,5 @@
 // Always returns 0 so legacy retains full ownership of the search
 // queues, matchmaking, and W3 route push.
 
-extern "C" int pvpgn_v3_anongame_entry_try(void* conn_ptr,
+extern "C" int pvpgn_v3_anongame_entry(void* conn_ptr,
                                            char const* kind) noexcept;

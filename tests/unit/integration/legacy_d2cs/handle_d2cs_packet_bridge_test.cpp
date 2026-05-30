@@ -65,7 +65,7 @@ TEST_CASE("d2cs client-packet bridge logs scalars",
           "[integration][legacy_d2cs][handle_d2cs_packet_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_handle_d2cs_packet_try(9, 0x14u, 64u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_handle_d2cs_packet(9, 0x14u, 64u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Trace);
@@ -82,9 +82,9 @@ TEST_CASE("d2cs client-packet bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_handle_d2cs_packet_try(1, 1u, 1u) == 0);
+        REQUIRE(::pvpgn_v3_d2cs_handle_d2cs_packet(1, 1u, 1u) == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_handle_d2cs_packet_try(2, 2u, 2u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_handle_d2cs_packet(2, 2u, 2u) == 0);
     REQUIRE(sink.records.size() == before);
 }

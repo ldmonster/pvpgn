@@ -3,12 +3,9 @@ pvpgn_v3_add_test(test_infra_crypto_bnet_hash
     DEPS    infra_crypto)
 
 # Parity test compares the new infra/crypto implementation against the
-# legacy src/common/ code. It is only buildable when the legacy tree is
-# also compiled (PVPGN_BUILD_LEGACY=ON), so guard on that option rather
-# than `if(TARGET common)` — the `common` target is registered AFTER the
-# v3 sub-tree (which owns `tests/unit/`) finishes configuring, so the
-# target-existence check is racy across CMake reorders.
-if(PVPGN_BUILD_LEGACY)
+# legacy src/common/ code. Guard on target existence since PVPGN_BUILD_LEGACY
+# has been removed; the `common` target is present when the legacy tree is built.
+if(TARGET common)
     pvpgn_v3_add_test(test_infra_crypto_parity
         SOURCES parity_test.cpp
         DEPS    infra_crypto common)

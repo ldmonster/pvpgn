@@ -9,7 +9,7 @@
 ///   + NUL-terminated value strings (name_count * key_count entries)
 ///
 /// Builds bytes via the v3 `encode(UserDataReadReply)` codec and ships
-/// them through `pvpgn_v3_send_packet_try`.
+/// them through `pvpgn_v3_send_packet`.
 
 #include <cstdint>
 

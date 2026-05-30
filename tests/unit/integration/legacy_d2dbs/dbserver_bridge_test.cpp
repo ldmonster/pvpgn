@@ -65,7 +65,7 @@ TEST_CASE("dbserver main bridge logs",
           "[integration][legacy_d2dbs][dbserver_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_server_main_try() == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_server_main() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2dbs_server_bridge");
@@ -77,7 +77,7 @@ TEST_CASE("dbserver shutdown_connection bridge logs conn scalars",
           "[integration][legacy_d2dbs][dbserver_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_server_shutdown_connection_try(
+    REQUIRE(::pvpgn_v3_d2dbs_server_shutdown_connection(
         7, 42u, 3u, 1u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
@@ -93,7 +93,7 @@ TEST_CASE("dbserver shutdown_connection bridge handles negative sd",
           "[integration][legacy_d2dbs][dbserver_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_server_shutdown_connection_try(
+    REQUIRE(::pvpgn_v3_d2dbs_server_shutdown_connection(
         -1, 0u, 0u, 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "sd")       == "-1");

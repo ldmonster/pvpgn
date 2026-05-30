@@ -63,7 +63,7 @@ TEST_CASE("ad dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][ad_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ad_dispatch_try(nullptr, "adreq") == 0);
+    REQUIRE(::pvpgn_v3_ad_dispatch(nullptr, "adreq") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -72,7 +72,7 @@ TEST_CASE("ad dispatch bridge logs adreq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ad_dispatch_try(&marker, "adreq") == 0);
+    REQUIRE(::pvpgn_v3_ad_dispatch(&marker, "adreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_ad_dispatch_bridge");
     REQUIRE(sink.records[0].message == "ad dispatch observed");
@@ -84,7 +84,7 @@ TEST_CASE("ad dispatch bridge logs adack",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ad_dispatch_try(&marker, "adack") == 0);
+    REQUIRE(::pvpgn_v3_ad_dispatch(&marker, "adack") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "adack");
 }
@@ -94,7 +94,7 @@ TEST_CASE("ad dispatch bridge logs adclick",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ad_dispatch_try(&marker, "adclick") == 0);
+    REQUIRE(::pvpgn_v3_ad_dispatch(&marker, "adclick") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "adclick");
 }
@@ -104,7 +104,7 @@ TEST_CASE("ad dispatch bridge logs adclick2",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ad_dispatch_try(&marker, "adclick2") == 0);
+    REQUIRE(::pvpgn_v3_ad_dispatch(&marker, "adclick2") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "adclick2");
 }
@@ -114,7 +114,7 @@ TEST_CASE("ad dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_ad_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_ad_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

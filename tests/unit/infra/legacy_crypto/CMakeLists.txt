@@ -13,9 +13,9 @@ endif()
 # Ported from the legacy `src/test/{bigint,bnetsrp3_test}.cpp`
 # standalone binaries (see plans/refactoring-plan-testing.md "Legacy
 # Test Removal"). These exercise the legacy `common` library directly
-# and do not need any v3 infra target; they are gated only on the
-# `common` legacy target being present.
-if(PVPGN_BUILD_LEGACY)
+# and do not need any v3 infra target; gated on `common` target existence
+# (PVPGN_BUILD_LEGACY removed; presence of `common` target is the signal).
+if(TARGET common)
     pvpgn_v3_add_test(test_common_bigint
         SOURCES bigint_test.cpp
         DEPS    common)

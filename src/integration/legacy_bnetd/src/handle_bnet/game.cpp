@@ -121,7 +121,7 @@ namespace pvpgn { namespace bnetd {
 			bngtype = bn_short_get(packet->u.client_gamelistreq.gametype);
 			clienttag = conn_get_clienttag(c);
 			gtype = bngreqtype_to_gtype(clienttag, bngtype);
-			(void)pvpgn_v3_gamelistreq_try(c, gamename,
+			(void)pvpgn_v3_gamelistreq(c, gamename,
 			    static_cast<unsigned int>(bngtype));
 			if (!(rpacket = packet_create(packet_class_bnet)))
 				return -1;
@@ -250,7 +250,7 @@ namespace pvpgn { namespace bnetd {
 			}
 
 			eventlog(eventlog_level_debug, __FUNCTION__, "[{}] trying to join game \"{}\" pass=\"{}\"", conn_get_socket(c), gamename, gamepass);
-			(void)pvpgn_v3_joingame_try(c, gamename);
+			(void)pvpgn_v3_joingame(c, gamename);
 
 			if (conn_get_joingamewhisper_ack(c) == 0) {
 				watchlist->dispatch(conn_get_account(c), gamename, conn_get_clienttag(c), Watch::ET_joingame);
@@ -334,7 +334,7 @@ namespace pvpgn { namespace bnetd {
 				bngtype = bn_short_get(packet->u.client_startgame1.gametype);
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got startgame1 status for game \"{}\" is 0x{:08x} (gametype = 0x{:04x})", conn_get_socket(c), gamename, bn_int_get(packet->u.client_startgame1.status), bngtype);
 				status = bn_int_get(packet->u.client_startgame1.status) & CLIENT_STARTGAME1_STATUSMASK;
-				(void)pvpgn_v3_startgame_try(c, 1u, gamename, gameinfo,
+				(void)pvpgn_v3_startgame(c, 1u, gamename, gameinfo,
 				    static_cast<unsigned int>(bngtype), status, 0u, 0u);
 
 				if ((currgame = conn_get_game(c))) {
@@ -427,7 +427,7 @@ namespace pvpgn { namespace bnetd {
 				bngtype = bn_short_get(packet->u.client_startgame3.gametype);
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got startgame3 status for game \"{}\" is 0x{:08x} (gametype = 0x{:04x})", conn_get_socket(c), gamename, bn_int_get(packet->u.client_startgame3.status), bngtype);
 				status = bn_int_get(packet->u.client_startgame3.status) & CLIENT_STARTGAME3_STATUSMASK;
-				(void)pvpgn_v3_startgame_try(c, 3u, gamename, gameinfo,
+				(void)pvpgn_v3_startgame(c, 3u, gamename, gameinfo,
 				    static_cast<unsigned int>(bngtype), status, 0u, 0u);
 
 				if ((currgame = conn_get_game(c))) {
@@ -542,7 +542,7 @@ namespace pvpgn { namespace bnetd {
 				flag = bn_short_get(packet->u.client_startgame4.flag);
 
 				eventlog(eventlog_level_debug, __FUNCTION__, "[{}] got startgame4 status for game \"{}\" is 0x{:08x} (gametype=0x{:04x} option=0x{:04x}, flag=0x{:04x})", conn_get_socket(c), gamename, status, bngtype, option, flag);
-				(void)pvpgn_v3_startgame_try(c, 4u, gamename, gameinfo,
+				(void)pvpgn_v3_startgame(c, 4u, gamename, gameinfo,
 				    static_cast<unsigned int>(bngtype), status,
 				    static_cast<unsigned int>(flag),
 				    static_cast<unsigned int>(option));
@@ -666,7 +666,7 @@ namespace pvpgn { namespace bnetd {
 
 				eventlog(eventlog_level_info, __FUNCTION__, "[{}] CLIENT_GAME_REPORT: {} ({} players)", conn_get_socket(c), conn_get_username(c), player_count);
 				// Observation-only: structured-log the GAME_REPORT entry.
-				(void)pvpgn_v3_gamereport_try(c, conn_get_username(c), player_count);
+				(void)pvpgn_v3_gamereport(c, conn_get_username(c), player_count);
 				my_account = conn_get_account(c);
 
 				results = new t_game_result[game_get_count(game)]{};

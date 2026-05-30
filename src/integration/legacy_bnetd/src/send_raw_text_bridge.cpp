@@ -24,7 +24,7 @@ extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr,
          return h(conn_ptr, "", 0);
      }
 
-     return ::pvpgn_v3_send_packet_try(
+     return ::pvpgn_v3_send_packet(
          conn_ptr,
          reinterpret_cast<unsigned char const*>(text),
          static_cast<unsigned int>(len));
@@ -59,7 +59,7 @@ extern "C" int pvpgn_v3_send_raw_text2(void* conn_ptr,
      if (plen > 0) std::memcpy(buf.data(), p, plen);
      if (slen > 0) std::memcpy(buf.data() + plen, s, slen);
 
-     return ::pvpgn_v3_send_packet_try(
+     return ::pvpgn_v3_send_packet(
          conn_ptr,
          buf.data(),
          static_cast<unsigned int>(total));

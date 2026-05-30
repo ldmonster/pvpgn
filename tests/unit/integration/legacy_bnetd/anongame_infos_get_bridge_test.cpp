@@ -66,7 +66,7 @@ TEST_CASE("anongame_infos get bridge logs kind+args",
           "[integration][legacy_bnetd][anongame_infos_get_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_anongame_infos_get_try(
+    REQUIRE(::pvpgn_v3_anongame_infos_get(
         "URL_get_URL", "3", "0", nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
@@ -82,7 +82,7 @@ TEST_CASE("anongame_infos get bridge full args",
           "[integration][legacy_bnetd][anongame_infos_get_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_anongame_infos_get_try(
+    REQUIRE(::pvpgn_v3_anongame_infos_get(
         "data_get_map", "5", "0", "WAR3") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "kind") == "data_get_map");
@@ -93,7 +93,7 @@ TEST_CASE("anongame_infos get bridge null kind becomes ?",
           "[integration][legacy_bnetd][anongame_infos_get_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_anongame_infos_get_try(
+    REQUIRE(::pvpgn_v3_anongame_infos_get(
         nullptr, nullptr, nullptr, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "kind") == "?");

@@ -65,7 +65,7 @@ TEST_CASE("startgame bridge null-conn is no-op",
           "[integration][legacy_bnetd][startgame_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_startgame_try(nullptr, 1u, "g", "i",
+    REQUIRE(::pvpgn_v3_startgame(nullptr, 1u, "g", "i",
                                      0u, 0u, 0u, 0u) == 0);
     REQUIRE(sink.records.empty());
 }
@@ -75,13 +75,13 @@ TEST_CASE("startgame bridge variant names",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_startgame_try(&marker, 1u, "a", "",
+    REQUIRE(::pvpgn_v3_startgame(&marker, 1u, "a", "",
                                      0x4, 0x0, 0, 0) == 0);
-    REQUIRE(::pvpgn_v3_startgame_try(&marker, 3u, "b", "",
+    REQUIRE(::pvpgn_v3_startgame(&marker, 3u, "b", "",
                                      0x4, 0x0, 0, 0) == 0);
-    REQUIRE(::pvpgn_v3_startgame_try(&marker, 4u, "c", "",
+    REQUIRE(::pvpgn_v3_startgame(&marker, 4u, "c", "",
                                      0x4, 0x0, 0, 0) == 0);
-    REQUIRE(::pvpgn_v3_startgame_try(&marker, 99u, "d", "",
+    REQUIRE(::pvpgn_v3_startgame(&marker, 99u, "d", "",
                                      0x4, 0x0, 0, 0) == 0);
     REQUIRE(sink.records.size() == 4u);
     REQUIRE(field_value(sink.records[0], "variant") == "STARTGAME1");
@@ -96,7 +96,7 @@ TEST_CASE("startgame bridge hex formatting",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_startgame_try(&marker, 4u, "mygame", "info123",
+    REQUIRE(::pvpgn_v3_startgame(&marker, 4u, "mygame", "info123",
                                      0x000bu, 0x00000003u,
                                      0x00cdu, 0x0040u) == 0);
     REQUIRE(sink.records.size() == 1u);
@@ -116,7 +116,7 @@ TEST_CASE("startgame bridge null strings",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_startgame_try(&marker, 1u, nullptr, nullptr,
+    REQUIRE(::pvpgn_v3_startgame(&marker, 1u, nullptr, nullptr,
                                      0u, 0u, 0u, 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "game").empty());

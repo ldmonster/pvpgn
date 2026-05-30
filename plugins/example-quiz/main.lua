@@ -1,17 +1,15 @@
 -- Lua API v2 (pvpgn.* namespace)
 --[[
     Example Quiz Plugin for PvPGN v3
-    
+
     This plugin demonstrates:
     - Command registration
     - Event subscription
     - Chat messaging
     - Persistent storage
     - Database queries
-    
+
     Uses the pvpgn.* Lua API v2 namespace.
-    For backward compatibility with old bnetd_* calls, load the legacy shim:
-        require("legacy_shim")  -- or call install_legacy_shim() from C++
 ]]--
 
 -- Plugin initialization

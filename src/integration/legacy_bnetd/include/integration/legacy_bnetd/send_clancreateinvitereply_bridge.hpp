@@ -7,7 +7,7 @@
 /// all invited members have responded.
 ///
 /// `pvpgn_v3_send_clancreateinvitereply` encodes a `ClanCreateInviteResponse`
-/// via the v3 codec and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// via the v3 codec and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (server → creator):
 ///   header(4) + cookie(4) + clan_tag(4) + clan_creator(cstr) + reply(1)

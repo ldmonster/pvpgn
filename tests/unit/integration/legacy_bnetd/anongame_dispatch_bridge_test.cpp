@@ -65,7 +65,7 @@ TEST_CASE("anongame dispatch bridge null-conn is no-op",
           "[integration][legacy_bnetd][anongame_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(nullptr, 0x00) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(nullptr, 0x00) == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -74,17 +74,17 @@ TEST_CASE("anongame dispatch bridge option name table",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x00) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x02) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x03) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x04) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x05) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x06) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x07) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x08) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x09) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x0a) == 0);
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0xff) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x00) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x02) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x03) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x04) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x05) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x06) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x07) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x08) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x09) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x0a) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0xff) == 0);
     REQUIRE(sink.records.size() == 11u);
     REQUIRE(field_value(sink.records[0],  "option") == "SEARCH");
     REQUIRE(field_value(sink.records[1],  "option") == "INFOS");
@@ -105,7 +105,7 @@ TEST_CASE("anongame dispatch bridge hex raw value",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_anongame_dispatch_try(&marker, 0x04) == 0);
+    REQUIRE(::pvpgn_v3_anongame_dispatch(&marker, 0x04) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module == "v3_anongame_dispatch_bridge");

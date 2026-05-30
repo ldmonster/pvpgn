@@ -18,9 +18,9 @@
 ///
 /// Contract: all bridges return 0; legacy code MUST fall through.
 
-extern "C" int pvpgn_v3_d2cs_gamelist_create_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_gamelist_create(void) noexcept;
 
-extern "C" int pvpgn_v3_d2cs_gamelist_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_gamelist_destroy(void) noexcept;
 
 /// Fired after a successful `d2cs_game_create()`:
 ///   * `id`       -- the newly-assigned `game->id` (always non-zero).
@@ -28,7 +28,7 @@ extern "C" int pvpgn_v3_d2cs_gamelist_destroy_try(void) noexcept;
 ///                   may be `nullptr` only as a defensive guard).
 ///   * `gameflag` -- the raw `gameflag` argument (host-byte-order
 ///                   uint32, decimal-rendered).
-extern "C" int pvpgn_v3_d2cs_game_create_try(
+extern "C" int pvpgn_v3_d2cs_game_create(
     unsigned int id,
     const char* gamename,
     unsigned int gameflag) noexcept;
@@ -37,27 +37,27 @@ extern "C" int pvpgn_v3_d2cs_game_create_try(
 ///   * `id`       -- `game->id`.
 ///   * `gamename` -- `game->name` (legacy guarantees non-null but the
 ///                   bridge handles null defensively).
-extern "C" int pvpgn_v3_d2cs_game_destroy_try(
+extern "C" int pvpgn_v3_d2cs_game_destroy(
     unsigned int id,
     const char* gamename) noexcept;
 
 /// R239(1) -- observation bridge for `game_set_d2gs_gameid()` --
 /// links the d2cs-side game id to the upstream d2gs's local id.
-extern "C" int pvpgn_v3_d2cs_game_set_d2gs_gameid_try(
+extern "C" int pvpgn_v3_d2cs_game_set_d2gs_gameid(
     unsigned int game_id,
     unsigned int d2gs_gameid) noexcept;
 
 /// R239(2) -- observation bridge for `game_set_d2gs()` -- binds the
 /// d2cs-side game to a specific d2gs gameserver. `d2gs_id` is 0 if
 /// the caller passed a null `t_d2gs*` (legacy supports detaching).
-extern "C" int pvpgn_v3_d2cs_game_set_d2gs_try(
+extern "C" int pvpgn_v3_d2cs_game_set_d2gs(
     unsigned int game_id,
     unsigned int d2gs_id) noexcept;
 
 /// R239(3) -- observation bridge for `game_set_created()` -- flips
 /// the per-game "ack'd by d2gs" flag (0 -> 1 means the d2gs
 /// confirmed the game; 1 -> 0 is the explicit reset path).
-extern "C" int pvpgn_v3_d2cs_game_set_created_try(
+extern "C" int pvpgn_v3_d2cs_game_set_created(
     unsigned int game_id,
     unsigned int created) noexcept;
 
@@ -65,7 +65,7 @@ extern "C" int pvpgn_v3_d2cs_game_set_created_try(
 /// BEFORE the legacy update-or-insert decision. Both code paths
 /// (in-place update of an existing charinfo, append of a brand-new
 /// one) are observed identically; v3 can correlate by name.
-extern "C" int pvpgn_v3_d2cs_game_add_character_try(
+extern "C" int pvpgn_v3_d2cs_game_add_character(
     unsigned int game_id,
     const char* charname,
     unsigned int chclass,
@@ -74,6 +74,6 @@ extern "C" int pvpgn_v3_d2cs_game_add_character_try(
 /// R240(2) -- observation bridge for `game_del_character()` -- fires
 /// BEFORE the find/remove so v3 sees every attempt, including ones
 /// that subsequently fail with "character not found".
-extern "C" int pvpgn_v3_d2cs_game_del_character_try(
+extern "C" int pvpgn_v3_d2cs_game_del_character(
     unsigned int game_id,
     const char* charname) noexcept;

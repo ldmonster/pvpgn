@@ -63,7 +63,7 @@ TEST_CASE("telnet dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][telnet_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telnet_dispatch_try(nullptr, "connected") == 0);
+    REQUIRE(::pvpgn_v3_telnet_dispatch(nullptr, "connected") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -72,7 +72,7 @@ TEST_CASE("telnet dispatch bridge logs connected state",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telnet_dispatch_try(&marker, "connected") == 0);
+    REQUIRE(::pvpgn_v3_telnet_dispatch(&marker, "connected") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_telnet_dispatch_bridge");
     REQUIRE(sink.records[0].message == "telnet dispatch observed");
@@ -84,7 +84,7 @@ TEST_CASE("telnet dispatch bridge logs bot_username state",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telnet_dispatch_try(&marker, "bot_username") == 0);
+    REQUIRE(::pvpgn_v3_telnet_dispatch(&marker, "bot_username") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "bot_username");
 }
@@ -94,7 +94,7 @@ TEST_CASE("telnet dispatch bridge logs bot_password state",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telnet_dispatch_try(&marker, "bot_password") == 0);
+    REQUIRE(::pvpgn_v3_telnet_dispatch(&marker, "bot_password") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "bot_password");
 }
@@ -104,7 +104,7 @@ TEST_CASE("telnet dispatch bridge logs loggedin state",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telnet_dispatch_try(&marker, "loggedin") == 0);
+    REQUIRE(::pvpgn_v3_telnet_dispatch(&marker, "loggedin") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "loggedin");
 }
@@ -114,7 +114,7 @@ TEST_CASE("telnet dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telnet_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_telnet_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }
@@ -124,7 +124,7 @@ TEST_CASE("telnet dispatch bridge empty op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telnet_dispatch_try(&marker, "") == 0);
+    REQUIRE(::pvpgn_v3_telnet_dispatch(&marker, "") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

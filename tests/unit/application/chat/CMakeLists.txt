@@ -79,3 +79,7 @@ pvpgn_v3_add_test(test_application_chat_op_from_channel
     DEPS    application_chat
             infra_inmemory
             infra_storage_repository)
+
+pvpgn_v3_add_test(test_application_chat_command_registry
+    SOURCES command_registry_test.cpp
+    DEPS    application_chat infra_inmemory)

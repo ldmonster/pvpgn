@@ -33,7 +33,7 @@
 # endif
 #endif
 
-#include "scoped_array.h"
+#include <memory>
 #include "fdwbackend.h"
 
 namespace pvpgn
@@ -52,9 +52,9 @@ namespace pvpgn
 
 	private:
 		int sr;
-		scoped_array<struct pollfd> fds; /* working set */
-		scoped_array<int> rridx;
-		scoped_array<int> ridx;
+		std::unique_ptr<struct pollfd[]> fds; /* working set */
+		std::unique_ptr<int[]> rridx;
+		std::unique_ptr<int[]> ridx;
 		unsigned nofds;
 
 	};

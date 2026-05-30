@@ -8,7 +8,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_unknown_1b(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_stub_dispatch_try(c, "unknown_1b");
+			(void)pvpgn_v3_stub_dispatch(c, "unknown_1b");
 			if (packet_get_size(packet) < sizeof(t_client_unknown_1b)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad UNKNOWN_1B packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_unknown_1b), packet_get_size(packet));
 				return -1;
@@ -34,7 +34,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_compinfo1(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_handshake_dispatch_try(c, "compinfo1");
+			(void)pvpgn_v3_handshake_dispatch(c, "compinfo1");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_compinfo1)) {
@@ -83,7 +83,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_compinfo2(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_handshake_dispatch_try(c, "compinfo2");
+			(void)pvpgn_v3_handshake_dispatch(c, "compinfo2");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_compinfo2)) {
@@ -137,7 +137,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_countryinfo1(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_handshake_dispatch_try(c, "countryinfo1");
+			(void)pvpgn_v3_handshake_dispatch(c, "countryinfo1");
 			if (packet_get_size(packet) < sizeof(t_client_countryinfo1)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad COUNTRYINFO1 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_countryinfo1), packet_get_size(packet));
 				return -1;
@@ -178,7 +178,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_auth_info(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_auth_dispatch_try(c, "auth_info");
+			(void)pvpgn_v3_auth_dispatch(c, "auth_info");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_auth_info)) {
@@ -281,7 +281,7 @@ namespace pvpgn { namespace bnetd {
 					}
 
 					// Strangler-fig: build the same bytes via the v3
-					// codec and dispatch through pvpgn_v3_send_packet_try.
+					// codec and dispatch through pvpgn_v3_send_packet.
 					// On success skip the legacy outqueue push (we
 					// still keep the legacy rpacket build above so any
 					// side effects -- e.g. file_to_mod_time, eventlog
@@ -323,7 +323,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_unknown2b(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_stub_dispatch_try(c, "unknown2b");
+			(void)pvpgn_v3_stub_dispatch(c, "unknown2b");
 			if (packet_get_size(packet) < sizeof(t_client_unknown_2b)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad UNKNOWN_2B packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_unknown_2b), packet_get_size(packet));
 				return -1;
@@ -333,7 +333,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_progident(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_progident_dispatch_try(c, "progident");
+			(void)pvpgn_v3_progident_dispatch(c, "progident");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_progident)) {

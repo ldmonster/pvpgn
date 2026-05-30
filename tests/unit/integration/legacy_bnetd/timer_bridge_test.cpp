@@ -65,7 +65,7 @@ TEST_CASE("timer create bridge logs at Debug",
           "[integration][legacy_bnetd][timer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_timerlist_create_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_timerlist_create() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -78,7 +78,7 @@ TEST_CASE("timer destroy bridge logs at Debug",
           "[integration][legacy_bnetd][timer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_timerlist_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_timerlist_destroy() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -90,7 +90,7 @@ TEST_CASE("timer add_timer bridge records sd and when",
           "[integration][legacy_bnetd][timer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_timerlist_add_timer_try(7, 1700000000ULL) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_timerlist_add_timer(7, 1700000000ULL) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Trace);
@@ -104,7 +104,7 @@ TEST_CASE("timer del_all_timers bridge records sd",
           "[integration][legacy_bnetd][timer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_timerlist_del_all_timers_try(42) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_timerlist_del_all_timers(42) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -117,7 +117,7 @@ TEST_CASE("timer check_timers bridge records when",
           "[integration][legacy_bnetd][timer_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_timerlist_check_timers_try(1234567890ULL) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_timerlist_check_timers(1234567890ULL) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Trace);

@@ -14,7 +14,7 @@
 ///     Total wire size: 4-byte header + 24 bytes = 28 bytes.
 ///     Builds bytes via the v3 `encode(PassChangeProofReply)` codec.
 ///
-/// Both functions ship the encoded bytes through `pvpgn_v3_send_packet_try`.
+/// Both functions ship the encoded bytes through `pvpgn_v3_send_packet`.
 /// No installer required.
 
 #include <cstdint>

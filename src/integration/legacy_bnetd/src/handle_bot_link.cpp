@@ -37,7 +37,7 @@
 #endif
 #include "common/setup_after.h"
 
-extern "C" int pvpgn_v3_bot_dispatch_try(void* conn_ptr, char const* op) noexcept;
+extern "C" int pvpgn_v3_bot_dispatch(void* conn_ptr, char const* op) noexcept;
 extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
 extern "C" int pvpgn_v3_send_raw_text2(void* conn_ptr, char const* prefix, char const* suffix) noexcept;
 
@@ -78,7 +78,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			(void)pvpgn_v3_bot_dispatch_try(c, conn_state_get_str(conn_get_state(c)));
+			(void)pvpgn_v3_bot_dispatch(c, conn_state_get_str(conn_get_state(c)));
 
 			{
 				char const * const linestr = packet_get_str_const(packet, 0, MAX_MESSAGE_LEN);

@@ -8,7 +8,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_claninforeq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "claninforeq");
+			(void)pvpgn_v3_clan_dispatch(c, "claninforeq");
 			t_packet *rpacket;
 			int count;
 			char const *username;
@@ -85,7 +85,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clanmemberlistreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clanmemberlistreq");
+			(void)pvpgn_v3_clan_dispatch(c, "clanmemberlistreq");
 			if (packet_get_size(packet) < sizeof(t_client_clanmemberlist_req)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLANMEMBERLIST_REQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_clanmemberlist_req), packet_get_size(packet));
 				return -1;
@@ -97,7 +97,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_motdreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_motdreq");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_motdreq");
 			if (packet_get_size(packet) < sizeof(t_client_clan_motdreq)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLAN_MOTDREQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_clan_motdreq), packet_get_size(packet));
 				return -1;
@@ -109,7 +109,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_motdchg(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_motdchg");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_motdchg");
 			if (packet_get_size(packet) < sizeof(t_client_clan_motdreq)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLAN_MOTDCHGREQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_clan_motdreq), packet_get_size(packet));
 				return -1;
@@ -121,7 +121,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_disbandreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_disbandreq");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_disbandreq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_clan_disbandreq)) {
@@ -175,7 +175,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_createreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_createreq");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_createreq");
 			if (packet_get_size(packet) < sizeof(t_client_clan_createreq)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLAN_INFOREQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_clan_createreq), packet_get_size(packet));
 				return -1;
@@ -188,7 +188,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_createinvitereq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_createinvitereq");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_createinvitereq");
 			t_packet *rpacket;
 			unsigned size;
 			const char *clanname;
@@ -283,7 +283,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_createinvitereply(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_createinvitereply");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_createinvitereply");
 			t_packet *rpacket;
 			t_connection *conn;
 			t_clan *clan;
@@ -370,7 +370,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clanmember_rankupdatereq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clanmember_rankupdatereq");
+			(void)pvpgn_v3_clan_dispatch(c, "clanmember_rankupdatereq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_clanmember_rankupdate_req)) {
@@ -450,7 +450,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clanmember_removereq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clanmember_removereq");
+			(void)pvpgn_v3_clan_dispatch(c, "clanmember_removereq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_clanmember_remove_req)) {
@@ -511,7 +511,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_membernewchiefreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_membernewchiefreq");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_membernewchiefreq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_clan_membernewchiefreq)) {
@@ -555,7 +555,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_invitereq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_invitereq");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_invitereq");
 			t_packet *rpacket;
 			t_account *account;
 			t_clan *clan;
@@ -645,7 +645,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_clan_invitereply(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_clan_dispatch_try(c, "clan_invitereply");
+			(void)pvpgn_v3_clan_dispatch(c, "clan_invitereply");
 			t_packet *rpacket;
 			t_account *acc;
 			t_clan *clan;

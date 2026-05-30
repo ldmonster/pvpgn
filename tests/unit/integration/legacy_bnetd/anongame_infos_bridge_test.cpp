@@ -69,7 +69,7 @@ TEST_CASE("anongame_infos load bridge logs file",
           "[integration][legacy_bnetd][anongame_infos_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_anongame_infos_load_try(
+    REQUIRE(::pvpgn_v3_anongame_infos_load(
         "/etc/pvpgn/anongame_infos.conf") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
@@ -82,7 +82,7 @@ TEST_CASE("anongame_infos load bridge null filename",
           "[integration][legacy_bnetd][anongame_infos_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_anongame_infos_load_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_anongame_infos_load(nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "file").empty());
 }
@@ -91,7 +91,7 @@ TEST_CASE("anongame_infos unload bridge logs",
           "[integration][legacy_bnetd][anongame_infos_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_anongame_infos_unload_try() == 0);
+    REQUIRE(::pvpgn_v3_anongame_infos_unload() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_anongame_infos_bridge");

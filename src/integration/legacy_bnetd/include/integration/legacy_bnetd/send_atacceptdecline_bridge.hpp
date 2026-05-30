@@ -6,7 +6,7 @@
 /// (SID_ARRANGEDTEAM_MEMBER_DECLINE, 0x62).
 ///
 /// `pvpgn_v3_send_atmemberdecline` encodes an `ArrangedTeamMemberDecline`
-/// via the v3 codec and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// via the v3 codec and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout:
 ///   count (u32 LE) + action (u32 LE) + decliner_name (cstring)

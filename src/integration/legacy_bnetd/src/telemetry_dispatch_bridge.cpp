@@ -9,7 +9,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_telemetry_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_telemetry_dispatch(void* conn_ptr,
                                                char const* op) noexcept {
     if (conn_ptr == nullptr) {
         return 0;

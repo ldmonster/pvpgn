@@ -65,7 +65,7 @@ TEST_CASE("ipban create bridge logs Debug",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_create_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_create() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -77,7 +77,7 @@ TEST_CASE("ipban destroy bridge logs Debug",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_destroy() == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records.front().message == "ipbanlist destroy observed");
 }
@@ -86,7 +86,7 @@ TEST_CASE("ipban load bridge records filename",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_load_try("/etc/pvpgn/bnban") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_load("/etc/pvpgn/bnban") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level == pvpgn::core::LogLevel::Info);
@@ -97,7 +97,7 @@ TEST_CASE("ipban load bridge tolerates null filename",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_load_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_load(nullptr) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "filename")}
             == "<null>");
 }
@@ -106,7 +106,7 @@ TEST_CASE("ipban save bridge records filename",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_save_try("/var/lib/pvpgn/bnban") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_save("/var/lib/pvpgn/bnban") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -119,7 +119,7 @@ TEST_CASE("ipban check bridge records ipaddr at Trace",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_check_try("192.0.2.7") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_check("192.0.2.7") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Trace);
@@ -131,7 +131,7 @@ TEST_CASE("ipban check bridge tolerates null ipaddr",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_check_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_check(nullptr) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "ipaddr")}
             == "<null>");
 }
@@ -140,7 +140,7 @@ TEST_CASE("ipban add bridge records sd / ipaddr / endtime",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_add_try(
+    REQUIRE(::pvpgn_v3_bnetd_ipban_add(
         9, "203.0.113.0/24", 1700000123ULL) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
@@ -155,7 +155,7 @@ TEST_CASE("ipban add bridge handles no-admin context (sd=-1, permanent)",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_add_try(-1, nullptr, 0ULL) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_add(-1, nullptr, 0ULL) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(std::string{field_value(r, "sd")}      == "-1");
@@ -167,7 +167,7 @@ TEST_CASE("ipban unload_expired bridge logs Debug",
           "[integration][legacy_bnetd][ipban_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_ipban_unload_expired_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_ipban_unload_expired() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);

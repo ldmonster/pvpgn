@@ -29,7 +29,7 @@
 namespace pb = pvpgn::protocol::bnet;
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_clan_profile_try(
+extern "C" int pvpgn_v3_clan_profile(
     void* conn_ptr, void const* body, unsigned int body_size) {
     if (conn_ptr == nullptr || body == nullptr) return 0;
     // Body: [option=0x08][count u32 LE][clantag u32][clienttag u32] = 13 bytes

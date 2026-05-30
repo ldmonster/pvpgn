@@ -10,6 +10,6 @@
 // Contract: always return 0 -- legacy MUST fall through and run the
 // real init / append.
 
-extern "C" int pvpgn_v3_userlog_init_try(void) noexcept;
-extern "C" int pvpgn_v3_userlog_append_try(char const* username,
+extern "C" int pvpgn_v3_userlog_init(void) noexcept;
+extern "C" int pvpgn_v3_userlog_append(char const* username,
                                             char const* text) noexcept;

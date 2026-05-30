@@ -65,7 +65,7 @@ TEST_CASE("clan send bridge null conn no-op",
           "[integration][legacy_bnetd][clan_send_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_clan_send_try(nullptr,
+    REQUIRE(::pvpgn_v3_clan_send(nullptr,
                                      "clan_send_status_window") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -75,7 +75,7 @@ TEST_CASE("clan send bridge logs op",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_clan_send_try(&marker,
+    REQUIRE(::pvpgn_v3_clan_send(&marker,
                                      "clan_send_memberlist") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
@@ -89,7 +89,7 @@ TEST_CASE("clan send bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_clan_send_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_clan_send(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

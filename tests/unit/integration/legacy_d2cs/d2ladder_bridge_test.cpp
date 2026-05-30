@@ -57,7 +57,7 @@ TEST_CASE("d2cs d2ladder init bridge logs",
           "[integration][legacy_d2cs][d2ladder_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_d2ladder_init_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_d2ladder_init() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2cs_d2ladder_bridge");
@@ -69,7 +69,7 @@ TEST_CASE("d2cs d2ladder destroy bridge logs",
           "[integration][legacy_d2cs][d2ladder_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_d2ladder_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_d2ladder_destroy() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2cs_d2ladder_bridge");
@@ -82,9 +82,9 @@ TEST_CASE("d2cs d2ladder bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_d2ladder_init_try() == 0);
+        REQUIRE(::pvpgn_v3_d2cs_d2ladder_init() == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_d2ladder_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_d2ladder_destroy() == 0);
     REQUIRE(sink.records.size() == before);
 }

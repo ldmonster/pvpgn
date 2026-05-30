@@ -5,7 +5,7 @@
 /// Strangler-fig hook for SERVER_FRIENDSLISTREPLY (SID_FRIENDSLIST, 0x65).
 ///
 /// `pvpgn_v3_send_friendslistreply` encodes a `FriendsListReply` via the v3
-/// codec and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// codec and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (per entry):
 ///   name (cstring) + status (u8) + location (u8) + client_tag (u32 LE) +

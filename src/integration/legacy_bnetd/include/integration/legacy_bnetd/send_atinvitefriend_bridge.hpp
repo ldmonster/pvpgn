@@ -6,7 +6,7 @@
 /// (SID_ARRANGEDTEAM_INVITE_FRIEND, 0x61).
 ///
 /// `pvpgn_v3_send_atinvitefriendack` encodes an `ArrangedTeamInviteFriendAck`
-/// via the v3 codec and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// via the v3 codec and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout:
 ///   count (u32 LE) + id (u32 LE) + timestamp (u32 LE) + team_size (u8) +

@@ -11,6 +11,6 @@
 // later promotion to authoritative ownership once the surrounding
 // state (game registry, account stats) has its own v3 facade.
 
-extern "C" int pvpgn_v3_gamereport_try(void* conn_ptr,
+extern "C" int pvpgn_v3_gamereport(void* conn_ptr,
                                        char const* username,
                                        unsigned int player_count) noexcept;

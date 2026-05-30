@@ -63,7 +63,7 @@ TEST_CASE("stub dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][stub_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_stub_dispatch_try(nullptr, "unknown_1b") == 0);
+    REQUIRE(::pvpgn_v3_stub_dispatch(nullptr, "unknown_1b") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -72,7 +72,7 @@ TEST_CASE("stub dispatch bridge logs unknown_1b",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_stub_dispatch_try(&marker, "unknown_1b") == 0);
+    REQUIRE(::pvpgn_v3_stub_dispatch(&marker, "unknown_1b") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_stub_dispatch_bridge");
     REQUIRE(sink.records[0].message == "stub dispatch observed");
@@ -84,7 +84,7 @@ TEST_CASE("stub dispatch bridge logs unknown2b",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_stub_dispatch_try(&marker, "unknown2b") == 0);
+    REQUIRE(::pvpgn_v3_stub_dispatch(&marker, "unknown2b") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "unknown2b");
 }
@@ -94,7 +94,7 @@ TEST_CASE("stub dispatch bridge logs unknown39",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_stub_dispatch_try(&marker, "unknown39") == 0);
+    REQUIRE(::pvpgn_v3_stub_dispatch(&marker, "unknown39") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "unknown39");
 }
@@ -104,7 +104,7 @@ TEST_CASE("stub dispatch bridge logs regsnoopreply",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_stub_dispatch_try(&marker, "regsnoopreply") == 0);
+    REQUIRE(::pvpgn_v3_stub_dispatch(&marker, "regsnoopreply") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "regsnoopreply");
 }
@@ -114,7 +114,7 @@ TEST_CASE("stub dispatch bridge logs readmemory",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_stub_dispatch_try(&marker, "readmemory") == 0);
+    REQUIRE(::pvpgn_v3_stub_dispatch(&marker, "readmemory") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "readmemory");
 }
@@ -124,7 +124,7 @@ TEST_CASE("stub dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_stub_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_stub_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

@@ -63,7 +63,7 @@ TEST_CASE("telemetry dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][telemetry_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telemetry_dispatch_try(nullptr,
+    REQUIRE(::pvpgn_v3_telemetry_dispatch(nullptr,
                                                "udpok") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -73,7 +73,7 @@ TEST_CASE("telemetry dispatch bridge logs udpok",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telemetry_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_telemetry_dispatch(&marker,
                                                "udpok") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module
@@ -88,7 +88,7 @@ TEST_CASE("telemetry dispatch bridge logs fileinforeq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telemetry_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_telemetry_dispatch(&marker,
                                                "fileinforeq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "fileinforeq");
@@ -99,7 +99,7 @@ TEST_CASE("telemetry dispatch bridge logs extrawork",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telemetry_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_telemetry_dispatch(&marker,
                                                "extrawork") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "extrawork");
@@ -110,7 +110,7 @@ TEST_CASE("telemetry dispatch bridge logs crashdump",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telemetry_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_telemetry_dispatch(&marker,
                                                "crashdump") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "crashdump");
@@ -121,7 +121,7 @@ TEST_CASE("telemetry dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_telemetry_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_telemetry_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

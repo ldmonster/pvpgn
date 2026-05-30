@@ -46,7 +46,7 @@ extern "C" int pvpgn_v3_send_anongame_cancel(void*        conn_ptr,
     body[0] = kOptionCancel;
     write_le32(body.data(), 1, static_cast<std::uint32_t>(count));
 
-    return ::pvpgn_v3_send_packet_try(
+    return ::pvpgn_v3_send_packet(
         conn_ptr,
         body.data(),
         static_cast<unsigned int>(kBodySize));

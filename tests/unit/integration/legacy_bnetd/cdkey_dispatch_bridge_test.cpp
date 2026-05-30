@@ -63,7 +63,7 @@ TEST_CASE("cdkey dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][cdkey_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_cdkey_dispatch_try(nullptr, "cdkey") == 0);
+    REQUIRE(::pvpgn_v3_cdkey_dispatch(nullptr, "cdkey") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -72,7 +72,7 @@ TEST_CASE("cdkey dispatch bridge logs cdkey",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_cdkey_dispatch_try(&marker, "cdkey") == 0);
+    REQUIRE(::pvpgn_v3_cdkey_dispatch(&marker, "cdkey") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_cdkey_dispatch_bridge");
     REQUIRE(sink.records[0].message == "cdkey dispatch observed");
@@ -84,7 +84,7 @@ TEST_CASE("cdkey dispatch bridge logs cdkey2",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_cdkey_dispatch_try(&marker, "cdkey2") == 0);
+    REQUIRE(::pvpgn_v3_cdkey_dispatch(&marker, "cdkey2") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "cdkey2");
 }
@@ -94,7 +94,7 @@ TEST_CASE("cdkey dispatch bridge logs cdkey3",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_cdkey_dispatch_try(&marker, "cdkey3") == 0);
+    REQUIRE(::pvpgn_v3_cdkey_dispatch(&marker, "cdkey3") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "cdkey3");
 }
@@ -104,7 +104,7 @@ TEST_CASE("cdkey dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_cdkey_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_cdkey_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

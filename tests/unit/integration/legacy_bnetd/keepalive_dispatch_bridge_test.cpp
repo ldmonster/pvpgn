@@ -63,7 +63,7 @@ TEST_CASE("keepalive dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][keepalive_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_keepalive_dispatch_try(nullptr,
+    REQUIRE(::pvpgn_v3_keepalive_dispatch(nullptr,
                                                "pingreq") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -73,7 +73,7 @@ TEST_CASE("keepalive dispatch bridge logs pingreq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_keepalive_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_keepalive_dispatch(&marker,
                                                "pingreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module ==
@@ -88,7 +88,7 @@ TEST_CASE("keepalive dispatch bridge logs echoreply",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_keepalive_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_keepalive_dispatch(&marker,
                                                "echoreply") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "echoreply");
@@ -99,7 +99,7 @@ TEST_CASE("keepalive dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_keepalive_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_keepalive_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

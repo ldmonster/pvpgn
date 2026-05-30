@@ -2,7 +2,7 @@
 #ifndef PVPGN_INTEGRATION_LEGACY_BNETD_CDKEY_DISPATCH_BRIDGE_HPP
 #define PVPGN_INTEGRATION_LEGACY_BNETD_CDKEY_DISPATCH_BRIDGE_HPP
 
-extern "C" int pvpgn_v3_cdkey_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_cdkey_dispatch(void* conn_ptr,
                                            char const* op) noexcept;
 
 #endif

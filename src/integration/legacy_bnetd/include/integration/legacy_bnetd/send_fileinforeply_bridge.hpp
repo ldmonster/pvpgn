@@ -11,7 +11,7 @@
 ///   - `pvpgn_v3_send_pingreply` — SERVER_PINGREPLY (SID_NULL, 0x00):
 ///     4-byte header only.  Builds bytes via the v3 `encode(Null)` codec.
 ///
-/// Both functions ship the encoded bytes through `pvpgn_v3_send_packet_try`.
+/// Both functions ship the encoded bytes through `pvpgn_v3_send_packet`.
 /// No installer required.
 
 #include <cstdint>

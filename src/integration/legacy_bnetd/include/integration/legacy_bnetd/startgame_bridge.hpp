@@ -14,7 +14,7 @@
 // game-creation surface so later v3 slices can be promoted with a
 // behaviour reference.
 
-extern "C" int pvpgn_v3_startgame_try(void* conn_ptr,
+extern "C" int pvpgn_v3_startgame(void* conn_ptr,
                                       unsigned int version,
                                       char const* gamename,
                                       char const* gameinfo,

@@ -66,7 +66,7 @@ namespace pvpgn { namespace bnetd {
 		// motd for warcraft 3 (http://img21.imageshack.us/img21/1808/j2py.png)
 		int _client_motdw3(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_handshake_dispatch_try(c, "motdw3");
+			(void)pvpgn_v3_handshake_dispatch(c, "motdw3");
 			t_packet *rpacket;
 			t_clienttag ctag;
 			t_motd_data motdd;
@@ -153,7 +153,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_profilereq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_profile_dispatch_try(c, "profilereq");
+			(void)pvpgn_v3_profile_dispatch(c, "profilereq");
 			t_packet *rpacket;
 			int count;
 			char const *username;
@@ -215,7 +215,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_adreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_ad_dispatch_try(c, "adreq");
+			(void)pvpgn_v3_ad_dispatch(c, "adreq");
 			if (packet_get_size(packet) < sizeof(t_client_adreq))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ADREQ packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_adreq), packet_get_size(packet));
@@ -279,7 +279,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_adack(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_ad_dispatch_try(c, "adack");
+			(void)pvpgn_v3_ad_dispatch(c, "adack");
 			if (packet_get_size(packet) < sizeof(t_client_adack)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ADACK packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_adack), packet_get_size(packet));
 				return -1;
@@ -298,7 +298,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_adclick(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_ad_dispatch_try(c, "adclick");
+			(void)pvpgn_v3_ad_dispatch(c, "adclick");
 			if (packet_get_size(packet) < sizeof(t_client_adclick)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ADCLICK packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_adclick), packet_get_size(packet));
 				return -1;
@@ -311,7 +311,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_adclick2(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_ad_dispatch_try(c, "adclick2");
+			(void)pvpgn_v3_ad_dispatch(c, "adclick2");
 			if (packet_get_size(packet) < sizeof(t_client_adclick2))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad ADCLICK2 packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_adclick2), packet_get_size(packet));
@@ -358,7 +358,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_statsupdate(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_profile_dispatch_try(c, "statsupdate");
+			(void)pvpgn_v3_profile_dispatch(c, "statsupdate");
 			if (packet_get_size(packet) < sizeof(t_client_statsupdate)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad STATSUPDATE packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_statsupdate), packet_get_size(packet));
 				return -1;
@@ -483,7 +483,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_progident2(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_progident_dispatch_try(c, "progident2");
+			(void)pvpgn_v3_progident_dispatch(c, "progident2");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_progident2)) {
@@ -547,7 +547,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_changeclient(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_progident_dispatch_try(c, "changeclient");
+			(void)pvpgn_v3_progident_dispatch(c, "changeclient");
 			if (packet_get_size(packet) < sizeof(t_client_changeclient))
 			{
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad CLIENT_CHANGECLIENT packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_changeclient), packet_get_size(packet));
@@ -571,13 +571,13 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_crashdump(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_telemetry_dispatch_try(c, "crashdump");
+			(void)pvpgn_v3_telemetry_dispatch(c, "crashdump");
 			return 0;
 		}
 
 		int _client_setemailreply(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_account_dispatch_try(c, "setemailreply");
+			(void)pvpgn_v3_account_dispatch(c, "setemailreply");
 			char const *email;
 			t_account *account;
 
@@ -604,7 +604,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_changeemailreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_account_dispatch_try(c, "changeemailreq");
+			(void)pvpgn_v3_account_dispatch(c, "changeemailreq");
 			char const *oldaddr;
 			char const *newaddr;
 			char const *username;
@@ -650,7 +650,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_getpasswordreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_passemail_dispatch_try(c, "getpasswordreq");
+			(void)pvpgn_v3_passemail_dispatch(c, "getpasswordreq");
 			char const *username;
 			char const *try_email;
 			char const *email;
@@ -687,7 +687,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_extrawork(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_telemetry_dispatch_try(c, "extrawork");
+			(void)pvpgn_v3_telemetry_dispatch(c, "extrawork");
 			if (packet_get_size(packet) < sizeof(t_client_extrawork)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad EXTRAWORK packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_extrawork), packet_get_size(packet));
 				return -1;

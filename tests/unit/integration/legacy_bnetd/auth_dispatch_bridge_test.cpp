@@ -63,7 +63,7 @@ TEST_CASE("auth dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][auth_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_auth_dispatch_try(nullptr,
+    REQUIRE(::pvpgn_v3_auth_dispatch(nullptr,
                                           "auth_info") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -73,7 +73,7 @@ TEST_CASE("auth dispatch bridge logs auth_info",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_auth_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_auth_dispatch(&marker,
                                           "auth_info") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_auth_dispatch_bridge");
@@ -87,7 +87,7 @@ TEST_CASE("auth dispatch bridge logs authreq1",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_auth_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_auth_dispatch(&marker,
                                           "authreq1") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "authreq1");
@@ -98,7 +98,7 @@ TEST_CASE("auth dispatch bridge logs authreq109",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_auth_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_auth_dispatch(&marker,
                                           "authreq109") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "authreq109");
@@ -109,7 +109,7 @@ TEST_CASE("auth dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_auth_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_auth_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

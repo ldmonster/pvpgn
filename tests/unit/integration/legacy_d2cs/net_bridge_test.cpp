@@ -65,7 +65,7 @@ TEST_CASE("d2cs net_socket bridge logs type at debug",
           "[integration][legacy_d2cs][net_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_net_socket_try(1) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_net_socket(1) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -78,7 +78,7 @@ TEST_CASE("d2cs net_check_connected bridge logs sock at trace",
           "[integration][legacy_d2cs][net_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_net_check_connected_try(11) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_net_check_connected(11) == 0);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Trace);
     REQUIRE(r.message == "net check_connected observed");
@@ -89,7 +89,7 @@ TEST_CASE("d2cs net_listen bridge logs ip/port/type at info",
           "[integration][legacy_d2cs][net_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_net_listen_try(0u, 6113u, 1) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_net_listen(0u, 6113u, 1) == 0);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
     REQUIRE(r.message == "net listen observed");
@@ -104,9 +104,9 @@ TEST_CASE("d2cs net bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_net_socket_try(1) == 0);
+        REQUIRE(::pvpgn_v3_d2cs_net_socket(1) == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_net_check_connected_try(7) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_net_check_connected(7) == 0);
     REQUIRE(sink.records.size() == before);
 }

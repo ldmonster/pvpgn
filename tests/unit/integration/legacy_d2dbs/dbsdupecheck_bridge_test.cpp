@@ -66,7 +66,7 @@ TEST_CASE("dupecheck bridge logs datalen with non-null data",
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
     char buf[16] = {0};
-    REQUIRE(::pvpgn_v3_d2dbs_dupecheck_try(buf, 12u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_dupecheck(buf, 12u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_d2dbs_dupecheck_bridge");
@@ -79,7 +79,7 @@ TEST_CASE("dupecheck bridge tags null data buffers",
           "[integration][legacy_d2dbs][dupecheck_bridge]") {
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2dbs_dupecheck_try(nullptr, 0u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_dupecheck(nullptr, 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "datalen") == "0");
     REQUIRE(field_value(sink.records[0], "data")    == "null");
@@ -90,6 +90,6 @@ TEST_CASE("dupecheck bridge returns 0 always (legacy fallthrough)",
     RecordingLogger sink;
     ild::BridgeLoggerOverride guard(sink);
     char buf[1] = {0};
-    REQUIRE(::pvpgn_v3_d2dbs_dupecheck_try(buf, 1u) == 0);
-    REQUIRE(::pvpgn_v3_d2dbs_dupecheck_try(buf, 4096u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_dupecheck(buf, 1u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_dupecheck(buf, 4096u) == 0);
 }

@@ -12,5 +12,5 @@
 // the packet and never alters legacy behaviour -- it always
 // returns 0.
 
-extern "C" int pvpgn_v3_anongame_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_anongame_dispatch(void* conn_ptr,
                                               unsigned int option) noexcept;

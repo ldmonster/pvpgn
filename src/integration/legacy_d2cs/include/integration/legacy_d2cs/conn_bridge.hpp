@@ -19,7 +19,7 @@
 /// Contract: always returns 0 -- legacy MUST fall through and run the
 /// real teardown.
 
-extern "C" int pvpgn_v3_d2cs_conn_destroy_try(
+extern "C" int pvpgn_v3_d2cs_conn_destroy(
     int sd,
     unsigned int sessionnum,
     unsigned int cclass,

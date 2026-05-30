@@ -61,7 +61,7 @@ TEST_CASE("wol dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][wol_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_wol_dispatch_try(nullptr, "welcome") == 0);
+    REQUIRE(::pvpgn_v3_wol_dispatch(nullptr, "welcome") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -70,7 +70,7 @@ TEST_CASE("wol dispatch bridge logs con_command",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_wol_dispatch_try(&marker, "con_command") == 0);
+    REQUIRE(::pvpgn_v3_wol_dispatch(&marker, "con_command") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_wol_dispatch_bridge");
     REQUIRE(sink.records[0].message == "wol dispatch observed");
@@ -82,7 +82,7 @@ TEST_CASE("wol dispatch bridge logs log_command",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_wol_dispatch_try(&marker, "log_command") == 0);
+    REQUIRE(::pvpgn_v3_wol_dispatch(&marker, "log_command") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "log_command");
 }
@@ -92,7 +92,7 @@ TEST_CASE("wol dispatch bridge logs welcome",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_wol_dispatch_try(&marker, "welcome") == 0);
+    REQUIRE(::pvpgn_v3_wol_dispatch(&marker, "welcome") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "welcome");
 }
@@ -102,7 +102,7 @@ TEST_CASE("wol dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_wol_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_wol_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

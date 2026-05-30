@@ -101,8 +101,17 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             src/handle_d2cs_link.cpp  # R202: relocated from src/bnetd/handle_d2cs.cpp
             src/handle_telnet_link.cpp  # R203: relocated from src/bnetd/handle_telnet.cpp
             src/handle_bot_link.cpp  # R204: relocated from src/bnetd/handle_bot.cpp
-            src/handle_apireg_link.cpp  # R205: relocated from src/bnetd/handle_apireg.cpp
-            src/handle_anongame_link.cpp  # R206: relocated from src/bnetd/handle_anongame.cpp
+            # R205-split: handle_apireg_link.cpp split by concern into focused sub-TUs
+            src/apireg_member_link.cpp    # member lifecycle: create/destroy/accessors/list
+            src/apireg_tags_link.cpp      # field-setter tag handlers (19 _handle_*_apiregtag)
+            src/apireg_request_link.cpp   # _handle_end_apiregtag: AGEVERIFY + GETNICK logic
+            src/handle_apireg_link.cpp    # R205: thin coordinator — dispatch/line/packet/send
+            # R206-split: handle_anongame_link.cpp split into focused sub-TUs (plan 15 §6)
+            src/anongame_profile_link.cpp    # WAR3 player-profile and clan-profile handlers
+            src/anongame_icon_link.cpp       # WAR3 portrait-icon get/set + validation
+            src/anongame_infos_link.cpp      # game-info/map/URL/type/desc/ladder data handler
+            src/anongame_tournament_link.cpp # tournament status handler + time conversion
+            src/handle_anongame_link.cpp  # R206: thin coordinator — cancel + dispatch switch
             src/handle_wol_link.cpp  # R207: relocated from src/bnetd/handle_wol.cpp
             # R-split: handle_wol_link.cpp split into handle_wol/ modules (plan 15 §5)
             src/handle_wol/wol_user_commands.cpp
@@ -118,7 +127,12 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             src/handle_bnet_link.cpp  # R209: relocated from src/bnetd/handle_bnet.cpp (guards stripped)
             # R-split: handle_bnet_link.cpp split into handle_bnet/ modules (plan 15 §3)
             src/handle_bnet/handshake.cpp
-            src/handle_bnet/auth.cpp
+            # auth.cpp split into focused sub-modules (plan 15 §3 / SOLID-S)
+            src/handle_bnet/auth_account.cpp
+            src/handle_bnet/auth_password.cpp
+            src/handle_bnet/auth_login.cpp
+            src/handle_bnet/auth_cdkey.cpp
+            src/handle_bnet/auth_version.cpp
             src/handle_bnet/chat.cpp
             src/handle_bnet/game.cpp
             src/handle_bnet/friends.cpp

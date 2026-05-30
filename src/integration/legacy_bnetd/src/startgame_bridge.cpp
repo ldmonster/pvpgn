@@ -32,7 +32,7 @@ std::string to_hex(unsigned int v) {
 
 }  // namespace
 
-extern "C" int pvpgn_v3_startgame_try(void* conn_ptr,
+extern "C" int pvpgn_v3_startgame(void* conn_ptr,
                                       unsigned int version,
                                       char const* gamename,
                                       char const* gameinfo,

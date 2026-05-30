@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Unit tests for the observation-only channel-state bridges:
-// `pvpgn_v3_joinchannel_try` and `pvpgn_v3_leavechannel_try`.
+// `pvpgn_v3_joinchannel` and `pvpgn_v3_leavechannel`.
 //
 // These bridges have no side-effect besides structured logging;
 // they always return 0 so legacy retains full state-machine
@@ -66,7 +66,7 @@ TEST_CASE("joinchannel bridge null-conn is no-op",
           "[integration][legacy_bnetd][channel_state_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_joinchannel_try(nullptr, "Test", 0u) == 0);
+    REQUIRE(::pvpgn_v3_joinchannel(nullptr, "Test", 0u) == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -74,7 +74,7 @@ TEST_CASE("leavechannel bridge null-conn is no-op",
           "[integration][legacy_bnetd][channel_state_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_leavechannel_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_leavechannel(nullptr) == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -83,7 +83,7 @@ TEST_CASE("joinchannel bridge logs structured fields",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_joinchannel_try(&marker, "Public Chat", 0u) == 0);
+    REQUIRE(::pvpgn_v3_joinchannel(&marker, "Public Chat", 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module == "v3_channel_state_bridge");
@@ -102,9 +102,9 @@ TEST_CASE("joinchannel bridge flag names",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_joinchannel_try(&marker, "X", 1u) == 0);
-    REQUIRE(::pvpgn_v3_joinchannel_try(&marker, "X", 2u) == 0);
-    REQUIRE(::pvpgn_v3_joinchannel_try(&marker, "X", 99u) == 0);
+    REQUIRE(::pvpgn_v3_joinchannel(&marker, "X", 1u) == 0);
+    REQUIRE(::pvpgn_v3_joinchannel(&marker, "X", 2u) == 0);
+    REQUIRE(::pvpgn_v3_joinchannel(&marker, "X", 99u) == 0);
     REQUIRE(sink.records.size() == 3u);
     REQUIRE(sink.records[0].fields[1].second == "GENERIC");
     REQUIRE(sink.records[1].fields[1].second == "CREATE");
@@ -117,7 +117,7 @@ TEST_CASE("joinchannel bridge null channel name -> empty",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_joinchannel_try(&marker, nullptr, 0u) == 0);
+    REQUIRE(::pvpgn_v3_joinchannel(&marker, nullptr, 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].fields[0].second.empty());
 }
@@ -127,7 +127,7 @@ TEST_CASE("leavechannel bridge logs no fields",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_leavechannel_try(&marker) == 0);
+    REQUIRE(::pvpgn_v3_leavechannel(&marker) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_channel_state_bridge");
     REQUIRE(sink.records[0].message == "leavechannel intent observed");

@@ -11,7 +11,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_runprog_open_try(char const* command) noexcept {
+extern "C" int pvpgn_v3_runprog_open(char const* command) noexcept {
     std::string_view cmd = (command != nullptr)
                                ? std::string_view{command}
                                : std::string_view{};
@@ -25,7 +25,7 @@ extern "C" int pvpgn_v3_runprog_open_try(char const* command) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_runprog_close_try(void) noexcept {
+extern "C" int pvpgn_v3_runprog_close(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_runprog_bridge",
         "runprog close observed",

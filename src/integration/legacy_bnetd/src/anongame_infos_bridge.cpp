@@ -11,7 +11,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_anongame_infos_load_try(char const* filename) noexcept {
+extern "C" int pvpgn_v3_anongame_infos_load(char const* filename) noexcept {
     std::string_view name = (filename != nullptr)
                                 ? std::string_view{filename}
                                 : std::string_view{};
@@ -27,7 +27,7 @@ extern "C" int pvpgn_v3_anongame_infos_load_try(char const* filename) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_anongame_infos_unload_try(void) noexcept {
+extern "C" int pvpgn_v3_anongame_infos_unload(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_anongame_infos_bridge",
         "anongame_infos unload observed",

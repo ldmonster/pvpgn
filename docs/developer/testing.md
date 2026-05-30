@@ -7,7 +7,7 @@ may depend on.
 
 ```
          ┌─────────────────┐
-         │   e2e (smoke)   │  Real bnetd-v3 + real client tools
+         │   e2e (smoke)   │  Real bnetd + real client tools
          ├─────────────────┤
          │   integration   │  Real infra adapters (SQLite, Asio loopback)
          ├─────────────────┤
@@ -40,7 +40,7 @@ may depend on.
 
 ### E2E (`tests/e2e/`)
 
-- Drive real `bnetd-v3` via real `bnbot`/`bnchat`/`bnftp`/`bnstat`
+- Drive real `bnetd` via real `bnbot`/`bnchat`/`bnftp`/`bnstat`
 - **`nc -z` is forbidden** as a readiness probe
 - Opt-in: `PVPGN_V3_E2E_TESTS=ON`
 

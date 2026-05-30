@@ -63,7 +63,7 @@ TEST_CASE("friends dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][friends_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_friends_dispatch_try(nullptr,
+    REQUIRE(::pvpgn_v3_friends_dispatch(nullptr,
                                              "friendslistreq") == 0);
     REQUIRE(sink.records.empty());
 }
@@ -73,7 +73,7 @@ TEST_CASE("friends dispatch bridge logs friendslistreq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_friends_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_friends_dispatch(&marker,
                                              "friendslistreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module ==
@@ -89,7 +89,7 @@ TEST_CASE("friends dispatch bridge logs friendinforeq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_friends_dispatch_try(&marker,
+    REQUIRE(::pvpgn_v3_friends_dispatch(&marker,
                                              "friendinforeq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "friendinforeq");
@@ -100,7 +100,7 @@ TEST_CASE("friends dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_friends_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_friends_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

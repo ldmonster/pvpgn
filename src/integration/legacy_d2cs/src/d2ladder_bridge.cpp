@@ -9,7 +9,7 @@
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 
-extern "C" int pvpgn_v3_d2cs_d2ladder_init_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_d2ladder_init(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_d2ladder_bridge",
         "d2ladder init observed",
@@ -17,7 +17,7 @@ extern "C" int pvpgn_v3_d2cs_d2ladder_init_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2cs_d2ladder_destroy_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_d2ladder_destroy(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2cs_d2ladder_bridge",
         "d2ladder destroy observed",

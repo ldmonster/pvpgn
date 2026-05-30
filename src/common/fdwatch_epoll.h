@@ -29,7 +29,7 @@
 # include <sys/epoll.h>
 #endif
 
-#include "scoped_array.h"
+#include <memory>
 #include "fdwbackend.h"
 
 namespace pvpgn
@@ -50,7 +50,7 @@ namespace pvpgn
 		int sr;
 		int epfd;
 		/* events to investigate */
-		scoped_array<struct epoll_event> epevents;
+		std::unique_ptr<struct epoll_event[]> epevents;
 	};
 
 }

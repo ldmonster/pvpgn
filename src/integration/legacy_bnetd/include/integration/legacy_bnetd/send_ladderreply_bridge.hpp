@@ -5,7 +5,7 @@
 /// Strangler-fig hook for SERVER_LADDERREPLY (SID_GETLADDERDATA, 0x2E).
 ///
 /// `pvpgn_v3_send_ladderreply` encodes a `LadderListReply` via the v3 codec
-/// and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (server → client):
 ///   header(4) + client_tag(4) + id(4) + type(4) + start(4) + count(4)

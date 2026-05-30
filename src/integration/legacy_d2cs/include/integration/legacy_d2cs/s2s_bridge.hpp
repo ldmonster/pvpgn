@@ -11,4 +11,4 @@
 /// Contract: always returns 0 -- legacy MUST fall through and run the
 /// real `s2s_init` body.
 
-extern "C" int pvpgn_v3_d2cs_s2s_init_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_s2s_init(void) noexcept;

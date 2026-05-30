@@ -43,7 +43,7 @@ std::string to_hex8(unsigned int v) {
 
 }  // namespace
 
-extern "C" int pvpgn_v3_anongame_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_anongame_dispatch(void* conn_ptr,
                                               unsigned int option) noexcept {
     if (conn_ptr == nullptr) return 0;
 

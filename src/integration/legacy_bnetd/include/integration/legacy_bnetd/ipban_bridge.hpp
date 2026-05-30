@@ -16,28 +16,28 @@
 /// All bridges take POD scalars / null-safe C strings only.
 /// Contract: every bridge returns 0 and legacy MUST fall through.
 
-extern "C" int pvpgn_v3_bnetd_ipban_create_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_ipban_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_create(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_destroy(void) noexcept;
 
 /// `filename` may be null -- rendered as "<null>".
-extern "C" int pvpgn_v3_bnetd_ipban_load_try(
+extern "C" int pvpgn_v3_bnetd_ipban_load(
     const char* filename) noexcept;
 
 /// `filename` may be null -- rendered as "<null>".
-extern "C" int pvpgn_v3_bnetd_ipban_save_try(
+extern "C" int pvpgn_v3_bnetd_ipban_save(
     const char* filename) noexcept;
 
 /// `ipaddr` may be null -- rendered as "<null>".
-extern "C" int pvpgn_v3_bnetd_ipban_check_try(
+extern "C" int pvpgn_v3_bnetd_ipban_check(
     const char* ipaddr) noexcept;
 
 /// `sd`      -- raw socket descriptor of the admin connection,
 ///              or `-1` when no admin context (script add).
 /// `ipaddr`  -- ban pattern string (may be null -> "<null>").
 /// `endtime` -- absolute UNIX timestamp of expiry; 0 = permanent.
-extern "C" int pvpgn_v3_bnetd_ipban_add_try(
+extern "C" int pvpgn_v3_bnetd_ipban_add(
     int sd,
     const char* ipaddr,
     unsigned long long endtime) noexcept;
 
-extern "C" int pvpgn_v3_bnetd_ipban_unload_expired_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_ipban_unload_expired(void) noexcept;

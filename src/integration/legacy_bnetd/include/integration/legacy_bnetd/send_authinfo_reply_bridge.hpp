@@ -5,7 +5,7 @@
 /// Strangler-fig hook for the legacy `SERVER_AUTHREQ_109` (0x50)
 /// reply emission (the SID_AUTH_INFO server response). Builds the
 /// on-wire bytes via the v3 `encode(AuthInfoReply)` codec and ships
-/// them through `pvpgn_v3_send_packet_try`. No installer required.
+/// them through `pvpgn_v3_send_packet`. No installer required.
 
 #include <cstdint>
 

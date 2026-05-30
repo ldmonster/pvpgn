@@ -46,13 +46,13 @@ std::string field_value(const CapturedLog& r, std::string_view key) {
 
 TEST_CASE("message dispatch bridge null conn no-op", "[integration][legacy_bnetd][message_dispatch_bridge]") {
     RecordingLogger sink; ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_message_dispatch_try(nullptr, "whisper") == 0);
+    REQUIRE(::pvpgn_v3_message_dispatch(nullptr, "whisper") == 0);
     REQUIRE(sink.records.empty());
 }
 
 TEST_CASE("message dispatch bridge logs whisper", "[integration][legacy_bnetd][message_dispatch_bridge]") {
     int marker = 0; RecordingLogger sink; ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_message_dispatch_try(&marker, "whisper") == 0);
+    REQUIRE(::pvpgn_v3_message_dispatch(&marker, "whisper") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_message_dispatch_bridge");
     REQUIRE(sink.records[0].message == "message dispatch observed");
@@ -61,12 +61,12 @@ TEST_CASE("message dispatch bridge logs whisper", "[integration][legacy_bnetd][m
 
 TEST_CASE("message dispatch bridge null op normalised", "[integration][legacy_bnetd][message_dispatch_bridge]") {
     int marker = 0; RecordingLogger sink; ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_message_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_message_dispatch(&marker, nullptr) == 0);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }
 
 TEST_CASE("message dispatch bridge empty op normalised", "[integration][legacy_bnetd][message_dispatch_bridge]") {
     int marker = 0; RecordingLogger sink; ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_message_dispatch_try(&marker, "") == 0);
+    REQUIRE(::pvpgn_v3_message_dispatch(&marker, "") == 0);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

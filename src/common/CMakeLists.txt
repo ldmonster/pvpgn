@@ -1,5 +1,7 @@
 set(COMMON_SOURCES
-	addr.cpp addr.h anongame_protocol.h asnprintf.cpp asnprintf.h
+	# addr.cpp split into focused sub-modules (plan 15 §3 / SOLID-S)
+	addr_core.cpp addr_netaddr.cpp addr_list.cpp
+	addr.cpp addr.h anongame_protocol.h
 	bnethashconv.cpp bnethashconv.h bnethash.cpp bnethash.h bnet_protocol.h
 	bnettime.cpp bnettime.h bn_type.cpp bn_type.h bot_protocol.h conf.cpp
 	conf.h d2char_checksum.cpp d2char_checksum.h d2char_file.h
@@ -12,11 +14,19 @@ set(COMMON_SOURCES
 	give_up_root_privileges.cpp give_up_root_privileges.h hashtable.cpp
 	hashtable.h hash_tuple.hpp hexdump.cpp hexdump.h init_protocol.h introtate.h
 	irc_protocol.h list.cpp list.h lstr.h network.cpp network.h
+	# packet.cpp split into focused sub-modules (plan 15 §3 / SOLID-S)
+	packet_buffer.cpp packet_writer.cpp packet_reader.cpp
 	packet.cpp packet.h proginfo.cpp proginfo.h queue.cpp queue.h rcm.cpp rcm.h
-	rlimit.cpp rlimit.h scoped_array.h scoped_ptr.h setup_after.h
-	setup_before.h systemerror.cpp systemerror.h tag.cpp tag.h token.cpp
-	token.h tracker.h trans.cpp trans.h udp_protocol.h util.cpp util.h
-	version.h wolhash.cpp wolhash.h xalloc.cpp xalloc.h xstr.cpp xstr.h
+	rlimit.cpp rlimit.h setup_after.h
+	setup_before.h systemerror.cpp systemerror.h
+	# tag.cpp split into focused sub-modules (plan 15 §3 / SOLID-S)
+	tag_core.cpp tag_clienttag.cpp tag_wol.cpp
+	tag.cpp tag.h token.cpp
+	token.h tracker.h trans.cpp trans.h udp_protocol.h
+	# util.cpp split into focused sub-modules (plan 15 §3 / SOLID-S)
+	util_string.cpp util_file.cpp util_hex.cpp util_time.cpp
+	util.cpp util.h
+	version.h wolhash.cpp wolhash.h
 	xstring.cpp xstring.h gui_printf.h gui_printf.cpp
 	bigint.cpp bigint.h bnetsrp3.cpp bnetsrp3.h peerchat.cpp peerchat.h
     wol_gameres_protocol.h

@@ -8,7 +8,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_udpok(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_telemetry_dispatch_try(c, "udpok");
+			(void)pvpgn_v3_telemetry_dispatch(c, "udpok");
 			if (packet_get_size(packet) < sizeof(t_client_udpok)) {
 				eventlog(eventlog_level_error, __FUNCTION__, "[{}] got bad UDPOK packet (expected {} bytes, got {})", conn_get_socket(c), sizeof(t_client_udpok), packet_get_size(packet));
 				return -1;
@@ -21,7 +21,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_fileinforeq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_telemetry_dispatch_try(c, "fileinforeq");
+			(void)pvpgn_v3_telemetry_dispatch(c, "fileinforeq");
 			t_packet *rpacket;
 
 			if (packet_get_size(packet) < sizeof(t_client_fileinforeq)) {
@@ -76,7 +76,7 @@ namespace pvpgn { namespace bnetd {
 
 		int _client_statsreq(t_connection * c, t_packet const *const packet)
 		{
-			(void)pvpgn_v3_profile_dispatch_try(c, "statsreq");
+			(void)pvpgn_v3_profile_dispatch(c, "statsreq");
 			t_packet *rpacket;
 			char const *name;
 			char const *key;

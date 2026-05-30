@@ -54,6 +54,14 @@ By default, tracking is enabled and is only used for the purpose of sending info
 [Create an issue](https://github.com/pvpgn/pvpgn-server/issues) if you have any questions, suggestions, or anything else to say about PvPGN-PRO. Please note that D2GS is not part of the PvPGN project and is therefore unsupported here.
 Set `loglevels = "fatal,error,warn,info,debug,trace"` in `bnetd.toml` (`[log]` table) before obtaining logs and posting them.
 
+## Extending PvPGN
+
+PvPGN v3 supports Lua plugins via the `pvpgn.*` API v2 namespace.  Drop a
+`plugin.toml` + `main.lua` pair into `plugins/<your-plugin>/` and restart the
+server.  See [docs/developer/extending-pvpgn.md](docs/developer/extending-pvpgn.md)
+for the full guide, including `pvpgn.commands.register`, `pvpgn.events.on`,
+plugin structure, and a worked example.
+
 ## Development
 Submit pull requests to contribute to this project. Utilize C++11 features and adhere to the [C++ Core Guidelines](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md) whenever possible.
 
@@ -61,7 +69,7 @@ Submit pull requests to contribute to this project. Utilize C++11 features and a
 
 ### v3 (recommended — default as of 3.0.0)
 
-The v3 build uses CMake presets and produces the `bnetd-v3`, `pvpgn-migrate`, and `pvpgn-config` binaries.
+The v3 build uses CMake presets and produces the `bnetd`, `pvpgn-migrate`, and `pvpgn-config` binaries.
 
 ```sh
 cmake --preset v3-dev
@@ -76,17 +84,6 @@ cmake --build --preset v3-release
 ```
 
 See [docs/toml-migration.md](docs/toml-migration.md) for configuration migration from legacy `.conf` files to TOML.
-
-### Legacy (deprecated, opt-in)
-
-The legacy `bnetd`, `d2cs`, and `d2dbs` binaries are still buildable but are **deprecated** and will be removed in PvPGN 4.0.0.
-
-```sh
-cmake -DPVPGN_BUILD_LEGACY=ON -DPVPGN_BUILD_V3=ON -B build
-cmake --build build
-```
-
-> **Warning:** `PVPGN_BUILD_LEGACY=ON` triggers a deprecation warning at configure time.
 
 ---
 

@@ -17,7 +17,7 @@ void set_change_password_handler(ChangePasswordHandler handler) noexcept {
 
 }  // namespace pvpgn::integration::legacy_bnetd
 
-extern "C" int pvpgn_v3_change_password_try(void* conn_ptr,
+extern "C" int pvpgn_v3_change_password(void* conn_ptr,
                                             void const* packet_body,
                                             unsigned int packet_size) noexcept {
     auto* h = pvpgn::integration::legacy_bnetd::g_handler.load(

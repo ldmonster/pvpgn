@@ -31,7 +31,7 @@ std::string_view render_uint(std::array<char, 20>& buf,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_d2dbs_charlock_init_try(
+extern "C" int pvpgn_v3_d2dbs_charlock_init(
     unsigned int tbllen, unsigned int maxgs) noexcept {
     std::array<char, 20> tbuf{};
     std::array<char, 20> mbuf{};
@@ -46,7 +46,7 @@ extern "C" int pvpgn_v3_d2dbs_charlock_init_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2dbs_charlock_destroy_try(void) noexcept {
+extern "C" int pvpgn_v3_d2dbs_charlock_destroy(void) noexcept {
     pld::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2dbs_charlock_bridge",
         "charlock destroy observed",

@@ -12,6 +12,6 @@
 /// Contract: always returns 0 -- legacy MUST fall through and run the
 /// real init/destroy body.
 
-extern "C" int pvpgn_v3_d2cs_d2ladder_init_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_d2ladder_init(void) noexcept;
 
-extern "C" int pvpgn_v3_d2cs_d2ladder_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_d2cs_d2ladder_destroy(void) noexcept;

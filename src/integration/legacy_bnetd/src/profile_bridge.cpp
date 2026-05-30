@@ -74,7 +74,7 @@ papp::RaceStats snap_race(pvpgn::t_account* acc,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_profile_try(
+extern "C" int pvpgn_v3_profile(
     void* conn_ptr, void const* body, unsigned int body_size) {
     if (conn_ptr == nullptr || body == nullptr) return 0;
 

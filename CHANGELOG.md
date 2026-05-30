@@ -4,11 +4,13 @@
 
 ### Breaking Changes
 - `PVPGN_V3_BNETD_INTEGRATION` option removed; v3 integration is now mandatory
-- `PVPGN_BUILD_LEGACY` now defaults to `OFF`; legacy binaries are opt-in
+- `PVPGN_BUILD_LEGACY` cmake option removed; legacy build guards replaced with
+  `if(TARGET common)` checks
+- `bnetd-v3` binary renamed to `bnetd`
 
 ### Added
 - Phase A–N: Full DDD + Hexagonal Architecture refactoring
-- New v3 binaries: `bnetd-v3`, `pvpgn-migrate`, `pvpgn-config`
+- New v3 binaries: `bnetd`, `pvpgn-migrate`, `pvpgn-config`
 - Plugin C ABI 1.0 (`pvpgn/plugin/api.h`)
 - Lua API v2 (`pvpgn.*` namespace)
 - Prometheus metrics + health endpoints

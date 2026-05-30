@@ -33,7 +33,7 @@ const char* join_flag_name(unsigned int flag) noexcept {
 
 }  // namespace
 
-extern "C" int pvpgn_v3_joinchannel_try(void* conn_ptr,
+extern "C" int pvpgn_v3_joinchannel(void* conn_ptr,
                                         char const* channel_name,
                                         unsigned int flag) {
     if (conn_ptr == nullptr) return 0;
@@ -56,7 +56,7 @@ extern "C" int pvpgn_v3_joinchannel_try(void* conn_ptr,
     return 0;
 }
 
-extern "C" int pvpgn_v3_leavechannel_try(void* conn_ptr) {
+extern "C" int pvpgn_v3_leavechannel(void* conn_ptr) {
     if (conn_ptr == nullptr) return 0;
 
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,

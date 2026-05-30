@@ -8,5 +8,5 @@
 // (`_client_statsupdate`). Coalesced behind a single entry
 // point keyed by `op`. Always returns 0; null conn = no log.
 
-extern "C" int pvpgn_v3_profile_dispatch_try(void* conn_ptr,
+extern "C" int pvpgn_v3_profile_dispatch(void* conn_ptr,
                                              char const* op) noexcept;

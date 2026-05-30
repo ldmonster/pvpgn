@@ -12,7 +12,7 @@
 ///   - SERVER_SESSIONKEY2 (0x1D): 12 bytes — header + sessionnum + sessionkey.
 ///
 /// Each function builds the on-wire bytes via the v3 `encode(…)` codec and
-/// dispatches through the registered `pvpgn_v3_send_packet_try` handler.
+/// dispatches through the registered `pvpgn_v3_send_packet` handler.
 ///
 /// Return contract (same as all send bridges):
 ///   1  → packet enqueued; legacy caller MUST skip its own emit path.

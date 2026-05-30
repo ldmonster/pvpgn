@@ -5,7 +5,7 @@
 /// Strangler entry-point scaffold for v3 to take over the legacy
 /// `CLIENT_CHANGEPASSREQ` flow (Batch 28b).
 ///
-/// Today this hook is a no-op: `pvpgn_v3_change_password_try`
+/// Today this hook is a no-op: `pvpgn_v3_change_password`
 /// always returns 0 (legacy path runs unchanged) because the
 /// `ChangePasswordUseCase` requires a one-shot `BNHash` for the
 /// current password, while CLIENT_CHANGEPASSREQ ships a *double-
@@ -37,7 +37,7 @@ extern "C" {
 /// legacy path. Gated by `PVPGN_V3_CHANGEPW=1` at the registration
 /// site -- without the env var the slot stays nullptr and the hook
 /// returns 0.
-int pvpgn_v3_change_password_try(void* conn_ptr,
+int pvpgn_v3_change_password(void* conn_ptr,
                                  void const* packet_body,
                                  unsigned int packet_size) noexcept;
 

@@ -17,11 +17,11 @@
 /// crosses the seam. Contract: always returns 0, legacy MUST fall
 /// through and run the real syscall sequence.
 
-extern "C" int pvpgn_v3_d2cs_net_socket_try(int type) noexcept;
+extern "C" int pvpgn_v3_d2cs_net_socket(int type) noexcept;
 
-extern "C" int pvpgn_v3_d2cs_net_check_connected_try(int sock) noexcept;
+extern "C" int pvpgn_v3_d2cs_net_check_connected(int sock) noexcept;
 
-extern "C" int pvpgn_v3_d2cs_net_listen_try(
+extern "C" int pvpgn_v3_d2cs_net_listen(
     unsigned int ip,
     unsigned int port,
     int type) noexcept;

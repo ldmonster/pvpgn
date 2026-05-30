@@ -56,7 +56,7 @@ TEST_CASE("d2dbs send_packet returns 0 with no handler",
     REQUIRE(::pvpgn_v3_d2dbs_send_packet_available() == 0);
     int marker = 0;
     unsigned char b[] = {0x01, 0x02};
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(&marker, b, sizeof b) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(&marker, b, sizeof b) == 0);
     ild::set_send_packet_handler(saved);
 }
 
@@ -65,9 +65,9 @@ TEST_CASE("d2dbs send_packet rejects null conn/bytes",
     ScopedSink scope;
     REQUIRE(::pvpgn_v3_d2dbs_send_packet_available() == 1);
     unsigned char b[] = {0x01};
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(nullptr, b, sizeof b) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(nullptr, b, sizeof b) == 0);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(&marker, nullptr, 1u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(&marker, nullptr, 1u) == 0);
     REQUIRE(FakeSink::call_count == 0);
 }
 
@@ -76,8 +76,8 @@ TEST_CASE("d2dbs send_packet rejects zero-size and oversize",
     ScopedSink scope;
     int marker = 0;
     unsigned char b[1] = {0};
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(&marker, b, 0u) == 0);
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(&marker, b, 0u) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(
                 &marker, b, ild::kSendPacketMaxSize + 1u) == 0);
     REQUIRE(FakeSink::call_count == 0);
 }
@@ -87,7 +87,7 @@ TEST_CASE("d2dbs send_packet forwards bytes and conn pointer verbatim",
     ScopedSink scope;
     int marker = 0;
     unsigned char b[] = {0xde, 0xad, 0xbe, 0xef, 0x42};
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(&marker, b, sizeof b) == 1);
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(&marker, b, sizeof b) == 1);
     REQUIRE(FakeSink::call_count == 1);
     REQUIRE(FakeSink::last_conn == &marker);
     REQUIRE(FakeSink::last_bytes.size() == sizeof b);
@@ -102,9 +102,9 @@ TEST_CASE("d2dbs send_packet propagates handler return values",
     int marker = 0;
     unsigned char b[] = {0x42};
     FakeSink::return_value = 0;
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(&marker, b, sizeof b) == 0);
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(&marker, b, sizeof b) == 0);
     FakeSink::return_value = -1;
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(&marker, b, sizeof b) == -1);
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(&marker, b, sizeof b) == -1);
     FakeSink::return_value = 1;
-    REQUIRE(::pvpgn_v3_d2dbs_send_packet_try(&marker, b, sizeof b) == 1);
+    REQUIRE(::pvpgn_v3_d2dbs_send_packet(&marker, b, sizeof b) == 1);
 }

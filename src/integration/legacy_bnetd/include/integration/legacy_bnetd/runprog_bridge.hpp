@@ -12,5 +12,5 @@
 // Contract: always return 0 -- legacy MUST fall through and run the
 // real fork()+exec().
 
-extern "C" int pvpgn_v3_runprog_open_try(char const* command) noexcept;
-extern "C" int pvpgn_v3_runprog_close_try(void) noexcept;
+extern "C" int pvpgn_v3_runprog_open(char const* command) noexcept;
+extern "C" int pvpgn_v3_runprog_close(void) noexcept;

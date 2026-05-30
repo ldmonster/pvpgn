@@ -98,7 +98,7 @@ const char* verdict_name(pac::WhisperVerdict v) {
 
 }  // namespace
 
-extern "C" int pvpgn_v3_chat_command_try(
+extern "C" int pvpgn_v3_chat_command(
     void* conn_ptr, void const* body, unsigned int body_size) {
     if (conn_ptr == nullptr || body == nullptr || body_size == 0) return 0;
 

@@ -34,7 +34,7 @@ std::string_view render_uint(std::array<char, 20>& buf,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_d2cs_handle_bnetd_packet_try(
+extern "C" int pvpgn_v3_d2cs_handle_bnetd_packet(
     int sd,
     unsigned int packet_type,
     unsigned int packet_size) noexcept {

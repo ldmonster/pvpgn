@@ -37,7 +37,7 @@ int send_loginreply_common(void* conn_ptr,
     if (bytes.size() > pvpgn::integration::legacy_bnetd::kSendPacketMaxSize) {
         return 0;
     }
-    return ::pvpgn_v3_send_packet_try(
+    return ::pvpgn_v3_send_packet(
         conn_ptr,
         bytes.data(),
         static_cast<unsigned int>(bytes.size()));

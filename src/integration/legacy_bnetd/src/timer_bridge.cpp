@@ -34,7 +34,7 @@ std::string_view render_ull(std::array<char, 24>& buf,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_bnetd_timerlist_create_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_timerlist_create(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_bnetd_timer_bridge",
         "timerlist create observed",
@@ -42,7 +42,7 @@ extern "C" int pvpgn_v3_bnetd_timerlist_create_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_timerlist_destroy_try(void) noexcept {
+extern "C" int pvpgn_v3_bnetd_timerlist_destroy(void) noexcept {
     plb::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_bnetd_timer_bridge",
         "timerlist destroy observed",
@@ -50,7 +50,7 @@ extern "C" int pvpgn_v3_bnetd_timerlist_destroy_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_timerlist_add_timer_try(
+extern "C" int pvpgn_v3_bnetd_timerlist_add_timer(
     int sd,
     unsigned long long when) noexcept {
     std::array<char, 24> sdbuf{};
@@ -66,7 +66,7 @@ extern "C" int pvpgn_v3_bnetd_timerlist_add_timer_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_timerlist_del_all_timers_try(
+extern "C" int pvpgn_v3_bnetd_timerlist_del_all_timers(
     int sd) noexcept {
     std::array<char, 24> sdbuf{};
     const pvpgn::core::ILogger::Field fields[] = {
@@ -79,7 +79,7 @@ extern "C" int pvpgn_v3_bnetd_timerlist_del_all_timers_try(
     return 0;
 }
 
-extern "C" int pvpgn_v3_bnetd_timerlist_check_timers_try(
+extern "C" int pvpgn_v3_bnetd_timerlist_check_timers(
     unsigned long long when) noexcept {
     std::array<char, 24> wbuf{};
     const pvpgn::core::ILogger::Field fields[] = {

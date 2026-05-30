@@ -11,5 +11,5 @@
 // telemetry on top of the legacy load/unload calls so future
 // promotion can flip the loader behind a single switch.
 
-extern "C" int pvpgn_v3_anongame_infos_load_try(char const* filename) noexcept;
-extern "C" int pvpgn_v3_anongame_infos_unload_try(void) noexcept;
+extern "C" int pvpgn_v3_anongame_infos_load(char const* filename) noexcept;
+extern "C" int pvpgn_v3_anongame_infos_unload(void) noexcept;

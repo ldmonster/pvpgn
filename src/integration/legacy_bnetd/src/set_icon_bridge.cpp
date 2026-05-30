@@ -72,7 +72,7 @@ void set_icon_init_locked() {
 
 }  // namespace
 
-extern "C" int pvpgn_v3_set_icon_try(
+extern "C" int pvpgn_v3_set_icon(
     void* conn_ptr, void const* body, unsigned int body_size) {
     if (conn_ptr == nullptr || body == nullptr) return 0;
     if (body_size < 5) return 0;

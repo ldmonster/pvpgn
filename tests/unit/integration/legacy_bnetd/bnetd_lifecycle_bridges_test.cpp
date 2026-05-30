@@ -68,7 +68,7 @@ TEST_CASE("helpfile init bridge logs filename at Info",
           "[integration][legacy_bnetd][helpfile_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_helpfile_init_try("/etc/pvpgn/bnhelp.conf") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_helpfile_init("/etc/pvpgn/bnhelp.conf") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -82,7 +82,7 @@ TEST_CASE("helpfile init tolerates null filename",
           "[integration][legacy_bnetd][helpfile_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_helpfile_init_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_helpfile_init(nullptr) == 0);
     REQUIRE(std::string{field_value(sink.records.front(), "filename")}
             == "<null>");
 }
@@ -91,7 +91,7 @@ TEST_CASE("helpfile unload bridge logs at Info",
           "[integration][legacy_bnetd][helpfile_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_helpfile_unload_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_helpfile_unload() == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records.front().message == "helpfile unload observed");
 }
@@ -102,7 +102,7 @@ TEST_CASE("autoupdate load bridge logs filename at Info",
           "[integration][legacy_bnetd][autoupdate_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_autoupdate_load_try("/etc/pvpgn/autoupdate.conf") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_autoupdate_load("/etc/pvpgn/autoupdate.conf") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level  == pvpgn::core::LogLevel::Info);
@@ -115,7 +115,7 @@ TEST_CASE("autoupdate unload bridge logs at Info",
           "[integration][legacy_bnetd][autoupdate_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_autoupdate_unload_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_autoupdate_unload() == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records.front().message == "autoupdate unload observed");
 }
@@ -126,7 +126,7 @@ TEST_CASE("output init bridge logs at Debug",
           "[integration][legacy_bnetd][output_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_output_init_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_output_init() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -138,7 +138,7 @@ TEST_CASE("output write_to_file bridge logs at Debug",
           "[integration][legacy_bnetd][output_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_output_write_to_file_try() == 0);
+    REQUIRE(::pvpgn_v3_bnetd_output_write_to_file() == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records.front().message == "output write_to_file observed");
 }
@@ -149,7 +149,7 @@ TEST_CASE("support check_files bridge logs supportfile",
           "[integration][legacy_bnetd][support_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_support_check_files_try("/etc/pvpgn/supportfile.conf") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_support_check_files("/etc/pvpgn/supportfile.conf") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -165,7 +165,7 @@ TEST_CASE("mail handle_command bridge logs sd and text at Debug",
           "[integration][legacy_bnetd][mail_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_mail_handle_command_try(5, "send alice hello") == 0);
+    REQUIRE(::pvpgn_v3_bnetd_mail_handle_command(5, "send alice hello") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -179,7 +179,7 @@ TEST_CASE("mail handle_command bridge null-safe",
           "[integration][legacy_bnetd][mail_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_mail_handle_command_try(-1, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_mail_handle_command(-1, nullptr) == 0);
     const auto& r = sink.records.front();
     REQUIRE(std::string{field_value(r, "sd")}   == "-1");
     REQUIRE(std::string{field_value(r, "text")} == "<null>");
@@ -189,7 +189,7 @@ TEST_CASE("mail check bridge logs sd at Trace",
           "[integration][legacy_bnetd][mail_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_bnetd_mail_check_try(11) == 0);
+    REQUIRE(::pvpgn_v3_bnetd_mail_check(11) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Trace);

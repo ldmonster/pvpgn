@@ -7,7 +7,7 @@
 ///
 /// `pvpgn_v3_send_atfriendscreenreply` encodes an
 /// `ArrangedTeamFriendScreenReply` via the v3 codec and ships the bytes
-/// through `pvpgn_v3_send_packet_try`.
+/// through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout:
 ///   f_count (u8) + name_0 (cstring) + ... + name_{n-1} (cstring)

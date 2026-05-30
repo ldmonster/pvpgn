@@ -63,7 +63,7 @@ TEST_CASE("file dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][file_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_file_dispatch_try(nullptr, "file_req") == 0);
+    REQUIRE(::pvpgn_v3_file_dispatch(nullptr, "file_req") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -72,7 +72,7 @@ TEST_CASE("file dispatch bridge logs file_req",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_file_dispatch_try(&marker, "file_req") == 0);
+    REQUIRE(::pvpgn_v3_file_dispatch(&marker, "file_req") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_file_dispatch_bridge");
     REQUIRE(sink.records[0].message == "file dispatch observed");
@@ -84,7 +84,7 @@ TEST_CASE("file dispatch bridge logs file_req2",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_file_dispatch_try(&marker, "file_req2") == 0);
+    REQUIRE(::pvpgn_v3_file_dispatch(&marker, "file_req2") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "file_req2");
 }
@@ -94,7 +94,7 @@ TEST_CASE("file dispatch bridge logs file_req3",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_file_dispatch_try(&marker, "file_req3") == 0);
+    REQUIRE(::pvpgn_v3_file_dispatch(&marker, "file_req3") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "file_req3");
 }
@@ -104,7 +104,7 @@ TEST_CASE("file dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_file_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_file_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

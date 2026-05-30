@@ -4,7 +4,7 @@
 /// @file send_simple_replies.hpp
 /// Strangler-fig hooks for simple D2CS->client replies that lack
 /// codec encoders. Each builds the 3-byte client header + payload
-/// directly via Writer and sends through pvpgn_v3_d2cs_send_packet_try.
+/// directly via Writer and sends through pvpgn_v3_d2cs_send_packet.
 
 #include <cstddef>
 

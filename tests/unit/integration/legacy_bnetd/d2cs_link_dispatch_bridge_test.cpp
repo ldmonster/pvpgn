@@ -63,7 +63,7 @@ TEST_CASE("d2cs link dispatch bridge null conn no-op",
           "[integration][legacy_bnetd][d2cs_link_dispatch_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_link_dispatch_try(nullptr, "authreply") == 0);
+    REQUIRE(::pvpgn_v3_d2cs_link_dispatch(nullptr, "authreply") == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -72,7 +72,7 @@ TEST_CASE("d2cs link dispatch bridge logs authreply",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_link_dispatch_try(&marker, "authreply") == 0);
+    REQUIRE(::pvpgn_v3_d2cs_link_dispatch(&marker, "authreply") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_d2cs_link_dispatch_bridge");
     REQUIRE(sink.records[0].message == "d2cs link dispatch observed");
@@ -84,7 +84,7 @@ TEST_CASE("d2cs link dispatch bridge logs accountloginreq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_link_dispatch_try(&marker, "accountloginreq") == 0);
+    REQUIRE(::pvpgn_v3_d2cs_link_dispatch(&marker, "accountloginreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "accountloginreq");
 }
@@ -94,7 +94,7 @@ TEST_CASE("d2cs link dispatch bridge logs charloginreq",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_link_dispatch_try(&marker, "charloginreq") == 0);
+    REQUIRE(::pvpgn_v3_d2cs_link_dispatch(&marker, "charloginreq") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "charloginreq");
 }
@@ -104,7 +104,7 @@ TEST_CASE("d2cs link dispatch bridge logs gameinforeply",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_link_dispatch_try(&marker, "gameinforeply") == 0);
+    REQUIRE(::pvpgn_v3_d2cs_link_dispatch(&marker, "gameinforeply") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "gameinforeply");
 }
@@ -114,7 +114,7 @@ TEST_CASE("d2cs link dispatch bridge null op normalised",
     int marker = 0;
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_link_dispatch_try(&marker, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_link_dispatch(&marker, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }

@@ -17,21 +17,21 @@
 /// struct. Contract: every bridge returns 0 and legacy MUST fall
 /// through.
 
-extern "C" int pvpgn_v3_bnetd_timerlist_create_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_timerlist_create(void) noexcept;
 
-extern "C" int pvpgn_v3_bnetd_timerlist_destroy_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_timerlist_destroy(void) noexcept;
 
 /// `sd`   -- raw socket descriptor of the owning connection.
 /// `when` -- absolute UNIX timestamp (seconds) at which the timer
 ///           will fire.
-extern "C" int pvpgn_v3_bnetd_timerlist_add_timer_try(
+extern "C" int pvpgn_v3_bnetd_timerlist_add_timer(
     int sd,
     unsigned long long when) noexcept;
 
 /// `sd` -- raw socket descriptor of the owning connection.
-extern "C" int pvpgn_v3_bnetd_timerlist_del_all_timers_try(
+extern "C" int pvpgn_v3_bnetd_timerlist_del_all_timers(
     int sd) noexcept;
 
 /// `when` -- "now" timestamp passed to the per-tick scan.
-extern "C" int pvpgn_v3_bnetd_timerlist_check_timers_try(
+extern "C" int pvpgn_v3_bnetd_timerlist_check_timers(
     unsigned long long when) noexcept;

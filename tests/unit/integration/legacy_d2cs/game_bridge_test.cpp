@@ -65,7 +65,7 @@ TEST_CASE("d2cs gamelist create bridge logs at debug",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_gamelist_create_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_gamelist_create() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -78,7 +78,7 @@ TEST_CASE("d2cs gamelist destroy bridge logs at debug",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_gamelist_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_gamelist_destroy() == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records.front().message == "gamelist destroy observed");
 }
@@ -87,7 +87,7 @@ TEST_CASE("d2cs game create bridge logs id + name + flag at info",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_create_try(17u, "test-game", 0x10u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_create(17u, "test-game", 0x10u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -103,7 +103,7 @@ TEST_CASE("d2cs game create bridge handles null name",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_create_try(1u, nullptr, 0u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_create(1u, nullptr, 0u) == 0);
     REQUIRE(field_value(sink.records.front(), "gamename") == "<null>");
 }
 
@@ -111,7 +111,7 @@ TEST_CASE("d2cs game destroy bridge logs id + name at info",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_destroy_try(42u, "doomed") == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_destroy(42u, "doomed") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -124,7 +124,7 @@ TEST_CASE("d2cs game destroy bridge handles null name",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_destroy_try(99u, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_destroy(99u, nullptr) == 0);
     REQUIRE(field_value(sink.records.front(), "gamename") == "<null>");
 }
 
@@ -133,10 +133,10 @@ TEST_CASE("d2cs game bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_gamelist_create_try() == 0);
+        REQUIRE(::pvpgn_v3_d2cs_gamelist_create() == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_gamelist_destroy_try() == 0);
+    REQUIRE(::pvpgn_v3_d2cs_gamelist_destroy() == 0);
     REQUIRE(sink.records.size() == before);
 }
 
@@ -144,7 +144,7 @@ TEST_CASE("d2cs game_set_d2gs_gameid bridge logs at debug",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_set_d2gs_gameid_try(7u, 12345u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_set_d2gs_gameid(7u, 12345u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -158,7 +158,7 @@ TEST_CASE("d2cs game_set_d2gs bridge logs at debug with d2gs id",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_set_d2gs_try(7u, 3u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_set_d2gs(7u, 3u) == 0);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
     REQUIRE(r.message == "game set d2gs observed");
@@ -170,7 +170,7 @@ TEST_CASE("d2cs game_set_d2gs bridge logs zero d2gs_id when detaching",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_set_d2gs_try(7u, 0u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_set_d2gs(7u, 0u) == 0);
     REQUIRE(field_value(sink.records.front(), "d2gs_id") == "0");
 }
 
@@ -178,7 +178,7 @@ TEST_CASE("d2cs game_set_created bridge logs at info",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_set_created_try(7u, 1u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_set_created(7u, 1u) == 0);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
     REQUIRE(r.message == "game set created observed");
@@ -190,7 +190,7 @@ TEST_CASE("d2cs game_add_character bridge logs scalars + name at info",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_add_character_try(7u, "ash", 3u, 42u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_add_character(7u, "ash", 3u, 42u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
@@ -207,7 +207,7 @@ TEST_CASE("d2cs game_add_character bridge handles null name",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_add_character_try(1u, nullptr, 0u, 1u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_add_character(1u, nullptr, 0u, 1u) == 0);
     REQUIRE(field_value(sink.records.front(), "charname") == "<null>");
 }
 
@@ -215,7 +215,7 @@ TEST_CASE("d2cs game_del_character bridge logs game_id + name at info",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_del_character_try(7u, "ash") == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_del_character(7u, "ash") == 0);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Info);
     REQUIRE(r.message == "game del character observed");
@@ -227,6 +227,6 @@ TEST_CASE("d2cs game_del_character bridge handles null name",
           "[integration][legacy_d2cs][game_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_game_del_character_try(1u, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_game_del_character(1u, nullptr) == 0);
     REQUIRE(field_value(sink.records.front(), "charname") == "<null>");
 }

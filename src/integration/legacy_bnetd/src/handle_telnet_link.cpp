@@ -13,7 +13,7 @@
 //
 // The legacy `#ifdef PVPGN_V3_BNETD_INTEGRATION` observer + send-bridge
 // guards are dropped: we are unconditionally inside the v3 build here,
-// so `pvpgn_v3_telnet_dispatch_try` and `pvpgn_v3_send_raw_text` are
+// so `pvpgn_v3_telnet_dispatch` and `pvpgn_v3_send_raw_text` are
 // always called.
 
 #include "common/setup_before.h"
@@ -42,7 +42,7 @@
 // Strangler-fig hook for the bnetd Telnet protocol dispatcher.
 // Observation-only: logs each call to handle_telnet_packet keyed by the
 // connection state name. Returns 0; legacy path always runs.
-extern "C" int pvpgn_v3_telnet_dispatch_try(void* conn_ptr, char const* op) noexcept;
+extern "C" int pvpgn_v3_telnet_dispatch(void* conn_ptr, char const* op) noexcept;
 // Send-bridge: encodes a raw-text packet and dispatches via send_packet handler.
 // Returns 1 (handled), 0 (fall through), -1 (error).
 extern "C" int pvpgn_v3_send_raw_text(void* conn_ptr, char const* text) noexcept;
@@ -85,7 +85,7 @@ namespace pvpgn
 				return -1;
 			}
 
-			(void)pvpgn_v3_telnet_dispatch_try(c, conn_state_get_str(conn_get_state(c)));
+			(void)pvpgn_v3_telnet_dispatch(c, conn_state_get_str(conn_get_state(c)));
 
 			{
 				char const * const linestr = packet_get_str_const(packet, 0, MAX_MESSAGE_LEN);

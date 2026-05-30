@@ -9,7 +9,7 @@
 /// Parameters are scalars only (see handle_d2cs_packet_bridge.hpp
 /// for the full contract).
 
-extern "C" int pvpgn_v3_d2cs_handle_d2gs_packet_try(
+extern "C" int pvpgn_v3_d2cs_handle_d2gs_packet(
     int sd,
     unsigned int packet_type,
     unsigned int packet_size) noexcept;

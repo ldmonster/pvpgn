@@ -42,105 +42,105 @@
 // ---------------------------------------------------------------------------
 // R245: helpfile
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_helpfile_init_try(
+extern "C" int pvpgn_v3_bnetd_helpfile_init(
     const char* filename) noexcept;
-extern "C" int pvpgn_v3_bnetd_helpfile_unload_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_helpfile_unload(void) noexcept;
 
 // ---------------------------------------------------------------------------
 // R245: autoupdate
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_autoupdate_load_try(
+extern "C" int pvpgn_v3_bnetd_autoupdate_load(
     const char* filename) noexcept;
-extern "C" int pvpgn_v3_bnetd_autoupdate_unload_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_autoupdate_unload(void) noexcept;
 
 // ---------------------------------------------------------------------------
 // R245: output
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_output_init_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_output_write_to_file_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_output_init(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_output_write_to_file(void) noexcept;
 
 // ---------------------------------------------------------------------------
 // R245: support
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_support_check_files_try(
+extern "C" int pvpgn_v3_bnetd_support_check_files(
     const char* supportfile) noexcept;
 
 // ---------------------------------------------------------------------------
 // R245: mail
 // ---------------------------------------------------------------------------
 /// `sd` -- raw socket descriptor of the issuing connection (or -1).
-extern "C" int pvpgn_v3_bnetd_mail_handle_command_try(
+extern "C" int pvpgn_v3_bnetd_mail_handle_command(
     int sd,
     const char* text) noexcept;
-extern "C" int pvpgn_v3_bnetd_mail_check_try(int sd) noexcept;
+extern "C" int pvpgn_v3_bnetd_mail_check(int sd) noexcept;
 
 // ---------------------------------------------------------------------------
 // R246: i18n
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_i18n_load_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_i18n_reload_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_i18n_load(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_i18n_reload(void) noexcept;
 
 // ---------------------------------------------------------------------------
 // R246: icons
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_icons_load_try(
+extern "C" int pvpgn_v3_bnetd_icons_load(
     const char* filename) noexcept;
-extern "C" int pvpgn_v3_bnetd_icons_unload_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_icons_unload(void) noexcept;
 
 // ---------------------------------------------------------------------------
 // R246: attrlayer
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_attrlayer_init_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_attrlayer_cleanup_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_attrlayer_save_try(int flags) noexcept;
-extern "C" int pvpgn_v3_bnetd_attrlayer_flush_try(int flags) noexcept;
+extern "C" int pvpgn_v3_bnetd_attrlayer_init(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_attrlayer_cleanup(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_attrlayer_save(int flags) noexcept;
+extern "C" int pvpgn_v3_bnetd_attrlayer_flush(int flags) noexcept;
 
 // ---------------------------------------------------------------------------
 // R246: tracker
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_tracker_set_servers_try(
+extern "C" int pvpgn_v3_bnetd_tracker_set_servers(
     const char* servers) noexcept;
-extern "C" int pvpgn_v3_bnetd_tracker_send_report_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_tracker_send_report(void) noexcept;
 
 // ---------------------------------------------------------------------------
 // R246: team
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_team_load_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_team_unload_try(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_team_load(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_team_unload(void) noexcept;
 
 // ---------------------------------------------------------------------------
 // R246: udptest
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_udptest_send_try(int sd) noexcept;
+extern "C" int pvpgn_v3_bnetd_udptest_send(int sd) noexcept;
 
 // ---------------------------------------------------------------------------
 // R247: alias_command
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_aliasfile_load_try(
+extern "C" int pvpgn_v3_bnetd_aliasfile_load(
     const char* filename) noexcept;
-extern "C" int pvpgn_v3_bnetd_aliasfile_unload_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_handle_alias_command_try(
+extern "C" int pvpgn_v3_bnetd_aliasfile_unload(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_handle_alias_command(
     int sd, const char* text) noexcept;
 
 // ---------------------------------------------------------------------------
 // R247: command_groups
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_command_groups_load_try(
+extern "C" int pvpgn_v3_bnetd_command_groups_load(
     const char* filename) noexcept;
-extern "C" int pvpgn_v3_bnetd_command_groups_unload_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_command_groups_reload_try(
+extern "C" int pvpgn_v3_bnetd_command_groups_unload(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_command_groups_reload(
     const char* filename) noexcept;
 
 // ---------------------------------------------------------------------------
 // R247: anongame_maplists
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_anongame_maplists_create_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_anongame_maplists_destroy_try(void) noexcept;
-extern "C" int pvpgn_v3_bnetd_anongame_tournament_maplists_destroy_try(
+extern "C" int pvpgn_v3_bnetd_anongame_maplists_create(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_anongame_maplists_destroy(void) noexcept;
+extern "C" int pvpgn_v3_bnetd_anongame_tournament_maplists_destroy(
     void) noexcept;
 
 // ---------------------------------------------------------------------------
 // R247: handle_udp
 // ---------------------------------------------------------------------------
-extern "C" int pvpgn_v3_bnetd_handle_udp_packet_try(
+extern "C" int pvpgn_v3_bnetd_handle_udp_packet(
     int usock, unsigned int src_addr, unsigned int src_port) noexcept;

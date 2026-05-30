@@ -34,7 +34,7 @@ std::string_view render_uint(std::array<char, 20>& buf,
 
 }  // namespace
 
-extern "C" int pvpgn_v3_d2cs_handle_init_packet_try(
+extern "C" int pvpgn_v3_d2cs_handle_init_packet(
     int sd,
     unsigned int cclass) noexcept {
     std::array<char, 20> sdbuf{};
@@ -51,7 +51,7 @@ extern "C" int pvpgn_v3_d2cs_handle_init_packet_try(
 }
 
 // R237(1): observation bridge for d2gs initconn classification.
-extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn_try(
+extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn(
     int sd,
     unsigned int addr) noexcept {
     std::array<char, 20> sdbuf{};
@@ -68,7 +68,7 @@ extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn_try(
 }
 
 // R237(2): observation bridge for d2cs initconn classification.
-extern "C" int pvpgn_v3_d2cs_on_d2cs_initconn_try(
+extern "C" int pvpgn_v3_d2cs_on_d2cs_initconn(
     int sd) noexcept {
     std::array<char, 20> sdbuf{};
     const pvpgn::core::ILogger::Field fields[] = {

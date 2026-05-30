@@ -5,7 +5,7 @@
 /// Strangler-fig hook for SERVER_LADDERSEARCHREPLY (SID_LADDERSEARCH, 0x2F).
 ///
 /// `pvpgn_v3_send_laddersearchreply` encodes a `LadderSearchReply` via the
-/// v3 codec and ships the bytes through `pvpgn_v3_send_packet_try`.
+/// v3 codec and ships the bytes through `pvpgn_v3_send_packet`.
 ///
 /// Wire layout (server → client):
 ///   header(4) + rank(4)   — total 8 bytes.

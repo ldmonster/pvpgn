@@ -46,7 +46,7 @@ std::string field_value(const CapturedLog& r, std::string_view key) {
 
 TEST_CASE("server dispatch bridge logs process", "[integration][legacy_bnetd][server_dispatch_bridge]") {
     RecordingLogger sink; ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_server_dispatch_try(nullptr, "process") == 0);
+    REQUIRE(::pvpgn_v3_server_dispatch(nullptr, "process") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].module == "v3_server_dispatch_bridge");
     REQUIRE(sink.records[0].message == "server dispatch observed");
@@ -55,21 +55,21 @@ TEST_CASE("server dispatch bridge logs process", "[integration][legacy_bnetd][se
 
 TEST_CASE("server dispatch bridge null op normalised", "[integration][legacy_bnetd][server_dispatch_bridge]") {
     RecordingLogger sink; ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_server_dispatch_try(nullptr, nullptr) == 0);
+    REQUIRE(::pvpgn_v3_server_dispatch(nullptr, nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }
 
 TEST_CASE("server dispatch bridge empty op normalised", "[integration][legacy_bnetd][server_dispatch_bridge]") {
     RecordingLogger sink; ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_server_dispatch_try(nullptr, "") == 0);
+    REQUIRE(::pvpgn_v3_server_dispatch(nullptr, "") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "?");
 }
 
 TEST_CASE("server dispatch bridge accepts opaque marker", "[integration][legacy_bnetd][server_dispatch_bridge]") {
     int marker = 0; RecordingLogger sink; ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_server_dispatch_try(&marker, "shutdown") == 0);
+    REQUIRE(::pvpgn_v3_server_dispatch(&marker, "shutdown") == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "op") == "shutdown");
 }

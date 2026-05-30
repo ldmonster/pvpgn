@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Unit tests for the observation-only game-report bridge:
-// `pvpgn_v3_gamereport_try`. Always returns 0; emits a single
+// `pvpgn_v3_gamereport`. Always returns 0; emits a single
 // structured-log line at Debug level with `{user, player_count}`.
 
 #include <catch2/catch_test_macros.hpp>
@@ -59,7 +59,7 @@ TEST_CASE("gamereport bridge null-conn is no-op",
           "[integration][legacy_bnetd][game_report_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_gamereport_try(nullptr, "user", 8u) == 0);
+    REQUIRE(::pvpgn_v3_gamereport(nullptr, "user", 8u) == 0);
     REQUIRE(sink.records.empty());
 }
 
@@ -68,7 +68,7 @@ TEST_CASE("gamereport bridge logs structured fields",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_gamereport_try(&marker, "alice", 4u) == 0);
+    REQUIRE(::pvpgn_v3_gamereport(&marker, "alice", 4u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module == "v3_game_report_bridge");
@@ -85,7 +85,7 @@ TEST_CASE("gamereport bridge null username -> empty",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_gamereport_try(&marker, nullptr, 0u) == 0);
+    REQUIRE(::pvpgn_v3_gamereport(&marker, nullptr, 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].fields[0].second.empty());
     REQUIRE(sink.records[0].fields[1].second == "0");
@@ -96,7 +96,7 @@ TEST_CASE("gamereport bridge large player count",
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
     int marker = 0;
-    REQUIRE(::pvpgn_v3_gamereport_try(&marker, "u", 4294967295u) == 0);
+    REQUIRE(::pvpgn_v3_gamereport(&marker, "u", 4294967295u) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(sink.records[0].fields[1].second == "4294967295");
 }

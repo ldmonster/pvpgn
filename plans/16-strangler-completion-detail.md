@@ -82,12 +82,12 @@ intercept traffic. Some are fully promoted, others partially:
 #### Category C: Send-Bridges (packet encoding + dispatch)
 
 These bridges encode outbound packets via the v3 protocol codec and
-dispatch through `pvpgn_v3_send_packet_try`. They are **structurally
+dispatch through `pvpgn_v3_send_packet`. They are **structurally
 complete** — the v3 codec builds the packet bytes, and the send-packet
 handler forwards them to the legacy outqueue. There are **~55 send bridges**:
 
 All `send_*_bridge.cpp` files follow the same pattern: encode packet
-fields into a byte buffer, then call `pvpgn_v3_send_packet_try()`.
+fields into a byte buffer, then call `pvpgn_v3_send_packet()`.
 These are **100% v3-encoded** but still route through the legacy
 connection outqueue via the send-packet handler.
 
@@ -354,7 +354,7 @@ call at the caller site and delete the bridge file.
   4. Update tests to test the v3 service directly
 
 - For send-bridges (Category C):
-  1. Replace `pvpgn_v3_send_packet_try()` calls with direct v3 codec + send
+  1. Replace `pvpgn_v3_send_packet()` calls with direct v3 codec + send
   2. Delete send-bridge files
   3. Remove from `CMakeLists.txt`
 

@@ -9,7 +9,7 @@
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 
-extern "C" int pvpgn_v3_d2cs_server_process_try(void) noexcept {
+extern "C" int pvpgn_v3_d2cs_server_process(void) noexcept {
     plc::bridge_log_kv(pvpgn::core::LogLevel::Info,
         "v3_d2cs_server_bridge",
         "server_process entry observed",

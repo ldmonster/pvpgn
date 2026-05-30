@@ -65,7 +65,7 @@ TEST_CASE("news load bridge logs file",
           "[integration][legacy_bnetd][news_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_news_load_try("/etc/pvpgn/bnnews.txt") == 0);
+    REQUIRE(::pvpgn_v3_news_load("/etc/pvpgn/bnnews.txt") == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_news_bridge");
@@ -77,7 +77,7 @@ TEST_CASE("news load bridge null filename",
           "[integration][legacy_bnetd][news_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_news_load_try(nullptr) == 0);
+    REQUIRE(::pvpgn_v3_news_load(nullptr) == 0);
     REQUIRE(sink.records.size() == 1u);
     REQUIRE(field_value(sink.records[0], "file").empty());
 }
@@ -86,7 +86,7 @@ TEST_CASE("news unload bridge logs",
           "[integration][legacy_bnetd][news_bridge]") {
     RecordingLogger sink;
     ila::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_news_unload_try() == 0);
+    REQUIRE(::pvpgn_v3_news_unload() == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.module  == "v3_news_bridge");

@@ -12,7 +12,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_gamereport_try(void* conn_ptr,
+extern "C" int pvpgn_v3_gamereport(void* conn_ptr,
                                        char const* username,
                                        unsigned int player_count) noexcept {
     if (conn_ptr == nullptr) return 0;

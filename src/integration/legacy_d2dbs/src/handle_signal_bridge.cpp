@@ -10,7 +10,7 @@
 
 namespace pld = pvpgn::integration::legacy_d2dbs;
 
-extern "C" int pvpgn_v3_d2dbs_handle_signal_init_try(void) noexcept {
+extern "C" int pvpgn_v3_d2dbs_handle_signal_init(void) noexcept {
     pld::bridge_log_kv(pvpgn::core::LogLevel::Debug,
         "v3_d2dbs_signal_bridge",
         "signal init observed",
@@ -18,7 +18,7 @@ extern "C" int pvpgn_v3_d2dbs_handle_signal_init_try(void) noexcept {
     return 0;
 }
 
-extern "C" int pvpgn_v3_d2dbs_handle_signal_try(void) noexcept {
+extern "C" int pvpgn_v3_d2dbs_handle_signal(void) noexcept {
     pld::bridge_log_kv(pvpgn::core::LogLevel::Trace,
         "v3_d2dbs_signal_bridge",
         "signal dispatch observed",

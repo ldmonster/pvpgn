@@ -17,7 +17,7 @@ std::string_view to_sv(char const* s) noexcept {
 }
 }  // namespace
 
-extern "C" int pvpgn_v3_anongame_infos_get_try(char const* kind,
+extern "C" int pvpgn_v3_anongame_infos_get(char const* kind,
                                                char const* arg0,
                                                char const* arg1,
                                                char const* arg2) noexcept {

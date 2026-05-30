@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // R91: bridge tests for v3 LADDERREPLY (0x11) and CHARLISTREPLY (0x17)
-// emission via `pvpgn_v3_d2cs_send_packet_try`.
+// emission via `pvpgn_v3_d2cs_send_packet`.
 
 #include <catch2/catch_test_macros.hpp>
 

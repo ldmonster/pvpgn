@@ -9,7 +9,7 @@
 ///
 /// Batch 27a installs the hook so:
 ///   * a follow-up batch can wire `handle_bnet.cpp`'s
-///     `_client_authcheckreq` -> `pvpgn_v3_login_user_try` without
+///     `_client_authcheckreq` -> `pvpgn_v3_login_user` without
 ///     touching the linker graph again;
 ///   * an `IAccountRepository` adapter (Batch 28) can be plugged
 ///     in via a separate registration call, mirroring the
@@ -26,7 +26,7 @@ extern "C" {
 /// `conn_ptr`, `req_body`, `req_size` are passed straight through
 /// from the legacy handler. The bridge does not capture or retain
 /// any of these pointers beyond the call.
-int pvpgn_v3_login_user_try(void* conn_ptr,
+int pvpgn_v3_login_user(void* conn_ptr,
                             void const* req_body,
                             unsigned int req_size) noexcept;
 

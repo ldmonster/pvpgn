@@ -65,7 +65,7 @@ TEST_CASE("d2cs conn-destroy bridge logs scalars",
           "[integration][legacy_d2cs][conn_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_conn_destroy_try(11, 4242u, 1u, 3u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_conn_destroy(11, 4242u, 1u, 3u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(r.level   == pvpgn::core::LogLevel::Debug);
@@ -82,7 +82,7 @@ TEST_CASE("d2cs conn-destroy bridge handles negative sd",
           "[integration][legacy_d2cs][conn_bridge]") {
     RecordingLogger sink;
     ilc::BridgeLoggerOverride guard(sink);
-    REQUIRE(::pvpgn_v3_d2cs_conn_destroy_try(-1, 0u, 0u, 0u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_conn_destroy(-1, 0u, 0u, 0u) == 0);
     REQUIRE(sink.records.size() == 1u);
     const auto& r = sink.records.front();
     REQUIRE(field_value(r, "sd") == "-1");
@@ -93,9 +93,9 @@ TEST_CASE("d2cs conn-destroy bridge override clears on guard destruction",
     RecordingLogger sink;
     {
         ilc::BridgeLoggerOverride guard(sink);
-        REQUIRE(::pvpgn_v3_d2cs_conn_destroy_try(1, 1u, 1u, 1u) == 0);
+        REQUIRE(::pvpgn_v3_d2cs_conn_destroy(1, 1u, 1u, 1u) == 0);
     }
     const std::size_t before = sink.records.size();
-    REQUIRE(::pvpgn_v3_d2cs_conn_destroy_try(2, 2u, 2u, 2u) == 0);
+    REQUIRE(::pvpgn_v3_d2cs_conn_destroy(2, 2u, 2u, 2u) == 0);
     REQUIRE(sink.records.size() == before);
 }

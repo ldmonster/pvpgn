@@ -35,7 +35,7 @@
 # include <sys/time.h>
 #endif
 
-#include "scoped_array.h"
+#include <memory>
 #include "fdwbackend.h"
 
 namespace pvpgn
@@ -56,11 +56,11 @@ namespace pvpgn
 		int sr;
 		int kq;
 		/* changes to make to kqueue */
-		scoped_array<struct kevent> kqchanges;
+		std::unique_ptr<struct kevent[]> kqchanges;
 		/* events to investigate */
-		scoped_array<struct kevent> kqevents;
+		std::unique_ptr<struct kevent[]> kqevents;
 		/* r/w indices from idx to the kqchanges index where the change is stored */
-		scoped_array<int> rridx, wridx;
+		std::unique_ptr<int[]> rridx, wridx;
 		unsigned nochanges;
 	};
 

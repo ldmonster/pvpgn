@@ -11,7 +11,7 @@
 
 namespace plb = pvpgn::integration::legacy_bnetd;
 
-extern "C" int pvpgn_v3_anongame_entry_try(void* conn_ptr,
+extern "C" int pvpgn_v3_anongame_entry(void* conn_ptr,
                                            char const* kind) noexcept {
     if (conn_ptr == nullptr) return 0;
 

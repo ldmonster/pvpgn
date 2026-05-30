@@ -34,7 +34,7 @@ extern "C" {
 /// Stable C ABI: append @p bytes (length @p size) into the
 /// d2dbs connection @p conn_ptr (a `t_d2dbs_connection*`) write
 /// buffer. Returns 1 on success, 0 on any failure.
-int pvpgn_v3_d2dbs_send_packet_try(void* conn_ptr,
+int pvpgn_v3_d2dbs_send_packet(void* conn_ptr,
                                     void const* bytes,
                                     unsigned int size) noexcept;
 

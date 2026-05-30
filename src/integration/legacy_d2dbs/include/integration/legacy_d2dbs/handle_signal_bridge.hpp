@@ -15,6 +15,6 @@
 /// real body. The bridges MUST NOT install or unregister any signal
 /// handlers themselves.
 
-extern "C" int pvpgn_v3_d2dbs_handle_signal_init_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_handle_signal_init(void) noexcept;
 
-extern "C" int pvpgn_v3_d2dbs_handle_signal_try(void) noexcept;
+extern "C" int pvpgn_v3_d2dbs_handle_signal(void) noexcept;

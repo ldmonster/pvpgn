@@ -22,7 +22,7 @@ extern "C" int pvpgn_v3_d2dbs_send_echorequest(void* conn_ptr,
     if (bytes.size() > pvpgn::integration::legacy_d2dbs::kSendPacketMaxSize) {
         return 0;
     }
-    return ::pvpgn_v3_d2dbs_send_packet_try(
+    return ::pvpgn_v3_d2dbs_send_packet(
         conn_ptr,
         bytes.data(),
         static_cast<unsigned int>(bytes.size()));

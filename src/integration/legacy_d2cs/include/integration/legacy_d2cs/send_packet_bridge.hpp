@@ -54,7 +54,7 @@ extern "C" {
 ///          send logic.
 ///
 /// The buffer @p bytes is copied; ownership is **not** transferred.
-int pvpgn_v3_d2cs_send_packet_try(void* conn_ptr,
+int pvpgn_v3_d2cs_send_packet(void* conn_ptr,
                                   void const* bytes,
                                   unsigned int size) noexcept;
 
