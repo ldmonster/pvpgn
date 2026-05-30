@@ -13,8 +13,10 @@
 /// This header is intentionally header-only (no .cpp needed).
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <limits>

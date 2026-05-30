@@ -55,6 +55,15 @@ pvpgn_v3_add_library(app_bnetd_legacy_bridge STATIC
 target_compile_definitions(app_bnetd_legacy_bridge PUBLIC
     PVPGN_V3_BNETD_INTEGRATION=1)
 
+# TODO: rename pvpgn_v3_bnetd → bnetd once the legacy `bnetd` executable
+# target is removed (Plan 06 §7.3 + §7.4). The rename cannot be done now
+# because both `bnetd` (legacy exe) and `pvpgn_v3_bnetd` (v3 exe) are
+# defined in the same build, and CMake target names must be unique.
+# When the legacy target is gone, also update:
+#   - install() target name below
+#   - add_test() names + PASS_REGULAR_EXPRESSION strings below
+#   - Dockerfile, CI scripts, smoke test scripts, docs
+# See: plans/16-strangler-completion-detail.md §7.4
 add_executable(pvpgn_v3_bnetd
     src/main.cpp
     src/session_manager.cpp

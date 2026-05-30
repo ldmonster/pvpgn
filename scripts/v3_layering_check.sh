@@ -58,7 +58,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-SRC_ROOT="${SRC_ROOT:-$(cd "$(dirname "$0")/.." && pwd)/src/v3}"
+SRC_ROOT="${SRC_ROOT:-$(cd "$(dirname "$0")/.." && pwd)/src}"
 
 if [ ! -d "$SRC_ROOT" ]; then
     echo "v3_layering_check: directory not found: $SRC_ROOT" >&2

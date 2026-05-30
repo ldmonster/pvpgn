@@ -1,6 +1,38 @@
 # =============================================================================
 # src/v3/integration/legacy_bnetd/CMakeLists.txt
 # =============================================================================
+#
+# ---------------------------------------------------------------------------
+# PVPGN_V3_COVERAGE — current strangler-fig coverage status (2026-05-30)
+# ---------------------------------------------------------------------------
+# Total bridge source files:           ~105
+#   Category A (observation-only):      ~25  (0% v3 coverage each)
+#   Category B (active, partial/full):  ~14  (30-100% v3 coverage)
+#   Category C (send-bridges):          ~55  (100% encoding, legacy outqueue)
+#   Category D (lifecycle observation):  ~11  (0% v3 coverage, 3 files collapsed)
+#   Category E (link files):            ~15  (legacy code, relocated)
+#
+# Estimated overall v3 functional coverage: ~35-40%
+#   - Packet encoding:    ~90%  (send-bridges cover most outbound packets)
+#   - Inbound dispatch:   ~15%  (most dispatch bridges are observation-only)
+#   - Lifecycle mgmt:      ~5%  (all observation-only)
+#   - Application logic:  ~40%  (14 active bridges, varying completeness)
+#
+# Retirement criteria status (see plans/16-strangler-completion-detail.md §2):
+#   [x] src/bnetd/ legacy tree is empty
+#   [x] cmake/layering_exceptions.txt contains only comments
+#   [ ] src/integration/legacy_bnetd/ shrinks by >= 80% LOC
+#   [ ] PVPGN_BUILD_LEGACY cmake option is removed
+#   [ ] pvpgn_v3_bnetd is renamed bnetd (blocked by legacy bnetd target)
+#   [ ] No pvpgn_v3_*_try symbol remains (~262 occurrences)
+#
+# Quick wins completed (Plan 06, 2026-05-30):
+#   [x] Lifecycle bridge revisions collapsed: _r246 + _r247 merged into base
+#   [x] retire-legacy.sh updated to reflect current directory layout
+#   [x] Coverage tracking comment added (this block)
+#   [x] Binary rename TODO documented in src/app/bnetd/CMakeLists.txt
+# ---------------------------------------------------------------------------
+#
 # Added LATE in the top-level configure -- AFTER `add_subdirectory(src)` --
 # so that the legacy `bnetd_legacy` target already exists when we reference
 # it here. Repairs the R192/R193 systemic CMake ordering bug:
@@ -72,8 +104,29 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
             src/handle_apireg_link.cpp  # R205: relocated from src/bnetd/handle_apireg.cpp
             src/handle_anongame_link.cpp  # R206: relocated from src/bnetd/handle_anongame.cpp
             src/handle_wol_link.cpp  # R207: relocated from src/bnetd/handle_wol.cpp
+            # R-split: handle_wol_link.cpp split into handle_wol/ modules (plan 15 §5)
+            src/handle_wol/wol_user_commands.cpp
+            src/handle_wol/wol_game_commands.cpp
+            src/handle_wol/wol_misc_commands.cpp
             src/irc_link.cpp  # R208: relocated from src/bnetd/irc.cpp
+            # R-split: irc_link.cpp split into irc/ modules (plan 15 §4)
+            src/irc/irc_send.cpp
+            src/irc/irc_format.cpp
+            src/irc/irc_channel.cpp
+            src/irc/irc_commands.cpp
+            src/irc/irc_handlers.cpp
             src/handle_bnet_link.cpp  # R209: relocated from src/bnetd/handle_bnet.cpp (guards stripped)
+            # R-split: handle_bnet_link.cpp split into handle_bnet/ modules (plan 15 §3)
+            src/handle_bnet/handshake.cpp
+            src/handle_bnet/auth.cpp
+            src/handle_bnet/chat.cpp
+            src/handle_bnet/game.cpp
+            src/handle_bnet/friends.cpp
+            src/handle_bnet/clan.cpp
+            src/handle_bnet/ladder.cpp
+            src/handle_bnet/realm.cpp
+            src/handle_bnet/file.cpp
+            src/handle_bnet/misc.cpp
             src/ads_bridge_link.cpp
             src/realm_list_bridge_link.cpp
             src/command_dispatch_bridge.cpp  # R216: legacy chat command strangler
@@ -107,7 +160,10 @@ if(TARGET bnetd_legacy AND PVPGN_V3_WITH_BOOST)
     # `bnetd/handle_udp.h`, etc. -- i.e. relative to `src/`.
     target_include_directories(integration_legacy_bnetd_linked PRIVATE
         ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_BINARY_DIR})
+        ${CMAKE_BINARY_DIR}
+        # R-split: expose src/ so "irc/irc_internal.h", "handle_bnet/handle_bnet_internal.h",
+        #          and "handle_wol/wol_internal.h" resolve
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
 endif()
 
 

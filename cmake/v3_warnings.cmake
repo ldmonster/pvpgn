@@ -21,6 +21,14 @@
 # CMake coding standards:
 #   * Use target_compile_options(... PRIVATE ...) — never add_compile_options().
 #   * Generator expressions are used to keep flags out of INTERFACE propagation.
+#
+# MSVC warning suppressions (minimum necessary set):
+#   /wd4100  — unreferenced formal parameter  (matches GCC -Wno-unused-parameter)
+#   /wd4127  — conditional expression is constant  (false positive with if constexpr
+#              patterns in older MSVC versions; harmless in C++20 but noisy)
+#   /wd4702  — unreachable code  (false positive after [[noreturn]] calls and
+#              exhaustive switch/enum patterns; the compiler cannot always prove
+#              reachability through inlined [[noreturn]] helpers)
 
 include_guard(GLOBAL)
 
@@ -29,6 +37,10 @@ macro(pvpgn_v3_target_warnings target)
         target_compile_options(${target} PRIVATE
             /W4           # High warning level
             /permissive-  # Strict conformance mode
+            # Minimum necessary suppressions — keep this list short.
+            /wd4100       # unreferenced formal parameter (= -Wno-unused-parameter)
+            /wd4127       # conditional expression is constant (if constexpr patterns)
+            /wd4702       # unreachable code (false positive after [[noreturn]] helpers)
         )
     else()
         # GCC and Clang share these flags.

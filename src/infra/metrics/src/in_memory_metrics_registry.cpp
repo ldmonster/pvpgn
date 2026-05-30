@@ -165,17 +165,17 @@ std::shared_ptr<application::ports::IHistogram> InMemoryMetricsRegistry::histogr
 
 std::string InMemoryMetricsRegistry::labels_str(
     const application::ports::MetricLabels& labels) const {
-    if (labels.pairs.empty()) {
+    if (labels.empty()) {
         return "";
     }
 
     std::ostringstream oss;
     oss << "{";
-    for (std::size_t i = 0; i < labels.pairs.size(); ++i) {
-        if (i > 0) {
-            oss << ",";
-        }
-        oss << labels.pairs[i].first << "=\"" << labels.pairs[i].second << "\"";
+    bool first = true;
+    for (const auto& [k, v] : labels) {
+        if (!first) oss << ",";
+        oss << k << "=\"" << v << "\"";
+        first = false;
     }
     oss << "}";
     return oss.str();

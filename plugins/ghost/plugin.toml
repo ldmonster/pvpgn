@@ -1,0 +1,27 @@
+# GHost++ Integration Plugin for PvPGN v3
+# Migrated from scripts/lua/ghost/ + scripts/lua/command/ping.lua + scripts/lua/command/stats.lua
+
+[plugin]
+id = "com.pvpgn.ghost"
+name = "GHost++ Integration"
+version = "1.0.0"
+description = "GHost++ bot integration for Warcraft III game hosting"
+author = "HarpyWar, PvPGN Team"
+license = "GPL-2.0"
+entry_point = "main.lua"
+api_version_req = ">=3.0.0"
+provides = ["integration.ghost"]
+conflicts = []
+
+[config]
+# Comma-separated list of GHost bot account names
+bots = ["hostbot1", "hostbot2"]
+# Enable DotA ladder server mode (shows stats on game join)
+dota_server = true
+# Seconds after which a stored ping entry is considered stale
+ping_expire = 90
+
+[[dependencies]]
+plugin_id = "com.pvpgn.core.chat"
+version_req = ">=3.0.0"
+optional = false

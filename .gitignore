@@ -5,6 +5,7 @@
 /zlib
 /cmake/Modules
 /build*
+/build_output.log
 /lua5.1
 /.vs
 /CMakeSettings.json

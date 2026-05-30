@@ -1,0 +1,9 @@
+# Layering exceptions allowlist
+# Format: one entry per line: <relative-path>|<include-header>
+# Entries here are temporary exceptions for strangler bridges.
+# Each entry must have a corresponding Layering-Exception-Expires: YYYY-MM-DD
+# in the commit message that added it.
+# This file must be empty after Plan 06 (Strangler) completes.
+#
+# Example (do not uncomment without owner review):
+# src/integration/legacy_bnetd/src/prefs_bridge.cpp|infra/config/server_config.hpp

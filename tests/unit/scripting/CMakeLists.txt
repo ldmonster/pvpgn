@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Catch2 v3 conformance tests for the plugin and scripting subsystem (Plan 11)
+
+# Existing GTest-based plugin unit tests
+add_subdirectory(plugin)
+
+if(PVPGN_V3_PLUGIN_TESTS)
+    # ── 11.1  Plugin ABI conformance tests ──────────────────────────────────
+    add_executable(test_plugin_abi_conformance
+        plugin_abi_conformance_test.cpp
+    )
+    target_link_libraries(test_plugin_abi_conformance
+        PRIVATE
+            pvpgn_scripting_plugin
+            Catch2::Catch2WithMain
+    )
+    target_compile_features(test_plugin_abi_conformance PRIVATE cxx_std_20)
+    add_test(NAME PluginABIConformance COMMAND test_plugin_abi_conformance)
+
+    # ── 11.2  Lua API v2 interface tests ────────────────────────────────────
+    add_executable(test_lua_api_v2
+        lua_api_v2_test.cpp
+    )
+    target_link_libraries(test_lua_api_v2
+        PRIVATE
+            pvpgn_scripting_plugin
+            Catch2::Catch2WithMain
+    )
+    target_compile_features(test_lua_api_v2 PRIVATE cxx_std_20)
+    add_test(NAME LuaAPIv2 COMMAND test_lua_api_v2)
+endif()

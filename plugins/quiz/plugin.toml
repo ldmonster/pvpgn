@@ -1,0 +1,33 @@
+# Quiz Plugin for PvPGN v3
+# Migrated from scripts/lua/quiz/
+
+[plugin]
+id = "com.pvpgn.quiz"
+name = "Quiz"
+version = "1.0.0"
+description = "Channel quiz game with leaderboard and competitive mode"
+author = "HarpyWar, PvPGN Team"
+license = "GPL-2.0"
+entry_point = "main.lua"
+api_version_req = ">=3.0.0"
+provides = ["game.quiz"]
+conflicts = ["com.pvpgn.example.quiz"]
+
+[config]
+# Comma-separated list of available question dictionaries (filenames without .txt)
+quiz_filelist = "misc, dota, warcraft"
+# Enable competitive mode (players steal points from each other)
+competitive_mode = true
+# Maximum number of questions per game
+max_questions = 100
+# Delay in seconds between questions
+question_delay = 5
+# Delay in seconds between hints
+hint_delay = 20
+# Number of top players to display in leaderboard
+users_in_top = 15
+
+[[dependencies]]
+plugin_id = "com.pvpgn.core.chat"
+version_req = ">=3.0.0"
+optional = false

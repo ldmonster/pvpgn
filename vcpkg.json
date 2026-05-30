@@ -1,8 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
   "name": "pvpgn",
-  "version-string": "1.99.7",
+  "version": "0.1.0",
   "description": "Player vs Player Gaming Network -- Battle.net realm server",
+  "builtin-baseline": "7476f0d4e77d3333fbb249657df8251c28c4faae",
   "dependencies": [
     {
       "name": "zlib",
@@ -16,7 +17,11 @@
     "boost-context",
     "boost-circular-buffer",
     "boost-intrusive",
-    "boost-lockfree"
+    "boost-lockfree",
+    {
+      "name": "catch2",
+      "version>=": "3.5.4"
+    }
   ],
   "features": {
     "lua": {

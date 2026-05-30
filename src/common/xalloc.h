@@ -16,6 +16,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
+// DEPRECATED: Use std::string, std::make_unique, std::vector instead.
+// This header is retained for legacy bnetd compatibility only.
+// See docs/history/migration-xalloc-to-stl.md for migration guide.
+
 #ifndef INCLUDED_XALLOC_TYPES
 
 namespace pvpgn

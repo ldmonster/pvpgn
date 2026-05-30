@@ -17,21 +17,33 @@ theme:
     - search.suggest
 
 nav:
-  - Home: README.md
-  - Architecture:
-    - Overview: refactoring-plan-00-overview.md
-    - Current Architecture: refactoring-plan-01-current-architecture.md
-    - Target Architecture: refactoring-plan-02-target-architecture.md
-    - Domain Model: refactoring-plan-03-domain-model.md
-    - Application Layer: refactoring-plan-04-application-layer.md
-    - Infrastructure: refactoring-plan-05-infrastructure.md
-    - Networking: refactoring-plan-06-networking-and-boost-fiber.md
-    - Protocols: refactoring-plan-07-protocols.md
-  - Development:
-    - Build Environment: docs/refactoring-build-env.md
-    - Testing Strategy: refactoring-plan-11-testing-strategy.md
-    - Migration Roadmap: refactoring-plan-15-migration-roadmap.md
-    - Risks & ADRs: refactoring-plan-16-risks-and-adrs.md
+  - Home: index.md
+  - User Guide:
+    - Ad Banners: user/adbanners.md
+    - MOTD: user/bnmotd.md
+    - Version Check: user/versioncheck.md
+    - Observability: user/observability.md
+    - Network Ports: user/ports.md
+  - Operator Guide:
+    - Building: operator/building.md
+    - TOML Migration: operator/toml-migration.md
+  - Developer Guide:
+    - Lua API v2: developer/lua-api-v2.md
+    - Plugin Versioning: developer/plugin-versioning-guide.md
+    - Sandbox Integration: developer/sandbox-integration-guide.md
+    - Single Binary Mode: developer/single-binary-mode.md
+    - Config Reference: developer/config-reference.md
+    - Testing: developer/testing.md
+  - Reference:
+    - Overview: reference/index.md
+  - ADRs:
+    - Template: adr/NNNN-template.md
+  - History:
+    - Alloc Survey: history/alloc-survey.md
+    - Compat Survey: history/compat-survey.md
+    - xalloc Migration: history/migration-xalloc-to-stl.md
+    - fdwatch: history/fdwatch.md
+    - Storage Backends: history/storage.md
   - Progress: refactoring-progress.md
 
 markdown_extensions:

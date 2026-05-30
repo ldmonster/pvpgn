@@ -33,7 +33,8 @@ if(MSVC AND DEFINED VCPKG_TARGET_TRIPLET AND VCPKG_TARGET_TRIPLET MATCHES "-stat
 endif()
 
 # ---- v3 build options ---------------------------------------------------
-option(PVPGN_V3_BUILD_TESTS  "Build unit tests for the v3 sub-tree"  ON)
+option(PVPGN_V3_BUILD_TESTS    "Build unit tests for the v3 sub-tree"          ON)
+option(PVPGN_V3_PLUGIN_TESTS   "Build plugin conformance tests (Plan 11)"      ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
@@ -84,6 +85,8 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 endif()
 
 add_subdirectory(src)
+add_subdirectory(scripts/lua)
+add_subdirectory(plugins)
 
 enable_testing()
 

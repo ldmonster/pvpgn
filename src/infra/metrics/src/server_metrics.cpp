@@ -54,8 +54,7 @@ ServerMetrics ServerMetrics::create(application::ports::IMetricsRegistry& regist
         "Total login failures");
 
     // Protocol breakdown with labels
-    application::ports::MetricLabels bnet_label;
-    bnet_label.pairs.push_back({"protocol", "bnet"});
+    application::ports::MetricLabels bnet_label{{"protocol", "bnet"}};
     metrics.connections_by_protocol = registry.gauge(
         "pvpgn_net_connections_by_protocol",
         "Active connections grouped by protocol",

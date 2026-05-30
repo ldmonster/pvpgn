@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Application layer — aggregates all bounded-context modules
 
-add_subdirectory(ports)
 add_subdirectory(auth)
 add_subdirectory(chat)
 add_subdirectory(game)
@@ -10,7 +9,7 @@ add_subdirectory(realm)
 add_subdirectory(social)
 add_subdirectory(ads)
 add_subdirectory(admin_commands)
-add_subdirectory(anongame_infoply)
+add_subdirectory(anongame_inforeply)
 add_subdirectory(anongame_lobby)
 add_subdirectory(bnet_packet_pump)
 add_subdirectory(email_management)

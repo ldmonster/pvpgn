@@ -9,69 +9,31 @@
             "generator": "Ninja",
             "cacheVariables": {
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "PVPGN_BUILD_V3": "ON",
-                "PVPGN_V3_BUILD_TESTS": "ON",
-                "WITH_BNETD": "OFF",
-                "WITH_D2CS": "OFF",
-                "WITH_D2DBS": "OFF"
-            }
-        },
-        {
-            "name": "dev-debug",
-            "inherits": "_base",
-            "displayName": "Dev / Debug (v3 only)",
-            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
-        },
-        {
-            "name": "dev-release",
-            "inherits": "_base",
-            "displayName": "Dev / Release (v3 only)",
-            "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
-        },
-        {
-            "name": "dev-asan",
-            "inherits": "dev-debug",
-            "displayName": "Dev / Debug + ASan/UBSan",
-            "cacheVariables": {
-                "PVPGN_V3_SANITIZERS": "address;undefined"
-            }
-        },
-        {
-            "name": "ci-coverage",
-            "inherits": "dev-debug",
-            "displayName": "CI coverage",
-            "cacheVariables": {
-                "PVPGN_V3_COVERAGE": "ON"
-            }
-        },
-        {
-            "name": "legacy-release",
-            "displayName": "Legacy build (parity)",
-            "binaryDir": "${sourceDir}/build/${presetName}",
-            "generator": "Ninja",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "PVPGN_BUILD_V3": "OFF"
+                "PVPGN_V3": "ON",
+                "PVPGN_V3_BUILD_TESTS": "ON"
             }
         },
         {
             "name": "v3-dev",
             "inherits": "_base",
-            "displayName": "V3 Development",
+            "displayName": "V3 Development (Debug + tests)",
             "binaryDir": "${sourceDir}/build/v3-dev",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "PVPGN_BUILD_LEGACY": "OFF"
+                "PVPGN_V3": "ON",
+                "PVPGN_V3_UNIT_TESTS": "ON"
             }
         },
         {
             "name": "v3-release",
             "inherits": "_base",
-            "displayName": "V3 Release",
+            "displayName": "V3 Release (LTO + warnings-as-errors)",
             "binaryDir": "${sourceDir}/build/v3-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "PVPGN_BUILD_LEGACY": "OFF"
+                "PVPGN_V3": "ON",
+                "PVPGN_V3_WARNINGS_AS_ERRORS": "ON",
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
             }
         },
         {
@@ -81,10 +43,9 @@
             "binaryDir": "${sourceDir}/build/v3-asan",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "PVPGN_BUILD_V3": "ON",
-                "PVPGN_BUILD_LEGACY": "OFF",
-                "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
-                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+                "PVPGN_V3": "ON",
+                "PVPGN_V3_UNIT_TESTS": "ON",
+                "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer"
             }
         },
         {
@@ -94,76 +55,55 @@
             "binaryDir": "${sourceDir}/build/v3-tsan",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "PVPGN_BUILD_V3": "ON",
-                "PVPGN_BUILD_LEGACY": "OFF",
-                "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
-                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
+                "PVPGN_V3": "ON",
+                "PVPGN_V3_UNIT_TESTS": "ON",
+                "CMAKE_CXX_FLAGS": "-fsanitize=thread"
             }
         },
         {
             "name": "v3-coverage",
-            "displayName": "V3 Coverage",
+            "displayName": "V3 Coverage (gcov)",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/v3-coverage",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "PVPGN_BUILD_V3": "ON",
-                "PVPGN_BUILD_LEGACY": "OFF",
-                "CMAKE_CXX_FLAGS": "--coverage -fprofile-arcs -ftest-coverage",
+                "PVPGN_V3": "ON",
+                "PVPGN_V3_UNIT_TESTS": "ON",
+                "CMAKE_CXX_FLAGS": "--coverage",
                 "CMAKE_EXE_LINKER_FLAGS": "--coverage"
             }
         },
         {
             "name": "v3-fuzz",
-            "displayName": "V3 Fuzzing",
+            "displayName": "V3 Fuzzing (libFuzzer)",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/v3-fuzz",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "PVPGN_BUILD_V3": "ON",
-                "PVPGN_BUILD_LEGACY": "OFF",
-                "CMAKE_CXX_FLAGS": "-fsanitize=fuzzer,address",
-                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=fuzzer,address"
+                "PVPGN_V3": "ON",
+                "PVPGN_V3_FUZZ_TESTS": "ON",
+                "CMAKE_CXX_FLAGS": "-fsanitize=fuzzer,address"
             }
         }
     ],
     "buildPresets": [
-        { "name": "dev-debug",    "configurePreset": "dev-debug" },
-        { "name": "dev-release",  "configurePreset": "dev-release" },
-        { "name": "dev-asan",     "configurePreset": "dev-asan" },
-        { "name": "ci-coverage",  "configurePreset": "ci-coverage" },
-        { "name": "v3-dev",       "configurePreset": "v3-dev" },
-        { "name": "v3-release",   "configurePreset": "v3-release" },
-        { "name": "v3-asan",      "configurePreset": "v3-asan" },
-        { "name": "v3-tsan",      "configurePreset": "v3-tsan" },
-        { "name": "v3-coverage",  "configurePreset": "v3-coverage" },
-        { "name": "v3-fuzz",      "configurePreset": "v3-fuzz" }
+        { "name": "v3-dev",      "configurePreset": "v3-dev" },
+        { "name": "v3-release",  "configurePreset": "v3-release" },
+        { "name": "v3-asan",     "configurePreset": "v3-asan" },
+        { "name": "v3-tsan",     "configurePreset": "v3-tsan" },
+        { "name": "v3-coverage", "configurePreset": "v3-coverage" },
+        { "name": "v3-fuzz",     "configurePreset": "v3-fuzz" }
     ],
     "testPresets": [
         {
-            "name": "dev-debug",
-            "configurePreset": "dev-debug",
+            "name": "v3-dev",
+            "configurePreset": "v3-dev",
             "output": { "outputOnFailure": true },
             "execution": { "stopOnFailure": false, "jobs": 4 }
         },
         {
-            "name": "dev-release",
-            "configurePreset": "dev-release",
-            "output": { "outputOnFailure": true }
-        },
-        {
-            "name": "dev-asan",
-            "configurePreset": "dev-asan",
-            "output": { "outputOnFailure": true }
-        },
-        {
-            "name": "ci-coverage",
-            "configurePreset": "ci-coverage",
-            "output": { "outputOnFailure": true }
-        },
-        {
-            "name": "v3-dev",
-            "configurePreset": "v3-dev",
+            "name": "v3-release",
+            "configurePreset": "v3-release",
             "output": { "outputOnFailure": true }
         },
         {
@@ -179,6 +119,11 @@
         {
             "name": "v3-coverage",
             "configurePreset": "v3-coverage",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "v3-fuzz",
+            "configurePreset": "v3-fuzz",
             "output": { "outputOnFailure": true }
         }
     ]

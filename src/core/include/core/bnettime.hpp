@@ -178,9 +178,10 @@ bnettime_from_string(std::string_view s) noexcept {
 
     // Positive result means local is ahead of UTC (east); legacy returns
     // negative for east, positive for west — we match that convention.
+    // Cast via long long to avoid MSVC C4244 (time_t → int narrowing).
     if (loc_as_local > gmt_as_local)
-        return -static_cast<int>((loc_as_local - gmt_as_local) / 60);
-    return static_cast<int>((gmt_as_local - loc_as_local) / 60);
+        return -static_cast<int>(static_cast<long long>(loc_as_local - gmt_as_local) / 60LL);
+    return static_cast<int>(static_cast<long long>(gmt_as_local - loc_as_local) / 60LL);
 }
 
 /// Adjust a `BnetTime` by a timezone bias (in minutes).

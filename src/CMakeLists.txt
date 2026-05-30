@@ -4,6 +4,25 @@
 include(${CMAKE_SOURCE_DIR}/cmake/v3.cmake)
 include(FetchContent)
 
+# ---- LTO (Plan 09 /WX — Milestone 7) ------------------------------------
+# Enable link-time optimisation for Release builds when the toolchain supports
+# it.  CMAKE_INTERPROCEDURAL_OPTIMIZATION is set to ON by the v3-release preset;
+# this block validates that the toolchain actually supports IPO before letting
+# CMake propagate the property to every target.  If IPO is not supported the
+# preset variable is silently cleared so the build still succeeds.
+if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT _pvpgn_ipo_supported OUTPUT _pvpgn_ipo_output)
+    if(NOT _pvpgn_ipo_supported)
+        message(STATUS
+            "PvPGN v3: IPO/LTO requested but not supported by this toolchain "
+            "(${_pvpgn_ipo_output}); disabling.")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+    else()
+        message(STATUS "PvPGN v3: IPO/LTO enabled for Release build.")
+    endif()
+endif()
+
 # ---- third-party (FetchContent, header/source only) ---------------------
 
 option(PVPGN_V3_WITH_SPDLOG  "Fetch & build spdlog for the v3 tree"      ON)
@@ -97,6 +116,7 @@ pvpgn_v3_add_library(core
         core/src/logging.cpp
         core/src/error.cpp
         core/src/trace.cpp
+        core/src/metrics.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
@@ -258,6 +278,8 @@ if(PVPGN_V3_WITH_SPDLOG)
         SOURCES
             infra/log/src/spdlog_logger.cpp
             infra/log/src/logger_factory.cpp
+            infra/log/src/rotating_file_sink.cpp
+            infra/log/src/console_sink.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/infra/log/include
         PUBLIC_DEPS
@@ -279,6 +301,7 @@ if(PVPGN_V3_WITH_TOMLPP)
             infra/config/src/d2cs_server_config.cpp
             infra/config/src/d2dbs_server_config.cpp
             infra/config/src/channel_config_loader.cpp
+            infra/config/src/toml_schema_validator.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/infra/config/include
         PUBLIC_DEPS
@@ -379,12 +402,24 @@ pvpgn_v3_add_library(protocol_bnet
     STATIC
     SOURCES
         protocol/bnet/src/codec.cpp
+        # R-split: codec.cpp split into codec/ modules (plan 15 §8)
+        protocol/bnet/src/codec/codec_auth.cpp
+        protocol/bnet/src/codec/codec_chat.cpp
+        protocol/bnet/src/codec/codec_game.cpp
+        protocol/bnet/src/codec/codec_friends.cpp
+        protocol/bnet/src/codec/codec_clan.cpp
+        protocol/bnet/src/codec/codec_ladder.cpp
+        protocol/bnet/src/codec/codec_realm.cpp
+        protocol/bnet/src/codec/codec_legacy_ols.cpp
+        protocol/bnet/src/codec/codec_w3.cpp
         protocol/bnet/src/fsm.cpp
         protocol/bnet/src/anongame.cpp
         protocol/bnet/src/anongame_tags.cpp
         protocol/bnet/src/event_dispatcher.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/bnet/include
+    PRIVATE_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/protocol/bnet/src
     PUBLIC_DEPS
         core
         protocol_common
@@ -395,7 +430,7 @@ pvpgn_v3_add_library(protocol_bnet
         application_moderation
 )
 
-# MSVC: codec.cpp now exceeds the default object-file section count.
+# MSVC: codec.cpp and split modules exceed the default object-file section count.
 if(MSVC)
     target_compile_options(protocol_bnet PRIVATE /bigobj)
 endif()
@@ -1355,15 +1390,14 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         integration/legacy_bnetd/src/timer_bridge.cpp
         # R244: bnetd IP-ban subsystem bridges.
         integration/legacy_bnetd/src/ipban_bridge.cpp
-        # R245: bnetd small-module lifecycle bridges
-        # (helpfile, autoupdate, output, support, mail).
+        # R245-R247: bnetd small-module lifecycle bridges (unified).
+        # Originally three separate files (R245, R246, R247); collapsed into
+        # one TU as a Plan 06 quick win (2026-05-30).
+        # Subsystems: helpfile, autoupdate, output, support, mail,
+        #             i18n, icons, attrlayer, tracker, team, udptest_send,
+        #             alias_command, command_groups, anongame_maplists, handle_udp.
+        # See: plans/16-strangler-completion-detail.md §5 "Can be done now"
         integration/legacy_bnetd/src/bnetd_lifecycle_bridges.cpp
-        # R246: bnetd second batch of small-module lifecycle bridges
-        # (i18n, icons, attrlayer, tracker, team, udptest_send).
-        integration/legacy_bnetd/src/bnetd_lifecycle_bridges_r246.cpp
-        # R247: bnetd third batch of small-module lifecycle bridges
-        # (alias_command, command_groups, anongame_maplists, handle_udp).
-        integration/legacy_bnetd/src/bnetd_lifecycle_bridges_r247.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
     PUBLIC_DEPS
@@ -1579,7 +1613,7 @@ pvpgn_v3_add_library(infra_metrics
     SOURCES
         infra/metrics/src/in_memory_metrics_registry.cpp
         infra/metrics/src/server_metrics.cpp
-        # infra/metrics/src/http_metrics_server.cpp  # Disabled: uses SPDLOG macros without proper include
+        infra/metrics/src/http_metrics_server.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/infra/metrics/include
     PUBLIC_DEPS
@@ -1588,6 +1622,20 @@ pvpgn_v3_add_library(infra_metrics
         infra_net
     DEPS
         Boost::system
+)
+
+# ---- infra/health (HTTP handlers for /healthz, /readyz, /varz, /metrics) ----
+
+pvpgn_v3_add_library(infra_health
+    STATIC
+    SOURCES
+        infra/health/src/health_handler.cpp
+        infra/health/src/metrics_handler.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/health/include
+    PUBLIC_DEPS
+        core
+        application_ports
 )
 
 # ---- infra/tracing (distributed tracing adapters: log + OTLP) -------------

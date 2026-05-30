@@ -1,0 +1,23 @@
+# Extra Commands Plugin for PvPGN v3
+# Migrated from scripts/lua/command/redirect.lua and scripts/lua/command/w3motd.lua
+
+[plugin]
+id = "com.pvpgn.extra-commands"
+name = "Extra Commands"
+version = "1.0.0"
+description = "Additional utility commands: /redirect, /w3motd"
+author = "HarpyWar, PvPGN Team"
+license = "GPL-2.0"
+entry_point = "main.lua"
+api_version_req = ">=3.0.0"
+provides = ["commands.redirect", "commands.w3motd"]
+conflicts = []
+
+[config]
+# Path to the Warcraft III MOTD file (relative to vardir)
+motdw3file = "motdw3.txt"
+
+[[dependencies]]
+plugin_id = "com.pvpgn.core.chat"
+version_req = ">=3.0.0"
+optional = false

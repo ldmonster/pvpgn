@@ -1,0 +1,23 @@
+# Starcraft Anti-Hack Plugin for PvPGN v3
+# Migrated from scripts/lua/antihack/starcraft.lua
+
+[plugin]
+id = "com.pvpgn.antihack.starcraft"
+name = "Starcraft Anti-Hack"
+version = "1.0.0"
+description = "Memory-scan based anti-maphack for Starcraft: Brood War 1.16.1"
+author = "HarpyWar, PvPGN Team"
+license = "GPL-2.0"
+entry_point = "main.lua"
+api_version_req = ">=3.0.0"
+provides = ["antihack.starcraft"]
+conflicts = []
+
+[config]
+# Interval in seconds between memory scan rounds
+check_interval = 60
+
+[[dependencies]]
+plugin_id = "com.pvpgn.core.chat"
+version_req = ">=3.0.0"
+optional = false

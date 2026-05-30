@@ -5,6 +5,10 @@
 /// Compatibility shim for migrating legacy xalloc/xstr/scoped_ptr to STL.
 /// New v3 code should use STL directly. This header is for migration assistance
 /// when gradually converting legacy code to v3 patterns.
+///
+/// DEPRECATED: All xalloc/xfree/xrealloc/xstrdup wrappers in this header are
+/// deprecated. Use std::vector<uint8_t>, std::string, std::make_unique, or
+/// std::unique_ptr directly. See docs/history/migration-xalloc-to-stl.md.
 
 #include <memory>
 #include <string>
@@ -16,29 +20,36 @@ namespace pvpgn::core::compat {
 
 // ============================================================================
 // Drop-in replacements for legacy xalloc functions
-// Use these when migrating legacy code to v3 before switching to STL containers
+// DEPRECATED: Use std::vector<uint8_t> / std::make_unique<T[]> / std::string
+// instead. These wrappers exist only to ease incremental migration of legacy
+// call sites and will be removed once src/common/xalloc.h is deleted.
 // ============================================================================
 
-/// Allocate memory (wrapper around std::malloc)
+/// @deprecated Use std::vector<uint8_t>(size) or std::make_unique<T[]>(n) instead.
+[[deprecated("use std::vector<uint8_t> or std::make_unique<T[]> instead of xalloc")]]
 inline void* xalloc(std::size_t size) {
     return std::malloc(size);
 }
 
-/// Reallocate memory (wrapper around std::realloc)
+/// @deprecated Use std::vector::resize() instead.
+[[deprecated("use std::vector::resize() instead of xrealloc")]]
 inline void* xrealloc(void* ptr, std::size_t size) {
     return std::realloc(ptr, size);
 }
 
-/// Free memory (wrapper around std::free)
+/// @deprecated Use RAII (std::unique_ptr / std::vector / std::string) — no manual free needed.
+[[deprecated("use RAII (std::unique_ptr / std::vector / std::string) instead of xfree")]]
 inline void xfree(void* ptr) {
     std::free(ptr);
 }
 
 // ============================================================================
 // Drop-in replacements for legacy xstr functions
+// DEPRECATED: Use std::string(s) or pvpgn::core::compat::to_string(s) instead.
 // ============================================================================
 
-/// Duplicate a C string (wrapper around strdup)
+/// @deprecated Use std::string(s) or pvpgn::core::compat::to_string(s) instead.
+[[deprecated("use std::string(s) or pvpgn::core::compat::to_string(s) instead of xstrdup")]]
 inline char* xstrdup(const char* s) {
     return s ? strdup(s) : nullptr;
 }

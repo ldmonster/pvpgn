@@ -11,8 +11,6 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
-#include <spdlog/spdlog.h>
-
 #include "application/ports/metrics_registry.hpp"
 #include "core/logging.hpp"
 #include "core/version.hpp"
@@ -237,17 +235,21 @@ public:
             acceptor_.bind(endpoint);
             acceptor_.listen(boost::asio::socket_base::max_listen_connections);
 
-            SPDLOG_INFO("HTTP metrics server listening on {}:{}", bind_address_, port_);
+            core::log(core::LogLevel::Info, "infra_metrics",
+                      "HTTP metrics server listening on " +
+                      std::string(bind_address_) + ":" + std::to_string(port_));
             accept_connection();
         } catch (const std::exception& e) {
-            SPDLOG_ERROR("Failed to start HTTP metrics server: {}", e.what());
+            core::log(core::LogLevel::Error, "infra_metrics",
+                      std::string("Failed to start HTTP metrics server: ") + e.what());
         }
     }
 
     void stop() {
         if (acceptor_.is_open()) {
             acceptor_.close();
-            SPDLOG_INFO("HTTP metrics server stopped");
+            core::log(core::LogLevel::Info, "infra_metrics",
+                      "HTTP metrics server stopped");
         }
     }
 
@@ -273,7 +275,8 @@ private:
                         std::move(socket), registry_, ready_flag_);
                     session->start();
                 } else {
-                    SPDLOG_DEBUG("HTTP metrics server accept error: {}", ec.message());
+                    core::log(core::LogLevel::Debug, "infra_metrics",
+                              "HTTP metrics server accept error: " + ec.message());
                 }
 
                 if (acceptor_.is_open()) {
