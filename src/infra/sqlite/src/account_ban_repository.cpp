@@ -8,23 +8,26 @@ SQLiteAccountBanRepository::SQLiteAccountBanRepository(
     std::shared_ptr<SQLiteConnection> conn)
     : conn_(std::move(conn)) {}
 
-core::Result<domain::shared::Ban> SQLiteAccountBanRepository::find(
-    domain::AccountId account_id) const {
-    return core::fail(core::Error{core::StatusCode::NotImplemented, "sqlite account_ban: not yet implemented"});
+core::Result<std::optional<application::ports::AccountBan>>
+SQLiteAccountBanRepository::find_active_ban(domain::AccountId,
+                                            core::SystemTime) const {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite account_ban: not yet implemented"});
 }
 
-core::Status<> SQLiteAccountBanRepository::save(
-    domain::AccountId account_id, const domain::shared::Ban& ban) {
-    return core::fail(core::Error{core::StatusCode::NotImplemented, "sqlite account_ban: not yet implemented"});
+core::Status<>
+SQLiteAccountBanRepository::add_ban(const application::ports::AccountBan&) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite account_ban: not yet implemented"});
 }
 
-core::Status<> SQLiteAccountBanRepository::remove(domain::AccountId account_id) {
-    return core::fail(core::Error{core::StatusCode::NotImplemented, "sqlite account_ban: not yet implemented"});
+core::Status<>
+SQLiteAccountBanRepository::remove_ban(domain::AccountId) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite account_ban: not yet implemented"});
 }
 
-void SQLiteAccountBanRepository::forEach(
-    std::function<bool(domain::AccountId, const domain::shared::Ban&)> predicate) const {}
-
-std::size_t SQLiteAccountBanRepository::size() const noexcept { return 0; }
+void SQLiteAccountBanRepository::for_each(
+    std::function<bool(const application::ports::AccountBan&)>) const {}
 
 }  // namespace pvpgn::infra::sqlite
