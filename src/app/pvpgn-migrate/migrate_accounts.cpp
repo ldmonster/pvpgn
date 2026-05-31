@@ -136,7 +136,8 @@ parse_plain_file(const std::filesystem::path& path) {
 std::string toml_escape(std::string_view s) {
     std::string out;
     out.reserve(s.size());
-    for (unsigned char c : s) {
+    for (char raw : s) {
+        const unsigned char c = static_cast<unsigned char>(raw);
         switch (c) {
             case '"':  out += "\\\""; break;
             case '\\': out += "\\\\"; break;

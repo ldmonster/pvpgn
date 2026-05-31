@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -9,7 +9,7 @@
 
 #include "infra/legacy_config/anongame_infos_loader.hpp"
 
-namespace ply = pvpgn::application::anongame_infoply;
+namespace ply = pvpgn::application::anongame_inforeply;
 namespace lc  = pvpgn::infra::legacy_config;
 
 namespace {

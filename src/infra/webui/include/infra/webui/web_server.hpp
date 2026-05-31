@@ -11,12 +11,15 @@
 #include <string_view>
 
 // Forward declarations
+namespace pvpgn::core {
+class IMetricsRegistry;
+}
 namespace pvpgn::application::ports {
 class ISessionRegistry;
 class IChannelRepository;
 class IGameRepository;
 class IAccountRepository;
-class IMetricsRegistry;
+using IMetricsRegistry = core::IMetricsRegistry;
 }
 namespace pvpgn::infra::net {
 class IoRuntime;

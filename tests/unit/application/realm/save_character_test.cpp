@@ -52,7 +52,7 @@ public:
     }
 
     void seed(domain::realm::Character c) {
-        chars_[c.id().account_name + "/" + c.id().char_name] = std::move(c);
+        chars_.insert_or_assign(c.id().account_name + "/" + c.id().char_name, std::move(c));
     }
 
 private:

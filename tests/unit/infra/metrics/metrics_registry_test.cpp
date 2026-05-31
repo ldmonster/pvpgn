@@ -89,7 +89,7 @@ TEST_CASE("InMemoryMetricsRegistry: PrometheusFormat", "[infra][metrics]") {
 TEST_CASE("InMemoryMetricsRegistry: MetricWithLabels", "[infra][metrics]") {
     InMemoryMetricsRegistry registry;
     application::ports::MetricLabels labels;
-    labels.pairs.push_back({"protocol", "bnet"});
+    labels.emplace("protocol", "bnet");
 
     auto gauge = registry.gauge("pvpgn_connections_by_protocol",
                                  "Connections by protocol", labels);

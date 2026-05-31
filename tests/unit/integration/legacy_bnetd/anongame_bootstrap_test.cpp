@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <cstddef>
 #include <cstdlib>
@@ -13,7 +13,7 @@
 
 using namespace pvpgn;
 namespace pb  = pvpgn::protocol::bnet;
-namespace ply = pvpgn::application::anongame_infoply;
+namespace ply = pvpgn::application::anongame_inforeply;
 using integration::legacy_bnetd::AnonGameSnapshotCache;
 using integration::legacy_bnetd::build_anongame_snapshot_cache;
 using integration::legacy_bnetd::make_anongame_inforeply_resolver;
@@ -359,7 +359,7 @@ TEST_CASE("compose_inforeply_bytes: tournament snapshot decorates TYPE",
         "WAR3 TY  Maps\\(2)T.w3m\n";
     TempFile maps{kMapsBodyWithTY, ".maps.conf"};
 
-    application::anongame_infoply::TournamentSnapshot tourney{0x1F, true, 4};
+    application::anongame_inforeply::TournamentSnapshot tourney{0x1F, true, 4};
 
     auto plain   = build_anongame_snapshot_cache(infos.str(), maps.str());
     auto tourney_cache = build_anongame_snapshot_cache(

@@ -358,7 +358,7 @@ TEST_CASE("bnet codec: SID_AUTH_INFO (0x50) reply byte parity vs legacy",
         REQUIRE(static_cast<std::uint8_t>(bytes[1]) == 0x50u);
         REQUIRE(static_cast<std::uint8_t>(bytes[2]) == 43u);
         REQUIRE(static_cast<std::uint8_t>(bytes[3]) == 0u);
-        for (int i = 0; i < 4; ++i)
+        for (std::size_t i = 0; i < 4; ++i)
             REQUIRE(static_cast<std::uint8_t>(bytes[4 + i]) == 0u);
         REQUIRE(static_cast<std::uint8_t>(bytes[8])  == 0xEFu);
         REQUIRE(static_cast<std::uint8_t>(bytes[9])  == 0xBEu);
@@ -2519,7 +2519,7 @@ TEST_CASE("bnet codec: SID_COUNTRYINFO1 (0x12) byte parity vs legacy",
     REQUIRE(static_cast<std::uint8_t>(bytes[22]) == 0xFFu);
     REQUIRE(static_cast<std::uint8_t>(bytes[23]) == 0xFFu);
     // langid1/2/3 = 0x0C090000
-    for (int k = 0; k < 3; ++k) {
+    for (std::size_t k = 0; k < 3; ++k) {
         REQUIRE(static_cast<std::uint8_t>(bytes[24 + 4 * k + 0]) == 0x00u);
         REQUIRE(static_cast<std::uint8_t>(bytes[24 + 4 * k + 1]) == 0x00u);
         REQUIRE(static_cast<std::uint8_t>(bytes[24 + 4 * k + 2]) == 0x09u);

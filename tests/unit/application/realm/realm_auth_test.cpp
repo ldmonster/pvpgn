@@ -66,7 +66,7 @@ public:
 
     /// Helper: seed the repository with a realm directly.
     void seed(domain::realm::Realm realm) {
-        by_name_[realm.name()] = std::move(realm);
+        by_name_.insert_or_assign(realm.name(), std::move(realm));
     }
 
 private:
@@ -136,7 +136,7 @@ TEST_CASE("RealmAuth unknown realm name returns NotFound",
     auto result = use_case.execute(cmd);
 
     REQUIRE_FALSE(result.has_value());
-    CHECK(result.error().code() == core::StatusCode::NotFound);
+    CHECK(result.error().code() == pvpgn::core::StatusCode::NotFound);
 }
 
 TEST_CASE("RealmAuth wrong password returns PermissionDenied",
@@ -159,5 +159,5 @@ TEST_CASE("RealmAuth wrong password returns PermissionDenied",
     auto result = use_case.execute(cmd);
 
     REQUIRE_FALSE(result.has_value());
-    CHECK(result.error().code() == core::StatusCode::PermissionDenied);
+    CHECK(result.error().code() == pvpgn::core::StatusCode::PermissionDenied);
 }

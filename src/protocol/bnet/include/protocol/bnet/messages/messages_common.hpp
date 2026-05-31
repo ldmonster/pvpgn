@@ -13,8 +13,6 @@
 
 namespace pvpgn::protocol::bnet {
 
-namespace pvpgn::protocol::bnet {
-
 // SID codes (subset; matches legacy bnet_protocol.h).
 inline constexpr std::uint8_t kSidNull            = 0x00;
 inline constexpr std::uint8_t kSidGetAdvListEx    = 0x09;  // GAMELISTREQ/REPLY

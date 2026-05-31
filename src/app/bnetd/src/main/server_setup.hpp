@@ -6,7 +6,7 @@
 #pragma once
 
 #include "app/bnetd/server_config.hpp"
-#include "application/auth/nls_credential_store.hpp"
+#include "application/auth/login_user_nls.hpp"
 #include "protocol/bnet/use_case_context.hpp"
 #include "services/bnetd/bnetd_service.hpp"
 

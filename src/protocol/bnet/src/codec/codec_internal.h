@@ -5,6 +5,8 @@
 
 #include "protocol/bnet/codec.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <string>
 
 #include "core/error.hpp"
@@ -43,7 +45,7 @@
     do {                                                                       \
         auto h = r.read_bytes(20);                                             \
         if (!h) return core::fail(h.error());                                  \
-        std::copy(h.value().begin(), h.value().end(), (target).begin());       \
+        std::memcpy((target).data(), h.value().data(), 20);                    \
     } while (0)
 
 namespace pvpgn::protocol::bnet {

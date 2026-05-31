@@ -261,7 +261,7 @@ core::Status<> encode(Writer& w, const RealmListRequest&) {
 }
 
 core::Status<> encode(Writer& w, const RealmListReply& m) {
-    if (m.entries.size() > kRealmListLimit) {
+    if (m.entries.size() > detail::kRealmListLimit) {
         return core::fail(core::Error{core::StatusCode::OutOfRange,
                                       "REALMLISTREPLY count exceeds limit"});
     }
@@ -326,7 +326,7 @@ core::Status<> encode(Writer& w, const RequiredWork& m) {
 }
 
 core::Status<> encode(Writer& w, const ExtraWork& m) {
-    if (m.data.size() > kExtraWorkMaxLen) {
+    if (m.data.size() > detail::kExtraWorkMaxLen) {
         return core::fail(core::Error{core::StatusCode::OutOfRange,
                                       "EXTRAWORK length exceeds limit"});
     }
@@ -345,7 +345,7 @@ core::Status<> encode(Writer& w, const RealmListLegacyRequest& m) {
 }
 
 core::Status<> encode(Writer& w, const RealmListLegacyReply& m) {
-    if (m.entries.size() > kRealmListLimit) {
+    if (m.entries.size() > detail::kRealmListLimit) {
         return core::fail(core::Error{core::StatusCode::OutOfRange,
                                       "REALMLISTREPLY (legacy) count exceeds limit"});
     }

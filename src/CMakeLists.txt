@@ -1,4 +1,4 @@
-# Root for the v3 sub-tree.
+﻿# Root for the v3 sub-tree.
 # Built only when PVPGN_BUILD_V3=ON (legacy default keeps building untouched).
 
 include(${CMAKE_SOURCE_DIR}/cmake/v3.cmake)
@@ -762,6 +762,8 @@ pvpgn_v3_add_library(application_auth
         application/auth/src/logout_user.cpp
         application/auth/src/account_lock.cpp
         application/auth/src/permission_checker.cpp
+        application/auth/src/lookup_account.cpp
+        application/auth/src/list_sessions.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/auth/include
     PUBLIC_DEPS
@@ -787,6 +789,11 @@ pvpgn_v3_add_library(application_connection
     STATIC
     SOURCES
         application/connection/src/connection_fsm.cpp
+        application/connection/src/connection_fsm_connecting.cpp
+        application/connection/src/connection_fsm_authenticating.cpp
+        application/connection/src/connection_fsm_loggedin.cpp
+        application/connection/src/connection_fsm_inchannel.cpp
+        application/connection/src/connection_fsm_ingame.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/connection/include
     PUBLIC_DEPS
@@ -842,12 +849,12 @@ pvpgn_v3_add_library(application_realm
         application_ports
         protocol_d2save
 )
-# ---- application/anongame_infoply ---------------------------------------
+# ---- application/anongame_inforeply ---------------------------------------
 #
 # Composes a full FINDANONGAME INFOREPLY set: typed payloads ->
 # serialize -> zlib-compress -> AnonGameInfoReply envelopes.
 
-pvpgn_v3_add_library(application_anongame_infoply
+pvpgn_v3_add_library(application_anongame_inforeply
     STATIC
     SOURCES
         application/anongame_inforeply/src/inforeply_builder.cpp
@@ -954,6 +961,8 @@ pvpgn_v3_add_library(application_chat
         application/chat/src/set_channel_topic.cpp
         application/chat/src/command_registry.cpp
         application/chat/src/chat_event_compose.cpp
+        application/chat/src/send_whisper.cpp
+        application/chat/src/op_from_channel.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/chat/include
     PUBLIC_DEPS
@@ -974,6 +983,7 @@ pvpgn_v3_add_library(application_game
         application/game/src/start_game.cpp
         application/game/src/join_game.cpp
         application/game/src/leave_game.cpp
+        application/game/src/cancel_game.cpp
         application/game/src/report_game_result.cpp
         application/game/src/list_public_games.cpp
         application/game/src/create_private_game.cpp
@@ -1137,7 +1147,7 @@ pvpgn_v3_add_library(infra_legacy_config
     PUBLIC_DEPS
         core
         protocol_bnet
-        application_anongame_infoply
+        application_anongame_inforeply
         application_icon_table
 )
 
@@ -1449,7 +1459,7 @@ pvpgn_v3_add_library(integration_legacy_bnetd
         core
         application_ports
         application_admin_commands
-        application_anongame_infoply
+        application_anongame_inforeply
         application_chat
         application_i18n
         application_init

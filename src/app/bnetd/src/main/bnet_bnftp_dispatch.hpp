@@ -11,13 +11,13 @@
 #include <boost/asio/ip/tcp.hpp>
 
 #include "core/bytes.hpp"
-#include "domain/session_id.hpp"
+#include "domain/shared/ids.hpp"
 #include "protocol/bnet/fsm.hpp"
 #include "protocol/bnet/session_context_impl.hpp"
 #include "protocol/bnet/use_case_context.hpp"
 #include "protocol/file/bnftp_fsm.hpp"
 #include "infra/net/tcp_session.hpp"
-#include "application/auth/logout_request.hpp"
+#include "application/auth/logout_user.hpp"
 
 #include "app/bnetd/bnet_connection_adapter.hpp"
 #include "app/bnetd/bnftp_tcp_session.hpp"

@@ -24,8 +24,11 @@
 #include <string_view>
 
 // Forward declarations
-namespace pvpgn::application::ports {
+namespace pvpgn::core {
 class IMetricsRegistry;
+}
+namespace pvpgn::application::ports {
+using IMetricsRegistry = core::IMetricsRegistry;
 }
 namespace pvpgn::infra::net {
 class IoRuntime;

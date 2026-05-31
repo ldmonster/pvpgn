@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // End-to-end tests for the FINDANONGAME INFOREPLY composition service.
 // Verifies: tag mapping, single-reply round-trip (compress -> in-place
@@ -437,7 +437,7 @@ TEST_CASE("inforeply: compile_snapshot_set compiles default and all locales",
     by_lang.emplace("deDE", de);
     by_lang.emplace("ruRU", ru);
 
-    auto set = compile_snapshot_set(def, by_lang);
+    auto set = compile_snapshot_set(def, by_lang, kCompressor);
     REQUIRE(set.has_value());
     REQUIRE(set.value().default_snapshot.url.has_value());
     REQUIRE(set.value().default_snapshot.desc.has_value());
@@ -464,7 +464,7 @@ TEST_CASE("inforeply: CompiledSnapshotSet::select returns locale or default",
     std::unordered_map<std::string, AnonGameInfoSnapshot> by_lang;
     by_lang.emplace("deDE", de);
 
-    auto set = compile_snapshot_set(def, by_lang);
+    auto set = compile_snapshot_set(def, by_lang, kCompressor);
     REQUIRE(set.has_value());
 
     const auto& s_de  = set.value().select("deDE");
@@ -480,7 +480,7 @@ TEST_CASE("inforeply: compile_snapshot_set with empty locale map mirrors default
     AnonGameInfoSnapshot def;
     def.url = pb::AnonGameUrlPayload{{"only"}};
 
-    auto set = compile_snapshot_set(def, {});
+    auto set = compile_snapshot_set(def, {}, kCompressor);
     REQUIRE(set.has_value());
     REQUIRE(set.value().by_lang.empty());
     REQUIRE(&set.value().select("anything") ==
@@ -492,7 +492,7 @@ TEST_CASE("inforeply: CompiledSnapshotSet feeds existing compiled-API encode pat
     AnonGameInfoSnapshot def;
     def.url = pb::AnonGameUrlPayload{{"u"}};
 
-    auto set = compile_snapshot_set(def, {});
+    auto set = compile_snapshot_set(def, {}, kCompressor);
     REQUIRE(set.has_value());
 
     pb::AnonGameInfoRequest req{};

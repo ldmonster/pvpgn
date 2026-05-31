@@ -8,21 +8,16 @@
 
 namespace pvpgn::infra::sqlite {
 
-class SQLiteFriendListRepository final : public application::ports::IFriendListRepository {
+class SQLiteFriendListRepository final
+    : public application::ports::IFriendListRepository {
 public:
     explicit SQLiteFriendListRepository(std::shared_ptr<SQLiteConnection> conn);
 
-    core::Result<std::vector<domain::AccountId>>
-    find_friends(domain::AccountId owner_id) const override;
+    core::Result<domain::social::FriendList>
+    find_by_owner(domain::AccountId owner_id) const override;
 
-    core::Status<> add_friend(domain::AccountId owner_id, domain::AccountId friend_id) override;
-
-    core::Status<> remove_friend(domain::AccountId owner_id, domain::AccountId friend_id) override;
-
-    void forEach(std::function<bool(domain::AccountId, domain::AccountId)> predicate)
-        const override;
-
-    std::size_t size() const noexcept override;
+    core::Status<>
+    save(const domain::social::FriendList& list) override;
 
 private:
     std::shared_ptr<SQLiteConnection> conn_;

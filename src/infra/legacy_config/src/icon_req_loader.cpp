@@ -103,17 +103,17 @@ core::Result<IconReqTable> load_icon_req_table(std::string_view path) {
         switch (sec) {
             case Section::War3:
                 if (level >= 1 && level <= static_cast<int>(kIconReqWar3Levels)) {
-                    out.war3[level - 1] = v;
+                    out.war3[static_cast<std::size_t>(level - 1)] = v;
                 }
                 break;
             case Section::W3xp:
                 if (level >= 1 && level <= static_cast<int>(kIconReqW3xpLevels)) {
-                    out.w3xp[level - 1] = v;
+                    out.w3xp[static_cast<std::size_t>(level - 1)] = v;
                 }
                 break;
             case Section::Tourney:
                 if (level >= 1 && level <= static_cast<int>(kIconReqTourneyLevels)) {
-                    out.tourney[level - 1] = v;
+                    out.tourney[static_cast<std::size_t>(level - 1)] = v;
                 }
                 break;
             case Section::None:

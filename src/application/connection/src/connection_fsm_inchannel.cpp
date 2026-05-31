@@ -148,7 +148,7 @@ core::Status<> ConnectionFsm::on_chat_command(std::span<const std::byte> payload
     }
 
     // Build a domain message from the raw text.
-    auto msg_result = domain::ChannelMessage::parse(text);
+    auto msg_result = domain::ChatMessage::create(text);
     if (!msg_result) {
         // Parse failed (e.g. message too long) — send EID_ERROR.
         const auto body = build_chat_event(kEidError, 0u, 0u,
@@ -175,9 +175,10 @@ core::Status<> ConnectionFsm::on_chat_command(std::span<const std::byte> payload
     const auto& msg_event   = post_result.event;
 
     const std::string sender_name = std::to_string(msg_event.from.value());
+    const std::string body_text(msg_event.body.text());
     const auto body = build_chat_event(kEidTalk, 0u, 0u,
                                        sender_name,
-                                       std::string{msg_event.body.text()});
+                                       body_text);
     return ctx_.send_packet(0x0Fu, std::span<const std::byte>{body});
 }
 

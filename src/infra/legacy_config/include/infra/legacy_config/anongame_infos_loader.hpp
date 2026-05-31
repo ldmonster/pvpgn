@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Legacy bridge: parse `anongame_infos.conf` into a typed
-// `application::anongame_infoply::AnonGameInfoSnapshot`.
+// `application::anongame_inforeply::AnonGameInfoSnapshot`.
 //
 // The legacy file format is a custom INI-like dialect:
 //
@@ -41,7 +41,7 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 
-#include "application/anongame_infoply/inforeply_builder.hpp"
+#include "application/anongame_inforeply/inforeply_builder.hpp"
 
 namespace pvpgn::infra::legacy_config {
 
@@ -56,9 +56,9 @@ namespace pvpgn::infra::legacy_config {
 /// back to the default block when missing — mirroring the legacy
 /// `anongame_infos_DESC_get_DESC(langID, ...)` lookup.
 struct MultilocaleSnapshotSet {
-    application::anongame_infoply::AnonGameInfoSnapshot default_snapshot;
+    application::anongame_inforeply::AnonGameInfoSnapshot default_snapshot;
     std::unordered_map<std::string,
-                       application::anongame_infoply::AnonGameInfoSnapshot>
+                       application::anongame_inforeply::AnonGameInfoSnapshot>
         by_lang;
 };
 
@@ -66,7 +66,7 @@ struct MultilocaleSnapshotSet {
 /// single snapshot built from the `[DEFAULT_DESC]` block (equivalent
 /// to `load_anongame_infos_multilocale(path)->default_snapshot`).
 /// See the multi-locale function below for full coverage.
-core::Result<application::anongame_infoply::AnonGameInfoSnapshot>
+core::Result<application::anongame_inforeply::AnonGameInfoSnapshot>
 load_anongame_infos(std::string_view path);
 
 /// Read the legacy `anongame_infos.conf` from `path` and return one

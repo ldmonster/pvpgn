@@ -7,18 +7,22 @@ namespace pvpgn::infra::sqlite {
 SQLiteLadderRepository::SQLiteLadderRepository(std::shared_ptr<SQLiteConnection> conn)
     : conn_(std::move(conn)) {}
 
-core::Result<domain::gameplay::LadderEntry> SQLiteLadderRepository::find_by_id(
-    domain::AccountId account_id, std::string_view client_tag) const {
-    return core::fail(core::Error{core::StatusCode::NotImplemented, "sqlite ladder: not yet implemented"});
+core::Result<std::uint32_t, core::Error>
+SQLiteLadderRepository::get_rank(std::string_view) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ladder: not yet implemented"});
 }
 
-core::Status<> SQLiteLadderRepository::save(const domain::gameplay::LadderEntry& entry) {
-    return core::fail(core::Error{core::StatusCode::NotImplemented, "sqlite ladder: not yet implemented"});
+core::Result<void, core::Error>
+SQLiteLadderRepository::save_entry(const domain::ladder::LadderEntry&) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ladder: not yet implemented"});
 }
 
-void SQLiteLadderRepository::forEach(
-    std::function<bool(const domain::gameplay::LadderEntry&)> predicate) const {}
-
-std::size_t SQLiteLadderRepository::size() const noexcept { return 0; }
+core::Result<std::vector<domain::ladder::LadderEntry>, core::Error>
+SQLiteLadderRepository::get_top_n(std::uint32_t) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ladder: not yet implemented"});
+}
 
 }  // namespace pvpgn::infra::sqlite

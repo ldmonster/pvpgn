@@ -158,6 +158,7 @@ static void make_d2cs_session(
 // ---------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
+    using namespace pvpgn;
     using namespace pvpgn::app::d2cs;
 
     try {
@@ -193,7 +194,7 @@ int main(int argc, char* argv[]) {
             else if (lvls.find("error") != std::string::npos)
                 log_cfg.level = core::LogLevel::Error;
             else if (lvls.find("fatal") != std::string::npos)
-                log_cfg.level = core::LogLevel::Fatal;
+                log_cfg.level = core::LogLevel::Critical;
             else
                 log_cfg.level = core::LogLevel::Info;
             log_cfg.levels_str   = lvls;

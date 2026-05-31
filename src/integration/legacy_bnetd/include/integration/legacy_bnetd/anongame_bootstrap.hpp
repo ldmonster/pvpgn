@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // AnonGame composition root: glue that loads the legacy
 // `anongame_infos.conf` + `bnmaps.conf`, composes the typed
@@ -7,7 +7,7 @@
 // resolver closure for `BnetStranglerHandler`.
 //
 // Layering: this is the only module that pulls together
-// `infra::legacy_config` (file IO) + `application::anongame_infoply`
+// `infra::legacy_config` (file IO) + `application::anongame_inforeply`
 // (typed compose + compress + frame). Higher-level startup glue
 // (legacy bnetd `main.cpp`) calls into this once, gets the closure,
 // and hands it to `set_anongame_inforeply_resolver`.
@@ -25,8 +25,8 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 
-#include "application/anongame_infoply/inforeply_builder.hpp"
-#include "application/anongame_infoply/tournament_decorator.hpp"
+#include "application/anongame_inforeply/inforeply_builder.hpp"
+#include "application/anongame_inforeply/tournament_decorator.hpp"
 #include "integration/legacy_bnetd/bnet_strangler_handler.hpp"
 
 namespace pvpgn::integration::legacy_bnetd {
@@ -35,7 +35,7 @@ namespace pvpgn::integration::legacy_bnetd {
 /// Keyed by uppercase 4-char clienttag (e.g. "WAR3", "W3XP").
 struct AnonGameSnapshotCache {
     std::unordered_map<std::string,
-                       application::anongame_infoply::CompiledSnapshotSet>
+                       application::anongame_inforeply::CompiledSnapshotSet>
         by_clienttag;
 };
 
@@ -62,8 +62,8 @@ using AnonGameSelector = std::function<
 core::Result<AnonGameSnapshotCache> build_anongame_snapshot_cache(
     std::string_view infos_path,
     std::string_view maps_path,
-    const application::anongame_infoply::TournamentSnapshot& tournament =
-        application::anongame_infoply::TournamentSnapshot{});
+    const application::anongame_inforeply::TournamentSnapshot& tournament =
+        application::anongame_inforeply::TournamentSnapshot{});
 
 /// Construct the resolver closure expected by
 /// `BnetStranglerHandler::set_anongame_inforeply_resolver`. The
@@ -71,7 +71,7 @@ core::Result<AnonGameSnapshotCache> build_anongame_snapshot_cache(
 /// keep it alive for the lifetime of the strangler) and consults
 /// `selector` for the per-request clienttag/language. The closure
 /// then encodes the SID 0x44 packet stream via
-/// `application::anongame_infoply::encode_inforeplies_for_request`.
+/// `application::anongame_inforeply::encode_inforeplies_for_request`.
 AnonGameInforeplyResolver make_anongame_inforeply_resolver(
     const AnonGameSnapshotCache& cache,
     AnonGameSelector             selector);

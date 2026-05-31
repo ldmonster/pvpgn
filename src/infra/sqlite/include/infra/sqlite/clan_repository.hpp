@@ -2,6 +2,7 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
 #include "application/ports/clan_repository.hpp"
 #include "infra/sqlite/connection.hpp"
@@ -12,20 +13,20 @@ class SQLiteClanRepository final : public application::ports::IClanRepository {
 public:
     explicit SQLiteClanRepository(std::shared_ptr<SQLiteConnection> conn);
 
-    core::Result<domain::social::Clan>
-    find_by_id(domain::ClanId id) const override;
+    core::Result<std::shared_ptr<domain::social::Clan>, core::Error>
+    find_by_id(domain::ClanId id) override;
 
-    core::Result<domain::social::Clan>
-    find_by_tag(const domain::ClanTag& tag) const override;
+    core::Result<std::shared_ptr<domain::social::Clan>, core::Error>
+    find_by_tag(std::string_view tag) override;
 
-    core::Status<> save(const domain::social::Clan& clan) override;
+    core::Result<std::shared_ptr<domain::social::Clan>, core::Error>
+    find_by_name(std::string_view name) override;
 
-    core::Status<> remove(domain::ClanId id) override;
+    core::Result<void, core::Error>
+    save(const domain::social::Clan& clan) override;
 
-    void forEach(std::function<bool(const domain::social::Clan&)> predicate)
-        const override;
-
-    std::size_t size() const noexcept override;
+    core::Result<void, core::Error>
+    remove(std::string_view tag) override;
 
 private:
     std::shared_ptr<SQLiteConnection> conn_;

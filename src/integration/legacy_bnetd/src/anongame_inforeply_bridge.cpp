@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Strangler bridge: legacy `_client_anongame_infos` -> v3 inforeply
 // pipeline.
@@ -27,7 +27,7 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 
-#include "application/anongame_infoply/inforeply_builder.hpp"
+#include "application/anongame_inforeply/inforeply_builder.hpp"
 #include "integration/legacy_bnetd/anongame_bootstrap.hpp"
 #include "integration/legacy_bnetd/bridge_logger.hpp"
 #include "integration/legacy_bnetd/dispatch.hpp"
@@ -45,7 +45,7 @@
 #include "integration/legacy_bnetd/prefs_bridge.hpp"
 
 namespace pb  = pvpgn::protocol::bnet;
-namespace ply = pvpgn::application::anongame_infoply;
+namespace ply = pvpgn::application::anongame_inforeply;
 namespace ilb = pvpgn::integration::legacy_bnetd;
 
 namespace {

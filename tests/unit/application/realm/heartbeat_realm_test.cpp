@@ -71,7 +71,7 @@ public:
 
     /// Helper: seed the repository with a realm directly.
     void seed(domain::realm::Realm realm) {
-        by_id_[realm.id()] = std::move(realm);
+        by_id_.insert_or_assign(realm.id(), std::move(realm));
     }
 
 private:
@@ -118,5 +118,5 @@ TEST_CASE("HeartbeatRealm unknown realm returns NotFound",
     auto result = use_case.execute(cmd);
 
     REQUIRE_FALSE(result.has_value());
-    CHECK(result.error().code() == core::StatusCode::NotFound);
+    CHECK(result.error().code() == pvpgn::core::StatusCode::NotFound);
 }

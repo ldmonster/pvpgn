@@ -12,15 +12,15 @@
 #include <vector>
 
 #include "messages_common.hpp"
-#include "messages/messages_auth.hpp"
-#include "messages/messages_chat.hpp"
-#include "messages/messages_game.hpp"
-#include "messages/messages_friends.hpp"
-#include "messages/messages_misc.hpp"
-#include "messages/messages_realm.hpp"
-#include "messages/messages_clan.hpp"
-#include "messages/messages_legacy.hpp"
-#include "messages/messages_game_lifecycle.hpp"
+#include "messages_auth.hpp"
+#include "messages_chat.hpp"
+#include "messages_game.hpp"
+#include "messages_friends.hpp"
+#include "messages_misc.hpp"
+#include "messages_realm.hpp"
+#include "messages_clan.hpp"
+#include "messages_legacy.hpp"
+#include "messages_game_lifecycle.hpp"
 
 namespace pvpgn::protocol::bnet {
 

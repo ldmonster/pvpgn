@@ -6,7 +6,7 @@
 #include <span>
 #include <vector>
 
-#include "application/auth/logout_request.hpp"
+#include "application/auth/logout_user.hpp"
 #include "domain/account_id.hpp"
 #include "domain/session_id.hpp"
 

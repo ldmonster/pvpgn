@@ -180,7 +180,7 @@ TEST_CASE("send_authreq1_server emits correct size for empty strings",
     REQUIRE(b[3] == 0x00u);
 
     // timestamp = 0 → all zero bytes
-    for (int i = 4; i < 12; ++i) {
+    for (std::size_t i = 4; i < 12; ++i) {
         REQUIRE(b[i] == 0x00u);
     }
 

@@ -75,7 +75,7 @@ TEST_CASE("CreateAccount: creates a new account with valid inputs",
     REQUIRE(id.value() != 0);
 
     // Verify account was saved
-    auto found = f.accounts.find_by_name(make_name("Alice").canonical());
+    auto found = f.accounts.find_by_name(make_name("Alice"));
     REQUIRE(found);
     REQUIRE(found.value().name() == make_name("Alice"));
 }

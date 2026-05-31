@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "infra/legacy_config/anongame_infos_loader.hpp"
 
@@ -14,7 +14,7 @@
 
 namespace pvpgn::infra::legacy_config {
 
-namespace ply = pvpgn::application::anongame_infoply;
+namespace ply = pvpgn::application::anongame_inforeply;
 namespace pb  = pvpgn::protocol::bnet;
 
 namespace {

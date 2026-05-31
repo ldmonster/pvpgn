@@ -53,9 +53,9 @@ public:
         accounts_.emplace(std::string{acct.name().display()}, std::move(acct));
     }
 
-    core::Result<domain::identity::Account, core::Error>
-    find_by_name(std::string_view name) override {
-        auto it = accounts_.find(std::string{name});
+    core::Result<domain::identity::Account>
+    find_by_name(const domain::UserName& name) const override {
+        auto it = accounts_.find(std::string{name.display()});
         if (it == accounts_.end()) {
             return core::fail(
                 core::Error{core::StatusCode::NotFound, "account not found"});
@@ -63,39 +63,34 @@ public:
         return it->second;
     }
 
-    core::Result<domain::identity::Account, core::Error>
-    find_by_id(uint32_t id) override {
+    core::Result<domain::identity::Account>
+    find_by_id(domain::AccountId id) const override {
         for (auto& [_, a] : accounts_) {
-            if (a.id().value() == id) return a;
+            if (a.id() == id) return a;
         }
         return core::fail(
             core::Error{core::StatusCode::NotFound, "account not found"});
     }
 
-    core::Result<void, core::Error>
-    save(const domain::identity::Account&) override { return {}; }
+    core::Status<>
+    save(const domain::identity::Account&) override { return core::ok(); }
 
-    core::Result<void, core::Error>
-    remove(std::string_view name) override {
-        accounts_.erase(std::string{name});
-        return {};
+    core::Status<>
+    remove(domain::AccountId id) override {
+        for (auto it = accounts_.begin(); it != accounts_.end(); ++it) {
+            if (it->second.id() == id) { accounts_.erase(it); break; }
+        }
+        return core::ok();
     }
 
-    core::Result<bool, core::Error>
-    exists(std::string_view name) override {
-        return accounts_.count(std::string{name}) > 0;
+    void forEach(
+        std::function<bool(const domain::identity::Account&)> pred) const override {
+        for (auto& [_, a] : accounts_) {
+            if (!pred(a)) break;
+        }
     }
 
-    core::Result<std::vector<domain::identity::Account>, core::Error>
-    list_online() override {
-        std::vector<domain::identity::Account> out;
-        for (auto& [_, a] : accounts_) out.push_back(a);
-        return out;
-    }
-
-    core::Result<uint32_t, core::Error> count() override {
-        return static_cast<uint32_t>(accounts_.size());
-    }
+    std::size_t size() const noexcept override { return accounts_.size(); }
 
 private:
     std::unordered_map<std::string, domain::identity::Account> accounts_;

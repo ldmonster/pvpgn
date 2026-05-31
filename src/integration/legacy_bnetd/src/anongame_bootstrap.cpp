@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "integration/legacy_bnetd/anongame_bootstrap.hpp"
 
@@ -6,9 +6,9 @@
 #include <variant>
 #include <vector>
 
-#include "application/anongame_infoply/inforeply_builder.hpp"
-#include "application/anongame_infoply/tournament_decorator.hpp"
-#include "application/anongame_infoply/type_composer.hpp"
+#include "application/anongame_inforeply/inforeply_builder.hpp"
+#include "application/anongame_inforeply/tournament_decorator.hpp"
+#include "application/anongame_inforeply/type_composer.hpp"
 #include "infra/compression/zlib_anongame_compressor.hpp"
 #include "infra/legacy_config/anongame_infos_loader.hpp"
 #include "infra/legacy_config/anongame_maplists_loader.hpp"
@@ -17,7 +17,7 @@
 
 namespace pvpgn::integration::legacy_bnetd {
 
-namespace ply = pvpgn::application::anongame_infoply;
+namespace ply = pvpgn::application::anongame_inforeply;
 namespace lc  = pvpgn::infra::legacy_config;
 namespace pb  = pvpgn::protocol::bnet;
 

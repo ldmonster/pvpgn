@@ -318,22 +318,7 @@ core::Result<ClanMemberUpdate> decode_clan_member_update(const Packet& pkt) {
 // Legacy / OLS / pre-NLS decoders (added by the "implement all SIDs" pass).
 // =========================================================================
 
-#define RD_U64(target) \
-    do {                                                                  \
-        auto _v = r.read_le<std::uint64_t>();                             \
-        if (!_v) return core::fail(_v.error());                           \
-        (target) = _v.value();                                            \
-    } while (0)
-#define RD_U16(target) \
-    do {                                                                  \
-        auto _v = r.read_le<std::uint16_t>();                             \
-        if (!_v) return core::fail(_v.error());                           \
-        (target) = _v.value();                                            \
-    } while (0)
-#define RD_HASH5(arr) \
-    do {                                                                  \
-        for (auto& _x : (arr)) { RD_U32(_x); }                            \
-    } while (0)
+// Note: RD_U64, RD_U16, RD_HASH5 are defined in "codec_internal.h".
 
 // 0x05 CLIENT_COMPINFO1
 

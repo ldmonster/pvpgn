@@ -7,22 +7,52 @@ namespace pvpgn::infra::sqlite {
 SQLiteIpBanRepository::SQLiteIpBanRepository(std::shared_ptr<SQLiteConnection> conn)
     : conn_(std::move(conn)) {}
 
-core::Result<domain::shared::IpBan> SQLiteIpBanRepository::find(
-    std::string_view ip_address) const {
-    return core::fail(core::Error{core::StatusCode::NotImplemented, "sqlite ip_ban: not yet implemented"});
+core::Result<bool>
+SQLiteIpBanRepository::is_banned(const domain::IpAddress&) const {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ip_ban: not yet implemented"});
 }
 
-core::Status<> SQLiteIpBanRepository::save(const domain::shared::IpBan& ban) {
-    return core::fail(core::Error{core::StatusCode::NotImplemented, "sqlite ip_ban: not yet implemented"});
+core::Status<>
+SQLiteIpBanRepository::add_ban(domain::moderation::IpBanEntry) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ip_ban: not yet implemented"});
 }
 
-core::Status<> SQLiteIpBanRepository::remove(std::string_view ip_address) {
-    return core::fail(core::Error{core::StatusCode::NotImplemented, "sqlite ip_ban: not yet implemented"});
+core::Status<>
+SQLiteIpBanRepository::add_range_ban(domain::IpAddress, std::uint8_t,
+                                     std::string, domain::AccountId,
+                                     core::SystemTime,
+                                     std::optional<core::SystemTime>) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ip_ban: not yet implemented"});
 }
 
-void SQLiteIpBanRepository::forEach(
-    std::function<bool(const domain::shared::IpBan&)> predicate) const {}
+core::Status<>
+SQLiteIpBanRepository::remove_ban(const domain::IpAddress&) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ip_ban: not yet implemented"});
+}
 
-std::size_t SQLiteIpBanRepository::size() const noexcept { return 0; }
+core::Status<>
+SQLiteIpBanRepository::remove_range_ban(domain::IpAddress, std::uint8_t) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ip_ban: not yet implemented"});
+}
+
+void SQLiteIpBanRepository::for_each_entry(
+    std::function<bool(const domain::moderation::IpBanEntry&)>) const {}
+
+core::Result<domain::moderation::IpBanList>
+SQLiteIpBanRepository::load_banlist() const {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ip_ban: not yet implemented"});
+}
+
+core::Status<>
+SQLiteIpBanRepository::save_banlist(const domain::moderation::IpBanList&) {
+    return core::fail(core::Error{core::StatusCode::Unimplemented,
+                                  "sqlite ip_ban: not yet implemented"});
+}
 
 }  // namespace pvpgn::infra::sqlite

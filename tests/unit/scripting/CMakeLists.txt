@@ -33,5 +33,10 @@ if(PVPGN_V3_PLUGIN_TESTS)
             Catch2::Catch2WithMain
     )
     target_compile_features(test_lua_api_v2 PRIVATE cxx_std_20)
+    # Workaround for gcc 15 ICE during RTL combine pass on this TU
+    # (segfault in run_fast_df_dce); disable combine/dce with -O0.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(test_lua_api_v2 PRIVATE -O0 -fno-dce -fno-tree-dce)
+    endif()
     add_test(NAME LuaAPIv2 COMMAND test_lua_api_v2)
 endif()

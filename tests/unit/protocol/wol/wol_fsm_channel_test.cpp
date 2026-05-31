@@ -150,9 +150,9 @@ TEST_CASE("WolFsm R307: LIST after auth — 321 comes before 323",
 
     // Find positions of 321 and 323
     int pos_321 = -1, pos_323 = -1;
-    for (int i = 0; i < static_cast<int>(ctx->lines.size()); ++i) {
-        if (ctx->lines[i].find("321") != std::string::npos) pos_321 = i;
-        if (ctx->lines[i].find("323") != std::string::npos) pos_323 = i;
+    for (std::size_t i = 0; i < ctx->lines.size(); ++i) {
+        if (ctx->lines[i].find("321") != std::string::npos) pos_321 = static_cast<int>(i);
+        if (ctx->lines[i].find("323") != std::string::npos) pos_323 = static_cast<int>(i);
     }
     REQUIRE(pos_321 >= 0);
     REQUIRE(pos_323 >= 0);

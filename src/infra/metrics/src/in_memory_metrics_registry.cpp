@@ -87,9 +87,11 @@ std::vector<double> InMemoryHistogram::bucket_values() const {
     std::vector<double> result;
     result.reserve(buckets_.size() + 1);
     for (std::size_t i = 0; i < buckets_.size(); ++i) {
-        result.push_back(bucket_counts_[i]->load(std::memory_order_relaxed));
+        result.push_back(static_cast<double>(
+            bucket_counts_[i]->load(std::memory_order_relaxed)));
     }
-    result.push_back(bucket_counts_[buckets_.size()]->load(std::memory_order_relaxed));
+    result.push_back(static_cast<double>(
+        bucket_counts_[buckets_.size()]->load(std::memory_order_relaxed)));
     return result;
 }
 

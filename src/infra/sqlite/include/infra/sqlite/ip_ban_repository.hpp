@@ -1,28 +1,49 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "application/ports/ip_ban_repository.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {
 
-class SQLiteIpBanRepository final : public application::ports::IIpBanRepository {
+class SQLiteIpBanRepository final
+    : public application::ports::IIpBanRepository {
 public:
     explicit SQLiteIpBanRepository(std::shared_ptr<SQLiteConnection> conn);
 
-    core::Result<domain::shared::IpBan>
-    find(std::string_view ip_address) const override;
+    core::Result<bool>
+    is_banned(const domain::IpAddress& ip) const override;
 
-    core::Status<> save(const domain::shared::IpBan& ban) override;
+    core::Status<>
+    add_ban(domain::moderation::IpBanEntry entry) override;
 
-    core::Status<> remove(std::string_view ip_address) override;
+    core::Status<>
+    add_range_ban(domain::IpAddress network, std::uint8_t prefix_bits,
+                  std::string reason, domain::AccountId issuer,
+                  core::SystemTime issued_at,
+                  std::optional<core::SystemTime> expires_at) override;
 
-    void forEach(std::function<bool(const domain::shared::IpBan&)> predicate)
+    core::Status<>
+    remove_ban(const domain::IpAddress& ip) override;
+
+    core::Status<>
+    remove_range_ban(domain::IpAddress network,
+                     std::uint8_t prefix_bits) override;
+
+    void for_each_entry(
+        std::function<bool(const domain::moderation::IpBanEntry&)> predicate)
         const override;
 
-    std::size_t size() const noexcept override;
+    core::Result<domain::moderation::IpBanList>
+    load_banlist() const override;
+
+    core::Status<>
+    save_banlist(const domain::moderation::IpBanList& banlist) override;
 
 private:
     std::shared_ptr<SQLiteConnection> conn_;

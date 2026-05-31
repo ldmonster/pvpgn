@@ -28,10 +28,13 @@
 #include <cstdint>
 #include <unordered_map>
 
+namespace pvpgn::application::connection {
+class ConnectionFsm;
+}  // namespace pvpgn::application::connection
+
 namespace pvpgn::domain::connection {
 
-// Forward declaration — avoids pulling in the full ConnectionFsm header.
-class ConnectionFsm;
+using pvpgn::application::connection::ConnectionFsm;
 
 /// Simple token → ConnectionFsm* map for WAR3 route-connection pairing.
 class RouteRegistry {

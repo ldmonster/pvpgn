@@ -17,6 +17,7 @@
 
 #include "application/auth/login_user_nls.hpp"
 #include "infra/crypto/nls.hpp"
+#include "infra/crypto/nls_crypto_adapter.hpp"
 #include "infra/crypto/nls_verifier.hpp"
 
 namespace {
@@ -85,6 +86,7 @@ struct Fixture {
     static constexpr std::string_view kPassword = "secret";
 
     InMemoryNlsCredentialStore store;
+    infra::crypto::NlsCryptoAdapter crypto;
 
     Fixture() {
         auto [salt, verifier] =
@@ -95,7 +97,7 @@ struct Fixture {
         store.insert(std::string{kUsername}, creds);
     }
 
-    LoginUserNls make_use_case() { return LoginUserNls{store}; }
+    LoginUserNls make_use_case() { return LoginUserNls{store, crypto}; }
 };
 
 }  // namespace
@@ -185,7 +187,8 @@ TEST_CASE("LoginUserNls::verify fails with wrong M1 proof",
         Fixture::kUsername,
         ch.value().crypto_ctx,
         client_A,
-        bad_M1);
+        bad_M1,
+        pvpgn::domain::AccountId{0});
 
     REQUIRE_FALSE(result);
     REQUIRE(result.error() == NlsLoginError::InvalidProof);
@@ -209,7 +212,8 @@ TEST_CASE("LoginUserNls::verify fails with all-zero client public key A",
         Fixture::kUsername,
         ch.value().crypto_ctx,
         zero_A,
-        bad_M1);
+        bad_M1,
+        pvpgn::domain::AccountId{0});
 
     REQUIRE_FALSE(result);
     // Zero A is treated as InvalidProof (protocol violation).
@@ -264,7 +268,8 @@ TEST_CASE("LoginUserNls::verify succeeds with correct SRP round-trip",
     creds.verifier = verifier;
     store.insert(std::string{kUser}, creds);
 
-    LoginUserNls uc{store};
+    infra::crypto::NlsCryptoAdapter crypto;
+    LoginUserNls uc{store, crypto};
 
     // Step 1: challenge.
     auto client_A = make_public_key(std::byte{0x02});
@@ -273,7 +278,7 @@ TEST_CASE("LoginUserNls::verify succeeds with correct SRP round-trip",
 
     // Obtain a valid M1 by running verify_proof() directly on the context.
     // We use a copy so the original ctx is not mutated.
-    infra::crypto::NlsContext ctx_copy = ch.value().crypto_ctx;
+    [[maybe_unused]] auto ctx_copy = ch.value().crypto_ctx;
     // We cannot compute a valid M1 without a client-side SRP implementation.
     // Instead, confirm that the use-case correctly rejects a wrong M1 and
     // that the challenge step itself succeeded (B and salt are non-zero).
@@ -288,7 +293,8 @@ TEST_CASE("LoginUserNls::verify succeeds with correct SRP round-trip",
     std::array<std::byte, 20> wrong_M1{};
     wrong_M1[0] = std::byte{0xFF};
 
-    auto bad = uc.verify(kUser, ch.value().crypto_ctx, client_A, wrong_M1);
+    auto bad = uc.verify(kUser, ch.value().crypto_ctx, client_A, wrong_M1,
+                          pvpgn::domain::AccountId{0});
     REQUIRE_FALSE(bad);
     REQUIRE(bad.error() == NlsLoginError::InvalidProof);
 }

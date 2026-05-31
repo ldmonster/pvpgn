@@ -28,7 +28,7 @@ std::shared_ptr<SQLiteConnection> make_in_memory_db() {
         [&conn](std::string_view sql) { return conn->exec(sql); },
         [&conn]() -> std::optional<std::uint32_t> {
             std::optional<std::uint32_t> version;
-            conn->query(
+            (void)conn->query(
                 "SELECT MAX(version) FROM _schema_migrations",
                 [&version](const Row& row) {
                     if (!row.is_null(0)) {
@@ -39,8 +39,8 @@ std::shared_ptr<SQLiteConnection> make_in_memory_db() {
             return version;
         });
 
-    runner.ensure_migration_table();
-    runner.migrate_to_latest(migrations::get_all_migrations());
+    REQUIRE(runner.ensure_migration_table().has_value());
+    REQUIRE(runner.migrate_to_latest(migrations::get_all_migrations()).has_value());
 
     return conn;
 }

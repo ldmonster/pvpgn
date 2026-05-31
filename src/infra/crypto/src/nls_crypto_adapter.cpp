@@ -61,7 +61,8 @@ NlsCryptoAdapter::verify_proof(application::auth::NlsCryptoContext& ctx,
     if (!result) {
         return core::fail(map_error(result.error()));
     }
-    return core::ok(std::move(result).value());
+    return core::Result<std::array<std::byte, 20>,
+                        application::auth::NlsCryptoError>{std::move(result).value()};
 }
 
 }  // namespace pvpgn::infra::crypto

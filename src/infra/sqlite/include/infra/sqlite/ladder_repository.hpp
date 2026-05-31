@@ -1,26 +1,29 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
+#include <cstdint>
 #include <memory>
+#include <string_view>
+#include <vector>
 
 #include "application/ports/ladder_repository.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {
 
-class SQLiteLadderRepository final : public application::ports::ILadderRepository {
+class SQLiteLadderRepository final
+    : public application::ports::ILadderRepository {
 public:
     explicit SQLiteLadderRepository(std::shared_ptr<SQLiteConnection> conn);
 
-    core::Result<domain::gameplay::LadderEntry>
-    find_by_id(domain::AccountId account_id, std::string_view client_tag) const override;
+    core::Result<std::uint32_t, core::Error>
+    get_rank(std::string_view account_name) override;
 
-    core::Status<> save(const domain::gameplay::LadderEntry& entry) override;
+    core::Result<void, core::Error>
+    save_entry(const domain::ladder::LadderEntry& entry) override;
 
-    void forEach(std::function<bool(const domain::gameplay::LadderEntry&)> predicate)
-        const override;
-
-    std::size_t size() const noexcept override;
+    core::Result<std::vector<domain::ladder::LadderEntry>, core::Error>
+    get_top_n(std::uint32_t n) override;
 
 private:
     std::shared_ptr<SQLiteConnection> conn_;

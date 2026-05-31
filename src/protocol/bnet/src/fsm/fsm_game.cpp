@@ -37,7 +37,7 @@ core::Status<> BnetFsm::on(const StartGame1Request& m) {
     // Call start_game use-case with game parameters from request
     auto start_result = use_cases_.start_game->execute(
         current_account_id_, client_tag_,
-        m.game_name, "", m.gametype);  // Empty map_name for now
+        m.game_name, "", static_cast<std::uint8_t>(m.gametype & 0xFFu));  // Empty map_name for now
 
     if (!start_result) {
         // Game start failed
@@ -67,7 +67,7 @@ core::Status<> BnetFsm::on(const StartGame3Request& m) {
     // Call start_game use-case with game parameters from request
     auto start_result = use_cases_.start_game->execute(
         current_account_id_, client_tag_,
-        m.game_name, "", m.gametype);
+        m.game_name, "", static_cast<std::uint8_t>(m.gametype & 0xFFu));
 
     if (!start_result) {
         return ctx_->send(ServerMessage{StartGame3Ack{0x01}});

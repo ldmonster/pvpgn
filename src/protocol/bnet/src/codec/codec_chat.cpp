@@ -143,7 +143,7 @@ core::Status<> encode(Writer& w, const ChannelListRequest& m) {
 }
 
 core::Status<> encode(Writer& w, const ChannelListReply& m) {
-    if (m.channels.size() > kChannelListLimit) {
+    if (m.channels.size() > detail::kChannelListLimit) {
         return core::fail(core::Error{
             core::StatusCode::InvalidArgument,
             "bnet codec: CHANNELLIST exceeds limit"});

@@ -333,7 +333,7 @@ core::Status<> encode(Writer& w, const LadderListRequest& m) {
 }
 
 core::Status<> encode(Writer& w, const LadderListReply& m) {
-    if (m.count > kLadderListLimit) {
+    if (m.count > detail::kLadderListLimit) {
         return core::fail(core::Error{
             core::StatusCode::InvalidArgument,
             "bnet codec: LADDERREPLY count exceeds limit"});

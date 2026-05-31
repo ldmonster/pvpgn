@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+﻿// SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
 /// @file bnet_strangler_handler.hpp
@@ -53,7 +53,7 @@ using OnLegacyFallback = std::function<void(LegacyFrame)>;
 /// Callback that turns an `AnonGameInfoRequest` into a ready-to-send
 /// SID 0x44 byte stream (typically by selecting a per-locale
 /// `CompiledSnapshot` and calling
-/// `application::anongame_infoply::encode_inforeplies_for_request`).
+/// `application::anongame_inforeply::encode_inforeplies_for_request`).
 /// Returning a failure status causes the strangler to fall back to
 /// the legacy handler for that frame.
 using AnonGameInforeplyResolver = std::function<
