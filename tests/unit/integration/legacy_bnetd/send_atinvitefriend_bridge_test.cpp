@@ -126,7 +126,7 @@ TEST_CASE("send_atinvitefriendack emits correct wire bytes (null info = all-zero
     REQUIRE(FakeSink::last_bytes[16] == 2u);
 
     // info[0..4] = all zeros (null pointer)
-    for (int i = 0; i < 20; ++i) {
+    for (std::size_t i = 0; i < 20; ++i) {
         REQUIRE(FakeSink::last_bytes[17 + i] == 0u);
     }
 }
@@ -156,7 +156,7 @@ TEST_CASE("send_atinvitefriendack emits correct info array",
     REQUIRE(FakeSink::last_bytes[24] == 0x00u);
 
     // info[2..4] = 0xFFFFFFFF LE
-    for (int i = 0; i < 3; ++i) {
+    for (std::size_t i = 0; i < 3; ++i) {
         REQUIRE(FakeSink::last_bytes[25 + i * 4 + 0] == 0xFFu);
         REQUIRE(FakeSink::last_bytes[25 + i * 4 + 1] == 0xFFu);
         REQUIRE(FakeSink::last_bytes[25 + i * 4 + 2] == 0xFFu);

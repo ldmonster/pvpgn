@@ -7,8 +7,7 @@
 #include <vector>
 
 #include "application/auth/logout_user.hpp"
-#include "domain/account_id.hpp"
-#include "domain/session_id.hpp"
+#include "domain/shared/ids.hpp"
 
 namespace pvpgn::app::bnetd {
 

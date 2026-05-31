@@ -89,7 +89,7 @@ void parse_storage(const Config& cfg, ServerConfig& sc)
         sc.storage.path   = sec->get_or<std::string>("path",   sc.storage.path);
         sc.storage.driver = sec->get_or<std::string>("driver", sc.storage.driver);
         if (auto dsn = sec->get<std::string>("dsn"))
-            sc.storage.dsn = core::Secret<std::string>::from_string(*dsn);
+            sc.storage.dsn = core::Secret<std::string>{*dsn};
         sc.storage.pool   = static_cast<std::uint32_t>(
             sec->get_or<std::int64_t>("pool", static_cast<std::int64_t>(sc.storage.pool)));
     }
@@ -488,7 +488,7 @@ void apply_env_overrides(ServerConfig& sc)
         // [storage]
         {"storage", "path",                   [](ServerConfig& s, std::string_view v){ s.storage.path   = std::string{v}; }},
         {"storage", "driver",                 [](ServerConfig& s, std::string_view v){ s.storage.driver = std::string{v}; }},
-        {"storage", "dsn",                    [](ServerConfig& s, std::string_view v){ s.storage.dsn = core::Secret<std::string>::from_string(v); }},
+        {"storage", "dsn",                    [](ServerConfig& s, std::string_view v){ s.storage.dsn = core::Secret<std::string>{std::string{v}}; }},
         // [network]
         {"network", "bind_addr",              [](ServerConfig& s, std::string_view v){ s.network.bind_addr  = std::string{v}; }},
         {"network", "port",                   [](ServerConfig& s, std::string_view v){

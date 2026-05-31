@@ -103,7 +103,7 @@ TEST_CASE("send_authinfo_reply standard logon emits legacy bytes",
     REQUIRE(FakeSink::last_bytes[2] == 43u);
     REQUIRE(FakeSink::last_bytes[3] == 0u);
     // logontype = 0
-    for (int i = 0; i < 4; ++i)
+    for (std::size_t i = 0; i < 4; ++i)
         REQUIRE(FakeSink::last_bytes[4 + i] == 0u);
     // server_token LE
     REQUIRE(FakeSink::last_bytes[8]  == 0xEFu);

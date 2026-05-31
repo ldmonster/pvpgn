@@ -120,11 +120,11 @@ TEST_CASE("send_passchangereply emits correct wire bytes (ACCEPT, all-zero salt/
     REQUIRE(FakeSink::last_bytes[7] == 0x00u);
 
     // salt[0..31] all zero
-    for (int i = 0; i < 32; ++i)
+    for (std::size_t i = 0; i < 32; ++i)
         REQUIRE(FakeSink::last_bytes[8 + i] == 0x00u);
 
     // server_public_key[0..31] all zero
-    for (int i = 0; i < 32; ++i)
+    for (std::size_t i = 0; i < 32; ++i)
         REQUIRE(FakeSink::last_bytes[40 + i] == 0x00u);
 }
 
@@ -156,11 +156,11 @@ TEST_CASE("send_passchangereply emits correct wire bytes (REJECT, non-zero salt/
     REQUIRE(FakeSink::last_bytes[7] == 0x00u);
 
     // salt bytes
-    for (int i = 0; i < 32; ++i)
+    for (std::size_t i = 0; i < 32; ++i)
         REQUIRE(FakeSink::last_bytes[8 + i] == static_cast<unsigned char>(i + 1));
 
     // server_public_key bytes
-    for (int i = 0; i < 32; ++i)
+    for (std::size_t i = 0; i < 32; ++i)
         REQUIRE(FakeSink::last_bytes[40 + i] == static_cast<unsigned char>(i + 33));
 }
 
@@ -229,7 +229,7 @@ TEST_CASE("send_passchangeproofreply emits correct wire bytes (OK, all-zero proo
     REQUIRE(FakeSink::last_bytes[7] == 0x00u);
 
     // server_password_proof[0..19] all zero
-    for (int i = 0; i < 20; ++i)
+    for (std::size_t i = 0; i < 20; ++i)
         REQUIRE(FakeSink::last_bytes[8 + i] == 0x00u);
 }
 
@@ -258,8 +258,8 @@ TEST_CASE("send_passchangeproofreply emits correct wire bytes (BADPASS, non-zero
     REQUIRE(FakeSink::last_bytes[7] == 0x00u);
 
     // server_password_proof bytes
-    for (int i = 0; i < 20; ++i)
-        REQUIRE(FakeSink::last_bytes[8 + i] == static_cast<unsigned char>(0xA0 + i));
+    for (std::size_t i = 0; i < 20; ++i)
+        REQUIRE(FakeSink::last_bytes[8 + i] == static_cast<unsigned char>(0xA0 + static_cast<int>(i)));
 }
 
 TEST_CASE("send_passchangeproofreply propagates handler return value",

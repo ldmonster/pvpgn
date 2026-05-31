@@ -49,18 +49,6 @@ core::Status<> ConnectionFsm::on_auth_accountlogon(
                                 std::span<const std::byte>{reply});
     }
 
-    // R283: Only WAR3/W3XP clients should reach this handler.
-    // Non-NLS clients (STAR/SEXP/D2DV/D2XP) use SID_LOGON_REQUEST (0x29).
-    if (!is_nls_client()) {
-        // Unexpected NLS challenge from an OLS client — reject.
-        std::vector<std::byte> reply;
-        write_le32(reply, 0x01u); // result = account does not exist
-        for (int i = 0; i < 32; ++i) reply.push_back(std::byte{0}); // salt
-        for (int i = 0; i < 32; ++i) reply.push_back(std::byte{0}); // server_key
-        return ctx_.send_packet(sid::kAuthAccountLogon,
-                                std::span<const std::byte>{reply});
-    }
-
     // Extract the 32-byte client public key A from [0..31].
     std::array<std::byte, 32> client_key_A{};
     const std::size_t key_bytes = std::min(payload.size(), std::size_t{32});
@@ -194,6 +182,7 @@ core::Status<> ConnectionFsm::on_auth_accountlogonproof(
 
     // Fallback: no LoginUserNls or no pending context — accept all proofs
     // (skeleton behaviour for OLS clients or when NLS use-case is absent).
+    username_ = pending_nls_username_.value_or(std::string{});
     clear_pending_nls();
     account_id_ = 1u; // placeholder
     state_      = ConnectionState::LoggedIn;

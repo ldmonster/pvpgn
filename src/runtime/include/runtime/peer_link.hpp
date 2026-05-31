@@ -71,7 +71,7 @@ struct CapabilityToken {
     std::vector<std::string> capabilities;
     
     /// Token expiration time (Unix timestamp)
-    long expiration;
+    long expiration = 0;
     
     /// Encode token to JWT format
     std::string encode() const;

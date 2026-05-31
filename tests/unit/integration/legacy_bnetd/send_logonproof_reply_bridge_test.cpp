@@ -107,9 +107,9 @@ TEST_CASE("send_logonproof_reply OK with explicit proof bytes preserves them",
     for (std::size_t i = 4; i < 8; ++i) {
         REQUIRE(FakeSink::last_bytes[i] == 0x00u);
     }
-    for (int i = 0; i < 20; ++i) {
+    for (std::size_t i = 0; i < 20; ++i) {
         REQUIRE(FakeSink::last_bytes[8 + i]
-                == static_cast<unsigned char>(0xB0 + i));
+                == static_cast<unsigned char>(0xB0 + static_cast<int>(i)));
     }
 }
 

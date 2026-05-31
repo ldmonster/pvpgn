@@ -1935,135 +1935,395 @@ path   = "xeb5.map"
 # FIXME: min_games is not used right now
 
 [[xp.levels]]
-level = 1;  starting_xp = 0;     xp_needed = 100; loss_factor = 0.10; min_games = 0
-[[xp.levels]]
-level = 2;  starting_xp = 100;   xp_needed = 100; loss_factor = 0.11; min_games = 0
-[[xp.levels]]
-level = 3;  starting_xp = 200;   xp_needed = 200; loss_factor = 0.11; min_games = 0
-[[xp.levels]]
-level = 4;  starting_xp = 400;   xp_needed = 200; loss_factor = 0.25; min_games = 1
-[[xp.levels]]
-level = 5;  starting_xp = 600;   xp_needed = 300; loss_factor = 0.25; min_games = 1
-[[xp.levels]]
-level = 6;  starting_xp = 900;   xp_needed = 300; loss_factor = 0.43; min_games = 1
-[[xp.levels]]
-level = 7;  starting_xp = 1200;  xp_needed = 400; loss_factor = 0.43; min_games = 2
-[[xp.levels]]
-level = 8;  starting_xp = 1600;  xp_needed = 400; loss_factor = 0.67; min_games = 2
-[[xp.levels]]
-level = 9;  starting_xp = 2000;  xp_needed = 500; loss_factor = 0.67; min_games = 2
-[[xp.levels]]
-level = 10; starting_xp = 2500;  xp_needed = 500; loss_factor = 1.00; min_games = 3
-[[xp.levels]]
-level = 11; starting_xp = 3000;  xp_needed = 500; loss_factor = 1.00; min_games = 3
-[[xp.levels]]
-level = 12; starting_xp = 3500;  xp_needed = 500; loss_factor = 1.00; min_games = 3
-[[xp.levels]]
-level = 13; starting_xp = 4000;  xp_needed = 500; loss_factor = 1.00; min_games = 3
-[[xp.levels]]
-level = 14; starting_xp = 4500;  xp_needed = 500; loss_factor = 1.00; min_games = 4
-[[xp.levels]]
-level = 15; starting_xp = 5000;  xp_needed = 500; loss_factor = 1.00; min_games = 4
-[[xp.levels]]
-level = 16; starting_xp = 5500;  xp_needed = 500; loss_factor = 1.00; min_games = 4
-[[xp.levels]]
-level = 17; starting_xp = 6000;  xp_needed = 500; loss_factor = 1.00; min_games = 5
-[[xp.levels]]
-level = 18; starting_xp = 6500;  xp_needed = 500; loss_factor = 1.00; min_games = 5
-[[xp.levels]]
-level = 19; starting_xp = 7000;  xp_needed = 500; loss_factor = 1.00; min_games = 5
-[[xp.levels]]
-level = 20; starting_xp = 7500;  xp_needed = 500; loss_factor = 1.00; min_games = 6
-[[xp.levels]]
-level = 21; starting_xp = 8000;  xp_needed = 500; loss_factor = 1.00; min_games = 6
-[[xp.levels]]
-level = 22; starting_xp = 8500;  xp_needed = 500; loss_factor = 1.00; min_games = 6
-[[xp.levels]]
-level = 23; starting_xp = 9000;  xp_needed = 500; loss_factor = 1.00; min_games = 6
-[[xp.levels]]
-level = 24; starting_xp = 9500;  xp_needed = 500; loss_factor = 1.00; min_games = 7
-[[xp.levels]]
-level = 25; starting_xp = 10000; xp_needed = 500; loss_factor = 1.00; min_games = 7
-[[xp.levels]]
-level = 26; starting_xp = 10500; xp_needed = 500; loss_factor = 1.00; min_games = 7
-[[xp.levels]]
-level = 27; starting_xp = 11000; xp_needed = 500; loss_factor = 1.00; min_games = 8
-[[xp.levels]]
-level = 28; starting_xp = 11500; xp_needed = 500; loss_factor = 1.00; min_games = 8
-[[xp.levels]]
-level = 29; starting_xp = 12000; xp_needed = 500; loss_factor = 1.00; min_games = 8
-[[xp.levels]]
-level = 30; starting_xp = 12500; xp_needed = 500; loss_factor = 1.00; min_games = 9
-[[xp.levels]]
-level = 31; starting_xp = 13000; xp_needed = 500; loss_factor = 1.00; min_games = 9
-[[xp.levels]]
-level = 32; starting_xp = 13500; xp_needed = 500; loss_factor = 1.00; min_games = 9
-[[xp.levels]]
-level = 33; starting_xp = 14000; xp_needed = 500; loss_factor = 1.00; min_games = 9
-[[xp.levels]]
-level = 34; starting_xp = 14500; xp_needed = 500; loss_factor = 1.00; min_games = 10
-[[xp.levels]]
-level = 35; starting_xp = 15000; xp_needed = 500; loss_factor = 1.00; min_games = 10
-[[xp.levels]]
-level = 36; starting_xp = 15500; xp_needed = 500; loss_factor = 1.00; min_games = 10
-[[xp.levels]]
-level = 37; starting_xp = 16000; xp_needed = 500; loss_factor = 1.00; min_games = 11
-[[xp.levels]]
-level = 38; starting_xp = 16500; xp_needed = 500; loss_factor = 1.00; min_games = 11
-[[xp.levels]]
-level = 39; starting_xp = 17000; xp_needed = 500; loss_factor = 1.00; min_games = 11
-[[xp.levels]]
-level = 40; starting_xp = 17500; xp_needed = 500; loss_factor = 1.00; min_games = 12
-[[xp.levels]]
-level = 41; starting_xp = 18000; xp_needed = 500; loss_factor = 1.00; min_games = 12
-[[xp.levels]]
-level = 42; starting_xp = 18500; xp_needed = 500; loss_factor = 1.00; min_games = 12
-[[xp.levels]]
-level = 43; starting_xp = 19000; xp_needed = 500; loss_factor = 1.00; min_games = 12
-[[xp.levels]]
-level = 44; starting_xp = 19500; xp_needed = 500; loss_factor = 1.00; min_games = 13
-[[xp.levels]]
-level = 45; starting_xp = 20000; xp_needed = 500; loss_factor = 1.00; min_games = 13
-[[xp.levels]]
-level = 46; starting_xp = 20500; xp_needed = 500; loss_factor = 1.00; min_games = 13
-[[xp.levels]]
-level = 47; starting_xp = 21000; xp_needed = 500; loss_factor = 1.00; min_games = 14
-[[xp.levels]]
-level = 48; starting_xp = 21500; xp_needed = 500; loss_factor = 1.00; min_games = 14
-[[xp.levels]]
-level = 49; starting_xp = 22000; xp_needed = 500; loss_factor = 1.00; min_games = 14
-[[xp.levels]]
-level = 50; starting_xp = 22500; xp_needed = 500; loss_factor = 1.00; min_games = 15
-[[xp.levels]]
-level = 51; starting_xp = 23000; xp_needed = 500; loss_factor = 1.00; min_games = 15
-[[xp.levels]]
-level = 52; starting_xp = 23500; xp_needed = 500; loss_factor = 1.00; min_games = 15
-[[xp.levels]]
-level = 53; starting_xp = 24000; xp_needed = 500; loss_factor = 1.00; min_games = 15
-[[xp.levels]]
-level = 54; starting_xp = 24500; xp_needed = 500; loss_factor = 1.00; min_games = 16
-[[xp.levels]]
-level = 55; starting_xp = 25000; xp_needed = 500; loss_factor = 1.00; min_games = 16
-[[xp.levels]]
-level = 56; starting_xp = 25500; xp_needed = 500; loss_factor = 1.00; min_games = 16
-[[xp.levels]]
-level = 57; starting_xp = 26000; xp_needed = 500; loss_factor = 1.00; min_games = 17
-[[xp.levels]]
-level = 58; starting_xp = 26500; xp_needed = 500; loss_factor = 1.00; min_games = 17
-[[xp.levels]]
-level = 59; starting_xp = 27000; xp_needed = 500; loss_factor = 1.00; min_games = 17
-[[xp.levels]]
-level = 60; starting_xp = 27500; xp_needed = 500; loss_factor = 1.00; min_games = 18
-[[xp.levels]]
-level = 61; starting_xp = 28000; xp_needed = 500; loss_factor = 1.00; min_games = 18
-[[xp.levels]]
-level = 62; starting_xp = 28500; xp_needed = 500; loss_factor = 1.00; min_games = 18
-[[xp.levels]]
-level = 63; starting_xp = 29000; xp_needed = 500; loss_factor = 1.00; min_games = 18
-[[xp.levels]]
-level = 64; starting_xp = 29500; xp_needed = 500; loss_factor = 1.00; min_games = 19
-[[xp.levels]]
-level = 65; starting_xp = 30000; xp_needed = 500; loss_factor = 1.00; min_games = 19
+level = 1
+starting_xp = 0
+xp_needed = 100
+loss_factor = 0.10
+min_games = 0
+[[xp.levels]]
+level = 2
+starting_xp = 100
+xp_needed = 100
+loss_factor = 0.11
+min_games = 0
+[[xp.levels]]
+level = 3
+starting_xp = 200
+xp_needed = 200
+loss_factor = 0.11
+min_games = 0
+[[xp.levels]]
+level = 4
+starting_xp = 400
+xp_needed = 200
+loss_factor = 0.25
+min_games = 1
+[[xp.levels]]
+level = 5
+starting_xp = 600
+xp_needed = 300
+loss_factor = 0.25
+min_games = 1
+[[xp.levels]]
+level = 6
+starting_xp = 900
+xp_needed = 300
+loss_factor = 0.43
+min_games = 1
+[[xp.levels]]
+level = 7
+starting_xp = 1200
+xp_needed = 400
+loss_factor = 0.43
+min_games = 2
+[[xp.levels]]
+level = 8
+starting_xp = 1600
+xp_needed = 400
+loss_factor = 0.67
+min_games = 2
+[[xp.levels]]
+level = 9
+starting_xp = 2000
+xp_needed = 500
+loss_factor = 0.67
+min_games = 2
+[[xp.levels]]
+level = 10
+starting_xp = 2500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 3
+[[xp.levels]]
+level = 11
+starting_xp = 3000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 3
+[[xp.levels]]
+level = 12
+starting_xp = 3500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 3
+[[xp.levels]]
+level = 13
+starting_xp = 4000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 3
+[[xp.levels]]
+level = 14
+starting_xp = 4500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 4
+[[xp.levels]]
+level = 15
+starting_xp = 5000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 4
+[[xp.levels]]
+level = 16
+starting_xp = 5500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 4
+[[xp.levels]]
+level = 17
+starting_xp = 6000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 5
+[[xp.levels]]
+level = 18
+starting_xp = 6500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 5
+[[xp.levels]]
+level = 19
+starting_xp = 7000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 5
+[[xp.levels]]
+level = 20
+starting_xp = 7500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 6
+[[xp.levels]]
+level = 21
+starting_xp = 8000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 6
+[[xp.levels]]
+level = 22
+starting_xp = 8500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 6
+[[xp.levels]]
+level = 23
+starting_xp = 9000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 6
+[[xp.levels]]
+level = 24
+starting_xp = 9500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 7
+[[xp.levels]]
+level = 25
+starting_xp = 10000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 7
+[[xp.levels]]
+level = 26
+starting_xp = 10500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 7
+[[xp.levels]]
+level = 27
+starting_xp = 11000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 8
+[[xp.levels]]
+level = 28
+starting_xp = 11500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 8
+[[xp.levels]]
+level = 29
+starting_xp = 12000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 8
+[[xp.levels]]
+level = 30
+starting_xp = 12500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 9
+[[xp.levels]]
+level = 31
+starting_xp = 13000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 9
+[[xp.levels]]
+level = 32
+starting_xp = 13500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 9
+[[xp.levels]]
+level = 33
+starting_xp = 14000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 9
+[[xp.levels]]
+level = 34
+starting_xp = 14500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 10
+[[xp.levels]]
+level = 35
+starting_xp = 15000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 10
+[[xp.levels]]
+level = 36
+starting_xp = 15500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 10
+[[xp.levels]]
+level = 37
+starting_xp = 16000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 11
+[[xp.levels]]
+level = 38
+starting_xp = 16500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 11
+[[xp.levels]]
+level = 39
+starting_xp = 17000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 11
+[[xp.levels]]
+level = 40
+starting_xp = 17500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 12
+[[xp.levels]]
+level = 41
+starting_xp = 18000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 12
+[[xp.levels]]
+level = 42
+starting_xp = 18500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 12
+[[xp.levels]]
+level = 43
+starting_xp = 19000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 12
+[[xp.levels]]
+level = 44
+starting_xp = 19500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 13
+[[xp.levels]]
+level = 45
+starting_xp = 20000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 13
+[[xp.levels]]
+level = 46
+starting_xp = 20500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 13
+[[xp.levels]]
+level = 47
+starting_xp = 21000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 14
+[[xp.levels]]
+level = 48
+starting_xp = 21500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 14
+[[xp.levels]]
+level = 49
+starting_xp = 22000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 14
+[[xp.levels]]
+level = 50
+starting_xp = 22500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 15
+[[xp.levels]]
+level = 51
+starting_xp = 23000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 15
+[[xp.levels]]
+level = 52
+starting_xp = 23500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 15
+[[xp.levels]]
+level = 53
+starting_xp = 24000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 15
+[[xp.levels]]
+level = 54
+starting_xp = 24500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 16
+[[xp.levels]]
+level = 55
+starting_xp = 25000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 16
+[[xp.levels]]
+level = 56
+starting_xp = 25500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 16
+[[xp.levels]]
+level = 57
+starting_xp = 26000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 17
+[[xp.levels]]
+level = 58
+starting_xp = 26500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 17
+[[xp.levels]]
+level = 59
+starting_xp = 27000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 17
+[[xp.levels]]
+level = 60
+starting_xp = 27500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 18
+[[xp.levels]]
+level = 61
+starting_xp = 28000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 18
+[[xp.levels]]
+level = 62
+starting_xp = 28500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 18
+[[xp.levels]]
+level = 63
+starting_xp = 29000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 18
+[[xp.levels]]
+level = 64
+starting_xp = 29500
+xp_needed = 500
+loss_factor = 1.00
+min_games = 19
+[[xp.levels]]
+level = 65
+starting_xp = 30000
+xp_needed = 500
+loss_factor = 1.00
+min_games = 19
 
 # =============================================================================
 # [xp.calc] — Inlined from conf/bnxpcalc.conf.in (Plan 03)
@@ -2078,19 +2338,54 @@ level = 65; starting_xp = 30000; xp_needed = 500; loss_factor = 1.00; min_games 
 
 # used for all players
 [[xp.calc]]
-min_realm_level = 65; level_diff = 0; higher_win = 100; higher_loss = 100; lower_win = 100; lower_loss = 100
+min_realm_level = 65
+level_diff = 0
+higher_win = 100
+higher_loss = 100
+lower_win = 100
+lower_loss = 100
 [[xp.calc]]
-min_realm_level = 65; level_diff = 1; higher_win = 95;  higher_loss = 105; lower_win = 115; lower_loss = 85
+min_realm_level = 65
+level_diff = 1
+higher_win = 95
+higher_loss = 105
+lower_win = 115
+lower_loss = 85
 [[xp.calc]]
-min_realm_level = 65; level_diff = 2; higher_win = 90;  higher_loss = 110; lower_win = 130; lower_loss = 70
+min_realm_level = 65
+level_diff = 2
+higher_win = 90
+higher_loss = 110
+lower_win = 130
+lower_loss = 70
 [[xp.calc]]
-min_realm_level = 65; level_diff = 3; higher_win = 85;  higher_loss = 115; lower_win = 145; lower_loss = 55
+min_realm_level = 65
+level_diff = 3
+higher_win = 85
+higher_loss = 115
+lower_win = 145
+lower_loss = 55
 [[xp.calc]]
-min_realm_level = 65; level_diff = 4; higher_win = 80;  higher_loss = 120; lower_win = 155; lower_loss = 45
+min_realm_level = 65
+level_diff = 4
+higher_win = 80
+higher_loss = 120
+lower_win = 155
+lower_loss = 45
 [[xp.calc]]
-min_realm_level = 65; level_diff = 5; higher_win = 75;  higher_loss = 125; lower_win = 165; lower_loss = 35
+min_realm_level = 65
+level_diff = 5
+higher_win = 75
+higher_loss = 125
+lower_win = 165
+lower_loss = 35
 [[xp.calc]]
-min_realm_level = 65; level_diff = 6; higher_win = 70;  higher_loss = 130; lower_win = 175; lower_loss = 25
+min_realm_level = 65
+level_diff = 6
+higher_win = 70
+higher_loss = 130
+lower_win = 175
+lower_loss = 25
 
 # =============================================================================
 # [admin.command_groups] — Inlined from conf/command_groups.conf.in (Plan 03)
@@ -2564,19 +2859,33 @@ ffa_losses       = 'Record\W3XP\ffa\losses'
 username         = 'BNET\acct\username'
 
 [[icons.sets.W3XP.icons]]
-key = 0; rank = "Beginner"; code = "KBKB"
+key = 0
+rank = "Beginner"
+code = "KBKB"
 [[icons.sets.W3XP.icons]]
-key = 1; rank = "Dungeon";  code = "KBKD"
+key = 1
+rank = "Dungeon"
+code = "KBKD"
 [[icons.sets.W3XP.icons]]
-key = 2; rank = "Expert";   code = "KBKE"
+key = 2
+rank = "Expert"
+code = "KBKE"
 [[icons.sets.W3XP.icons]]
-key = 3; rank = "Mid";      code = "KBKM"
+key = 3
+rank = "Mid"
+code = "KBKM"
 [[icons.sets.W3XP.icons]]
-key = 4; rank = "Pro";      code = "KBKP"
+key = 4
+rank = "Pro"
+code = "KBKP"
 [[icons.sets.W3XP.icons]]
-key = 5; rank = "World";    code = "KBKW"
+key = 5
+rank = "World"
+code = "KBKW"
 [[icons.sets.W3XP.icons]]
-key = 6; rank = "Universe"; code = "WCYB"
+key = 6
+rank = "Universe"
+code = "WCYB"
 
 [icons.sets.W3XP.stats]
 template = """
@@ -2587,13 +2896,17 @@ FFA games: [{{ffa_level->rank}}] {{ffa_xp}} xp ({{ffa_wins}} - {{ffa_losses}})
 """
 
 [[icons.sets.W3XP.iconstash]]
-alias = "smile";    code = "BOMB"
+alias = "smile"
+code = "BOMB"
 [[icons.sets.W3XP.iconstash]]
-alias = "starcraft"; code = "SEXP"
+alias = "starcraft"
+code = "SEXP"
 [[icons.sets.W3XP.iconstash]]
-alias = "warcraft"; code = "WAR3"
+alias = "warcraft"
+code = "WAR3"
 [[icons.sets.W3XP.iconstash]]
-alias = "diablo";   code = "DRTL"
+alias = "diablo"
+code = "DRTL"
 
 # --- Starcraft icon set ---
 # Use Bni Icon Builder to edit icons.bni
@@ -2611,29 +2924,53 @@ normal_disconnects = 'Record\SEXP\0\disconnects'
 username           = 'BNET\acct\username'
 
 [[icons.sets.SEXP.icons]]
-key = 1000; rank = "n00b";      code = "NOOB"
+key = 1000
+rank = "n00b"
+code = "NOOB"
 [[icons.sets.SEXP.icons]]
-key = 1250; rank = "Chobo+";    code = "CHO1"
+key = 1250
+rank = "Chobo+"
+code = "CHO1"
 [[icons.sets.SEXP.icons]]
-key = 1500; rank = "Chobo++";   code = "CHO2"
+key = 1500
+rank = "Chobo++"
+code = "CHO2"
 [[icons.sets.SEXP.icons]]
-key = 1750; rank = "Chobo+++";  code = "CHO3"
+key = 1750
+rank = "Chobo+++"
+code = "CHO3"
 [[icons.sets.SEXP.icons]]
-key = 2000; rank = "Hasu+";     code = "HAS1"
+key = 2000
+rank = "Hasu+"
+code = "HAS1"
 [[icons.sets.SEXP.icons]]
-key = 2300; rank = "Hasu++";    code = "HAS2"
+key = 2300
+rank = "Hasu++"
+code = "HAS2"
 [[icons.sets.SEXP.icons]]
-key = 2650; rank = "Hasu+++";   code = "HAS3"
+key = 2650
+rank = "Hasu+++"
+code = "HAS3"
 [[icons.sets.SEXP.icons]]
-key = 3000; rank = "Gosu+";     code = "GOS1"
+key = 3000
+rank = "Gosu+"
+code = "GOS1"
 [[icons.sets.SEXP.icons]]
-key = 3300; rank = "Gosu++";    code = "GOS2"
+key = 3300
+rank = "Gosu++"
+code = "GOS2"
 [[icons.sets.SEXP.icons]]
-key = 3650; rank = "Gosu+++";   code = "GOS3"
+key = 3650
+rank = "Gosu+++"
+code = "GOS3"
 [[icons.sets.SEXP.icons]]
-key = 4000; rank = "Mega Gosu"; code = "GOSU"
+key = 4000
+rank = "Mega Gosu"
+code = "GOSU"
 [[icons.sets.SEXP.icons]]
-key = 5500; rank = "Father";    code = "MEGA"
+key = 5500
+rank = "Father"
+code = "MEGA"
 
 [icons.sets.SEXP.stats]
 template = """
@@ -2643,11 +2980,14 @@ Normal games: [{{normal_rating->rank}}] {{normal_rating}} pts ({{normal_wins}}/{
 """
 
 [[icons.sets.SEXP.iconstash]]
-alias = "demon";    code = "EYES"
+alias = "demon"
+code = "EYES"
 [[icons.sets.SEXP.iconstash]]
-alias = "warcraft"; code = "WAR3"
+alias = "warcraft"
+code = "WAR3"
 [[icons.sets.SEXP.iconstash]]
-alias = "diablo";   code = "DRTL"
+alias = "diablo"
+code = "DRTL"
 
 # --- Warcraft II icon set ---
 # Use Bni Icon Builder to edit icons.bni
@@ -2669,29 +3009,53 @@ normal_disconnects  = 'Record\W2BN\0\disconnects'
 username            = 'BNET\acct\username'
 
 [[icons.sets.W2BN.icons]]
-key = 1000; rank = "n00b";      code = "NOOB"
+key = 1000
+rank = "n00b"
+code = "NOOB"
 [[icons.sets.W2BN.icons]]
-key = 1250; rank = "Chobo+";    code = "CHO1"
+key = 1250
+rank = "Chobo+"
+code = "CHO1"
 [[icons.sets.W2BN.icons]]
-key = 1500; rank = "Chobo++";   code = "CHO2"
+key = 1500
+rank = "Chobo++"
+code = "CHO2"
 [[icons.sets.W2BN.icons]]
-key = 1750; rank = "Chobo+++";  code = "CHO3"
+key = 1750
+rank = "Chobo+++"
+code = "CHO3"
 [[icons.sets.W2BN.icons]]
-key = 2000; rank = "Hasu+";     code = "HAS1"
+key = 2000
+rank = "Hasu+"
+code = "HAS1"
 [[icons.sets.W2BN.icons]]
-key = 2300; rank = "Hasu++";    code = "HAS2"
+key = 2300
+rank = "Hasu++"
+code = "HAS2"
 [[icons.sets.W2BN.icons]]
-key = 2650; rank = "Hasu+++";   code = "HAS3"
+key = 2650
+rank = "Hasu+++"
+code = "HAS3"
 [[icons.sets.W2BN.icons]]
-key = 3000; rank = "Gosu+";     code = "GOS1"
+key = 3000
+rank = "Gosu+"
+code = "GOS1"
 [[icons.sets.W2BN.icons]]
-key = 3300; rank = "Gosu++";    code = "GOS2"
+key = 3300
+rank = "Gosu++"
+code = "GOS2"
 [[icons.sets.W2BN.icons]]
-key = 3650; rank = "Gosu+++";   code = "GOS3"
+key = 3650
+rank = "Gosu+++"
+code = "GOS3"
 [[icons.sets.W2BN.icons]]
-key = 4000; rank = "Mega Gosu"; code = "GOSU"
+key = 4000
+rank = "Mega Gosu"
+code = "GOSU"
 [[icons.sets.W2BN.icons]]
-key = 5500; rank = "Father";    code = "MEGA"
+key = 5500
+rank = "Father"
+code = "MEGA"
 
 [icons.sets.W2BN.stats]
 template = """
@@ -2702,9 +3066,11 @@ IronMan games: [{{ironman_rating->rank}}] {{ironman_rating}} pts ({{ironman_wins
 """
 
 [[icons.sets.W2BN.iconstash]]
-alias = "demon";  code = "EYES"
+alias = "demon"
+code = "EYES"
 [[icons.sets.W2BN.iconstash]]
-alias = "diablo"; code = "DRTL"
+alias = "diablo"
+code = "DRTL"
 
 # --- Diablo: Retail icon set ---
 # Use Bni Icon Builder to edit icons.bni
@@ -2722,11 +3088,17 @@ diablo_kills = 'Record\DRTL\0\diablo kills'
 username     = 'BNET\acct\username'
 
 [[icons.sets.DRTL.icons]]
-key = 0; rank = "warrior";   code = "DRTL"
+key = 0
+rank = "warrior"
+code = "DRTL"
 [[icons.sets.DRTL.icons]]
-key = 1; rank = "rogue";     code = "DRTL"
+key = 1
+rank = "rogue"
+code = "DRTL"
 [[icons.sets.DRTL.icons]]
-key = 2; rank = "sorcerer";  code = "DRTL"
+key = 2
+rank = "sorcerer"
+code = "DRTL"
 
 [icons.sets.DRTL.stats]
 template = """
@@ -2738,7 +3110,8 @@ Diablo kills: {{diablo_kills}}
 """
 
 [[icons.sets.DRTL.iconstash]]
-alias = "demon"; code = "EYES"
+alias = "demon"
+code = "EYES"
 
 # =============================================================================
 # [[realms]] — Inlined from conf/realm.conf.in (Plan 03)

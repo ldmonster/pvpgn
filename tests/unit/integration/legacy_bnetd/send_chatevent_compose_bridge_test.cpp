@@ -136,7 +136,7 @@ TEST_CASE("compose bridge Info maps to event_id 0x12 with empty username",
     REQUIRE(FakeSink::last_bytes[4] == 0x12u);   // INFO subtype
     REQUIRE(FakeSink::last_bytes[5] == 0x00u);
     // flags / latency / player_ip all zero (Info sets them to 0)
-    for (int i = 8; i < 20; ++i) {
+    for (std::size_t i = 8; i < 20; ++i) {
         REQUIRE(FakeSink::last_bytes[i] == 0x00u);
     }
     // empty username at offset 28, "ok\0" at 29..31.

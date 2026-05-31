@@ -19,6 +19,7 @@ FROM alpine:latest AS build-base
 # ---------------------------------------------------------------------------
 RUN apk --quiet --no-cache add \
       build-base \
+      boost-dev \
       clang \
       cmake \
       git \
