@@ -4,8 +4,8 @@
 #include <algorithm>
 #include <string>
 
-#include "application/ports/clan_repository.hpp"
-#include "application/ports/event_bus.hpp"
+#include "domain/social/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "domain/social/clan.hpp"
 
 namespace pvpgn::application::social {

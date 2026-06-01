@@ -34,7 +34,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "application/ports/script_host.hpp"
+#include "infra/scripting/script_host.hpp"
 
 namespace pvpgn::infra::scripting {
 

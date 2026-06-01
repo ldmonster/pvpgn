@@ -8,16 +8,12 @@
 #include <optional>
 #include <string>
 
+#include "application/ports/ports.hpp"
 #include "core/clock.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/ip_address.hpp"
-
-namespace pvpgn::application::ports {
-class IIpBanRepository;
-class IEventBus;
-}  // namespace pvpgn::application::ports
 
 namespace pvpgn::application::moderation {
 

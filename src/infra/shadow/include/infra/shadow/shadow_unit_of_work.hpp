@@ -11,7 +11,7 @@
 
 #include <memory>
 
-#include "application/ports/unit_of_work.hpp"
+#include "application/persistence/unit_of_work.hpp"
 #include "infra/shadow/shadow_account_repository.hpp"
 
 namespace pvpgn::infra::shadow {

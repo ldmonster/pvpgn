@@ -9,8 +9,8 @@
 #include <optional>
 
 #include "application/moderation/ban_ip.hpp"
-#include "application/ports/event_bus.hpp"
-#include "application/ports/ip_ban_repository.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/clock.hpp"
 #include "domain/moderation/ip_ban_list.hpp"
 #include "domain/shared/ids.hpp"

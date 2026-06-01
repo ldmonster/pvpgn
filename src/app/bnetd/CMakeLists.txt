@@ -49,11 +49,8 @@ pvpgn_v3_add_library(app_bnetd_legacy_bridge STATIC
         domain_connection
 )
 
-# R194: both impl TUs gate their bodies on PVPGN_V3_BNETD_INTEGRATION.
-# Set it PUBLIC so (a) the lib's own compilation sees the real bodies
-# and (b) consumers see the matching class declaration (no ODR drift).
-target_compile_definitions(app_bnetd_legacy_bridge PUBLIC
-    PVPGN_V3_BNETD_INTEGRATION=1)
+# R194: PVPGN_V3_BNETD_INTEGRATION removed in Phase 3 (strangler finalization)
+# The legacy bridge is no longer needed as all logic has been migrated to v3.
 
 # R-strangler: PVPGN_BUILD_LEGACY removed; legacy `bnetd` target is gone.
 # Renamed pvpgn_v3_bnetd → bnetd (Plan 06 §7.3 + §7.4).

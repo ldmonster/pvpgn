@@ -18,6 +18,39 @@ pvpgn_v3_add_library(app_d2cs
     STATIC
     SOURCES
         src/d2cs_session_handler.cpp
+        # MIGRATED from legacy_d2cs/src/ (Plan 04 strangler)
+        src/send_packet_bridge.cpp
+        src/send_loginreply_bridge.cpp
+        src/send_createcharreply_bridge.cpp
+        src/send_charloginreply_bridge.cpp
+        src/send_creategamereply_bridge.cpp
+        src/send_joingamereply_bridge.cpp
+        src/send_init_bnetd_bridge.cpp
+        src/send_authreply_bnetd_bridge.cpp
+        src/send_gameinforeply_bnetd_bridge.cpp
+        src/send_handle_d2gs_bridges.cpp
+        src/send_simple_replies.cpp
+        src/send_listreply_bridges.cpp
+        src/send_ladderreply_bridge.cpp
+        src/send_charlistreply_bridge.cpp
+        src/send_outbound_obs_bridges.cpp
+        src/d2cs_prefs_bridge.cpp
+        src/bridge_logger.cpp
+        src/d2ladder_bridge.cpp
+        src/s2s_bridge.cpp
+        src/handle_signal_bridge.cpp
+        src/server_bridge.cpp
+        src/handle_init_bridge.cpp
+        src/conn_bridge.cpp
+        src/handle_d2cs_packet_bridge.cpp
+        src/handle_d2gs_packet_bridge.cpp
+        src/handle_bnetd_packet_bridge.cpp
+        src/gamequeue_bridge.cpp
+        src/serverqueue_bridge.cpp
+        src/d2gs_bridge.cpp
+        src/game_bridge.cpp
+        src/net_bridge.cpp
+        src/send_packet_bridge_link.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC_DEPS

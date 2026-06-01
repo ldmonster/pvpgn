@@ -7,6 +7,11 @@
 
 #include <memory>
 
+#include "domain/identity/ports.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/chat/ports/command_registry.hpp"
+
 // Forward declarations
 namespace pvpgn::application::auth {
 class LoginUser;
@@ -30,14 +35,6 @@ namespace pvpgn::application::moderation {
 class CheckIpBan;
 }  // namespace pvpgn::application::moderation
 
-namespace pvpgn::application::ports {
-class IAccountRepository;
-class ICommandRegistry;
-class IMessageRouter;
-class IPermissionChecker;
-class ISessionRegistry;
-}  // namespace pvpgn::application::ports
-
 namespace pvpgn::protocol::bnet {
 
 /// Aggregates all use-case dependencies needed by BnetFsm handlers.
@@ -53,11 +50,11 @@ struct BnetUseCaseContext {
     std::shared_ptr<application::game::JoinGame> join_game;
     std::shared_ptr<application::game::LeaveGame> leave_game;
     std::shared_ptr<application::moderation::CheckIpBan> check_ip_ban;
-    std::shared_ptr<application::ports::IAccountRepository> account_repo;
+    std::shared_ptr<domain::identity::IAccountRepository> account_repo;
     std::shared_ptr<application::ports::ICommandRegistry> command_registry;
-    std::shared_ptr<application::ports::IMessageRouter> message_router;
-    std::shared_ptr<application::ports::IPermissionChecker> permission_checker;
-    std::shared_ptr<application::ports::ISessionRegistry> session_registry;
+    std::shared_ptr<domain::connection::IMessageRouter> message_router;
+    std::shared_ptr<domain::moderation::IPermissionChecker> permission_checker;
+    std::shared_ptr<domain::identity::ISessionRegistry> session_registry;
 };
 
 }  // namespace pvpgn::protocol::bnet

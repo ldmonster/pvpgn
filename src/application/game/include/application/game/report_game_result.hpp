@@ -19,12 +19,7 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-
-namespace pvpgn::application::ports {
-class IGameRepository;
-class ILadderRepository;
-class IEventBus;
-}  // namespace pvpgn::application::ports
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::game {
 

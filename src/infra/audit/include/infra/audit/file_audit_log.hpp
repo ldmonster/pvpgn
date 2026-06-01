@@ -22,12 +22,12 @@
 #include <mutex>
 #include <string>
 
-#include "application/ports/audit_log.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::infra::audit {
 
 /// Factory result -- nullptr if the path cannot be opened for append.
-class FileAuditLog : public application::ports::IAuditLog {
+class FileAuditLog : public domain::moderation::IAuditLog {
 public:
     /// Open `path` in append mode. Throws via assertion on failure;
     /// prefer ``try_open`` for non-fatal handling.
@@ -40,19 +40,19 @@ public:
     /// Returns nullptr if the path cannot be opened.
     static std::unique_ptr<FileAuditLog> try_open(const std::string& path);
 
-    void record(const application::ports::AuditEntry& entry) override;
+    void record(const domain::moderation::AuditEntry& entry) override;
 
-    std::vector<application::ports::AuditEntry>
+    std::vector<domain::moderation::AuditEntry>
     recent(std::size_t count) const override;
 
     /// Encode a single entry as an NDJSON line (newline terminator included).
     /// Exposed for testing.
-    static std::string format_line(const application::ports::AuditEntry& entry);
+    static std::string format_line(const domain::moderation::AuditEntry& entry);
 
     /// Parse an NDJSON line written by `format_line`. Returns false on
     /// malformed input. Exposed for testing.
     static bool parse_line(const std::string& line,
-                           application::ports::AuditEntry& out);
+                           domain::moderation::AuditEntry& out);
 
 private:
     std::string         path_;

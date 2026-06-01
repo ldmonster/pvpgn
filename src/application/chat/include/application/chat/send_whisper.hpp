@@ -14,12 +14,7 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-
-namespace pvpgn::application::ports {
-class IAccountRepository;
-class ISessionRegistry;
-class IMessageRouter;
-}  // namespace pvpgn::application::ports
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::chat {
 

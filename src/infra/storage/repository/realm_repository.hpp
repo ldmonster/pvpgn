@@ -14,7 +14,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "application/ports/realm_repository.hpp"
+#include "domain/realm/ports.hpp"
 
 namespace pvpgn::infra::storage {
 

@@ -11,8 +11,8 @@
 #include <string>
 #include <vector>
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/session_registry.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 

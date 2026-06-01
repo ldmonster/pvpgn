@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/social/add_friend.hpp"
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/event_bus.hpp"
-#include "application/ports/friend_list_repository.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::application::social {
 

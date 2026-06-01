@@ -12,7 +12,7 @@
 #   --tool <path>   Path to the pvpgn_config_tool binary.
 #                   Default: build/src/v3/app/pvpgn-config/pvpgn_config_tool
 #   --out  <path>   Output file.
-#                   Default: docs/config-reference.md
+#                   Default: docs/developer/config-reference.md
 #
 # The script wraps the Markdown table emitted by --print-schema with a
 # standard header and footer so the file is a complete, standalone document.
@@ -25,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 TOOL="${REPO_ROOT}/build/src/v3/app/pvpgn-config/pvpgn_config_tool"
-OUT="${REPO_ROOT}/docs/config-reference.md"
+OUT="${REPO_ROOT}/docs/developer/config-reference.md"
 
 # ── argument parsing ──────────────────────────────────────────────────────────
 

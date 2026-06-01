@@ -12,7 +12,7 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "application/ports/session_token_issuer.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 

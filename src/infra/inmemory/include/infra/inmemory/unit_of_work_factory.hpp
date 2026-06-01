@@ -7,8 +7,8 @@
 
 #include <memory>
 
-#include "application/ports/unit_of_work.hpp"
-#include "application/ports/unit_of_work_factory.hpp"
+#include "application/persistence/unit_of_work.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
 #include "infra/inmemory/unit_of_work.hpp"
 
 namespace pvpgn::infra::inmemory {

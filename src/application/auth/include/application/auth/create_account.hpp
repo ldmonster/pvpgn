@@ -12,9 +12,10 @@
 #include <optional>
 #include <string>
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/event_bus.hpp"
-#include "application/ports/ip_ban_repository.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/clock.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"

@@ -138,6 +138,19 @@ pvpgn_v3_add_library(core
         ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
 
+# ---- core/* subdirectories (Plan 02: migrated from src/common/) -----------
+
+add_subdirectory(core/strings)
+add_subdirectory(core/encoding)
+add_subdirectory(core/types)
+add_subdirectory(core/time)
+add_subdirectory(core/util)
+add_subdirectory(core/debug)
+add_subdirectory(core/error)
+add_subdirectory(core/config)
+add_subdirectory(core/version)
+add_subdirectory(core/net)
+
 # ---- runtime (service host, peer-to-peer communication) -------------------
 
 pvpgn_v3_add_library(runtime
@@ -455,6 +468,11 @@ pvpgn_v3_add_library(protocol_bnet
         application_chat
         application_game
         application_moderation
+        domain_identity
+        domain_connection
+        domain_moderation
+        domain_chat
+        domain_shared
 )
 
 # MSVC: codec.cpp and split modules exceed the default object-file section count.
@@ -482,8 +500,12 @@ pvpgn_v3_add_library(protocol_irc
         protocol_common
         application_auth
         application_chat
+        application_ports
         domain_chat
         domain_shared
+        domain_identity
+        domain_connection
+        domain_moderation
 )
 
 # ---- protocol/udp -------------------------------------------------------
@@ -513,6 +535,11 @@ pvpgn_v3_add_library(protocol_telnet
         protocol_common
         protocol_bnet
         application_ports
+        domain_identity
+        domain_connection
+        domain_moderation
+        domain_chat
+        domain_shared
 )
 
 # ---- protocol/file ------------------------------------------------------
@@ -619,8 +646,12 @@ pvpgn_v3_add_library(protocol_wol
         protocol_common
         application_auth
         application_chat
+        application_ports
         domain_chat
         domain_shared
+        domain_identity
+        domain_connection
+        domain_moderation
 )
 
 # ---- domain/shared (value objects, events, IDs) -------------------------
@@ -703,17 +734,6 @@ pvpgn_v3_add_library(domain_moderation
         domain_shared
 )
 
-# ---- domain/matchmaking (AnonGameQueue, Tournament) ---------------------
-
-pvpgn_v3_add_library(domain_matchmaking
-    INTERFACE
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/domain/matchmaking/include
-    PUBLIC_DEPS
-        core
-        domain_shared
-)
-
 # ---- domain/realm (Realm + Character + CharacterList) -------------------
 
 pvpgn_v3_add_library(domain_realm
@@ -741,6 +761,16 @@ add_subdirectory(domain/d2cs)
 
 add_subdirectory(domain/d2dbs)
 
+# ---- domain/matchmaking (Matchmaking domain layer) -----------------------
+
+pvpgn_v3_add_library(domain_matchmaking
+    INTERFACE
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/domain/matchmaking/include
+    PUBLIC_DEPS
+        core
+)
+
 # ---- application/ports (interface-only) ---------------------------------
 
 pvpgn_v3_add_library(application_ports
@@ -757,6 +787,7 @@ pvpgn_v3_add_library(application_ports
         domain_social
         domain_realm
         domain_ladder
+        domain_matchmaking
 )
 
 # ---- infra/persistence (adapter registry + shared SQL helpers) ----------
@@ -1214,6 +1245,7 @@ pvpgn_v3_add_library(infra_inmemory
         infra/inmemory/src/unit_of_work_factory.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/infra/inmemory/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/persistence/include
         ${ankerl_unordered_dense_SOURCE_DIR}/include
     PUBLIC_DEPS
         core
@@ -1335,266 +1367,24 @@ if(TARGET common)
         ${CMAKE_BINARY_DIR})
 endif()
 
-# ---- integration/legacy_bnetd (strangler-fig adapter) -------------------
+# ---- integration/legacy_bnetd (DELETED in Phase 3) ----------------------
+# Phase 3 finalization: All remaining link files and coordinators have been
+# deleted. The entire src/integration/legacy_bnetd/ directory was removed
+# as all real logic has been migrated to v3 (Phases 1-2 deleted 195 symbols).
+# The integration_legacy_bnetd_linked target is also deleted from
+# src/integration/legacy_bnetd/CMakeLists.txt (now removed).
 
-pvpgn_v3_add_library(integration_legacy_bnetd
-    STATIC
-    SOURCES
-        integration/legacy_bnetd/src/legacy_protocol_handler.cpp
-        integration/legacy_bnetd/src/legacy_bnet_frame_router.cpp
-        integration/legacy_bnetd/src/bnet_strangler_handler.cpp
-        integration/legacy_bnetd/src/anongame_bootstrap.cpp
-        integration/legacy_bnetd/src/bridge_logger.cpp
-        integration/legacy_bnetd/src/legacy_chat_reply_sink.cpp
-        integration/legacy_bnetd/src/login_user_bridge.cpp
-        integration/legacy_bnetd/src/change_password_bridge.cpp
-        integration/legacy_bnetd/src/send_packet_bridge.cpp
-        integration/legacy_bnetd/src/init_conn_bridge.cpp
-        integration/legacy_bnetd/src/send_authreq1_server_bridge.cpp
-        integration/legacy_bnetd/src/send_authreply1_bridge.cpp
-        integration/legacy_bnetd/src/send_authreply109_bridge.cpp
-        integration/legacy_bnetd/src/send_authinfo_reply_bridge.cpp
-        integration/legacy_bnetd/src/send_handshake_bridge.cpp
-        integration/legacy_bnetd/src/send_echoreq_bridge.cpp
-        integration/legacy_bnetd/src/send_messagebox_bridge.cpp
-        integration/legacy_bnetd/src/send_friendadd_ack_bridge.cpp
-        integration/legacy_bnetd/src/send_frienddel_ack_bridge.cpp
-        integration/legacy_bnetd/src/send_friendmove_ack_bridge.cpp
-        integration/legacy_bnetd/src/send_readmemory_bridge.cpp
-        integration/legacy_bnetd/src/send_requiredwork_bridge.cpp
-        integration/legacy_bnetd/src/send_clan_invitereply_bridge.cpp
-        integration/legacy_bnetd/src/send_clan_membernewchief_reply_bridge.cpp
-        integration/legacy_bnetd/src/send_clanmember_remove_reply_bridge.cpp
-        integration/legacy_bnetd/src/send_clanmember_rankupdate_reply_bridge.cpp
-        integration/legacy_bnetd/src/send_changepassack_bridge.cpp
-        integration/legacy_bnetd/src/send_loginreply_bridge.cpp
-        integration/legacy_bnetd/src/send_loginreply_w3_bridge.cpp
-        integration/legacy_bnetd/src/send_logonproof_reply_bridge.cpp
-        integration/legacy_bnetd/src/send_createacct_reply_bridge.cpp
-        integration/legacy_bnetd/src/send_iconreply_bridge.cpp
-        integration/legacy_bnetd/src/send_channellist_bridge.cpp
-        integration/legacy_bnetd/src/channel_state_bridge.cpp
-        integration/legacy_bnetd/src/game_report_bridge.cpp
-        integration/legacy_bnetd/src/startgame_bridge.cpp
-        integration/legacy_bnetd/src/gamelist_join_bridge.cpp
-        integration/legacy_bnetd/src/anongame_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/anongame_entry_bridge.cpp
-        integration/legacy_bnetd/src/anongame_infos_bridge.cpp
-        integration/legacy_bnetd/src/anongame_infos_get_bridge.cpp
-        integration/legacy_bnetd/src/runprog_bridge.cpp        # R230(1)
-        integration/legacy_bnetd/src/news_bridge.cpp           # R230(2)
-        integration/legacy_bnetd/src/userlog_bridge.cpp        # R230(3)
-        integration/legacy_bnetd/src/versioncheck_bridge.cpp   # R230(4)
-        integration/legacy_bnetd/src/clan_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/clan_send_bridge.cpp
-        integration/legacy_bnetd/src/friends_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/auth_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/keepalive_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/realm_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/account_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/profile_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/ladder_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/d2_character_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/telemetry_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/ad_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/ads_bridge.cpp
-        integration/legacy_bnetd/src/realm_list_bridge.cpp
-        integration/legacy_bnetd/src/anongame_lobby_bridge.cpp
-        integration/legacy_bnetd/src/progident_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/gameport_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/cdkey_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/passemail_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/handshake_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/stub_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/file_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/send_cdkey_reply_bridge.cpp
-        integration/legacy_bnetd/src/send_fileinforeply_bridge.cpp
-        integration/legacy_bnetd/src/send_passchange_bridge.cpp
-        integration/legacy_bnetd/src/send_statsreply_bridge.cpp
-        integration/legacy_bnetd/src/send_friendslist_bridge.cpp
-        integration/legacy_bnetd/src/send_friendinfo_bridge.cpp
-        integration/legacy_bnetd/src/send_atfriendscreen_bridge.cpp
-        integration/legacy_bnetd/src/send_atinvitefriend_bridge.cpp
-        integration/legacy_bnetd/src/send_atacceptdecline_bridge.cpp
-        integration/legacy_bnetd/src/send_motdw3_bridge.cpp
-        integration/legacy_bnetd/src/send_realmlist_bridge.cpp
-        integration/legacy_bnetd/src/send_realmlistlegacy_bridge.cpp
-        integration/legacy_bnetd/src/send_claninfo_bridge.cpp
-        integration/legacy_bnetd/src/send_profilereply_bridge.cpp
-        integration/legacy_bnetd/src/send_realmjoin_bridge.cpp
-        integration/legacy_bnetd/src/send_chatevent_compose_bridge.cpp
-        integration/legacy_bnetd/src/send_charlistreply_bridge.cpp
-        integration/legacy_bnetd/src/send_adreply_bridge.cpp
-        integration/legacy_bnetd/src/send_adclick2reply_bridge.cpp
-        integration/legacy_bnetd/src/send_playerinforeply_bridge.cpp
-        integration/legacy_bnetd/src/send_gamelistreply_bridge.cpp
-        integration/legacy_bnetd/src/send_startgame1ack_bridge.cpp
-        integration/legacy_bnetd/src/send_startgame3ack_bridge.cpp
-        integration/legacy_bnetd/src/send_startgame4ack_bridge.cpp
-        integration/legacy_bnetd/src/send_ladderreply_bridge.cpp
-        integration/legacy_bnetd/src/send_laddersearchreply_bridge.cpp
-        integration/legacy_bnetd/src/send_mapauthreply1_bridge.cpp
-        integration/legacy_bnetd/src/send_mapauthreply2_bridge.cpp
-        integration/legacy_bnetd/src/send_clandisbandreply_bridge.cpp
-        integration/legacy_bnetd/src/send_clancreateinviteforward_bridge.cpp
-        integration/legacy_bnetd/src/send_clancreateinvitereply_bridge.cpp
-        integration/legacy_bnetd/src/send_raw_text_bridge.cpp
-        integration/legacy_bnetd/src/d2cs_link_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/bot_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/telnet_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/wol_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/irc_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/connection_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/message_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/server_dispatch_bridge.cpp
-        integration/legacy_bnetd/src/send_clan_motdreply_bridge.cpp
-        integration/legacy_bnetd/src/encode_clanmemberupdate_bridge.cpp
-        integration/legacy_bnetd/src/clan_bridges.cpp
-        integration/legacy_bnetd/src/send_anongame_search_reply_bridge.cpp
-        integration/legacy_bnetd/src/send_anongame_found_bridge.cpp
-        integration/legacy_bnetd/src/send_anongame_cancel_bridge.cpp
-        integration/legacy_bnetd/src/send_w3route_bridge.cpp
-        integration/legacy_bnetd/src/send_udptest_bridge.cpp
-        integration/legacy_bnetd/src/send_d2cs_bnetd_bridges.cpp
-        integration/legacy_bnetd/src/send_file_bridge.cpp
-        integration/legacy_bnetd/src/prefs_bridge.cpp
-        # R243: bnetd per-connection timer subsystem bridges.
-        integration/legacy_bnetd/src/timer_bridge.cpp
-        # R244: bnetd IP-ban subsystem bridges.
-        integration/legacy_bnetd/src/ipban_bridge.cpp
-        # R245-R247: bnetd small-module lifecycle bridges (unified).
-        # Originally three separate files (R245, R246, R247); collapsed into
-        # one TU as a Plan 06 quick win (2026-05-30).
-        # Subsystems: helpfile, autoupdate, output, support, mail,
-        #             i18n, icons, attrlayer, tracker, team, udptest_send,
-        #             alias_command, command_groups, anongame_maplists, handle_udp.
-        # See: plans/16-strangler-completion-detail.md §5 "Can be done now"
-        integration/legacy_bnetd/src/bnetd_lifecycle_bridges.cpp
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_bnetd/include
-    PUBLIC_DEPS
-        core
-        application_ports
-        application_admin_commands
-        application_anongame_inforeply
-        application_chat
-        application_i18n
-        application_init
-        application_ads
-        application_realm
-        infra_compression
-        infra_legacy_config
-        protocol_common
-        protocol_bnet
-        $<$<TARGET_EXISTS:infra_config>:infra_config>
-)
-
-# ---- integration/legacy_d2cs (strangler-fig scaffold) -------------------
+# ---- integration/legacy_d2cs (DELETED — Plan 04 strangler) ---------------
 #
-# Dispatcher-only scaffold for the d2cs server, mirroring the
-# legacy_bnetd pattern. Provides the v3->legacy send_packet
-# C ABI (`pvpgn_v3_d2cs_send_packet`) and a runtime-pluggable
-# handler. The linked half (which would call legacy
-# `packet_create(packet_class_d2cs)` + `conn_d2cs_outqueue`) is
-# deferred to a future round, pending extraction of a
-# `d2cs_legacy` static library from the d2cs executable target.
+# All bridge files have been migrated to app/d2cs/src/ and are now compiled
+# as part of the app_d2cs library. The integration_legacy_d2cs target is
+# no longer needed. See plans/04-d2cs-d2dbs-strangler.md.
 
-pvpgn_v3_add_library(integration_legacy_d2cs
-    STATIC
-    SOURCES
-        integration/legacy_d2cs/src/send_packet_bridge.cpp
-        integration/legacy_d2cs/src/send_loginreply_bridge.cpp
-        integration/legacy_d2cs/src/send_createcharreply_bridge.cpp
-        integration/legacy_d2cs/src/send_charloginreply_bridge.cpp
-        integration/legacy_d2cs/src/send_creategamereply_bridge.cpp
-        integration/legacy_d2cs/src/send_joingamereply_bridge.cpp
-        integration/legacy_d2cs/src/send_init_bnetd_bridge.cpp
-        integration/legacy_d2cs/src/send_authreply_bnetd_bridge.cpp
-        integration/legacy_d2cs/src/send_gameinforeply_bnetd_bridge.cpp
-        integration/legacy_d2cs/src/send_handle_d2gs_bridges.cpp
-        integration/legacy_d2cs/src/send_simple_replies.cpp
-        integration/legacy_d2cs/src/send_listreply_bridges.cpp
-        integration/legacy_d2cs/src/send_ladderreply_bridge.cpp
-        integration/legacy_d2cs/src/send_charlistreply_bridge.cpp
-        integration/legacy_d2cs/src/send_outbound_obs_bridges.cpp
-        integration/legacy_d2cs/src/d2cs_prefs_bridge.cpp
-        # R233: observation lifecycle bridges (d2cs).
-        integration/legacy_d2cs/src/bridge_logger.cpp
-        integration/legacy_d2cs/src/d2ladder_bridge.cpp
-        integration/legacy_d2cs/src/s2s_bridge.cpp
-        integration/legacy_d2cs/src/handle_signal_bridge.cpp
-        # R234: more d2cs observation bridges (loop + init + conn).
-        integration/legacy_d2cs/src/server_bridge.cpp
-        integration/legacy_d2cs/src/handle_init_bridge.cpp
-        integration/legacy_d2cs/src/conn_bridge.cpp
-        # R235: d2cs packet dispatcher bridges (d2cs/d2gs/bnetd).
-        integration/legacy_d2cs/src/handle_d2cs_packet_bridge.cpp
-        integration/legacy_d2cs/src/handle_d2gs_packet_bridge.cpp
-        integration/legacy_d2cs/src/handle_bnetd_packet_bridge.cpp
-        # R236: d2cs queue + d2gs-list lifecycle bridges.
-        integration/legacy_d2cs/src/gamequeue_bridge.cpp
-        integration/legacy_d2cs/src/serverqueue_bridge.cpp
-        integration/legacy_d2cs/src/d2gs_bridge.cpp
-        # R238: d2cs game catalogue + per-game lifecycle bridges.
-        integration/legacy_d2cs/src/game_bridge.cpp
-        # R241: d2cs net.cpp socket helper bridges.
-        integration/legacy_d2cs/src/net_bridge.cpp
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2cs/include
-    PUBLIC_DEPS
-        core
-        protocol_common
-        protocol_d2cs
-        protocol_d2gs
-        $<$<TARGET_EXISTS:infra_config>:infra_config>
-)
-
-# ---- integration/legacy_d2cs/linked (real d2cs_legacy hookup) -----------
+# ---- integration/legacy_d2dbs (DELETED — Plan 04 strangler) ---------------
 #
-# MOVED to src/v3/integration/legacy_d2cs/CMakeLists.txt by R196.b
-# (same R193.fix systemic ordering bug as legacy_bnetd): the previous
-# `if(TARGET d2cs_legacy)` guard here was always FALSE because
-# `add_subdirectory(src/v3)` runs before `add_subdirectory(src)`, so
-# `d2cs_legacy` did not yet exist. The block now lives in a separate
-# CMakeLists added LATE in the top-level configure, after `src` has
-# been processed. See plans/r196b-checklist.md.
-
-# ---- integration/legacy_d2dbs (strangler-fig scaffold) -----------------
-#
-# Dispatcher-only scaffold for the d2dbs server, mirroring the
-# legacy_d2cs pattern.
-
-pvpgn_v3_add_library(integration_legacy_d2dbs
-    STATIC
-    SOURCES
-        integration/legacy_d2dbs/src/send_packet_bridge.cpp
-        integration/legacy_d2dbs/src/send_echorequest_bridge.cpp
-        integration/legacy_d2dbs/src/d2dbs_prefs_bridge.cpp
-        # R231: observation lifecycle bridges (d2dbs).
-        integration/legacy_d2dbs/src/bridge_logger.cpp
-        integration/legacy_d2dbs/src/charlock_bridge.cpp
-        integration/legacy_d2dbs/src/d2ladder_bridge.cpp
-        # R232: observation bridges for dupecheck / dbserver / signals.
-        integration/legacy_d2dbs/src/dbsdupecheck_bridge.cpp
-        integration/legacy_d2dbs/src/dbserver_bridge.cpp
-        integration/legacy_d2dbs/src/handle_signal_bridge.cpp
-        # R242: d2dbs packet dispatcher bridges (handle / timeout / keepalive).
-        integration/legacy_d2dbs/src/dbspacket_bridge.cpp
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/integration/legacy_d2dbs/include
-    PUBLIC_DEPS
-        core
-        protocol_common
-        protocol_d2dbs
-        $<$<TARGET_EXISTS:infra_config>:infra_config>
-)
-
-# ---- integration/legacy_d2dbs/linked (real d2dbs_legacy hookup) --------
-#
-# MOVED to src/v3/integration/legacy_d2dbs/CMakeLists.txt by R199, applying
-# the R193.fix Strategy-B / R196.b playbook. The block below was dead code
-# under the old ordering (`d2dbs_legacy` target did not exist yet at v3
-# configure time). See plans/r199-checklist.md.
+# All bridge files have been migrated to app/d2dbs/src/ and are now compiled
+# as part of the app_d2dbs library. The integration_legacy_d2dbs target is
+# no longer needed. See plans/04-d2cs-d2dbs-strangler.md.
 
 # ---- integration/legacy_bnetd/linked (real bnetd_legacy hookup) ---------
 #
@@ -1658,6 +1448,7 @@ if(PVPGN_V3_WITH_BOOST)
             infra/net/src/shutdown_coordinator.cpp
         PUBLIC_INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/infra/net/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/application/persistence/include
         PUBLIC_DEPS
             ${_pvpgn_net_public_deps}
             application_ports

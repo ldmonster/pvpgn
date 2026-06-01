@@ -7,14 +7,10 @@
 #include <memory>
 #include <string_view>
 
+#include "application/ports/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-
-namespace pvpgn::application::ports {
-class ISessionRegistry;
-class IMessageRouter;
-}  // namespace pvpgn::application::ports
 
 namespace pvpgn::application::moderation {
 

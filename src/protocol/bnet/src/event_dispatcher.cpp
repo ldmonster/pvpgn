@@ -6,7 +6,7 @@
 #include <string>
 #include <variant>
 
-#include "application/ports/message_router.hpp"
+#include "domain/connection/ports.hpp"
 #include "domain/shared/events.hpp"
 #include "protocol/bnet/codec.hpp"
 #include "protocol/bnet/messages.hpp"

@@ -5,8 +5,8 @@
 #include <string>
 #include <string_view>
 
-#include "application/ports/command_registry.hpp"
-#include "application/ports/permission_checker.hpp"
+#include "domain/chat/ports/command_registry.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/bytes.hpp"
 #include "domain/shared/ids.hpp"
 #include "protocol/telnet/telnet_session_context.hpp"

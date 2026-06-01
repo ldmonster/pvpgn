@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/moderation/kick_connection.hpp"
 
-#include "application/ports/message_router.hpp"
-#include "application/ports/session_registry.hpp"
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::moderation {
 

@@ -22,8 +22,8 @@
 #include "application/auth/login_user_nls.hpp"
 
 namespace pvpgn::application::auth { class LoginUser; }
-#include "application/ports/message_router.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/bytes.hpp"
 #include "domain/shared/ids.hpp"
 #include "infra/net/tcp_session.hpp"

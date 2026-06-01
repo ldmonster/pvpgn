@@ -6,8 +6,8 @@
 #include <iostream>
 
 #include "application/ports/metrics_registry.hpp"
-#include "application/ports/unit_of_work_factory.hpp"
-#include "application/ports/unit_of_work.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
+#include "application/persistence/unit_of_work.hpp"
 #include "core/logging.hpp"
 #include "infra/config/config_watcher.hpp"
 #include "infra/net/io_runtime.hpp"

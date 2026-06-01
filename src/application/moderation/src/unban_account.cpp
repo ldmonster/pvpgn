@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/moderation/unban_account.hpp"
 
-#include "application/ports/account_ban_repository.hpp"
-#include "application/ports/event_bus.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 
 namespace pvpgn::application::moderation {
 

@@ -14,9 +14,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "application/ports/connection_handler.hpp"
-#include "application/ports/message_router.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"

@@ -35,7 +35,7 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 
-#include "application/ports/anongame_compressor.hpp"
+#include "domain/matchmaking/ports.hpp"
 #include "protocol/bnet/anongame.hpp"
 #include "protocol/bnet/anongame_tags.hpp"
 
@@ -72,7 +72,7 @@ struct CompiledSnapshot {
 /// whole compile fails and reports the error.
 core::Result<CompiledSnapshot> compile_snapshot(
     const AnonGameInfoSnapshot& snapshot,
-    const ports::IAnonGameCompressor& compressor);
+    const domain::matchmaking::IAnonGameCompressor& compressor);
 
 /// Bundle of pre-compiled snapshots keyed by language. The legacy
 /// server keeps one such bundle per (war3/w3xp) clienttag and uses
@@ -95,7 +95,7 @@ struct CompiledSnapshotSet {
 core::Result<CompiledSnapshotSet> compile_snapshot_set(
     const AnonGameInfoSnapshot& default_snapshot,
     const std::unordered_map<std::string, AnonGameInfoSnapshot>& by_lang,
-    const ports::IAnonGameCompressor& compressor);
+    const domain::matchmaking::IAnonGameCompressor& compressor);
 
 /// Map a client-side request tag (e.g. `kAnonGameInfoTagURL` =
 /// `'URL\0'`) to the matching server-reply tag (the byte-reversed
@@ -112,7 +112,7 @@ core::Result<protocol::bnet::AnonGameInfoReply> compose_inforeply(
     std::uint32_t count,
     std::span<const std::uint8_t> serialized_payload,
     bool more,
-    const ports::IAnonGameCompressor& compressor);
+    const domain::matchmaking::IAnonGameCompressor& compressor);
 
 /// Build a single INFOREPLY for the given client-side tag, drawing
 /// the typed payload from `snapshot`. Returns `NotFound` when the
@@ -123,7 +123,7 @@ core::Result<protocol::bnet::AnonGameInfoReply> build_inforeply_for_tag(
     std::uint32_t count,
     const AnonGameInfoSnapshot& snapshot,
     bool more,
-    const ports::IAnonGameCompressor& compressor);
+    const domain::matchmaking::IAnonGameCompressor& compressor);
 
 /// Build the full INFOREPLY set for an entire INFOREQ. The `count`
 /// from the request is propagated to every reply. The `trailing`
@@ -135,7 +135,7 @@ core::Result<std::vector<protocol::bnet::AnonGameInfoReply>>
 build_inforeplies_for_request(
     const protocol::bnet::AnonGameInfoRequest& request,
     const AnonGameInfoSnapshot& snapshot,
-    const ports::IAnonGameCompressor& compressor);
+    const domain::matchmaking::IAnonGameCompressor& compressor);
 
 /// Serialize one `AnonGameInfoReply` to its full SID 0x44 packet
 /// bytes (`0xFF, 0x44, len_lo, len_hi, sub_option=0x02, body...`).
@@ -156,7 +156,7 @@ core::Result<std::vector<std::byte>> encode_inforeply_packets(
 core::Result<std::vector<std::byte>> encode_inforeplies_for_request(
     const protocol::bnet::AnonGameInfoRequest& request,
     const AnonGameInfoSnapshot& snapshot,
-    const ports::IAnonGameCompressor& compressor);
+    const domain::matchmaking::IAnonGameCompressor& compressor);
 
 // =========================================================================
 // Cached / pre-compiled overloads

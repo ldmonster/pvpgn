@@ -10,7 +10,7 @@
 /// can answer "when was must_change_password set/cleared for this
 /// account?" without combing through `eventlog`.
 
-#include "application/ports/event_bus.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "core/logging.hpp"
 #include "domain/shared/events.hpp"
 

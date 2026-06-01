@@ -16,10 +16,11 @@
 /// the membership before detaching the session.  This prevents ghost members
 /// in the channel roster after a disconnect.
 
-#include "application/ports/channel_repository.hpp"
-#include "application/ports/event_bus.hpp"
-#include "application/ports/game_repository.hpp"
-#include "application/ports/session_registry.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"

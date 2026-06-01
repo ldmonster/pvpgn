@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "application/ports/channel_store.hpp"
+#include "domain/chat/ports.hpp"
 #include "core/result.hpp"
 
 namespace pvpgn::infra::inmemory {

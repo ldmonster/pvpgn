@@ -4,10 +4,10 @@
 
 #include <sstream>
 
-#include "application/ports/session_registry.hpp"
-#include "application/ports/channel_repository.hpp"
-#include "application/ports/game_repository.hpp"
-#include "application/ports/account_repository.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "application/ports/metrics_registry.hpp"
 #include "infra/net/io_runtime.hpp"
 #include "infra/webui/channel_json.hpp"

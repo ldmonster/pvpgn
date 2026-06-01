@@ -12,8 +12,9 @@
 
 #include <string_view>
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/event_bus.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"

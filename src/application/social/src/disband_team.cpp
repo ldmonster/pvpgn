@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/social/disband_team.hpp"
 
-#include "application/ports/event_bus.hpp"
-#include "application/ports/team_repository.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/social/ports.hpp"
 #include "domain/social/team.hpp"
 
 namespace pvpgn::application::social {

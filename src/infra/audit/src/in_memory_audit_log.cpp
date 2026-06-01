@@ -3,7 +3,7 @@
 
 namespace pvpgn::infra::audit {
 
-void InMemoryAuditLog::record(const application::ports::AuditEntry& entry) {
+void InMemoryAuditLog::record(const domain::moderation::AuditEntry& entry) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     entries_.push_back(entry);
@@ -14,11 +14,11 @@ void InMemoryAuditLog::record(const application::ports::AuditEntry& entry) {
     }
 }
 
-std::vector<application::ports::AuditEntry> InMemoryAuditLog::recent(
+std::vector<domain::moderation::AuditEntry> InMemoryAuditLog::recent(
     std::size_t count) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    std::vector<application::ports::AuditEntry> result;
+    std::vector<domain::moderation::AuditEntry> result;
     std::size_t start_idx = entries_.size() > count ? entries_.size() - count : 0;
 
     for (std::size_t i = start_idx; i < entries_.size(); ++i) {

@@ -11,23 +11,23 @@
 #include <mutex>
 #include <vector>
 
-#include "application/ports/audit_log.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::infra::audit {
 
-class InMemoryAuditLog : public application::ports::IAuditLog {
+class InMemoryAuditLog : public domain::moderation::IAuditLog {
 public:
     explicit InMemoryAuditLog(std::size_t max_entries = 1000)
         : max_entries_(max_entries) {}
 
-    void record(const application::ports::AuditEntry& entry) override;
+    void record(const domain::moderation::AuditEntry& entry) override;
 
-    std::vector<application::ports::AuditEntry> recent(std::size_t count) const override;
+    std::vector<domain::moderation::AuditEntry> recent(std::size_t count) const override;
 
 private:
     std::size_t max_entries_;
     mutable std::mutex mutex_;
-    std::deque<application::ports::AuditEntry> entries_;
+    std::deque<domain::moderation::AuditEntry> entries_;
 };
 
 }  // namespace pvpgn::infra::audit

@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "application/ports/connection_handler.hpp"
+#include "domain/connection/ports.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 #include "protocol/bnet/codec.hpp"

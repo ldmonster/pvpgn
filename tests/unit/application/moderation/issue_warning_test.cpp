@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "application/moderation/issue_warning.hpp"
-#include "application/ports/account_repository.hpp"
-#include "application/ports/audit_log.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/moderation/ports.hpp"
 #include "domain/identity/account.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/locale.hpp"

@@ -43,7 +43,7 @@
 #include "application/chat/leave_channel.hpp"
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
-#include "application/ports/channel_repository.hpp"
+#include "domain/chat/ports.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/shared/ids.hpp"
 

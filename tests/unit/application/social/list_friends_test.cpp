@@ -10,9 +10,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "application/social/list_friends.hpp"
-#include "application/ports/account_repository.hpp"
-#include "application/ports/friend_list_repository.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/social/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/social/friend_list.hpp"
 #include "infra/inmemory/event_bus.hpp"

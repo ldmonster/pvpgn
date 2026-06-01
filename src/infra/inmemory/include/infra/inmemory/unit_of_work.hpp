@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "application/ports/unit_of_work.hpp"
+#include "application/persistence/unit_of_work.hpp"
 #include "infra/inmemory/account_repository.hpp"
 #include "infra/inmemory/channel_repository.hpp"
 #include "infra/inmemory/game_repository.hpp"

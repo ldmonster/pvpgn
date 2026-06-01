@@ -14,12 +14,7 @@
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
-
-namespace pvpgn::application::ports {
-class IChannelRepository;
-class IAccountRepository;
-class IMessageRouter;
-}  // namespace pvpgn::application::ports
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::chat {
 

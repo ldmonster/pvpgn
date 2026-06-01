@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/chat/send_whisper.hpp"
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/message_router.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "domain/shared/user_name.hpp"
 
 namespace pvpgn::application::chat {

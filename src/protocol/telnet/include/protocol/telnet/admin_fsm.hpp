@@ -19,6 +19,9 @@ class ISessionContext;
 
 namespace pvpgn::application::ports {
 class ICommandRegistry;
+}
+
+namespace pvpgn::domain::moderation {
 class IPermissionChecker;
 }
 
@@ -31,7 +34,7 @@ public:
     TelnetAdminFsm(
         std::shared_ptr<ITelnetSessionContext> ctx,
         std::shared_ptr<pvpgn::application::ports::ICommandRegistry> commands,
-        std::shared_ptr<pvpgn::application::ports::IPermissionChecker> permissions)
+        std::shared_ptr<pvpgn::domain::moderation::IPermissionChecker> permissions)
         : ctx_(ctx), commands_(commands), permissions_(permissions) {}
 
     /// Called when connection is established.
@@ -51,7 +54,7 @@ private:
 
     std::shared_ptr<ITelnetSessionContext> ctx_;
     std::shared_ptr<pvpgn::application::ports::ICommandRegistry> commands_;
-    std::shared_ptr<pvpgn::application::ports::IPermissionChecker> permissions_;
+    std::shared_ptr<pvpgn::domain::moderation::IPermissionChecker> permissions_;
 };
 
 }  // namespace pvpgn::protocol::telnet

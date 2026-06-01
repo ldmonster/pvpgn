@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "application/moderation/silence_user.hpp"
-#include "application/ports/account_repository.hpp"
-#include "application/ports/event_bus.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "domain/identity/account.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/locale.hpp"

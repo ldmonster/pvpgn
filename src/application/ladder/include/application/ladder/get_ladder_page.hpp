@@ -11,11 +11,7 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "application/ladder/get_ladder_entry.hpp"
-
-namespace pvpgn::application::ports {
-class ILadderRepository;
-class IAccountRepository;
-}  // namespace pvpgn::application::ports
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::ladder {
 

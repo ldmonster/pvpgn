@@ -28,6 +28,12 @@ nav:
     - Building: operator/building.md
     - TOML Migration: operator/toml-migration.md
     - TOML Schema Versioning: operator/toml-schema-versioning.md
+    - Runbooks:
+      - Diagnose Slow Login: operator/runbooks/diagnose-slow-login.md
+      - Recover from Corrupt DB: operator/runbooks/recover-from-corrupt-db.md
+      - Rolling Upgrade: operator/runbooks/rolling-upgrade.md
+      - Connect OTel Collector: operator/runbooks/connect-otel-collector.md
+      - Rotate argon2id Params: operator/runbooks/rotate-argon2id-params.md
   - Developer Guide:
     - Extending PvPGN: developer/extending-pvpgn.md
     - Lua API v2: developer/lua-api-v2.md
@@ -36,8 +42,22 @@ nav:
     - Single Binary Mode: developer/single-binary-mode.md
     - Config Reference: developer/config-reference.md
     - Testing: developer/testing.md
+    - Bounded Contexts:
+      - Chat: developer/contexts/chat.md
+      - Connection: developer/contexts/connection.md
+      - D2CS: developer/contexts/d2cs.md
+      - D2DBS: developer/contexts/d2dbs.md
+      - Gameplay: developer/contexts/gameplay.md
+      - Identity: developer/contexts/identity.md
+      - Ladder: developer/contexts/ladder.md
+      - Matchmaking: developer/contexts/matchmaking.md
+      - Moderation: developer/contexts/moderation.md
+      - Realm: developer/contexts/realm.md
+      - Shared: developer/contexts/shared.md
+      - Social: developer/contexts/social.md
   - Reference:
     - Overview: reference/index.md
+    - Config Reference: developer/config-reference.md
   - ADRs:
     - Template: adr/NNNN-template.md
     - "0001 — TOML Configuration": adr/0001-use-toml-for-configuration.md

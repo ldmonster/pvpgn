@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <string>
 
-#include "application/ports/audit_log.hpp"
+#include "domain/moderation/ports.hpp"
 #include "infra/audit/file_audit_log.hpp"
 
 namespace ap = pvpgn::application::ports;

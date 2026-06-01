@@ -11,7 +11,7 @@
 #include <string_view>
 #include <vector>
 
-#include "application/ports/message_broadcaster.hpp"
+#include "domain/chat/ports.hpp"
 #include "domain/shared/ids.hpp"
 
 namespace pvpgn::infra::inmemory {

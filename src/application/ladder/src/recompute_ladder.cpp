@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "application/ports/ladder_repository.hpp"
+#include "domain/ladder/ports.hpp"
 #include "domain/ladder/ladder.hpp"
 
 namespace pvpgn::application::ladder {

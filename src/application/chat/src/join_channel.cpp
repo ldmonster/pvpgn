@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/chat/join_channel.hpp"
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/channel_repository.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/trace.hpp"
 #include "domain/shared/events.hpp"
 

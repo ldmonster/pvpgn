@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/ladder/get_ladder_entry.hpp"
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/ladder_repository.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
 
 namespace pvpgn::application::ladder {
 

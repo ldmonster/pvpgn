@@ -7,14 +7,14 @@
 namespace pvpgn::application::chat {
 
 void CommandRegistry::register_command(std::string_view name,
-                                       application::ports::Permission required_permission,
+                                       domain::moderation::Permission required_permission,
                                        CommandHandler handler) {
     commands_[std::string(name)] = {required_permission, handler};
 }
 
 core::Result<std::string, core::Error>
 CommandRegistry::dispatch(domain::AccountId caller, std::string_view command_line,
-                          const application::ports::IPermissionChecker& checker) const {
+                          const domain::moderation::IPermissionChecker& checker) const {
     std::string name;
     std::vector<std::string_view> args;
 
@@ -44,7 +44,7 @@ CommandRegistry::dispatch(domain::AccountId caller, std::string_view command_lin
 
 std::vector<std::string> CommandRegistry::list_available(
     domain::AccountId caller,
-    const application::ports::IPermissionChecker& checker) const {
+    const domain::moderation::IPermissionChecker& checker) const {
     std::vector<std::string> result;
 
     for (const auto& [name, entry] : commands_) {

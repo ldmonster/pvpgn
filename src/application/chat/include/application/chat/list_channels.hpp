@@ -15,10 +15,7 @@
 #include "core/result.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-
-namespace pvpgn::application::ports {
-class IChannelRepository;
-}  // namespace pvpgn::application::ports
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::chat {
 

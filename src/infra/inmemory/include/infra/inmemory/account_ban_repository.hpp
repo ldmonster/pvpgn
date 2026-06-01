@@ -9,7 +9,7 @@
 #include <functional>
 #include <shared_mutex>
 
-#include "application/ports/account_ban_repository.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::infra::inmemory {
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/game/join_game.hpp"
 
-#include "application/ports/game_repository.hpp"
+#include "domain/gameplay/ports.hpp"
 
 namespace pvpgn::application::game {
 

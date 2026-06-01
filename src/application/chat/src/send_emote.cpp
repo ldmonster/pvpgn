@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/chat/send_emote.hpp"
 
-#include "application/ports/channel_repository.hpp"
-#include "application/ports/message_router.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/connection/ports.hpp"
 #include "domain/chat/channel.hpp"
 
 namespace pvpgn::application::chat {

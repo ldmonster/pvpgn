@@ -15,7 +15,7 @@
 #include <unordered_set>
 #include <utility>
 
-#include "application/ports/permission_checker.hpp"
+#include "domain/moderation/ports.hpp"
 #include "domain/shared/ids.hpp"
 
 namespace pvpgn::infra::inmemory {

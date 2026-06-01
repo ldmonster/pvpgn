@@ -9,7 +9,7 @@
 #include <memory>
 #include <shared_mutex>
 
-#include "application/ports/friend_list_repository.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::infra::inmemory {
 

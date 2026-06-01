@@ -7,8 +7,8 @@
 #include <string_view>
 #include <vector>
 
-#include "application/ports/command_registry.hpp"
-#include "application/ports/permission_checker.hpp"
+#include "domain/chat/ports/command_registry.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/bytes.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"

@@ -9,7 +9,8 @@
 /// that the domain model stays clean and credential storage can be
 /// swapped independently (e.g. in-memory for tests, DB for production).
 
-#include "application/ports/realm_repository.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/realm/ports.hpp"
 #include "core/result.hpp"
 #include <cstdint>
 #include <string>
@@ -48,7 +49,7 @@ struct RealmAuthResult {
 ///   - The provided `password_hash` must match the stored credential.
 class RealmAuth {
 public:
-    RealmAuth(ports::IRealmRepository& realms,
+    RealmAuth(application::ports::IRealmRepository& realms,
               IRealmCredentialStore&   credentials);
 
     /// Returns `NotFound` if the realm name is not registered.
@@ -56,8 +57,8 @@ public:
     [[nodiscard]] core::Result<RealmAuthResult, core::Error>
     execute(RealmAuthCommand cmd) const;
 
-private:
-    ports::IRealmRepository& realms_;
+ private:
+    application::ports::IRealmRepository& realms_;
     IRealmCredentialStore&   credentials_;
 };
 

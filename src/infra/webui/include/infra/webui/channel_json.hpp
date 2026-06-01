@@ -10,7 +10,7 @@
 #include <sstream>
 #include <string>
 
-#include "application/ports/channel_repository.hpp"
+#include "domain/chat/ports.hpp"
 #include "domain/chat/channel.hpp"
 
 namespace pvpgn::infra::webui {

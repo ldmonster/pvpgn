@@ -24,7 +24,7 @@
 
 #include "application/auth/login_user.hpp"
 #include "application/moderation/check_ip_ban.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/error.hpp"
 
 namespace pvpgn::protocol::bnet {

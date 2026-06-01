@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "application/ports/friend_list_repository.hpp"
+#include "domain/social/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {

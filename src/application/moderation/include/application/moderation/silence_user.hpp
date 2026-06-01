@@ -8,14 +8,10 @@
 #include <memory>
 #include <string>
 
+#include "application/ports/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-
-namespace pvpgn::application::ports {
-class IAccountRepository;
-class IEventBus;
-}  // namespace pvpgn::application::ports
 
 namespace pvpgn::application::moderation {
 

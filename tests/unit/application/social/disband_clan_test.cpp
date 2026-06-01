@@ -7,8 +7,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "application/social/disband_clan.hpp"
-#include "application/ports/clan_repository.hpp"
-#include "application/ports/event_bus.hpp"
+#include "domain/social/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/social/clan.hpp"
 #include "infra/inmemory/clan_repository.hpp"

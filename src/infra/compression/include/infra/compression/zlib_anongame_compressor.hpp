@@ -8,7 +8,7 @@
 /// external dependency that the application layer must not know
 /// about.
 
-#include "application/ports/anongame_compressor.hpp"
+#include "domain/matchmaking/ports.hpp"
 #include "infra/compression/zlib_anongame.hpp"
 
 namespace pvpgn::infra::compression {

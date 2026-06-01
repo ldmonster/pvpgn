@@ -4,7 +4,8 @@
 /// @file register_realm.hpp
 /// Use case: register a new realm server in the catalog.
 
-#include "application/ports/realm_repository.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/realm/ports.hpp"
 #include "core/result.hpp"
 #include <cstdint>
 #include <string>
@@ -33,15 +34,15 @@ struct RegisterRealmResult {
 ///   - No realm with the same name may already be registered.
 class RegisterRealm {
 public:
-    explicit RegisterRealm(ports::IRealmRepository& realms);
+    explicit RegisterRealm(application::ports::IRealmRepository& realms);
 
     /// Returns `Conflict` if a realm with the same name already exists.
     /// Returns `InvalidArgument` if `name` or `host` is empty.
     [[nodiscard]] core::Result<RegisterRealmResult, core::Error>
     execute(RegisterRealmCommand cmd) const;
 
-private:
-    ports::IRealmRepository& realms_;
+ private:
+    application::ports::IRealmRepository& realms_;
 };
 
 } // namespace pvpgn::application::realm

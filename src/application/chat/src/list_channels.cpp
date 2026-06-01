@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include "application/ports/channel_repository.hpp"
+#include "domain/chat/ports.hpp"
 #include "domain/chat/channel.hpp"
 
 namespace pvpgn::application::chat {

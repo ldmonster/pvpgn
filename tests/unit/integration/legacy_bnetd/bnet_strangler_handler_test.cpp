@@ -9,7 +9,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "application/ports/connection_handler.hpp"
+#include "domain/connection/ports.hpp"
 #include "core/bytes.hpp"
 #include "integration/legacy_bnetd/bnet_strangler_handler.hpp"
 #include "integration/legacy_bnetd/legacy_protocol_handler.hpp"

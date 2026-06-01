@@ -11,9 +11,11 @@
 
 #include "domain/shared/events.hpp"
 #include "domain/shared/ids.hpp"
+#include "domain/connection/ports.hpp"
 
 namespace pvpgn::application::ports {
-class IMessageRouter;
+// Re-export for backward compatibility
+using IMessageRouter = domain::connection::IMessageRouter;
 }
 
 namespace pvpgn::protocol::bnet {

@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include "application/ports/unit_of_work_factory.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
 
 namespace pvpgn::infra::persistence {
 

@@ -18,7 +18,7 @@
  * `std::runtime_error` so that callers do not need to depend on sol2 headers.
  */
 
-#include "application/ports/script_host.hpp"
+#include "infra/scripting/script_host.hpp"
 
 #include <memory>
 #include <string>

@@ -14,6 +14,18 @@ pvpgn_v3_add_library(app_d2dbs
     STATIC
     SOURCES
         src/d2dbs_session_handler.cpp
+        # MIGRATED from legacy_d2dbs/src/ (Plan 04 strangler)
+        src/send_packet_bridge.cpp
+        src/send_echorequest_bridge.cpp
+        src/d2dbs_prefs_bridge.cpp
+        src/bridge_logger.cpp
+        src/charlock_bridge.cpp
+        src/d2ladder_bridge.cpp
+        src/dbsdupecheck_bridge.cpp
+        src/dbserver_bridge.cpp
+        src/handle_signal_bridge.cpp
+        src/dbspacket_bridge.cpp
+        src/send_packet_bridge_link.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC_DEPS

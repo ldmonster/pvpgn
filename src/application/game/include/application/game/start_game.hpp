@@ -10,14 +10,11 @@
 
 #include <string>
 
+#include "application/ports/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/gameplay/game.hpp"
 #include "domain/shared/ids.hpp"
-
-namespace pvpgn::application::ports {
-class IGameRepository;
-}  // namespace pvpgn::application::ports
 
 namespace pvpgn::application::game {
 

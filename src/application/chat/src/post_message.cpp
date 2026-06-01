@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/chat/post_message.hpp"
 
-#include "application/ports/channel_repository.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::application::chat {
 

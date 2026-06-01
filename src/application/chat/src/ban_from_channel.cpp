@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/chat/ban_from_channel.hpp"
 
-#include "application/ports/channel_repository.hpp"
+#include "domain/chat/ports.hpp"
 #include "domain/chat/channel.hpp"
 
 namespace pvpgn::application::chat {

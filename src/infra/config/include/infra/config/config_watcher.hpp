@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-#include "application/ports/config_subscriber.hpp"
+#include "domain/shared/ports/config_subscriber.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "infra/config/server_config.hpp"
@@ -41,7 +41,7 @@ public:
     /// Register a subscriber to be notified on config reload.
     /// Subscribers are stored as weak_ptr to avoid circular references.
     /// @param subscriber Observer to add to the subscriber list
-    void subscribe(std::weak_ptr<application::ports::IConfigSubscriber> subscriber);
+    void subscribe(std::weak_ptr<domain::shared::ports::IConfigSubscriber> subscriber);
 
     /// Unsubscribe all expired (dangling) weak_ptr subscribers.
     /// Called automatically during notification; can be called manually to clean up.
@@ -74,7 +74,7 @@ public:
 private:
     std::string config_path_;
     std::shared_ptr<const ServerConfig> current_config_;
-    std::vector<std::weak_ptr<application::ports::IConfigSubscriber>> subscribers_;
+    std::vector<std::weak_ptr<domain::shared::ports::IConfigSubscriber>> subscribers_;
     mutable std::shared_mutex mu_;
 
     // File watching state

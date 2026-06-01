@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "application/ladder/get_ladder_entry.hpp"
-#include "application/ports/account_repository.hpp"
-#include "application/ports/ladder_repository.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/identity/account.hpp"

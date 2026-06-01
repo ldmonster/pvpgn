@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/moderation/issue_warning.hpp"
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/audit_log.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/clock.hpp"
 #include "domain/shared/user_name.hpp"
 

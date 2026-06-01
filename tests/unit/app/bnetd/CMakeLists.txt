@@ -42,13 +42,7 @@ pvpgn_v3_add_test(test_app_bnetd_asio_event_loop
         Threads::Threads
 )
 
-# The test defines PVPGN_V3_BNETD_INTEGRATION itself (at the top of the
-# source file) so that LegacyBridge compiles in its non-stub form.
-# We also set it here so that legacy_bridge.cpp sees it during compilation.
-target_compile_definitions(test_app_bnetd_asio_event_loop
-    PRIVATE
-        PVPGN_V3_BNETD_INTEGRATION=1
-)
+# PVPGN_V3_BNETD_INTEGRATION removed in Phase 3 (strangler finalization)
 
 # Expose the app/bnetd include directory so the test can
 # #include "app/bnetd/asio_event_loop.hpp" etc.

@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "application/ports/session_registry.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::infra::inmemory {
 

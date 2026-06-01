@@ -12,12 +12,7 @@
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
-
-namespace pvpgn::application::ports {
-class IFriendListRepository;
-class ISessionRegistry;
-class IAccountRepository;
-}  // namespace pvpgn::application::ports
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::social {
 

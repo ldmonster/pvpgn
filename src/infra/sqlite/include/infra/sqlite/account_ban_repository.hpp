@@ -5,7 +5,7 @@
 #include <memory>
 #include <optional>
 
-#include "application/ports/account_ban_repository.hpp"
+#include "domain/moderation/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {

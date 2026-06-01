@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-#include "application/ports/ip_ban_repository.hpp"
+#include "domain/moderation/ports.hpp"
 #include "infra/inmemory/ip_ban_repository.hpp"
 
 namespace pvpgn::infra::file {

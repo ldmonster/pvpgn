@@ -6,7 +6,7 @@
 #include <memory>
 #include <string>
 
-#include "application/ports/realm_repository.hpp"
+#include "domain/realm/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {

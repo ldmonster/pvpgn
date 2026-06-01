@@ -13,7 +13,7 @@
 #include <shared_mutex>
 #include <string>
 
-#include "application/ports/clan_repository.hpp"
+#include "domain/social/ports.hpp"
 #include "domain/social/clan.hpp"
 
 namespace pvpgn::infra::inmemory {

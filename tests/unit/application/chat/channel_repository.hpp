@@ -11,7 +11,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "application/ports/channel_repository.hpp"
+#include "domain/chat/ports.hpp"
 
 namespace pvpgn::infra::storage {
 

@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "application/ports/unit_of_work.hpp"
+#include "application/persistence/unit_of_work.hpp"
 #include "infra/file/account_repository.hpp"
 #include "infra/file/ip_ban_repository.hpp"
 #include "infra/inmemory/account_ban_repository.hpp"

@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "application/moderation/kick_connection.hpp"
-#include "application/ports/message_router.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "domain/shared/ids.hpp"
 
 namespace {

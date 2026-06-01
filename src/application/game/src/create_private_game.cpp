@@ -3,8 +3,8 @@
 
 #include <ctime>
 
-#include "application/ports/event_bus.hpp"
-#include "application/ports/game_repository.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/gameplay/ports.hpp"
 #include "domain/gameplay/game.hpp"
 
 namespace pvpgn::application::game {

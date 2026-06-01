@@ -11,9 +11,9 @@
 
 #include <boost/asio/ip/tcp.hpp>
 
-#include "application/ports/session_registry.hpp"
-#include "application/ports/command_registry.hpp"
-#include "application/ports/permission_checker.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/chat/ports/command_registry.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/bytes.hpp"
 #include "domain/shared/ids.hpp"
 #include "infra/net/tcp_session.hpp"

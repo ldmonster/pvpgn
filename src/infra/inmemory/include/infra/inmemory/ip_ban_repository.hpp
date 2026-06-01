@@ -10,7 +10,7 @@
 #include <mutex>
 #include <shared_mutex>
 
-#include "application/ports/ip_ban_repository.hpp"
+#include "domain/moderation/ports.hpp"
 #include "domain/moderation/ip_ban_list.hpp"
 
 namespace pvpgn::infra::inmemory {

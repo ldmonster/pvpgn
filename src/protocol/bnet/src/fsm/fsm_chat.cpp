@@ -34,9 +34,9 @@
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
 #include "application/chat/whisper_use_case.hpp"
-#include "application/ports/account_repository.hpp"
-#include "application/ports/command_registry.hpp"
-#include "application/ports/permission_checker.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/chat/ports/command_registry.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::protocol::bnet {
 

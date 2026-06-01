@@ -78,6 +78,48 @@ emit() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Plan 05 (Ports Consolidation) note:
+# The following port interfaces have been migrated from application/ports/ to
+# their respective domain/<ctx>/ports.hpp files. New code should include from
+# the domain location directly. The application/ports/ headers are now shims.
+#
+#   domain/identity/ports.hpp      <- IAccountRepository, IPasswordHasher,
+#                                      ISessionRegistry, ISessionTokenIssuer
+#   domain/moderation/ports.hpp    <- IAccountBanRepository, IIpBanRepository,
+#                                      IAuditLog, IPermissionChecker,
+#                                      AccountBan, AuditAction, AuditEntry,
+#                                      Permission
+#   domain/chat/ports.hpp          <- IChannelRepository, IChannelStore,
+#                                      IMessageBroadcaster, IHelpfileSource,
+#                                      ChannelDefinition
+#   domain/gameplay/ports.hpp      <- IGameRepository
+#   domain/realm/ports.hpp         <- IRealmRepository
+#   domain/social/ports.hpp        <- IClanRepository, IFriendListRepository,
+#                                      ITeamRepository, IMailStore, MailMessage
+#   domain/ladder/ports.hpp        <- ILadderRepository
+#   domain/matchmaking/ports.hpp   <- IAnonGameCompressor
+#   domain/connection/ports.hpp    <- IConnectionEgress, IConnectionHandler,
+#                                      IMessageRouter
+#
+# TODO (future lint rule): warn when new code includes from application/ports/
+# for any of the above moved headers. The shims handle backward compat for
+# existing consumers but new code should use the domain paths directly.
+# ---------------------------------------------------------------------------
+
+# Plan 05 (Ports Consolidation) lint rule:
+# Fail if any file exists under src/application/ports/ (directory should be deleted).
+check_ports_consolidation() {
+    if [ -d "$SRC_ROOT/application/ports" ]; then
+        emit "VIOLATION: Plan 05 — src/application/ports/ must not exist"
+        emit "  All port interfaces have been migrated to domain/<ctx>/ports/"
+        emit "  See plans/05-ports-consolidation.md for details"
+        echo x >> /tmp/v3layer.cnt
+        return 1
+    fi
+    return 0
+}
+
 # Allow-list: known existing violations scheduled for separate refactor rounds.
 # Format: one "path:line:#include "<header>"" entry per line (whitespace
 # separated tokens are matched as substrings against the key below).
@@ -121,6 +163,9 @@ check_layer() {
 }
 
 : > /tmp/v3layer.cnt
+
+# Plan 05: Check that src/application/ports/ has been deleted
+check_ports_consolidation
 
 # core may not depend on anything else in v3
 check_layer core   domain application protocol infra integration services app

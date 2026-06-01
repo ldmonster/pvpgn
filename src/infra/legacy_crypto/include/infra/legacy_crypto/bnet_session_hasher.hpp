@@ -8,7 +8,7 @@
 /// `src/common/bnethash.c`. The application layer never sees the
 /// algorithm itself -- only this adapter knows the bit-twiddling.
 
-#include "application/ports/password_hasher.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::infra::legacy_crypto {
 

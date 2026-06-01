@@ -4,7 +4,7 @@
 #include <memory>
 #include <string_view>
 
-#include "application/ports/clan_repository.hpp"
+#include "domain/social/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {

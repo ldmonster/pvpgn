@@ -4,8 +4,8 @@
 
 #include <thread>
 
-#include "application/ports/unit_of_work.hpp"
-#include "application/ports/session_registry.hpp"
+#include "application/persistence/unit_of_work.hpp"
+#include "domain/identity/ports.hpp"
 #include "infra/net/io_runtime.hpp"
 
 namespace pvpgn::infra::net {

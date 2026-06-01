@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "application/chat/op_from_channel.hpp"
-#include "application/ports/account_repository.hpp"
-#include "application/ports/permission_checker.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/moderation/ports.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/identity/account.hpp"
 #include "domain/shared/client_tag.hpp"

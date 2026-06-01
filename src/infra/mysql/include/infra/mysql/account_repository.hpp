@@ -9,7 +9,7 @@
 #include <functional>
 #include <memory>
 
-#include "application/ports/account_repository.hpp"
+#include "domain/identity/ports.hpp"
 #include "infra/mysql/connection.hpp"
 
 #ifdef PVPGN_V3_WITH_MYSQL

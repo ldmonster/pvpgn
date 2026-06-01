@@ -6,7 +6,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "application/moderation/check_ip_ban.hpp"
-#include "application/ports/ip_ban_repository.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/clock.hpp"
 #include "domain/moderation/ip_ban_list.hpp"
 #include "domain/shared/ids.hpp"

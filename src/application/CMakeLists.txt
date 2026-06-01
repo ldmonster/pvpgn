@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Application layer — aggregates all bounded-context modules
 
+add_subdirectory(ports)
 add_subdirectory(auth)
 add_subdirectory(chat)
 add_subdirectory(game)

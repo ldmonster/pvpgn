@@ -12,12 +12,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "application/ports/permission_checker.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/moderation/ports.hpp"
 #include "domain/shared/ids.hpp"
-
-namespace pvpgn::application::ports {
-class IAccountRepository;
-}
 
 namespace pvpgn::application::auth {
 

@@ -8,7 +8,7 @@
 #include <atomic>
 #include <unordered_map>
 
-#include "application/ports/event_bus.hpp"
+#include "domain/shared/event_bus.hpp"
 
 namespace pvpgn::infra::inmemory {
 

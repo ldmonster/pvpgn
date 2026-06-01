@@ -12,7 +12,7 @@
 
 #include <boost/asio/ip/tcp.hpp>
 
-#include "application/ports/session_registry.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/bytes.hpp"
 #include "domain/shared/ids.hpp"
 #include "infra/net/tcp_session.hpp"

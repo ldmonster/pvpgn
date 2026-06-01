@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "application/moderation/list_bans.hpp"
-#include "application/ports/account_ban_repository.hpp"
-#include "application/ports/ip_ban_repository.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/clock.hpp"
 #include "domain/moderation/ip_ban_list.hpp"
 #include "domain/shared/ids.hpp"

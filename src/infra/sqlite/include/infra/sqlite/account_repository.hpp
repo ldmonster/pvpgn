@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "application/ports/account_repository.hpp"
+#include "domain/identity/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {

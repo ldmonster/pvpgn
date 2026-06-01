@@ -12,10 +12,7 @@
 
 #include "core/error.hpp"
 #include "core/result.hpp"
-
-namespace pvpgn::application::ports {
-class ILadderRepository;
-}  // namespace pvpgn::application::ports
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::ladder {
 

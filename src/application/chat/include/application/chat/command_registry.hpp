@@ -13,8 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "application/ports/command_registry.hpp"
-#include "application/ports/permission_checker.hpp"
+#include "domain/chat/ports/command_registry.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
@@ -31,22 +31,22 @@ public:
 
     /// Register a new command.
     void register_command(std::string_view name,
-                          application::ports::Permission required_permission,
+                          domain::moderation::Permission required_permission,
                           CommandHandler handler);
 
     /// Dispatch a command line, checking permissions.
     core::Result<std::string, core::Error>
     dispatch(domain::AccountId caller, std::string_view command_line,
-             const application::ports::IPermissionChecker& checker) const override;
+             const domain::moderation::IPermissionChecker& checker) const override;
 
     /// List all commands available to the given account.
     std::vector<std::string> list_available(
         domain::AccountId caller,
-        const application::ports::IPermissionChecker& checker) const override;
+        const domain::moderation::IPermissionChecker& checker) const override;
 
-private:
+ private:
     struct CommandEntry {
-        application::ports::Permission required_permission;
+        domain::moderation::Permission required_permission;
         CommandHandler                 handler;
     };
 

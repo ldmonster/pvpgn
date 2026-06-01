@@ -20,8 +20,8 @@
 #include "infra/sqlite/unit_of_work_factory.hpp"
 
 // Application ports (needed for full IAccountRepository definition)
-#include "application/ports/account_repository.hpp"
-#include "application/ports/unit_of_work.hpp"
+#include "domain/identity/ports.hpp"
+#include "application/persistence/unit_of_work.hpp"
 
 // Domain
 #include "domain/identity/account.hpp"

@@ -11,7 +11,7 @@
 
 #include <memory>
 
-#include "application/ports/channel_repository.hpp"
+#include "domain/chat/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {

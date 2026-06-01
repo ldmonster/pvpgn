@@ -6,7 +6,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "application/ports/clan_repository.hpp"
+#include "domain/social/ports.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/social/clan.hpp"

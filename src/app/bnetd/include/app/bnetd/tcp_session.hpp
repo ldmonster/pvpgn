@@ -58,7 +58,7 @@
 #include <string_view>
 #include <vector>
 
-#include "application/ports/connection_handler.hpp"
+#include "domain/connection/ports.hpp"
 #include "core/result.hpp"
 #include "infra/net/tcp_session.hpp"
 #include "protocol/file/file_session_context.hpp"

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/moderation/silence_user.hpp"
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/event_bus.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 
 namespace pvpgn::application::moderation {
 

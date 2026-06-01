@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/ladder_repository.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
 
 namespace pvpgn::application::ladder {
 

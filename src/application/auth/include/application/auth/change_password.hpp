@@ -21,9 +21,10 @@
 
 #include <cstdint>
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/event_bus.hpp"
-#include "application/ports/password_hasher.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/bn_hash.hpp"

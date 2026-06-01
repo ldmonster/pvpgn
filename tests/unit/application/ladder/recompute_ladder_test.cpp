@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "application/ladder/recompute_ladder.hpp"
-#include "application/ports/ladder_repository.hpp"
+#include "domain/ladder/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/ladder/ladder.hpp"

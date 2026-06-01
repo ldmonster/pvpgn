@@ -1,0 +1,338 @@
+symbol,legacy_file,v3_callee,loc,test_coverage,handler_family,status,notes
+pvpgn_v3_send_raw_text,send_raw_text_bridge.cpp,application/chat,25,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_raw_text2,send_raw_text_bridge.cpp,application/chat,25,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_message_dispatch,message_dispatch_bridge.cpp,application/chat,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_command_dispatch,command_dispatch_bridge.cpp,application/admin_commands,350,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_server_dispatch,server_dispatch_bridge.cpp,application/init,20,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_requiredwork,send_requiredwork_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_anongame_infos_get,anongame_infos_get_bridge.cpp,application/anongame_inforeply,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_gamelistreply,send_gamelistreply_bridge.cpp,application/game,50,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_clan_motdreply,send_clan_motdreply_bridge.cpp,application/social,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_userlog_init,userlog_bridge.cpp,application/init,15,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_userlog_append,userlog_bridge.cpp,application/init,20,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_progident_dispatch,progident_dispatch_bridge.cpp,application/init,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_authreq1_server,send_authreq1_server_bridge.cpp,application/auth,30,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_friends_dispatch,friends_dispatch_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_auth_dispatch,auth_dispatch_bridge.cpp,application/auth,20,PARTIAL,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_versioncheck_load,versioncheck_bridge.cpp,application/init,20,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_versioncheck_unload,versioncheck_bridge.cpp,application/init,15,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_clandisbandreply,send_clandisbandreply_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_ladder_dispatch,ladder_dispatch_bridge.cpp,application/ladder,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_handshake_dispatch,handshake_dispatch_bridge.cpp,application/auth,20,PARTIAL,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_bot_dispatch,bot_dispatch_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_chatevent_compose,send_chatevent_compose_bridge.cpp,application/chat,40,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_startgame1ack,send_startgame1ack_bridge.cpp,application/game,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_tournament,tournament_bridge.cpp,application/tournament,50,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_ladderreply,send_ladderreply_bridge.cpp,application/ladder,40,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_telemetry_dispatch,telemetry_dispatch_bridge.cpp,application/init,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_clan_dispatch,clan_dispatch_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_authreply1,send_authreply1_bridge.cpp,application/auth,25,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_encode_clanmemberupdate,encode_clanmemberupdate_bridge.cpp,application/social,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_startgame3ack,send_startgame3ack_bridge.cpp,application/game,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_atacceptdecline,send_atacceptdecline_bridge.cpp,application/social,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_clan_membernewchief_reply,send_clan_membernewchief_reply_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_passemail_dispatch,passemail_dispatch_bridge.cpp,application/email_management,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_d2cs_link_dispatch,d2cs_link_dispatch_bridge.cpp,application/init,15,NO,other,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_gamereport,game_report_bridge.cpp,application/game,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_telnet_dispatch,telnet_dispatch_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_loginreply1,send_loginreply_bridge.cpp,application/auth,25,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_loginreply2,send_loginreply_bridge.cpp,application/auth,25,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_channel_state_bridge,channel_state_bridge.cpp,application/chat,40,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_joinchannel,channel_state_bridge.cpp,application/chat,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_leavechannel,channel_state_bridge.cpp,application/chat,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_clanmember_remove_reply,send_clanmember_remove_reply_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_atfriendscreen,send_atfriendscreen_bridge.cpp,application/social,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_ad_dispatch,ad_dispatch_bridge.cpp,application/ads,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_friendmove_ack,send_friendmove_ack_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_adreply,send_adreply_bridge.cpp,application/ads,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_file_dispatch,file_dispatch_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_frienddel_ack,send_frienddel_ack_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_charlistreply,send_charlistreply_bridge.cpp,application/init,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_changepassack,send_changepassack_bridge.cpp,application/auth,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_channellist,send_channellist_bridge.cpp,application/chat,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_anongame_dispatch,anongame_dispatch_bridge.cpp,application/anongame_inforeply,40,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_frienddel_ack,send_frienddel_ack_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_adreply,send_adreply_bridge.cpp,application/ads,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_friendinfo,send_friendinfo_bridge.cpp,application/social,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_ad_dispatch,ad_dispatch_bridge.cpp,application/ads,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_profile_dispatch,profile_dispatch_bridge.cpp,application/profile,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_fileinforeply,send_fileinforeply_bridge.cpp,application/init,40,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_pingreply,send_fileinforeply_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_get_icon,get_icon_bridge.cpp,application/icon_table,100,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_compreply,send_handshake_bridge.cpp,application/auth,20,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_sessionkey1,send_handshake_bridge.cpp,application/auth,20,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_sessionkey2,send_handshake_bridge.cpp,application/auth,20,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_set_icon,set_icon_bridge.cpp,application/icon_table,100,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_ads_pick_apply,ads_bridge.cpp,application/ads,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_ads_click_apply,ads_bridge.cpp,application/ads,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_anongame_cancel,send_anongame_cancel_bridge.cpp,application/anongame_inforeply,25,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_authreply109,send_authreply109_bridge.cpp,application/auth,25,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_stub_dispatch,stub_dispatch_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_runprog_open,runprog_bridge.cpp,application/init,20,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_runprog_close,runprog_bridge.cpp,application/init,15,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_anongame_lobby_apply,anongame_lobby_bridge.cpp,application/anongame_lobby,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_clan_profile,clan_profile_bridge.cpp,application/social,50,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_authinfo_reply,send_authinfo_reply_bridge.cpp,application/auth,30,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_startgame,startgame_bridge.cpp,application/game,40,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_realmlistlegacy,send_realmlistlegacy_bridge.cpp,application/realm,50,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_file_send,send_file_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_observe_file_raw_send,send_file_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_readmemory,send_readmemory_bridge.cpp,application/init,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_clan_send,clan_send_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_observe_w3route_echoreq,send_w3route_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_w3route_ack,send_w3route_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_w3route_loadingack,send_w3route_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_w3route_ready,send_w3route_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_w3route_playerinfo,send_w3route_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_w3route_levelinfo,send_w3route_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_w3route_startgame1,send_w3route_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_w3route_startgame2,send_w3route_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_claninfo,send_claninfo_bridge.cpp,application/social,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_realm_list_apply,realm_list_bridge.cpp,application/realm,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_observe_anongame_found,send_anongame_found_bridge.cpp,application/anongame_inforeply,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_logonproof_reply,send_logonproof_reply_bridge.cpp,application/auth,30,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_connection_dispatch,connection_dispatch_bridge.cpp,application/connection,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_clancreateinvitereply,send_clancreateinvitereply_bridge.cpp,application/social,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_startgame4ack,send_startgame4ack_bridge.cpp,application/game,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_profile,profile_bridge.cpp,application/profile,75,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_playerinforeply,send_playerinforeply_bridge.cpp,application/game,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_anongame_infos_load,anongame_infos_bridge.cpp,application/anongame_inforeply,20,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_anongame_infos_unload,anongame_infos_bridge.cpp,application/anongame_inforeply,15,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_passchange,send_passchange_bridge.cpp,application/auth,40,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_passchangeproof,send_passchange_bridge.cpp,application/auth,40,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_realm_dispatch,realm_dispatch_bridge.cpp,application/realm,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_change_password,change_password_bridge.cpp,application/auth,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_mapauthreply1,send_mapauthreply1_bridge.cpp,application/game,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_laddersearchreply,send_laddersearchreply_bridge.cpp,application/ladder,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_chat_command,chat_command_bridge.cpp,application/chat,100,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_realmjoin,send_realmjoin_bridge.cpp,application/realm,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_statsreply,send_statsreply_bridge.cpp,application/ladder,40,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_d2cs_link_dispatch,handle_d2cs_link.cpp,application/init,15,NO,other,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_d2cs_bnetd_authreq,send_d2cs_bnetd_bridges.cpp,application/init,15,NO,other,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_d2cs_bnetd_authreply,send_d2cs_bnetd_bridges.cpp,application/init,15,NO,other,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_d2cs_bnetd_accountloginreply,send_d2cs_bnetd_bridges.cpp,application/init,15,NO,other,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_d2cs_bnetd_charloginreply,send_d2cs_bnetd_bridges.cpp,application/init,15,NO,other,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_observe_d2cs_bnetd_gameinforeq,send_d2cs_bnetd_bridges.cpp,application/init,15,NO,other,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_news_load,news_bridge.cpp,application/init,20,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_news_unload,news_bridge.cpp,application/init,15,NO,lifecycle,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_wol_dispatch,wol_dispatch_bridge.cpp,application/init,15,NO,handle_wol,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_observe_udptest,send_udptest_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_profilereply,send_profilereply_bridge.cpp,application/profile,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_friendslist,send_friendslist_bridge.cpp,application/social,40,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_gameport_dispatch,gameport_dispatch_bridge.cpp,application/game,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_login_user,login_user_bridge.cpp,application/auth,40,PARTIAL,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_bnetd_ipban_create,ipban_bridge.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_ipban_destroy,ipban_bridge.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_ipban_load,ipban_bridge.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_ipban_save,ipban_bridge.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_ipban_check,ipban_bridge.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_ipban_add,ipban_bridge.cpp,application/init,25,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_ipban_unload_expired,ipban_bridge.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_anongame_entry,anongame_entry_bridge.cpp,application/anongame_inforeply,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_echoreq,send_echoreq_bridge.cpp,application/connection,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_iconreply,send_iconreply_bridge.cpp,application/icon_table,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_createacctreply1,send_createacct_reply_bridge.cpp,application/auth,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_createacctreply2,send_createacct_reply_bridge.cpp,application/auth,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_createaccount_w3,send_createacct_reply_bridge.cpp,application/auth,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_irc_dispatch,irc_dispatch_bridge.cpp,application/init,15,NO,irc,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_account_dispatch,account_dispatch_bridge.cpp,application/init,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_packet,send_packet_bridge.cpp,application/connection,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_packet_available,send_packet_bridge.cpp,application/connection,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_d2_character_dispatch,d2_character_dispatch_bridge.cpp,application/init,20,NO,other,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_clan_invitereply,send_clan_invitereply_bridge.cpp,application/social,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_messagebox,send_messagebox_bridge.cpp,application/chat,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_keepalive_dispatch,keepalive_dispatch_bridge.cpp,application/connection,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_cdkeyreply,send_cdkey_reply_bridge.cpp,application/auth,30,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_cdkeyreply2,send_cdkey_reply_bridge.cpp,application/auth,30,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_cdkeyreply3,send_cdkey_reply_bridge.cpp,application/auth,30,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_loginreply_w3,send_loginreply_w3_bridge.cpp,application/auth,25,PARTIAL,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bot_dispatch,bot_dispatch_bridge.cpp,application/init,15,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_cdkey_dispatch,cdkey_dispatch_bridge.cpp,application/auth,20,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_anongame_search_reply,send_anongame_search_reply_bridge.cpp,application/anongame_inforeply,50,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_send_friendadd_ack,send_friendadd_ack_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_mapauthreply2,send_mapauthreply2_bridge.cpp,application/game,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_adclick2reply,send_adclick2reply_bridge.cpp,application/ads,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_clanmember_rankupdate_reply,send_clanmember_rankupdate_reply_bridge.cpp,application/social,20,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_gamelistreq,gamelist_join_bridge.cpp,application/game,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_joingame,gamelist_join_bridge.cpp,application/game,30,NO,handle_bnet,DELETED,Thin wrapper - deleted in Phase 1
+pvpgn_v3_anongame_inforeply,anongame_inforeply_bridge.cpp,application/anongame_inforeply,155,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_helpfile_init,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_helpfile_unload,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_autoupdate_load,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_autoupdate_unload,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_output_init,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_output_write_to_file,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_support_check_files,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_mail_handle_command,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_mail_check,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_i18n_load,bnetd_lifecycle_bridges.cpp,application/i18n,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_i18n_reload,bnetd_lifecycle_bridges.cpp,application/i18n,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_icons_load,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_icons_unload,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_attrlayer_init,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_attrlayer_cleanup,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_attrlayer_save,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_attrlayer_flush,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_tracker_set_servers,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_tracker_send_report,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_team_load,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_team_unload,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_udptest_send,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_aliasfile_load,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_aliasfile_unload,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_handle_alias_command,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_command_groups_load,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_command_groups_unload,bnetd_lifecycle_bridges.cpp,application/init,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_command_groups_reload,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_anongame_maplists_create,bnetd_lifecycle_bridges.cpp,application/anongame_inforeply,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_anongame_maplists_destroy,bnetd_lifecycle_bridges.cpp,application/anongame_inforeply,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_anongame_tournament_maplists_destroy,bnetd_lifecycle_bridges.cpp,application/anongame_inforeply,15,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_bnetd_handle_udp_packet,bnetd_lifecycle_bridges.cpp,application/init,20,NO,lifecycle,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_prefs_load_toml,prefs_bridge.cpp,application/init,30,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_unload,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_loaded,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_dump,prefs_bridge.cpp,application/init,25,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_storage_path,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_filedir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_i18ndir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_logfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_channelfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_pidfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_adfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_topicfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_DBlayoutfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_supportfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_reportdir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_mpqfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_ipbanfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_transfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_chanlogdir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_userlogdir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_realmfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_issuefile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_maildir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_versioncheck_file,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_mapsfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_xplevelfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_xpcalcfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_ladderdir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_statusdir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_outputdir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_command_groups_file,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_tournament_file,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_customicons_file,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_scriptdir,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_aliasfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_anongame_infos_file,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_localizefile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_motdfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_motdw3file,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_newsfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_helpfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_tosfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_localize_by_country,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_loglevels,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_d2cs_version,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_allow_d2cs_setname,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_iconfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_war3_iconfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_star_iconfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_mpqauthfile,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_allowed_clients,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_allow_bad_version,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_allow_unknown_version,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_user_sync_timer,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_user_flush_timer,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_user_flush_connected,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_user_step,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_latency,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_irc_latency,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_nullmsg,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_shutdown_delay,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_shutdown_decr,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_ipban_check_int,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_initkill_timer,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_allow_new_accounts,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_max_accounts,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_kick_old_login,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_ask_new_channel,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_report_all_games,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_report_diablo_games,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_hide_pass_games,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_hide_started_games,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_hide_temp_channels,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_discisloss,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_ladder_games,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_ladder_prefix,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_enable_conn_all,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_hide_addr,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_udptest_port,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_max_conns_per_IP,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_max_connections,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_packet_limit,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_passfail_count,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_passfail_bantime,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_maxusers_per_channel,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_max_friends,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_hashtable_size,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_max_concurrent_logins,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_v3_tcp_session_mode,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_ladder_init_rating,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_savebyname,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_sync_on_logoff,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_account_allowed_symbols,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_account_force_username,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_mail_support,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_mail_quota,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_track,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_trackaddrs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_location,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_description,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_url,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_contact_name,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_contact_email,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_servername,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_hostname,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_bnetdserv_addrs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_w3route_addr,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_use_keepalive,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_chanlog,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_apireg_addrs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wgameres_addrs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wolv1_addrs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wolv2_addrs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wol_timezone,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wol_longitude,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wol_latitude,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wol_autoupdate_serverhost,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wol_autoupdate_username,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_wol_autoupdate_password,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_ircaddrs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_irc_network_name,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_telnetaddrs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_war3_ladder_update_secs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_XML_output_ladder,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_output_update_secs,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_XML_status_output,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_clan_newer_time,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_clan_max_members,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_clan_channel_default_private,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_clan_min_invites,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_log_commands,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_log_command_groups,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_log_command_list,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_log_notice,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_quota,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_quota_lines,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_quota_time,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_quota_wrapline,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_quota_maxline,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_quota_dobae,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_effective_user,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_prefs_get_effective_group,prefs_bridge.cpp,application/init,10,NO,lifecycle,MIGRATED,Config loading already integrated into v3 infra/config/
+pvpgn_v3_encode_clanmemberlist_reply,clan_bridges.cpp,application/social,40,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_encode_clan_createreply,clan_bridges.cpp,application/social,40,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_encode_clan_clanack,clan_bridges.cpp,application/social,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_clan_clanack,clan_bridges.cpp,application/social,30,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_encode_clan_quitnotify,clan_bridges.cpp,application/social,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3
+pvpgn_v3_send_clan_quitnotify,clan_bridges.cpp,application/social,25,NO,handle_bnet,DELETED,Observation-only or already migrated to v3

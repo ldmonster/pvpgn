@@ -7,7 +7,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "application/ports/message_router.hpp"
+#include "domain/connection/ports.hpp"
 #include "domain/shared/ids.hpp"
 #include "protocol/bnet/fsm.hpp"
 

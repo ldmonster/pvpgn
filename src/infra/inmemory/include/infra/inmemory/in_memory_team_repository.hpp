@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "application/ports/team_repository.hpp"
+#include "domain/social/ports.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/social/team.hpp"

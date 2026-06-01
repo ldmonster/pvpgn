@@ -11,7 +11,7 @@
 #include <shared_mutex>
 #include <string>
 
-#include "application/ports/realm_repository.hpp"
+#include "domain/realm/ports.hpp"
 
 namespace pvpgn::infra::inmemory {
 

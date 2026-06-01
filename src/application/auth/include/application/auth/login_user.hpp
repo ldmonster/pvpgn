@@ -14,10 +14,9 @@
 
 #include <utility>
 
-#include "application/ports/account_repository.hpp"
-#include "application/ports/event_bus.hpp"
-#include "application/ports/password_hasher.hpp"
-#include "application/ports/session_registry.hpp"
+#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "core/clock.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"

@@ -39,7 +39,7 @@ ConfigWatcher& ConfigWatcher::operator=(ConfigWatcher&& other) noexcept {
 }
 
 void ConfigWatcher::subscribe(
-    std::weak_ptr<application::ports::IConfigSubscriber> subscriber) {
+    std::weak_ptr<domain::shared::ports::IConfigSubscriber> subscriber) {
     std::unique_lock lock(mu_);
     subscribers_.push_back(subscriber);
 }
@@ -95,7 +95,7 @@ void ConfigWatcher::notify_subscribers(const ServerConfig& cfg) {
     std::shared_lock lock(mu_);
     for (auto& wp : subscribers_) {
         if (auto sp = wp.lock()) {
-            sp->on_config_reloaded(cfg);
+            sp->on_config_reloaded();
         }
     }
 }

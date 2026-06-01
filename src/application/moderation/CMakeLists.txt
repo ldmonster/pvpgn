@@ -28,5 +28,6 @@ target_link_libraries(pvpgn_application_moderation
   PUBLIC
     pvpgn_application_ports
     pvpgn_domain_moderation
+    pvpgn_domain_connection
     pvpgn_core
 )

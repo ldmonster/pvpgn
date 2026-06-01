@@ -1,0 +1,25 @@
+name: Docs
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', 'mkdocs.yml']
+  pull_request:
+    paths: ['docs/**', 'mkdocs.yml']
+
+jobs:
+  mkdocs-strict:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install mkdocs-material
+      - run: mkdocs build --strict
+        name: Build docs (strict mode)
+      - name: Check docs reachability
+        run: bash scripts/dev/check-docs-reachable.sh
+        if: always()
+      - name: Check scripts orphans
+        run: bash scripts/dev/check-scripts-orphans.sh
+        if: always()

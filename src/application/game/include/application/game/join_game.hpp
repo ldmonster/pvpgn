@@ -14,10 +14,7 @@
 #include "core/result.hpp"
 #include "domain/gameplay/game.hpp"
 #include "domain/shared/ids.hpp"
-
-namespace pvpgn::application::ports {
-class IGameRepository;
-}  // namespace pvpgn::application::ports
+#include "application/ports/ports.hpp"
 
 namespace pvpgn::application::game {
 

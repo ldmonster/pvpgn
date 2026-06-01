@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "application/ports/mail_store.hpp"
+#include "domain/social/ports.hpp"
 #include "core/result.hpp"
 
 namespace pvpgn::infra::inmemory {

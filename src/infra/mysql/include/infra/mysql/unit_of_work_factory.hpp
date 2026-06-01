@@ -7,7 +7,7 @@
 #include <memory>
 #include <string_view>
 
-#include "application/ports/unit_of_work_factory.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
 
 #ifdef PVPGN_V3_WITH_MYSQL
 

@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-#include "application/ports/ladder_repository.hpp"
+#include "domain/ladder/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::sqlite {

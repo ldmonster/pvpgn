@@ -3,8 +3,8 @@
 
 #include <ctime>
 
-#include "application/ports/event_bus.hpp"
-#include "application/ports/team_repository.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/social/ports.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/social/team.hpp"
 

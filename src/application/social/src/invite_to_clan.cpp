@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/social/invite_to_clan.hpp"
 
-#include "application/ports/clan_repository.hpp"
-#include "application/ports/event_bus.hpp"
+#include "domain/social/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "domain/social/clan.hpp"
 
 namespace pvpgn::application::social {

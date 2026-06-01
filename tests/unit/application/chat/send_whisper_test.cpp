@@ -12,9 +12,9 @@
 #include <vector>
 
 #include "application/chat/send_whisper.hpp"
-#include "application/ports/account_repository.hpp"
-#include "application/ports/message_router.hpp"
-#include "application/ports/session_registry.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "domain/identity/account.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/locale.hpp"

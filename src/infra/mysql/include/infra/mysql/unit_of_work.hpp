@@ -10,7 +10,7 @@
 
 #include <memory>
 
-#include "application/ports/unit_of_work.hpp"
+#include "application/persistence/unit_of_work.hpp"
 #include "infra/mysql/account_repository.hpp"
 #include "infra/mysql/connection.hpp"
 

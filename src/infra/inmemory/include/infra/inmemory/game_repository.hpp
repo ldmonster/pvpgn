@@ -12,7 +12,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 
-#include "application/ports/game_repository.hpp"
+#include "domain/gameplay/ports.hpp"
 
 namespace pvpgn::infra::inmemory {
 

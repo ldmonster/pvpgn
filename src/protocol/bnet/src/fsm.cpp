@@ -21,7 +21,7 @@
 #include <variant>
 
 #include "core/error.hpp"
-#include "application/ports/message_router.hpp"
+#include "domain/connection/ports.hpp"
 #include "protocol/bnet/codec.hpp"
 #include "protocol/common/writer.hpp"
 

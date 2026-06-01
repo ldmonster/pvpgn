@@ -10,7 +10,7 @@
 #include <mutex>
 #include <vector>
 
-#include "application/ports/config_subscriber.hpp"
+#include "domain/shared/ports/config_subscriber.hpp"
 
 namespace pvpgn::infra::inmemory {
 
@@ -18,34 +18,17 @@ namespace pvpgn::infra::inmemory {
 /// Tests can register additional callbacks via `on_reload()` and
 /// trigger a synthetic reload via `notify(config)`.
 class InMemoryConfigSubscriber final
-    : public application::ports::IConfigSubscriber {
+    : public domain::shared::ports::IConfigSubscriber {
 public:
-    using Callback =
-        std::function<void(const infra::config::ServerConfig&)>;
-
-    /// Register an extra callback invoked on each reload (test helper).
-    void on_reload(Callback cb) {
-        std::unique_lock lock(mutex_);
-        callbacks_.push_back(std::move(cb));
-    }
-
-    /// Trigger a synthetic config-reload notification (test helper).
-    void notify(const infra::config::ServerConfig& cfg) {
-        on_config_reloaded(cfg);
-    }
-
     /// Return the number of times on_config_reloaded has been called.
     [[nodiscard]] std::size_t reload_count() const {
         std::unique_lock lock(mutex_);
         return reload_count_;
     }
 
-    void on_config_reloaded(const infra::config::ServerConfig& new_config) override {
+    void on_config_reloaded() override {
         std::unique_lock lock(mutex_);
         ++reload_count_;
-        for (const auto& cb : callbacks_) {
-            cb(new_config);
-        }
     }
 
 private:
