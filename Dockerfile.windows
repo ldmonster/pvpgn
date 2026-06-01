@@ -1,18 +1,30 @@
 # =============================================================================
 # Dockerfile.windows
 #
-# Cross-compiles PvPGN v3 to 64-bit Windows .exe binaries from a Linux build
-# host using MinGW-w64 + vcpkg (x64-mingw-static triplet). The final stage is
-# `FROM scratch` containing only the produced .exe files so they can be
-# exported directly with `docker buildx build --output type=local,dest=...`.
+# Cross-compiles PvPGN executables to 64-bit Windows .exe binaries from a
+# Linux build host using MinGW-w64 + vcpkg (x64-mingw-static triplet).
 #
-# Quick start (PowerShell):
-#   docker buildx build -f Dockerfile.windows --output type=local,dest=./dist/windows .
+# The build stage configures the full v3 tree with tests disabled, builds the
+# project, then installs into a clean prefix. The export stage contains the
+# installed Windows executables plus a manifest, ready for:
 #
-# Or interactively:
-#   docker build -f Dockerfile.windows --target export -t pvpgn:windows-build .
-#   docker run --rm -v ${PWD}/dist/windows:/out pvpgn:windows-build \
-#       sh -c "cp /exes/*.exe /out/"
+#   docker buildx build -f Dockerfile.windows \
+#       --output type=local,dest=./dist/windows .
+#
+# Produced executables currently include the Windows-capable targets that exist
+# in this repo today, such as:
+#   - bnetd.exe
+#   - pvpgn_v3_d2cs.exe
+#   - pvpgn_config_tool.exe
+#   - pvpgn_migrate.exe
+#   - pvpgn-conf-convert.exe
+#   - pvpgn-bnpass.exe
+#   - bnchat.exe / bnftp.exe / bnbot.exe / bnstat.exe
+#   - bntrackd.exe
+#   - bnilist.exe / bni2tga.exe / bniextract.exe / bnibuild.exe / tgainfo.exe
+#
+# There is no standalone D2DBS executable target in the current tree, so this
+# Dockerfile exports the executable set that CMake actually defines today.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -22,6 +34,12 @@
 FROM debian:bookworm-slim AS toolchain
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV VCPKG_ROOT=/opt/vcpkg \
+    VCPKG_DOWNLOADS=/opt/vcpkg-downloads \
+    VCPKG_DEFAULT_TRIPLET=x64-mingw-static \
+    VCPKG_DEFAULT_HOST_TRIPLET=x64-linux \
+    VCPKG_FORCE_SYSTEM_BINARIES=1 \
+    VCPKG_DISABLE_METRICS=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -50,18 +68,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # -----------------------------------------------------------------------------
 # Stage: vcpkg
-# Bootstrap vcpkg pinned to the baseline declared in the project's vcpkg.json.
-# We only need the bootstrap; actual port installs happen during configure.
+# Bootstrap vcpkg from a configurable ref.
+#
+# The repo's current builtin-baseline is stale for the declared dependency
+# set, so the build stage rewrites the copied manifest baseline to the vcpkg
+# checkout commit before running CMake. This keeps the host repo untouched
+# while making manifest-mode resolution work inside the image.
 # -----------------------------------------------------------------------------
 FROM toolchain AS vcpkg
 
-ENV VCPKG_ROOT=/opt/vcpkg \
-    VCPKG_DEFAULT_TRIPLET=x64-mingw-static \
-    VCPKG_DEFAULT_HOST_TRIPLET=x64-linux \
-    VCPKG_FORCE_SYSTEM_BINARIES=1 \
-    VCPKG_DISABLE_METRICS=1
+ARG VCPKG_REF=master
 
-RUN git clone --depth=1 https://github.com/microsoft/vcpkg.git ${VCPKG_ROOT} \
+RUN mkdir -p ${VCPKG_DOWNLOADS} \
+    && git clone --branch ${VCPKG_REF} https://github.com/microsoft/vcpkg.git ${VCPKG_ROOT} \
     && ${VCPKG_ROOT}/bootstrap-vcpkg.sh -disableMetrics
 
 
@@ -78,73 +97,77 @@ WORKDIR /src
 
 # -----------------------------------------------------------------------------
 # Stage: build
-# Configure + build only the targets the user asked for (daemons + client tools).
+# Configure + build the Windows-capable executable set, then install it.
 #
 # Notes:
-#   * PVPGN_BUILD_V3=ON     — modern v3 tree (the only one that targets Windows)
-#   * PVPGN_BUILD_LEGACY=OFF — legacy POSIX-only daemons are skipped
-#   * WITH_BNETD/WITH_D2CS/WITH_D2DBS=OFF — legacy autotools-era flags
-#   * PVPGN_V3_WARNINGS_AS_ERRORS=OFF — mingw emits warnings MSVC does not;
-#       don't fail the cross-build on them.
-#   * PVPGN_V3_BUILD_TESTS=OFF — tests need Catch2 + run on host, skip for ship
+#   * PVPGN_BUILD_V3=ON / PVPGN_BUILD_LEGACY=OFF — build the modern tree only
+#   * VCPKG_MANIFEST_FEATURES=sqlite — needed for pvpgn_migrate and sqlite-backed
+#       runtime support under Windows
+#   * BUILD_TESTING=OFF / PVPGN_V3_BUILD_TESTS=OFF — ship binaries only
+#   * PVPGN_V3_WARNINGS_AS_ERRORS=OFF — keep MinGW-specific warnings non-fatal
 # -----------------------------------------------------------------------------
 FROM src AS build
 
-ARG JOBS
+ARG JOBS=4
+ARG CMAKE_BUILD_TYPE=Release
+ARG VCPKG_MANIFEST_FEATURES=sqlite
+ARG INSTALL_PREFIX=/opt/pvpgn-windows
+ARG CONFIGURE_RETRIES=3
 
-RUN cmake -S . -B build/windows -G Ninja \
-        -D CMAKE_BUILD_TYPE=Release \
+ENV VCPKG_MANIFEST_FEATURES=${VCPKG_MANIFEST_FEATURES}
+
+RUN VCPKG_HEAD="$(git -C /opt/vcpkg rev-parse HEAD)" \
+    && sed -i "s/\"builtin-baseline\": \"[^\"]*\"/\"builtin-baseline\": \"${VCPKG_HEAD}\"/" /src/vcpkg.json \
+    && attempt=1 \
+    && until cmake -S . -B build/windows -G Ninja \
+        -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja \
+        -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
         -D CMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
         -D VCPKG_TARGET_TRIPLET=x64-mingw-static \
         -D VCPKG_HOST_TRIPLET=x64-linux \
         -D VCPKG_CHAINLOAD_TOOLCHAIN_FILE=/src/cmake/toolchain-mingw-w64-x86_64.cmake \
+        -D BOOST_ROOT=/src/build/windows/vcpkg_installed/x64-mingw-static \
+        -D BOOST_INCLUDEDIR=/src/build/windows/vcpkg_installed/x64-mingw-static/include \
+        -D Boost_INCLUDE_DIR=/src/build/windows/vcpkg_installed/x64-mingw-static/include \
+        -D Boost_LIBRARY_DIR_RELEASE=/src/build/windows/vcpkg_installed/x64-mingw-static/lib \
+        -D Boost_LIBRARY_DIR_DEBUG=/src/build/windows/vcpkg_installed/x64-mingw-static/debug/lib \
         -D PVPGN_BUILD_V3=ON \
         -D PVPGN_BUILD_LEGACY=OFF \
-        -D WITH_BNETD=OFF \
-        -D WITH_D2CS=OFF \
-        -D WITH_D2DBS=OFF \
-        -D WITH_LUA=OFF \
-        -D WITH_MYSQL=OFF \
-        -D WITH_PGSQL=OFF \
-        -D WITH_SQLITE3=OFF \
-        -D WITH_ODBC=OFF \
-        -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
+        -D BUILD_TESTING=OFF \
         -D PVPGN_V3_BUILD_TESTS=OFF \
         -D PVPGN_V3_PLUGIN_TESTS=OFF \
-    && cmake --build build/windows --config Release \
-         --target \
-           bnetd \
-           pvpgn_v3_d2cs \
-           bnchat \
-           bnftp \
-           bnbot \
-           bnstat \
-           pvpgn-bnpass \
-           bnilist \
-           bni2tga \
-           bniextract \
-           bnibuild \
-           tgainfo \
-           bntrackd \
-         -j${JOBS:-4}
+        -D PVPGN_V3_WITH_LUA=OFF \
+        -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF; do \
+        if [ "${attempt}" -ge "${CONFIGURE_RETRIES}" ]; then \
+            exit 1; \
+        fi; \
+        echo "Configure attempt ${attempt} failed; clearing build tree and retrying..." >&2; \
+        attempt=$((attempt + 1)); \
+        rm -rf build/windows; \
+    done \
+    && cmake --build build/windows --config ${CMAKE_BUILD_TYPE} --parallel ${JOBS} \
+    && cmake --install build/windows --config ${CMAKE_BUILD_TYPE} --prefix ${INSTALL_PREFIX}
 
 
 # -----------------------------------------------------------------------------
 # Stage: collect
-# Gather every produced .exe under /exes so the export stage can grab them.
+# Gather the installed Windows executables and a manifest.
 # -----------------------------------------------------------------------------
 FROM build AS collect
 
-RUN mkdir -p /exes \
-    && find /src/build/windows -maxdepth 8 -type f -name '*.exe' \
-         -exec cp -v {} /exes/ \;
+ARG INSTALL_PREFIX=/opt/pvpgn-windows
+
+RUN mkdir -p /export/bin /export/sbin \
+    && if [ -d ${INSTALL_PREFIX}/bin ]; then cp -av ${INSTALL_PREFIX}/bin/. /export/bin/; fi \
+    && if [ -d ${INSTALL_PREFIX}/sbin ]; then cp -av ${INSTALL_PREFIX}/sbin/. /export/sbin/; fi \
+    && find /export -type f -name '*.exe' | sed 's#^/export/##' | sort > /export/manifest.txt
 
 
 # -----------------------------------------------------------------------------
 # Stage: export  (DEFAULT)
-# Empty image whose only contents are the produced .exe files. Use
-# `docker buildx build --output type=local,dest=./dist/windows .` to copy
-# them straight to the host filesystem.
+# Empty image containing the installed Windows executables. Use
+# `docker buildx build --output type=local,dest=./dist/windows .` to copy the
+# exported tree directly to the host filesystem.
 # -----------------------------------------------------------------------------
 FROM scratch AS export
-COPY --from=collect /exes/ /
+COPY --from=collect /export/ /

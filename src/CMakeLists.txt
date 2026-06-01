@@ -93,11 +93,28 @@ if(PVPGN_V3_WITH_PUGIXML)
 endif()
 
 if(PVPGN_V3_WITH_BOOST)
-    set(_pvpgn_boost_components system)
-    if(PVPGN_V3_WITH_FIBER)
-        list(APPEND _pvpgn_boost_components fiber context)
+    if(MINGW AND DEFINED VCPKG_TARGET_TRIPLET)
+        # Include vcpkg's generated BoostConfig.cmake directly so Boost can
+        # resolve its own component graph without going through the vcpkg
+        # find_package wrapper, which falls back into FindBoost.cmake for this
+        # MinGW cross-build.
+        set(_pvpgn_vcpkg_boost_share_dir
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/share")
+        set(Boost_FIND_COMPONENTS system)
+        if(PVPGN_V3_WITH_FIBER)
+            list(APPEND Boost_FIND_COMPONENTS fiber context)
+        endif()
+        set(Boost_FIND_REQUIRED TRUE)
+
+        include("${_pvpgn_vcpkg_boost_share_dir}/boost/BoostConfig.cmake")
+    else()
+        set(_pvpgn_boost_components system)
+        if(PVPGN_V3_WITH_FIBER)
+            list(APPEND _pvpgn_boost_components fiber context)
+        endif()
+
+        find_package(Boost 1.75 REQUIRED COMPONENTS ${_pvpgn_boost_components})
     endif()
-    find_package(Boost 1.75 REQUIRED COMPONENTS ${_pvpgn_boost_components})
 endif()
 
 # Find OpenSSL for runtime peer_link support. Optional -- peer_link is the
