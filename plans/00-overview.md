@@ -1,30 +1,69 @@
-# 00 — Overview
+# 00 — Overview (Wave Two)
 
-## Where we are
+## Where we are after Wave One
 
-- `3.0.0` shipped a full v3 sub-tree under `src/{core,domain,application,infra,integration,protocol,app,services,runtime,scripting}` driven by `bnetd-v3`, `pvpgn-migrate`, `pvpgn-config`.
-- The legacy tree still lives under `src/integration/legacy_bnetd/` (≈170 bridge translation units, biggest is `handle_bnet_link.cpp` at 6.1 kLOC) plus `src/common/` (vendored `pugixml`, hand-rolled `xalloc`, `hashtable`, `fdwatch`, …).
-- v3 build is configured exclusively from TOML; legacy `.conf` parsers still exist in the legacy build path but are no longer installed under v3.
-- A `lua/` tree at the repo root is still copy-installed verbatim to `${LOCALSTATEDIR}/lua`.
-- `build/{legacy,linked,v3,dev-release}/` artefacts live in the workspace; not in git, but referenced by docs and scripts inconsistently.
+- v3 binaries (`bnetd`, `pvpgn-migrate`, `pvpgn-config`) are the supported
+  entry points. The `bnetd-v3` name has been retired.
+- `src/{core,domain,application,infra,integration,protocol,app,services,runtime,scripting}`
+  is the canonical layout. Layering is enforced in CI.
+- Config is TOML-first. Lua lives under `scripts/lua/` and feature Lua
+  has been migrated into `plugins/`.
+- Observability surface (`/healthz`, `/readyz`, `/metrics`) ships;
+  metrics registry and structured logger are in `core/`.
+- Plugin ABI conformance tests, Lua API v2 conformance tests, and TOML
+  schema versioning are wired into CI.
+- MSVC `/WX` is clean across the whole tree.
 
-## What "more solid / DDD / KISS / DRY / YAGNI / modern" means here
+## What is still parallel / legacy
 
-1. **Solid** = one canonical code path (v3) per feature; no parallel "legacy + v3" implementations once a bridge is retired.
-2. **DDD** = each bounded context (Identity, Chat, Realm, Ladder, Matchmaking, Tournament, Moderation, Game, Ads, Connection) owns its domain types, application services, ports, and adapters — no cross-context reach-through.
-3. **KISS** = remove ceremony: no abstractions with one implementation, no "future-proof" hooks without a caller, no string-keyed dispatcher tables when a `switch` suffices.
-4. **DRY** = collapse duplicated parsing (`bnetd.conf` vs `bnetd.toml`), duplicated lifecycle bridges (`bnetd_lifecycle_bridges{,_r246,_r247}.cpp`), duplicated FSMs.
-5. **YAGNI** = drop ad-banner formats nobody serves, perl converters for CVS, init scripts for distros that no longer exist, `tos.bat`, mock-only ABI surface area.
-6. **Modern** = C++20 floor is in (`CMakeLists.txt` line 24); next step is to lean on `<expected>`, `<span>`, `<chrono>`, `<filesystem>`, coroutines for async I/O, modules where the toolchain supports them.
+- `src/integration/legacy_bnetd/` — still ≈ 170 translation units, gated
+  by per-feature `pvpgn_v3_*` bridge symbols.
+- `src/integration/legacy_d2cs/` and `src/integration/legacy_d2dbs/` —
+  not yet stranglered.
+- `src/common/` — 80+ files of pre-C++20 utilities (`addr`, `conf`,
+  `eventlog`, `fdwatch`, `hashtable`, `list`, `network`, `packet`,
+  `tag`, `util*`, `xstring`, custom hashes). v3 sources no longer call
+  most of these, but they are kept alive by the legacy tree.
+- `application/ports/` exists despite Plan 07 saying it should not —
+  duplicated ports for `realm_repository`, `permission_checker`,
+  `command_registry`. Needs collapse into per-context ports.
+- Infra adapters (`infra/sqlite`, `infra/mysql`, `infra/postgres`) carry
+  three near-identical repository implementations per aggregate.
+- `fdwatch` (epoll / kqueue / poll / select) is still the I/O loop;
+  there is no executor abstraction.
+- Custom password hashing (`bnethash`, `wolhash`) and a hand-rolled SRP
+  implementation (`bnetsrp3`) live in `src/common/`.
 
-## What "expandable / testable" means here
+## What "done" looks like at the end of Wave Two
 
-- New protocol / new game / new persistence backend = one folder under `domain/<ctx>`, one under `application/<feature>`, one adapter under `infra/<tech>`, one binary wire-up.
-- "Testable" = every domain + application unit testable with **no** linkage to legacy `bnetd_legacy`, no SQLite/MySQL/network fixtures, sub-second per test.
+1. `src/integration/legacy_*` is empty or holds only ABI shims that
+   forward to v3.
+2. `src/common/` contains only protocol-fixed wire constants
+   (`bnet_protocol/`, `*_protocol.h`); everything else moved into
+   `core/` or `infra/` or deleted.
+3. One repository implementation per aggregate, with the storage
+   backend chosen at composition time.
+4. The I/O loop is `std::execution` / `asio` (one choice, picked in
+   plan 06); no platform `#ifdef` outside `infra/net/`.
+5. Crypto uses libsodium for password hashing (argon2id) and a vetted
+   SRP-6a implementation; the wire layout stays bit-compatible with
+   shipped clients.
+6. CI gates: layering, MSVC `/WX`, `mkdocs --strict`, unit-coverage
+   threshold, ASan + UBSan + TSan matrix, fuzz smoke, plugin ABI
+   conformance, performance regression budget.
+7. `bnetd --version` ships with a deprecation policy and a
+   documented rolling-upgrade path.
 
-## Non-goals
+## Non-goals (still)
 
-- Rewriting the wire protocols. Battle.net packet IDs / WOL framing / IRC dialect are immutable.
-- Replacing Lua with another scripting language.
-- Adding a web UI beyond the existing `webui` health/metrics surface.
-- Supporting clients newer than what `3.0.0` already supports.
+- Rewriting wire protocols.
+- Replacing Lua.
+- New game support.
+- Rewriting in another language.
+
+## Sequencing principle
+
+Wave two is **bottom-up**: kill the legacy floor (`common`, legacy
+integration trees) before lifting the ceiling (C++23, async runtime).
+Each plan file declares its prerequisites explicitly so work can be
+parallelized where the graph allows.

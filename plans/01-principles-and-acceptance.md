@@ -1,68 +1,57 @@
-# 01 — Principles and Definition of Done
+# 01 — Principles and Acceptance Criteria
 
-## Hard rules (enforced by CI, not by convention)
+## Principles (wave two reinforces wave one)
 
-### Layering (extends `scripts/v3_layering_check.sh`)
+1. **One canonical path.** No "legacy + v3" pair survives a wave-two
+   merge. If a bridge is touched, the bridge is removed in the same PR
+   or the PR is rejected.
+2. **DDD bounded contexts own their seams.** A port lives next to the
+   aggregate that needs it (`domain/<ctx>/ports/`), never in a global
+   `application/ports/` bucket.
+3. **KISS first.** No new abstraction with a single implementation.
+   No "future-proof" hook without a caller landing in the same PR.
+4. **DRY by deletion.** Duplicate implementations are collapsed by
+   removing N-1 of them, not by extracting a shared base class.
+5. **YAGNI.** No metric, log field, plugin hook, config key, or CLI
+   flag without a documented consumer.
+6. **Modern C++.** C++23 is the floor by the end of wave two. Prefer
+   `std::expected`, `std::span`, `std::string_view`, `std::chrono`,
+   `std::filesystem`, `std::format` / `std::print`, ranges, coroutines.
+7. **No platform `#ifdef` outside `infra/`.** Anything portable lives
+   in `core/`; anything OS-specific lives in `infra/<facet>/`.
+8. **Tests are written with the change, not after.** A PR without
+   matching unit tests under `tests/unit/<layer>/<ctx>/` is incomplete.
 
-```
-core         -> ( <std> only )
-domain/*     -> core
-application/*-> core, domain/*                ( NOT infra, NOT protocol, NOT integration )
-protocol/*   -> core, domain/*                ( NOT application, NOT infra )
-infra/*      -> core, domain/*                ( NOT application, NOT protocol )
-integration/*-> everything below              ( the only legal merge point )
-app/*        -> integration/*, application/*  ( wire-up only, no logic )
-services/*   -> infra/*                       ( cross-cutting only )
-runtime/*    -> core                          ( pure helpers )
-```
+## Definition of Done (per plan file)
 
-`tests/unit/<layer>/...` may **only** include from `<layer>` and below.
+Every wave-two plan file is "done" when **all** of the following hold:
 
-### File-size budget (lint, not blocker)
+- All acceptance criteria in the file are ticked.
+- `cmake --build --preset v3-release` is green on Linux + Windows.
+- `ctest --preset v3-release` passes; new unit tests added for new code.
+- `scripts/v3_layering_check.sh` passes with no new exceptions.
+- `mkdocs build --strict` passes.
+- Sanitizer matrix (ASan, UBSan, TSan) is green for affected targets.
+- `refactoring-progress.md` updated under `## Wave Two` with the date,
+  plan number, and PR / commit.
+- Any removed file is removed from CMake, docs, scripts, and CI.
+- Any new dependency is justified in an ADR under `docs/adr/`.
 
-| Kind                          | Soft cap | Hard cap |
-|-------------------------------|----------|----------|
-| domain / application `.cpp`   | 300 LOC  | 600 LOC  |
-| infra adapter `.cpp`          | 500 LOC  | 1000 LOC |
-| protocol codec `.cpp`         | 800 LOC  | 1500 LOC |
-| integration bridge `.cpp`     | 400 LOC  | 800 LOC  |
-| any header                    | 200 LOC  | 500 LOC  |
-| vendored third-party          | n/a      | n/a      |
+## Code review checklist (paste into PR template)
 
-Anything currently over the hard cap is enumerated in [05-large-file-decomposition.md](05-large-file-decomposition.md).
+- [ ] No new `src/common/` file.
+- [ ] No new `application/ports/` file (use `domain/<ctx>/ports/`).
+- [ ] No new `pvpgn_v3_*_try` symbol; bridges are direct calls or gone.
+- [ ] No new `#ifdef _WIN32` outside `infra/`.
+- [ ] No new vendored library copy (use vcpkg).
+- [ ] All `// TODO` comments reference a tracked issue.
+- [ ] Public headers compile with `-Wall -Wextra -Wpedantic -Werror`.
+- [ ] No raw `new` / `delete` outside RAII wrappers.
+- [ ] No `printf` / `fprintf`; use `core::log` or `std::print`.
 
-### Public API surface
+## Rollback policy
 
-- Plugin C ABI (`pvpgn/plugin/api.h`) — append-only between minor versions, breaks bump major.
-- Lua API v2 (`pvpgn.*`) — same rule.
-- TOML schema — additive; renames require a deprecation window.
-- C++ headers under `src/*/include/` — semver per library target.
-
-## SOLID applied
-
-- **S**ingle responsibility: a translation unit names one type or one feature, not "stuff".
-- **O**pen/closed: extend by adding an adapter behind an existing port (`I*` interface in `domain/*/ports.hpp`), never by editing the domain service.
-- **L**iskov: ports use value-returning, total functions. Pre-conditions are checked, not assumed.
-- **I**nterface segregation: split fat ports the moment a consumer ignores half the methods.
-- **D**ependency inversion: `application/<feature>` depends on `domain/<ctx>/ports.hpp`, never on `infra/<tech>/*`.
-
-## KISS / DRY / YAGNI checklist (review gate)
-
-For every PR, the author must be able to answer "yes" to all of:
-
-- [ ] Does the change have a caller in this PR? (no speculative scaffolding)
-- [ ] Are there ≤ 2 abstractions per added concept?
-- [ ] Did I delete at least one obsolete code path when adding a new one?
-- [ ] Did I avoid copying code I could have factored?
-- [ ] Did I avoid adding a `TODO` for something I could fix in this PR?
-
-## Definition of Done (per plan section)
-
-A plan section ships when:
-
-1. The code change is merged.
-2. Layering check passes (`scripts/v3_layering_check.sh`).
-3. `ctest --preset v3-release` is green.
-4. `scripts/v3-e2e-*-smoke.sh` are green.
-5. `refactoring-progress.md` checkbox flipped with PR link.
-6. `CHANGELOG.md` "Unreleased" section updated.
+Every wave-two plan must declare a rollback strategy. The default is:
+revert the merge commit. Plans that touch persistence (07), wire layout
+(none planned), or rolling-upgrade contract (15) must document a
+forward-compatible escape hatch.
