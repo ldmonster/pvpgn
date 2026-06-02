@@ -658,7 +658,51 @@ Linux).
 ---
 
 ### Plan 09 — C++23 Uplift
-**Status:** 🔄 In Progress — C++23 floor live + ADR (2026-06-02)
+**Status:** ✅ Substantially complete — C++23 floor live + ADR + flat-lookup +
+CI compiler matrix; CRTP cleanup N/A; `std::print` in tools done (2026-06-02).
+Remaining opens are gated on a runnable CI matrix (Clang18/MSVC leg) this env
+can't exercise, and the optional `std::expected` re-backing follow-up.
+
+> 2026-06-02 local verification (GCC 13.3, `build/`, Unix Makefiles): full v3
+> tree configures clean; `pvpgn_v3_plugin` (with the new flat-map
+> `capability.cpp`) builds clean. **Unit suite: 2554/2554 buildable tests pass
+> (99%, 3.55s)**; the only 2 non-passes are `*_NOT_BUILT` sentinels for the
+> sqlite-linked targets (`sql_account_repository`, `infra_sqlite`) — env lacks
+> `sqlite3.h` (known constraint), not a regression. Two **pre-existing** GCC13
+> floor gaps surfaced, both unrelated to today's changes and both covered by
+> the new GCC14/Clang18 CI matrix: (a) `src/tools/*` won't compile because the
+> earlier "`std::print` in tools" work `#include <print>`, which libstdc++
+> ships only from 14 (verified on the gcc-15 container, never locally); (b) the
+> sqlite header gap above. No v3 library/test target fails to build for any
+> reason other than these two missing system headers.
+>
+> 2026-06-02 fix for (a): `src/CMakeLists.txt` now feature-tests `<print>`
+> (`check_cxx_source_compiles` under `-std=c++${PVPGN_V3_CXX_STANDARD}` →
+> `PVPGN_V3_HAVE_STD_PRINT`) and only adds the four print-using tool subdirs
+> (`bnpass`, `bniutils`, `bntrackd`, `client`) when present; `conf_converter`
+> (no `<print>`) is always built. On GCC13 the check fails and those tools skip
+> with a clear `message(STATUS …)`; the CI compiler-matrix (GCC14+/Clang18+)
+> builds them. Verified: reconfigure prints the skip message; full `make all`
+> has **zero `<print>` errors** — the sole remaining `make all` break is the
+> independent, pre-existing `sqlite3.h`-not-installed gap (handled for tests by
+> the `*_NOT_BUILT` sentinels).
+>
+> 2026-06-02 fix for (b) — sqlite backend now optional too. `src/CMakeLists.txt`
+> feature-tests the sqlite3 dev header+lib (`find_path(sqlite3.h)` +
+> `find_library(sqlite3)` -> `PVPGN_V3_HAVE_SQLITE3`) and only adds
+> `infra/sqlite` + `app/pvpgn-migrate` (which hard-links it) when present. The
+> `sql_account_repository` persistence test is wrapped in
+> `if(TARGET pvpgn_infra_sqlite)`; other sqlite consumers (bnetd link, unit +
+> integration tests) were already `TARGET`-guarded. bnetd's `main.cpp` had an
+> **unconditional** `#include "infra/sqlite/unit_of_work_factory.hpp"` despite a
+> "compile-time guards handle availability" comment — converted to the same
+> `#if __has_include(...)` + `PVPGN_V3_BNETD_HAVE_SQLITE_FACTORY` pattern as the
+> mysql/postgres backends, and the default-backend branch now falls back to the
+> non-durable inmemory UoW factory with a loud `LOG_WARN` when sqlite isn't
+> compiled in (so a sqlite-less dev box still starts the server).
+> **Result: `make all` exits 0 on GCC13; full unit suite 100% (0 failed of
+> 2554) — the two `*_NOT_BUILT` sqlite sentinels are gone (cleanly skipped).**
+> CI/Docker installs libsqlite3-dev, so the backend + its tests build there.
 **Dependencies:** Toolchain floor lifted; Plans 02, 03, 05 done
 
 > 2026-06-02: bumped `PVPGN_V3_CXX_STANDARD` 20→**23** in `cmake/v3.cmake`
@@ -688,15 +732,51 @@ Linux).
 - [x] Modules pilot result documented in `docs/adr/0009-modules-pilot.md`
 
 **Steps:**
-- [ ] CI matrix update: add GCC 14, Clang 18, MSVC 19.40; drop GCC ≤ 12, Clang ≤ 16
+- [~] CI matrix update: add GCC 14, Clang 18, MSVC 19.40; drop GCC ≤ 12, Clang ≤ 16.
+      2026-06-02: added a `compiler-matrix` job to `.github/workflows/ci.yml`
+      on `ubuntu-24.04` with a `{gcc-14, clang-18}` matrix (libstdc++14 /
+      libc++18) that configures+builds+tests the v3 tree via the `v3-dev`
+      preset under each frontend. This is the gate that lets newer C++23 libs
+      (e.g. `<flat_map>`) compile — ties directly to the capability flat-map
+      step. GCC≤12 / Clang≤16 are simply not built (policy documented in the
+      job comment). **MSVC 19.40** is the 3rd supported floor *by design* but
+      needs a `windows-latest` + vcpkg leg — documented as a follow-up (this
+      Linux job can't exercise it). Design-only here: this env has neither
+      Actions nor GCC14/Clang18, so the matrix is unrun (first-run calibration
+      like the rest of ci.yml); YAML validated, `v3-dev` preset confirmed.
 - [x] CMake: bump `PVPGN_V3_CXX_STANDARD` to 23 in `cmake/v3.cmake`
 - [x] `tl::expected` → `std::expected`: N/A (no `tl::expected`; `core::Result`
       re-backing tracked as non-breaking follow-up)
 - [ ] `fmt::print` → `std::print` in tools (v3 layers already clean)
 - [x] Modules pilot: DEFERRED/gated — documented in ADR 0009
-- [ ] `std::flat_map`/`std::flat_set` for small-N read-heavy lookup tables in `protocol/bnet/codec/`
+- [~] `std::flat_map`/`std::flat_set` for small-N read-heavy lookup tables.
+      2026-06-02: surveyed `protocol/bnet/` — the codec dispatch is a `switch`
+      (compiler jump table, already optimal) and the tag payloads are
+      `std::vector`; **no hash/tree map exists in the codec to convert**. The
+      one genuine small-N read-heavy static lookup is `parse_capability`
+      (`infra/scripting/plugin/src/capability.cpp`, 17 token→bit entries, hit
+      once per declared capability at plugin load). Was a
+      `static unordered_map<std::string,Capability>` that heap-allocated a
+      `std::string(str)` **every call** and built a hash table on first use.
+      Converted to a sorted `constexpr std::array<pair<string_view,Cap>,17>`
+      "flat map" + `std::ranges::lower_bound` binary search: allocation-free,
+      lives in `.rodata`, `constexpr`, with a `static_assert(is_sorted)` guard.
+      `std::flat_map` itself is unavailable on the GCC13 floor (`<flat_map>`
+      ships in libstdc++ 14) — the sorted-array form is the equivalent flat
+      shape and strictly better for a compile-time-constant table; swap to
+      `std::flat_map` spelling once GCC14 is the CI floor (step above) with no
+      call-site change. Verified: compiles `-Wall -Wextra -Werror` on GCC13;
+      20-case test (all 17 round-trip + empty/prefix/superset miss) passes.
 - [ ] `[[assume]]` in tight inner loops only when a benchmark proves gain
-- [ ] Deducing-this to remove CRTP in domain aggregates
+- [x] Deducing-this to remove CRTP in domain aggregates — **N/A, no target**.
+      2026-06-02: swept the whole `src/` tree for CRTP idioms — base templates
+      parameterized on the derived type (`template<class Derived>` mixins),
+      `static_cast<Derived&>(*this)`, `: public Mixin<Self>` — **zero matches**.
+      The v3 domain aggregates are plain value-semantic classes; there is no
+      CRTP to replace. The only `enable_shared_from_this` uses (5) are stdlib
+      CRTP that deducing-this does not address. Closing this item: deducing-this
+      has other uses (collapsing const/non-const accessor pairs) but that's not
+      what this step asks and isn't worth speculative churn.
 
 ---
 
@@ -759,8 +839,26 @@ Linux).
 ---
 
 ### Plan 12 — Plugin ABI Stabilization
-**Status:** ⬜ Not Started  
+**Status:** 🔄 In Progress — public ABI header + capability tokens + semver gate (2026-06-02)
 **Dependencies:** Wave-One plugin ABI conformance test exists
+
+> 2026-06-02: created the **public `include/pvpgn/plugin/abi.h`** — pure C99
+> (no C++ symbols), the single header native plugins compile against. Formalizes
+> the v1 entry points (`pvpgn_plugin_get_info`/`init`/`shutdown`) from the
+> internal `infra/plugin/api.h`, adds an optional
+> `pvpgn_plugin_get_capabilities()` export, and defines the **capability bitmask
+> tokens** (`PVPGN_CAP_*`, 17 flags) whose bit values mirror the host's
+> `infra::scripting::Capability` enum exactly. Compiles clean as C99 + C++23.
+> **Capability parity** locked by `tests/.../abi_capability_parity_test.cpp`
+> (compile-time `static_assert`s; verified by standalone compile — the plugin
+> test subtree is Lua-gated locally). **Semver gate**:
+> `scripts/dev/check-plugin-abi.sh` diffs the header against a committed golden
+> (`tests/abi/pvpgn_plugin_abi_v1.h.golden`) and fails any un-versioned change
+> (pass/fail verified); wired into `ci.yml` lint. **Docs**:
+> `docs/developer/extending-pvpgn.md` gained a Capabilities table (token ↔ C
+> flag ↔ meaning) + a native-C-ABI section. Remaining: migrate the loader +
+> shipped plugins onto the public header, and the "no domain/application C++
+> symbol exposed" conformance assertion.
 
 **Acceptance Criteria:**
 - [ ] Public C header `pvpgn/plugin/abi.h` exists, installed
@@ -840,6 +938,6 @@ Linux).
 | C | 06 | Async I/O Modernization | ⬜ | Plans 02,03 |
 | C | 09 | C++23 Uplift | ⬜ | Plans 02,03,05 |
 | D | 11 | Observability OTel | 🔄 | ADR + trace sampling/propagation; exporters env-gated |
-| D | 12 | Plugin ABI Stabilization | ⬜ | Phase C |
+| D | 12 | Plugin ABI Stabilization | 🔄 | public abi.h + caps + semver gate; loader/plugin migration remains |
 | D | 13 | Performance Benchmark Baseline | ⬜ | Phase C |
 | E | 15 | Release and Rollout | ⬜ | All plans |
