@@ -267,11 +267,41 @@
 - [x] Update `src/CMakeLists.txt` to add subdirectories
 - [x] Verify build passes
 
-**Remaining Work (Phase 2 — Future):**
-- [ ] Move `*_protocol.h` headers → `src/protocol/<family>/include/...`
-- [ ] Update all includes in v3 consumers to use new locations
-- [ ] Remove `src/common/` entries from `cmake/layering_exceptions.txt`
-- [ ] Delete `src/common/CMakeLists.txt` once all files are migrated
+**Phase 2 — protocol headers (2026-06-02): ✅ resolved by DELETION.**
+The legacy `*_protocol.h` headers were not live wire constants to move — they
+were **dead** (uncompilable: every one `#include`d the Phase-1-relocated
+`common/bn_type.h`; zero v3 consumers; the `src/protocol/bnet/*` "references"
+were doc comments only) and **superseded** by the native wire types under
+`src/protocol/<family>/include/protocol/<family>/`. Deleted **49 files**
+(16 top-level `*_protocol.h` + `tracker.h`/`d2char_file.h`/`d2cs_d2dbs_ladder.h`/
+`d2cs_d2gs_character.h`, plus the entire 32-header `bnet_protocol/` subdir) and
+pruned them from `src/common/CMakeLists.txt`. `field_sizes.h`/`lstr.h` kept
+(consumed by the live packet code). CMake reconfigures clean; the v3 protocol
+test layer builds + passes. Details: `refactoring-progress-plan02-phase2.md`.
+
+**Phase 2b — packet utilities (2026-06-02): ✅ resolved by DELETION.**
+The "relocate live packet utilities" sub-step was another deletion — the legacy
+packet code (`packet*.{cpp,h}`, `field_sizes.h`, `lstr.h`, `d2char_checksum.*`,
+9 files) was dead too: included only by each other inside `src/common/`, zero
+external consumers, and already superseded by the built **`protocol_common`**
+library (native `packet.hpp`/`reader.hpp`/`writer.hpp`/`replay.hpp`). Deleted;
+native replacement green (`test_protocol_{packet,reader,writer,replay}` =
+136 assertions / 26 cases). **`src/common/` went 44 → 13 files this session.**
+
+**Phase 2c — `setup_*.h` shim (2026-06-02): PARTIAL.** Cleaned the one infra
+consumer (`infra/legacy_crypto/bnet_session_hasher.cpp` — dropped the
+unnecessary `setup_before/after.h` wrap); **`src/infra/` is now
+`common/setup_*`-clean**. Full `setup_*.h` deletion is gated: it's still needed
+by the 5 Plan-08 crypto `.cpp` files and 9 `src/win32/*` GUI files (not built on
+Linux).
+
+**Remaining Plan 02 Work (future phases):**
+- [ ] Hand `src/common/` crypto files to Plan 08 (`bnethash*`, `bnethashconv*`,
+      `bnetsrp3*`, `bigint*`, `wolhash*` → `src/infra/crypto/`); `setup_*.h`
+      leaves with them
+- [ ] Retire `setup_before.h`/`setup_after.h` from `src/win32/*` (platform-gated)
+- [ ] Delete `src/common/` + its `CMakeLists.txt` once empty
+- [x] `cmake/layering_exceptions.txt` already has zero `src/common/` entries
 
 ---
 
@@ -334,18 +364,103 @@
 - Created sample migration `src/infra/migrations/account/V0001__create_accounts.sql` demonstrating dialect-specific SQL blocks
 - Updated `src/infra/persistence/CMakeLists.txt` to build the persistence layer
 
+> 2026-06-02: consolidated a 3rd aggregate — **account_ban**.
+> `infra/persistence/account_ban_repository.{hpp,cpp}` (`SqlAccountBanRepository`
+> over `IDbDriver`) + `create_account_ban_repository()` wired (was a stub
+> throw). All writes are **parameter-bound** (injection-safe). Introduced a
+> **recording fake `IDbDriver`** so consolidated repos are unit-testable in any
+> environment (sqlite is env-blocked here): new
+> `sql_account_ban_repository_test` (7 cases / 39 assertions) verifies the bound
+> upsert/params, NULL-expiry, row→domain mapping, active-vs-expired/permanent
+> logic, bound DELETE, and predicate-controlled `for_each` — **green, no
+> sqlite**.
+>
+> 2026-06-02 (cont.): promoted the fake driver to a shared header
+> (`recording_fake_driver.hpp`) and consolidated a **4th aggregate — realm**:
+> `SqlRealmRepository` over `IDbDriver` (find_by_id/name, param-bound
+> save/remove, forEach, COUNT size; row→Realm rehydration with the active flag)
+> + `create_realm_repository()` wired; `sql_realm_repository_test`
+> (8 cases / 36 assertions green).
+>
+> 2026-06-02 (cont.): consolidated a **5th aggregate — friend_list**
+> (`SqlFriendListRepository`, one-to-many ordered table; **transactional
+> full-replace save** begin→DELETE→ordered INSERTs→commit). Added begin/commit/
+> rollback counters to the shared fake driver; `sql_friend_list_repository_test`
+> (4 cases / 33 assertions green).
+>
+> 2026-06-02 (cont.): consolidated a **6th aggregate — clan** (two-table
+> parent+ordered-members; `find_*` issue two queries → `Clan::rehydrate` into a
+> `shared_ptr`; transactional save/remove; `ClientTag` round-trips via `text()`).
+> Added a per-query result-set queue to the shared fake driver for multi-query
+> repos; `sql_clan_repository_test` (6 cases / 50 assertions green). **6 of ~8
+> aggregates consolidated** (account, channel, account_ban, realm, friend_list,
+> clan).
+>
+> 2026-06-02 (cont.): consolidated a **7th aggregate — ip_ban** (8-method port;
+> `ip_bans` + `ip_ban_ranges` tables; `is_banned` = SQL exact hit + in-process
+> CIDR match replicating the aggregate's prefix logic; transactional
+> save_banlist; load/save round-trip exact entries only — `IpBanList` doesn't
+> expose ranges). `sql_ip_ban_repository_test` (9 cases / 47 assertions green).
+> **7 of ~8 aggregates consolidated.** Only **game** (blocked: `Game` has no
+> `rehydrate`) and **ladder** (port id/name quirk) remain — both need a
+> domain/port decision. Details: `refactoring-progress-plan07.md`.
+
 **Remaining Work:**
-- Implement driver adapters (SQLite, MySQL, PostgreSQL) wrapping existing connections
-- Consolidate per-backend repository implementations into unified versions using `IDbDriver`
-- Create consolidated repositories for all aggregates (account, game, clan, friend_list, ladder, realm, ban, session)
-- Update CMakeLists.txt to remove per-backend repository sources
-- Create repository tests with parameterized fixtures for all three backends
+- Consolidate the remaining stub aggregates the same way: realm, ip_ban, clan,
+  friend_list, game (ladder first needs a port fix — `get_rank` is by name but
+  `LadderEntry` carries only an id)
+- Implement/verify the real driver adapters (SQLite in-memory + MySQL/PostgreSQL
+  via testcontainers) — env-gated here
+- Update CMakeLists.txt to remove per-backend repository sources once consolidated
+- Repository test matrix against all three backends (CI)
 
 ---
 
 ### Plan 08 — Crypto Modernization
-**Status:** ⬜ Not Started  
+**Status:** 🔄 In Progress — portable `core/crypto` foundation + ADR (2026-06-02)
 **Dependencies:** libsodium via vcpkg; Plan 02 partially landed
+
+> 2026-06-02: landed the environment-independent foundation. **ADR 0008**
+> (`docs/adr/0008-crypto-libraries.md`, Accepted) picks libsodium/argon2id for
+> at-rest, keeps the audited in-tree SRP-6a (`infra/crypto`), and mandates one
+> canonical CSPRNG. New **`core::crypto::SecureRandom`**
+> (`core/crypto/secure_random.{hpp,cpp}`) is an OS-entropy CSPRNG
+> (`std::random_device`; `randombytes_buf` when built `PVPGN_V3_WITH_SODIUM`)
+> with bias-free `uniform()`. New **`core::crypto::IPasswordHasher`** at-rest
+> port (`hash`/`verify`/`needs_rehash`/`algorithm`), distinct from the legacy
+> session-hash port. CMake auto-detects libsodium via `pkg_check_modules`
+> (absent locally → `std::random_device` path). Tests: `secure_random_test`
+> (7 cases / 10011 assertions) + both headers in the R213 self-containment
+> check; all green. **`std::rand()` audit:** the only call in `src/` is the
+> to-be-deleted `common/bigint.cpp` (not compiled).
+>
+> 2026-06-02 (cont.): wrote the **`Argon2idPasswordHasher`** adapter
+> (`infra/crypto/argon2id_password_hasher.{hpp,cpp}`) over libsodium
+> `crypto_pwhash_str*` (ARGON2ID13/PHC), CMake-gated on `SODIUM_FOUND` (builds
+> as before without libsodium), and added `libsodium` to `vcpkg.json`. Since
+> the local toolchain lacks libsodium headers, verified by `-fsyntax-only`
+> against a faithful stub of the documented libsodium signatures (type-correct)
+> + standalone header compile.
+>
+> 2026-06-02 (cont.): **transparent at-rest upgrade policy.** Finding: bnet
+> OLS/NLS is challenge-response — the server never sees plaintext — so
+> argon2id-at-rest applies only to plaintext-bearing flows (telnet plaintext,
+> account-create / password-set, future web API), not the wire challenge.
+> Built the pure I/O-free **`application::auth::PasswordUpgrade`**
+> (`verify(stored,plaintext) → {verified, upgraded_hash?}`; verifies, and
+> re-hashes on a stale-but-correct match; fails closed on mismatch) +
+> deterministic test-only `StubPasswordHasher`; 5 cases / 16 assertions green
+> (no libsodium needed). `Account.hash_version` + the storing-flow wiring
+> deferred (needs the plaintext flows pinned down).
+>
+> 2026-06-02 (cont.): **SRP-3 golden vectors.** `bnet_srp3_golden_test`
+> (`infra::crypto::BnetSrp3`, builds without OpenSSL/libsodium): a deterministic
+> client/server round-trip proving both sides derive the same session key K +
+> agreeing proofs (mutual auth), plus frozen wire-byte vectors (`v`/`A`/`B`/
+> `K`/`M1`/`M2`) locking bit-compatibility. 2 cases / 8 assertions green. TODO:
+> add captures from ≥ 2 real client builds + extend to NLS/SRP-6a (OpenSSL).
+> Remaining: `Account.hash_version` wiring, delete `src/common/` crypto
+> (finishes Plan 02). Details: `refactoring-progress-plan08.md`.
 
 **Acceptance Criteria:**
 - [ ] New accounts store argon2id only
@@ -383,13 +498,37 @@
 > already disabled).
 
 **Acceptance Criteria:**
-- [~] Pairing audit script in CI (`check-unit-pairing.sh`) — exists; 9 unpaired
-      TUs to backfill (connection_fsm sub-states, ad_pick, email_change,
-      d2_ladder, character_list)
+- [x] Pairing audit script (`check-unit-pairing.sh`) — **GREEN: every
+      domain/application TU has a paired unit test** (was 9 unpaired at the
+      start of 2026-06-02). Backfilled in this session:
+      - `d2_ladder` → `tests/unit/domain/ladder/d2_ladder_test.cpp`
+        (9 cases / 248 assertions; sorted-insert, duplicate/full rejection,
+        remove/rank_of/top).
+      - `character_list` → `tests/unit/domain/realm/character_list_test.cpp`
+        (11 cases / 60 assertions; add/find/remove + all 4 SortModes).
+      - `email_change` — existing comprehensive `email_management_test.cpp`
+        renamed to `email_change_test.cpp` to match the TU basename (covers
+        both dispatch_email_change and dispatch_password_recovery).
+      - `ad_pick` — existing `ads_test.cpp` renamed to `ad_pick_test.cpp`
+        (covers dispatch_ad_pick + dispatch_ad_click).
+      - 5 `connection_fsm_*` sub-states: the monolithic
+        `connection_fsm_test.cpp` (59 cases / 445 assertions) was split to
+        mirror the production file layout — shared fixtures extracted to
+        `connection_fsm_test_fixtures.hpp`; per-state files
+        `connection_fsm_{connecting,authenticating,loggedin,inchannel,ingame}_test.cpp`
+        pair their production TUs; core dispatch/close/ping/keepalive +
+        full-flow integration stay in `connection_fsm_test.cpp`. Post-split
+        total is exactly 59 cases / 445 assertions (no coverage lost).
 - [x] No `tests/unit/` target links a legacy or mysql/postgres library
       (`check-test-legacy-linkage.sh` green; sqlite `:memory:` exempt)
-- [~] ASan + UBSan + TSan presets exist; **UBSan verified clean** locally —
-      CI matrix wiring + ASan/TSan runs pending
+- [~] ASan + UBSan + TSan presets exist; **UBSan + ASan verified** locally.
+      **ASan found a real heap-use-after-free** (`json_line_logger_composition`
+      → `core::set_default_logger`): the `if (logger)` guard silently dropped
+      `set_default_logger(nullptr)` resets, so the default logger outlived the
+      sink a caller installed (would UAF in any composition root that resets the
+      logger on shutdown). **Fixed** `core/src/logging.cpp` to reset to a
+      `NullLogger` on null; ASan re-sweep of all 237 built test binaries is now
+      **0 issues**. TSan run + CI matrix wiring pending.
 - [ ] Fuzz smoke is a required check; reproducers stored on first finding
 - [ ] Coverage gate enforced; current floor documented in `docs/developer/testing.md`
 
@@ -598,7 +737,7 @@
 | A | 04 | d2cs / d2dbs Strangler | ✅ | — |
 | B | 02 | `src/common/` Purge | ⬜ | Plan 03 ≥80% |
 | B | 07 | Infra Adapter Rehab | ⬜ | Plan 05 |
-| B | 08 | Crypto Modernization | ⬜ | Plan 02 partial |
+| B | 08 | Crypto Modernization | 🔄 | argon2id adapter env-gated (no libsodium hdrs) |
 | B | 10 | Testing Pyramid Completion | ⬜ | Plans 02,03,04 |
 | C | 06 | Async I/O Modernization | ⬜ | Plans 02,03 |
 | C | 09 | C++23 Uplift | ⬜ | Plans 02,03,05 |
