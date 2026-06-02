@@ -20,6 +20,8 @@ versioning and deprecation policy.
 - **Mutation-testing pilot** over `domain/identity/` (weekly CI) (Plan 10).
 - `[observability].sample_ratio` wired into the bnetd tracer at startup (Plan 11).
 - New docs: `developer/release-process.md`, `developer/benchmarking.md`.
+- `Dockerfile.distroless` scaffold + ADR 0011 (non-root distroless runtime
+  image; dynamic-linked, glibc-matched builder) (Plan 15).
 
 ### Changed
 - SQLite persistence consolidated onto the driver-parameterized

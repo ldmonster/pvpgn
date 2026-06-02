@@ -1092,7 +1092,15 @@ can't exercise, and the optional `std::expected` re-backing follow-up.
 - [~] `docs/operator/runbooks/rolling-upgrade.md` walks operators through a
       no-downtime upgrade — runbook exists (pre-existing); referenced from
       release-process.md
-- [ ] Distroless image builds and runs the full integration test suite
+- [~] Distroless image builds and runs the full integration test suite —
+      **scaffold + ADR done, untested.** `Dockerfile.distroless` (debian-12
+      glibc-matched builder + GCC-13 backport for C++23, builds `bnetd` Release,
+      `ldd`-driven copy of non-distroless `.so`s, `gcr.io/distroless/cc-debian12:nonroot`
+      runtime, `--config` ENTRYPOINT verified against the real CLI) + **ADR 0011**
+      (`docs/adr/0011-runtime-image.md`: dynamic-link decision, glibc-parity
+      constraint, GCC-vs-glibc tension). Needs a real `docker build` to validate
+      (no Docker here) — the GCC install + < 80 MB target are first-run
+      calibration points
 - [ ] Multi-arch tags published for the next release
 - [ ] Release artefacts signed; SBOM attached
 - [x] `CHANGELOG.md` lints in CI — `check-changelog.sh` (Keep a Changelog) in
@@ -1103,11 +1111,13 @@ can't exercise, and the optional `std::expected` re-backing follow-up.
 - [x] Deprecation policy documented (`release-process.md` + `CHANGELOG.md`)
 - [~] Rolling-upgrade procedure (`docs/operator/runbooks/rolling-upgrade.md`) —
       pre-existing; linked from the release process
-- [ ] Distroless image (`Dockerfile.distroless`): `gcr.io/distroless/cc-debian12` base; < 80 MB; non-root
+- [~] Distroless image (`Dockerfile.distroless`): `gcr.io/distroless/cc-debian12`
+      base; < 80 MB; non-root — scaffold + ADR 0011 done, untested (no Docker)
 - [ ] Multi-arch build: publish `linux/amd64` and `linux/arm64` via `docker buildx`
 - [ ] Signed artefacts: sign release binaries and container images with sigstore/cosign
 - [ ] SBOM: emit CycloneDX SBOM with every release artefact
-- [ ] `CHANGELOG.md` discipline: enforce Keep a Changelog format; CI lints headings
+- [x] `CHANGELOG.md` discipline: enforce Keep a Changelog format; CI lints headings
+      (`check-changelog.sh`)
 
 ---
 

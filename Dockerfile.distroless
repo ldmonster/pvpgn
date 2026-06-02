@@ -1,0 +1,69 @@
+# syntax=docker/dockerfile:1
+#
+# Plan 15 — distroless runtime image for bnetd. See ADR 0011 (runtime image)
+# for the decisions encoded here: dynamic linking against the distroless
+# C/C++ runtime, a glibc-matched Debian-12 builder, GCC >= 13 for C++23, an
+# ldd-driven copy of the non-distroless shared objects, and a non-root final
+# image.
+#
+#   docker build -f Dockerfile.distroless -t pvpgn:distroless .
+#
+# STATUS: best-effort scaffold, UNTESTED here (no Docker in the dev env). The
+# GCC-on-bookworm install and the glibc parity must be validated with a real
+# build; the < 80 MB target is a first-run calibration point (ADR 0011).
+
+# -----------------------------------------------------------------------------
+# Builder — Debian 12 (bookworm, glibc 2.36 to match cc-debian12) + a C++23 GCC.
+# -----------------------------------------------------------------------------
+FROM debian:12-slim AS builder
+
+# bookworm ships GCC 12 (insufficient for C++23); pull GCC 13 from
+# bookworm-backports while keeping the glibc-2.36 base.
+RUN echo 'deb http://deb.debian.org/debian bookworm-backports main' \
+        > /etc/apt/sources.list.d/backports.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+        ca-certificates cmake ninja-build git \
+        gcc-13 g++-13 \
+        libboost-all-dev libssl-dev zlib1g-dev libcurl4-openssl-dev \
+        liblua5.4-dev libsqlite3-dev libspdlog-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV CC=gcc-13 CXX=g++-13
+
+COPY . /src
+WORKDIR /src
+
+# Configure + build only the bnetd target in Release. The SQLite backend builds
+# because libsqlite3-dev is present (see the build-floor guards in
+# src/CMakeLists.txt). The <print> CLI tools are not built here.
+RUN cmake -S . -B build/release -G Ninja -D CMAKE_BUILD_TYPE=Release \
+ && cmake --build build/release --target bnetd -j"$(nproc)"
+
+# Stage the binary, its config, and exactly its dynamic dependencies (resolved
+# by ldd) into /rootfs, which is copied wholesale into the distroless stage.
+RUN set -eu; \
+    BIN="$(find build/release -type f -name bnetd -perm -u+x | head -1)"; \
+    test -n "$BIN"; \
+    install -D -m 0755 "$BIN" /rootfs/usr/local/bin/bnetd; \
+    install -D -m 0644 conf/bnetd.toml.in /rootfs/etc/pvpgn/bnetd.toml; \
+    ldd "$BIN" \
+      | awk '/=>/ { print $3 } /ld-linux/ { print $1 }' \
+      | sort -u \
+      | while read -r lib; do \
+            [ -f "$lib" ] && install -D "$lib" "/rootfs$lib" || true; \
+        done
+
+# -----------------------------------------------------------------------------
+# Runtime — distroless cc (glibc + libgcc + libstdc++), non-root, no shell.
+# -----------------------------------------------------------------------------
+FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
+
+COPY --from=builder /rootfs /
+
+# bnet/bnftp default port (others are configured in bnetd.toml).
+EXPOSE 6112
+
+USER nonroot
+ENTRYPOINT ["/usr/local/bin/bnetd"]
+CMD ["--config", "/etc/pvpgn/bnetd.toml"]
