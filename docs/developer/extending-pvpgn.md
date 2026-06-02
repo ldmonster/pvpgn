@@ -288,6 +288,10 @@ symbols). It is the **semver contract** for the plugin boundary:
   (v1) through a deprecation window. CI enforces this with
   `scripts/dev/check-plugin-abi.sh` (the header is diffed against a committed
   golden; an un-versioned change fails the build).
+- The boundary is **pure C**: `scripts/dev/check-plugin-abi-purity.sh` (also a
+  CI gate) compiles the header under `-std=c99 -pedantic-errors` and forbids any
+  non-C-standard `#include`, so no `domain/` or `application/` C++ symbol can
+  ever leak across to a plugin.
 - Required exports: `pvpgn_plugin_get_info`, `pvpgn_plugin_init`,
   `pvpgn_plugin_shutdown`. Optional: `pvpgn_plugin_get_capabilities`.
 

@@ -979,12 +979,28 @@ can't exercise, and the optional `std::expected` re-backing follow-up.
 > shipped plugins onto the public header, and the "no domain/application C++
 > symbol exposed" conformance assertion.
 
+> 2026-06-02 (cont.): **purity conformance gate (criterion 4).** Added
+> `scripts/dev/check-plugin-abi-purity.sh` — proves the host↔plugin boundary
+> (`include/pvpgn/plugin/abi.h`, the only header a native plugin sees) exposes
+> only pure C: (1) the header must compile under `-std=c99 -pedantic-errors
+> -Werror` (a `namespace`/`class`/`template`/`std::` symbol can't compile as C —
+> the definitive "no C++/domain/application symbol leaks" assertion), and (2)
+> every `#include` must be a C standard header (forbids pulling in `domain/`/
+> `application/`/`infra/`/`core/`). Wired into `ci.yml` lint. Verified locally:
+> passes on the current header; **fails** when a forbidden include or a C++
+> symbol is injected (both negative cases checked).
+
 **Acceptance Criteria:**
-- [ ] Public C header `pvpgn/plugin/abi.h` exists, installed
-- [ ] All shipped plugins load via the new ABI; manifest declares capabilities; host enforces them
-- [ ] CI fails on breaking ABI change to `v1` without a new `v2` header and deprecation note
-- [ ] No C++ symbol from `domain/` or `application/` is exposed to plugins
-- [ ] `docs/developer/extending-pvpgn.md` updated with capability list
+- [x] Public C header `pvpgn/plugin/abi.h` exists, installed —
+      `include/pvpgn/plugin/abi.h` (pure C99); install rule pending packaging
+- [ ] All shipped plugins load via the new ABI; manifest declares capabilities;
+      host enforces them — loader/plugin migration pending (Lua-gated locally)
+- [x] CI fails on breaking ABI change to `v1` without a new `v2` header and
+      deprecation note — `check-plugin-abi.sh` golden-diff gate (ci.yml lint)
+- [x] No C++ symbol from `domain/` or `application/` is exposed to plugins —
+      2026-06-02: `check-plugin-abi-purity.sh` (strict-C99 compile +
+      include-whitelist) in ci.yml lint; verified incl. negative cases
+- [x] `docs/developer/extending-pvpgn.md` updated with capability list
 
 **Steps:**
 - [ ] New public header `include/pvpgn/plugin/abi.h` (pure C): `pvpgn_plugin_v1_init`, `pvpgn_plugin_v1_shutdown`, versioned hook structs

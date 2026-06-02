@@ -26,6 +26,9 @@ jobs:
       - name: Plugin ABI semver gate
         run: bash scripts/dev/check-plugin-abi.sh
         if: always()
+      - name: Plugin ABI purity gate (pure C, no domain/application symbols)
+        run: bash scripts/dev/check-plugin-abi-purity.sh
+        if: always()
       # (scripts-orphans + docs reachability are gated separately by docs.yml)
 
   # --------------------------------------------------------------------------
