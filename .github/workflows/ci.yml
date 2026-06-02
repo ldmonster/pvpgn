@@ -119,6 +119,39 @@ jobs:
         run: ctest --preset ${{ matrix.preset }} --output-on-failure
 
   # --------------------------------------------------------------------------
+  # Microbench regression gate (Plan 13). INFORMATIONAL until the baseline is
+  # recaptured on the CI runner: the committed baseline
+  # (tests/bench/baselines/local-gcc13.json) was taken on a developer box and
+  # absolute ns/op are host-specific, so the first CI run must regenerate it
+  # (commit the produced bench-results.json as the new baseline). Hence
+  # continue-on-error; flip it off once the runner baseline is committed.
+  # --------------------------------------------------------------------------
+  microbench:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build build-essential \
+            libboost-all-dev libssl-dev zlib1g-dev libcurl4-openssl-dev \
+            liblua5.4-dev libsqlite3-dev libspdlog-dev
+      - name: Build + run the microbench suite
+        run: bash scripts/dev/run-bench.sh micro
+      - name: Regression gate vs baseline (10% budget)
+        run: |
+          python3 scripts/dev/check-bench-regression.py \
+            tests/bench/baselines/local-gcc13.json bench-results.json --budget 10
+      - name: Upload bench results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-results
+          path: bench-results.json
+
+  # --------------------------------------------------------------------------
   # Coverage gate — fail if domain/ + application/ line coverage drops below
   # the floor. Floor is a first-run calibration point (see docs/developer/testing.md).
   # --------------------------------------------------------------------------

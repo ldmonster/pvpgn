@@ -43,6 +43,7 @@ nav:
     - Single Binary Mode: developer/single-binary-mode.md
     - Config Reference: developer/config-reference.md
     - Testing: developer/testing.md
+    - Benchmarking: developer/benchmarking.md
     - Bounded Contexts:
       - Chat: developer/contexts/chat.md
       - Connection: developer/contexts/connection.md

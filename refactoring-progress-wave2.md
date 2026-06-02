@@ -1013,21 +1013,51 @@ can't exercise, and the optional `std::expected` re-backing follow-up.
 ---
 
 ### Plan 13 — Performance Benchmark Baseline
-**Status:** ⬜ Not Started  
+**Status:** 🔄 In Progress — microbench harness + runner + docs (2026-06-02)
 **Dependencies:** None for harness; gate enforcement waits until Plans 06 and 11 landing
 
+> 2026-06-02: stood up the **microbench harness**. `nanobench`/vcpkg isn't
+> available in every env, so (like the mutation pilot) built a dependency-free
+> equivalent `tests/bench/micro/microbench.hpp` — warm-up + N samples +
+> **median + MAD** (the plan's Risks note mandates median-of-N + MAD for noisy
+> runners), with JSON output. `micro_main.cpp` registers the locally-linkable
+> cases: `bnet_codec_roundtrip/{ping,joinchannel}` (encode→frame→decode_client
+> through the real wire path) and `tag_table_lookup/parse_capability_x6` (the
+> Plan 09 capability flat-map). Target `bench_micro` is **EXCLUDE_FROM_ALL** —
+> never built by `make all`, never a ctest test (verified). Runner
+> `scripts/dev/run-bench.sh micro` builds+runs it and writes a git-rev/host
+> stamped `bench-results.json` (git-ignored). Docs: `docs/developer/benchmarking.md`
+> (linked from index + mkdocs nav). **Measured (idle GCC13 box):** ping ≈ 33 ns
+> (MAD < 1%), joinchannel ≈ 68 ns, parse_capability ≈ 14 ns/lookup (MAD < 1%) —
+> well within the ≤5% within-run target. Verified: `make all` + full suite
+> still 100% (2560), bench excluded.
+
 **Acceptance Criteria:**
-- [ ] `scripts/dev/run-bench.sh micro` and `macro` produce stable results (≤ 5% variance across 3 runs)
-- [ ] Microbench gate runs in CI; budgeted regressions fail the PR
+- [~] `scripts/dev/run-bench.sh micro` and `macro` produce stable results
+      (≤ 5% variance across 3 runs) — **micro done** (median-of-7, MAD < 1% on
+      the codec + flat-map cases; re-run-vs-baseline deltas -2%..+3%); macro
+      pending
+- [~] Microbench gate runs in CI; budgeted regressions fail the PR —
+      `scripts/dev/check-bench-regression.py` (median vs baseline, 10% budget;
+      pass/fail unit-verified) + a `microbench` job in `ci.yml`. **Informational
+      (`continue-on-error`) until the baseline is recaptured on the CI runner**
+      (absolute ns/op are host-specific — same first-run-calibration posture as
+      the coverage floor); committed baseline `tests/bench/baselines/local-gcc13.json`
 - [ ] Nightly macrobench writes results; alerts on > 25% regression
-- [ ] `docs/developer/benchmarking.md` documents the harness, baseline release, and how to interpret results
+- [x] `docs/developer/benchmarking.md` documents the harness, baseline release,
+      and how to interpret results
 
 **Steps:**
-- [ ] Microbench harness under `tests/bench/micro/` using `nanobench` (vcpkg)
+- [~] Microbench harness under `tests/bench/micro/` — **done** with an in-tree
+      median+MAD harness (nanobench equivalent); 3 cases live, more
+      (srp6a/argon2id/metrics) pending OpenSSL/libsodium
 - [ ] Macrobench harness under `tests/bench/macro/`
-- [ ] Runner: `scripts/dev/run-bench.sh <suite>` produces `bench-results.json`
-- [ ] Capture baseline on tagged release; commit to `tests/bench/baselines/<release>.json`
-- [ ] CI gate: microbench per-PR with 10% regression budget against `main`
+- [x] Runner: `scripts/dev/run-bench.sh <suite>` produces `bench-results.json`
+- [~] Capture baseline; commit to `tests/bench/baselines/` — local-gcc13.json
+      committed (host-specific; recapture on the CI runner / a tagged release)
+- [~] CI gate: microbench per-PR with 10% regression budget —
+      `check-bench-regression.py` + `microbench` job (informational until the
+      runner baseline lands)
 - [ ] Optional: `contrib/dashboards/bench.json` for macrobench history
 
 ---

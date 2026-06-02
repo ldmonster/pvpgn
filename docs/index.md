@@ -62,6 +62,7 @@ Architecture documentation, bounded-context guides, and extension points for con
 - [Single Binary Mode](developer/single-binary-mode.md) — Running bnetd + d2cs + d2dbs in one process
 - [Config Reference](developer/config-reference.md) — All `bnetd.toml` keys (auto-generated)
 - [Testing](developer/testing.md) — Test pyramid, coverage gates, and how to run the suite
+- [Benchmarking](developer/benchmarking.md) — Microbench harness, baselines, and the regression gate
 
 ### Bounded Contexts
 

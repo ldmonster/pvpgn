@@ -54,6 +54,10 @@ include(CTest)
 add_subdirectory(unit)
 add_subdirectory(functional)
 
+# Plan 13 — benchmark harnesses (EXCLUDE_FROM_ALL; built on demand via
+# scripts/dev/run-bench.sh, never by `make all`/ctest).
+add_subdirectory(bench)
+
 if(PVPGN_V3_INTEGRATION_TESTS)
     add_subdirectory(integration)
 endif()

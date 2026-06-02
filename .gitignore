@@ -10,3 +10,5 @@
 /.vs
 /CMakeSettings.json
 /_deps
+# Plan 13 benchmark output (generated; baselines live in tests/bench/baselines/)
+bench-results.json

@@ -1,0 +1,10 @@
+{
+  "git_rev": "fe9c224",
+  "host": "Linux 6.17.0-29-generic x86_64",
+  "suite": "micro",
+  "benchmarks": [
+    {"name": "bnet_codec_roundtrip/ping", "ns_per_op": 31.7492, "mad_ns": 0.459275, "iters": 200000, "samples": 7},
+    {"name": "bnet_codec_roundtrip/joinchannel", "ns_per_op": 68.5627, "mad_ns": 0.69034, "iters": 100000, "samples": 7},
+    {"name": "tag_table_lookup/parse_capability_x6", "ns_per_op": 84.6448, "mad_ns": 0.390684, "iters": 500000, "samples": 7}
+  ]
+}
