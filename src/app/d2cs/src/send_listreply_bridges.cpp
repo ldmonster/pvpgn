@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "integration/legacy_d2cs/send_listreply_bridges.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_listreply_bridges.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 
 #include "core/bytes.hpp"
-#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_packet_bridge.hpp"
 #include "protocol/common/writer.hpp"
 
 namespace {

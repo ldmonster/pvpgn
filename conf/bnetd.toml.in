@@ -322,6 +322,22 @@ w3routeaddr          = "0.0.0.0:6200"
 initkill_timer       = 120
 
 ##############################################################################
+# [net.timeouts]  — per-protocol idle-read deadlines (seconds)             #
+#                                                                          #
+# If a connection sends no bytes within its deadline, the server closes    #
+# it. 0 disables the timeout for that protocol. Consumed by the v3         #
+# infra/net fiber sessions (Plan 06 async-io).                             #
+##############################################################################
+
+[net.timeouts]
+bnet   = 300   # BNCS (Battle.net) clients
+irc    = 300   # IRC / WOL chat
+telnet = 300   # telnet admin
+wol    = 300   # Westwood Online
+bnftp  = 60    # BNFTP file transfer
+d2cs   = 300   # Diablo II realm server
+
+##############################################################################
 # [wol]  — Westwood Online (WOL) configuration  [experimental]             #
 ##############################################################################
 

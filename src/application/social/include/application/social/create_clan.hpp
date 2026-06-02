@@ -10,7 +10,8 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::application::social {
 
@@ -29,7 +30,7 @@ enum class CreateClanError : std::uint8_t {
 
 class CreateClan {
 public:
-    CreateClan(std::shared_ptr<application::ports::IClanRepository> clans,
+    CreateClan(std::shared_ptr<domain::social::IClanRepository> clans,
                std::shared_ptr<application::ports::IEventBus> event_bus)
         : clans_(clans), event_bus_(event_bus) {}
 
@@ -37,7 +38,7 @@ public:
     execute(const CreateClanRequest& req);
 
 private:
-    std::shared_ptr<application::ports::IClanRepository> clans_;
+    std::shared_ptr<domain::social::IClanRepository> clans_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

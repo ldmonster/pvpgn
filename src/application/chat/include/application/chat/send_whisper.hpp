@@ -14,7 +14,8 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -35,9 +36,9 @@ struct SendWhisperCommand {
 class SendWhisper {
 public:
     explicit SendWhisper(
-        std::shared_ptr<application::ports::IAccountRepository> accounts,
-        std::shared_ptr<application::ports::ISessionRegistry>   sessions,
-        std::shared_ptr<application::ports::IMessageRouter>     router)
+        std::shared_ptr<domain::identity::IAccountRepository> accounts,
+        std::shared_ptr<domain::identity::ISessionRegistry>   sessions,
+        std::shared_ptr<domain::connection::IMessageRouter>     router)
         : accounts_(accounts), sessions_(sessions), router_(router) {}
 
     /// Execute: validate, resolve target, and route the whisper.
@@ -47,9 +48,9 @@ public:
     execute(SendWhisperCommand cmd) const;
 
 private:
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
-    std::shared_ptr<application::ports::ISessionRegistry>   sessions_;
-    std::shared_ptr<application::ports::IMessageRouter>     router_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::identity::ISessionRegistry>   sessions_;
+    std::shared_ptr<domain::connection::IMessageRouter>     router_;
 };
 
 }  // namespace pvpgn::application::chat

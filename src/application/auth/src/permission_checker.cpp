@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/auth/permission_checker.hpp"
+#include "domain/moderation/ports.hpp"
 
 #include <algorithm>
 
@@ -8,7 +9,7 @@
 namespace pvpgn::application::auth {
 
 void InMemoryPermissionChecker::init_group_mappings() {
-    using P = application::ports::Permission;
+    using P = domain::moderation::Permission;
 
     // Admin group: all permissions
     auto& admin_perms = group_permissions_["admin"];
@@ -57,7 +58,7 @@ void InMemoryPermissionChecker::init_group_mappings() {
 }
 
 bool InMemoryPermissionChecker::has_permission(
-    domain::AccountId account, application::ports::Permission perm) const {
+    domain::AccountId account, domain::moderation::Permission perm) const {
     // 1. Look up account
     auto account_result = accounts_->find_by_id(account);
     if (!account_result) {

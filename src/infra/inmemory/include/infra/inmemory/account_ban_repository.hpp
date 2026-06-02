@@ -11,29 +11,31 @@
 
 #include "domain/moderation/ports.hpp"
 
+#include <mutex>
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryAccountBanRepository final
-    : public application::ports::IAccountBanRepository {
+    : public domain::moderation::IAccountBanRepository {
 public:
-    core::Result<std::optional<application::ports::AccountBan>>
+    core::Result<std::optional<domain::moderation::AccountBan>>
     find_active_ban(domain::AccountId account_id,
                     core::SystemTime now) const override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
         auto it = by_account_.find(account_id.value());
         if (it == by_account_.end()) {
-            return std::optional<application::ports::AccountBan>{};
+            return std::optional<domain::moderation::AccountBan>{};
         }
         
         const auto& ban = it->second;
         if (ban.active_at(now)) {
-            return std::optional<application::ports::AccountBan>{ban};
+            return std::optional<domain::moderation::AccountBan>{ban};
         }
-        return std::optional<application::ports::AccountBan>{};
+        return std::optional<domain::moderation::AccountBan>{};
     }
 
     core::Status<>
-    add_ban(const application::ports::AccountBan& ban) override {
+    add_ban(const domain::moderation::AccountBan& ban) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
         by_account_[ban.banned_account.value()] = ban;
         return core::ok();
@@ -53,7 +55,7 @@ public:
     }
 
     void for_each(
-        std::function<bool(const application::ports::AccountBan&)> predicate)
+        std::function<bool(const domain::moderation::AccountBan&)> predicate)
         const override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
         for (const auto& [_account_id, ban] : by_account_) {
@@ -64,7 +66,7 @@ public:
 private:
     mutable std::shared_mutex mutex_;
     ankerl::unordered_dense::map<std::uint32_t,
-                                 application::ports::AccountBan>
+                                 domain::moderation::AccountBan>
         by_account_;
 };
 

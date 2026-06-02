@@ -19,6 +19,8 @@
 // Hex encoding/decoding utilities (plan 15 §3 / SOLID-S).
 // Included as a sub-TU by util.cpp — do not compile directly.
 
+#include <cstdio>
+
 namespace pvpgn
 {
 
@@ -28,7 +30,7 @@ namespace pvpgn
 		int  i;
 		for (i = 0; i < datalen; i++)
 		{
-			c = (data[i]) & 0xff;
+			c = static_cast<unsigned char>(data[i] & 0xff);
 
 			std::sprintf(target + i * 3, "%02X ", c);
 			target[i * 3 + 3] = '\0';
@@ -55,12 +57,12 @@ namespace pvpgn
 			/* std::fprintf(stderr, "hex_to_str %d | '%02x'", i, byte); */
 
 			c = source[i * 3 + 0];
-			byte += 16 * (c > '9' ? (c - 'A' + 10) : (c - '0'));
+			byte = static_cast<char>(byte + 16 * (c > '9' ? (c - 'A' + 10) : (c - '0')));
 
 			/* std::fprintf(stderr, " | '%c' '%02x'", c, byte); */
 
 			c = source[i * 3 + 1];
-			byte += 1 * (c > '9' ? (c - 'A' + 10) : (c - '0'));
+			byte = static_cast<char>(byte + 1 * (c > '9' ? (c - 'A' + 10) : (c - '0')));
 
 			/* std::fprintf(stderr, " | '%c' '%02x'", c, byte); */
 

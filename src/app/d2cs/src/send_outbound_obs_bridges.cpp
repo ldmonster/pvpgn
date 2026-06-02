@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "integration/legacy_d2cs/send_outbound_obs_bridges.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_outbound_obs_bridges.hpp"
 
 // Observation-only bridges for D2CS outbound packets sent to bnetd or d2gs.
 // Each function returns 0 (no-handler / fall-through) so the legacy path

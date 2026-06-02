@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "infra/shadow/shadow_unit_of_work_factory.hpp"
+#include "application/persistence/unit_of_work.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
 
 #include "infra/shadow/shadow_unit_of_work.hpp"
 

@@ -37,6 +37,7 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
+#include <print>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -139,8 +140,8 @@ struct Options {
 };
 
 [[noreturn]] void usage(const char* prog) {
-    std::fprintf(stderr,
-        "usage: %s -f FILE [<options>] [<host> [<port>]]\n"
+    std::print(stderr,
+        "usage: {} -f FILE [<options>] [<host> [<port>]]\n"
         "  -f FILE, --file=FILE    file name to fetch (required)\n"
         "  -c TAG,  --client=TAG   STAR | SEXP | SSHR | DRTL | DSHR\n"
         "                          | W2BN | D2DV | D2XP | WAR3 (default STAR)\n"
@@ -187,8 +188,7 @@ Options parse_args(int argc, char** argv) {
         std::string_view a{argv[i]};
         auto need_value = [&](std::string_view flag) -> const char* {
             if (i + 1 >= argc) {
-                std::fprintf(stderr, "%s: %.*s requires a value\n",
-                    argv[0], static_cast<int>(flag.size()), flag.data());
+                std::println(stderr, "{}: {} requires a value", argv[0], flag);
                 usage(argv[0]);
             }
             return argv[++i];
@@ -196,7 +196,7 @@ Options parse_args(int argc, char** argv) {
         if (a == "-h" || a == "--help" || a == "--usage") {
             usage(argv[0]);
         } else if (a == "-v" || a == "--version") {
-            std::printf("bnftp (pvpgn v3)\n");
+            std::println("bnftp (pvpgn v3)");
             std::exit(EXIT_SUCCESS);
         } else if (a == "-f") {
             o.reqfile = need_value(a);
@@ -212,7 +212,7 @@ Options parse_args(int argc, char** argv) {
             o.archtag = std::string{a.substr(7)};
         } else if (starts_with(a, "--startoffset=")) {
             if (!parse_uint(a.substr(14).data(), o.startoffset)) {
-                std::fprintf(stderr, "%s: bad --startoffset value\n", argv[0]);
+                std::println(stderr, "{}: bad --startoffset value", argv[0]);
                 usage(argv[0]);
             }
         } else if (starts_with(a, "--exists=")) {
@@ -224,14 +224,13 @@ Options parse_args(int argc, char** argv) {
             } else if (val == "R" || val == "Resume" || val == "resume") {
                 o.exists = ExistsAction::Resume;
             } else {
-                std::fprintf(stderr, "%s: --exists must be O|B|R\n", argv[0]);
+                std::println(stderr, "{}: --exists must be O|B|R", argv[0]);
                 usage(argv[0]);
             }
         } else if (a == "--war3") {
             o.want_war3 = true;
         } else if (!a.empty() && a[0] == '-') {
-            std::fprintf(stderr, "%s: unknown option \"%.*s\"\n",
-                argv[0], static_cast<int>(a.size()), a.data());
+            std::println(stderr, "{}: unknown option \"{}\"", argv[0], a);
             usage(argv[0]);
         } else {
             positional.emplace_back(a);
@@ -246,13 +245,13 @@ Options parse_args(int argc, char** argv) {
     }
     if (positional.size() == 2) {
         if (!parse_ushort(positional[1].c_str(), o.port)) {
-            std::fprintf(stderr, "%s: \"%s\" should be a positive port number\n",
+            std::println(stderr, "{}: \"{}\" should be a positive port number",
                 argv[0], positional[1].c_str());
             usage(argv[0]);
         }
     }
     if (o.reqfile.empty()) {
-        std::fprintf(stderr, "%s: -f FILE is required\n", argv[0]);
+        std::println(stderr, "{}: -f FILE is required", argv[0]);
         usage(argv[0]);
     }
     // WAR3/W3XP always use the 3-step protocol.
@@ -283,18 +282,15 @@ bool handle_existing(const Options& opts, std::uint32_t& startoffset) {
                     continue;
                 }
                 if (std::rename(opts.reqfile.c_str(), bak.c_str()) != 0) {
-                    std::fprintf(stderr,
-                        "rename(\"%s\", \"%s\") failed: %s\n",
+                    std::println(stderr, "rename(\"{}\", \"{}\") failed: {}",
                         opts.reqfile.c_str(), bak.c_str(), std::strerror(errno));
                     return false;
                 }
-                std::fprintf(stderr,
-                    "renamed existing \"%s\" -> \"%s\"\n",
+                std::println(stderr, "renamed existing \"{}\" -> \"{}\"",
                     opts.reqfile.c_str(), bak.c_str());
                 return true;
             }
-            std::fprintf(stderr,
-                "could not find an unused backup name for \"%s\"\n",
+            std::println(stderr, "could not find an unused backup name for \"{}\"",
                 opts.reqfile.c_str());
             return false;
         }
@@ -390,16 +386,15 @@ int main(int argc, char** argv) {
     net::sockets_startup();
     net::socket_holder sock{net::connect_tcp(opts.host, opts.port)};
     if (!sock.valid()) {
-        std::fprintf(stderr,
-            "%s: connect to %s:%u failed\n", argv[0],
+        std::println(stderr, "{}: connect to {}:{} failed", argv[0],
             opts.host.c_str(), opts.port);
         return EXIT_FAILURE;
     }
-    std::fprintf(stderr, "%s: connected to %s:%u\n",
+    std::println(stderr, "{}: connected to {}:{}",
         argv[0], opts.host.c_str(), opts.port);
 
     if (!proto::send_init_classbyte(sock.get(), proto::init_class::File)) {
-        std::fprintf(stderr, "%s: failed to send init class byte\n", argv[0]);
+        std::println(stderr, "{}: failed to send init class byte", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -419,8 +414,7 @@ int main(int argc, char** argv) {
         proto::int_tag_set(r2->clienttag, ctag_chars);
         // unknown1 stays zero
         if (!send_buf(sock.get(), req2_buf.data(), req2_buf.size())) {
-            std::fprintf(stderr,
-                "%s: failed to send CLIENT_FILE_REQ2\n", argv[0]);
+            std::println(stderr, "{}: failed to send CLIENT_FILE_REQ2", argv[0]);
             return EXIT_FAILURE;
         }
 
@@ -431,12 +425,10 @@ int main(int argc, char** argv) {
         std::vector<std::uint8_t> unk_body;
         std::uint16_t unk_type = 0;
         if (!recv_file_packet(sock.get(), unk_body, unk_type)) {
-            std::fprintf(stderr,
-                "%s: server closed before W3 unknown1 reply\n", argv[0]);
+            std::println(stderr, "{}: server closed before W3 unknown1 reply", argv[0]);
             return EXIT_FAILURE;
         }
-        std::fprintf(stderr,
-            "%s: W3 server unknown1 reply type=0x%04x body=%zu byte(s)\n",
+        std::println(stderr, "{}: W3 server unknown1 reply type=0x{:04x} body={} byte(s)",
             argv[0], unk_type, unk_body.size());
 
         // Step 3: send CLIENT_FILE_REQ3 *raw* -- no FILE header --
@@ -448,8 +440,7 @@ int main(int argc, char** argv) {
         std::memcpy(r3_buf.data() + sizeof(CClientFileReq3),
             opts.reqfile.c_str(), opts.reqfile.size() + 1);
         if (!send_buf(sock.get(), r3_buf.data(), r3_buf.size())) {
-            std::fprintf(stderr,
-                "%s: failed to send CLIENT_FILE_REQ3\n", argv[0]);
+            std::println(stderr, "{}: failed to send CLIENT_FILE_REQ3", argv[0]);
             return EXIT_FAILURE;
         }
     } else {
@@ -459,8 +450,7 @@ int main(int argc, char** argv) {
         const std::size_t total_size =
             sizeof(CClientFileReq) + opts.reqfile.size() + 1;
         if (total_size > 0xffff) {
-            std::fprintf(stderr,
-                "%s: requested filename too long\n", argv[0]);
+            std::println(stderr, "{}: requested filename too long", argv[0]);
             return EXIT_FAILURE;
         }
         std::vector<std::uint8_t> buf(total_size, std::uint8_t{0});
@@ -477,12 +467,11 @@ int main(int argc, char** argv) {
             opts.reqfile.c_str(), opts.reqfile.size() + 1);
 
         if (!send_buf(sock.get(), buf.data(), buf.size())) {
-            std::fprintf(stderr,
-                "%s: failed to send CLIENT_FILE_REQ\n", argv[0]);
+            std::println(stderr, "{}: failed to send CLIENT_FILE_REQ", argv[0]);
             return EXIT_FAILURE;
         }
     }
-    std::fprintf(stderr, "%s: requested \"%s\"%s\n",
+    std::println(stderr, "{}: requested \"{}\"{}",
         argv[0], opts.reqfile.c_str(),
         opts.want_war3 ? " (W3 protocol)" : "");
 
@@ -492,18 +481,16 @@ int main(int argc, char** argv) {
     std::vector<std::uint8_t> reply;
     std::uint16_t reply_type = 0;
     if (!recv_file_packet(sock.get(), reply, reply_type)) {
-        std::fprintf(stderr,
-            "%s: server closed before SERVER_FILE_REPLY\n", argv[0]);
+        std::println(stderr, "{}: server closed before SERVER_FILE_REPLY", argv[0]);
         return EXIT_FAILURE;
     }
     if (reply_type != kServerFileReplyType) {
-        std::fprintf(stderr,
-            "%s: unexpected reply type 0x%04x (expected 0x0000)\n",
+        std::println(stderr, "{}: unexpected reply type 0x{:04x} (expected 0x0000)",
             argv[0], reply_type);
         return EXIT_FAILURE;
     }
     if (reply.size() < sizeof(SServerFileReply) - sizeof(FileHeader)) {
-        std::fprintf(stderr, "%s: truncated SERVER_FILE_REPLY\n", argv[0]);
+        std::println(stderr, "{}: truncated SERVER_FILE_REPLY", argv[0]);
         return EXIT_FAILURE;
     }
     const proto::bn_int* filelen_bytes =
@@ -513,8 +500,7 @@ int main(int argc, char** argv) {
     const char* svr_name =
         reinterpret_cast<const char*>(reply.data())
         + (sizeof(SServerFileReply) - sizeof(FileHeader));
-    std::fprintf(stderr,
-        "%s: server file = \"%s\", length = %u bytes\n",
+    std::println(stderr, "{}: server file = \"{}\", length = {} bytes",
         argv[0], svr_name, filelen);
 
     // Open the local file.
@@ -522,7 +508,7 @@ int main(int argc, char** argv) {
         (opts.exists == ExistsAction::Resume) ? "ab" : "wb";
     std::FILE* fp = std::fopen(opts.reqfile.c_str(), mode);
     if (!fp) {
-        std::fprintf(stderr, "%s: open \"%s\" (%s): %s\n",
+        std::println(stderr, "{}: open \"{}\" ({}): {}",
             argv[0], opts.reqfile.c_str(), mode, std::strerror(errno));
         return EXIT_FAILURE;
     }
@@ -530,8 +516,7 @@ int main(int argc, char** argv) {
     std::uint32_t to_read = filelen;
     if (opts.startoffset > 0 && opts.startoffset <= filelen) {
         to_read = filelen - opts.startoffset;
-        std::fprintf(stderr,
-            "%s: resuming at offset %u (%u bytes remaining)\n",
+        std::println(stderr, "{}: resuming at offset {} ({} bytes remaining)",
             argv[0], opts.startoffset, to_read);
     }
 
@@ -540,15 +525,13 @@ int main(int argc, char** argv) {
         const std::size_t want =
             std::min<std::size_t>(to_read, chunk.size());
         if (!recv_buf(sock.get(), chunk.data(), want)) {
-            std::fprintf(stderr,
-                "\n%s: server closed mid-stream with %u bytes left\n",
+            std::println(stderr, "\n{}: server closed mid-stream with {} bytes left",
                 argv[0], to_read);
             std::fclose(fp);
             return EXIT_FAILURE;
         }
         if (std::fwrite(chunk.data(), 1, want, fp) != want) {
-            std::fprintf(stderr,
-                "\n%s: write to \"%s\" failed: %s\n",
+            std::println(stderr, "\n{}: write to \"{}\" failed: {}",
                 argv[0], opts.reqfile.c_str(), std::strerror(errno));
             std::fclose(fp);
             return EXIT_FAILURE;
@@ -557,11 +540,11 @@ int main(int argc, char** argv) {
     }
 
     if (std::fclose(fp) != 0) {
-        std::fprintf(stderr, "%s: close \"%s\" failed: %s\n",
+        std::println(stderr, "{}: close \"{}\" failed: {}",
             argv[0], opts.reqfile.c_str(), std::strerror(errno));
         return EXIT_FAILURE;
     }
-    std::fprintf(stderr, "%s: done, wrote %u bytes to \"%s\"\n",
+    std::println(stderr, "{}: done, wrote {} bytes to \"{}\"",
         argv[0], filelen, opts.reqfile.c_str());
     return EXIT_SUCCESS;
 }

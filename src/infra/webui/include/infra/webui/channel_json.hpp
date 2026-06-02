@@ -30,7 +30,7 @@ namespace pvpgn::infra::webui {
 ///
 /// Returns `"[]"` when @p repo is null or empty.
 inline std::string channels_to_json(
-    const application::ports::IChannelRepository* repo)
+    const domain::chat::IChannelRepository* repo)
 {
     if (!repo) {
         return "[]";

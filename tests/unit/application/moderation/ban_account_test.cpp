@@ -44,7 +44,7 @@ domain::identity::Account make_account(domain::AccountId id,
 // Fakes
 // ---------------------------------------------------------------------------
 
-class FakeAccountRepository final : public application::ports::IAccountRepository {
+class FakeAccountRepository final : public domain::identity::IAccountRepository {
 public:
     bool account_exists = true;
 
@@ -78,16 +78,16 @@ public:
     count() override { return 0u; }
 };
 
-class FakeAccountBanRepository final : public application::ports::IAccountBanRepository {
+class FakeAccountBanRepository final : public domain::moderation::IAccountBanRepository {
 public:
     bool has_active_ban = false;
     bool save_fails     = false;
 
-    core::Result<std::optional<application::ports::AccountBan>>
+    core::Result<std::optional<domain::moderation::AccountBan>>
     find_active_ban(domain::AccountId, core::SystemTime) const override {
         if (has_active_ban) {
-            return std::optional<application::ports::AccountBan>{
-                application::ports::AccountBan{
+            return std::optional<domain::moderation::AccountBan>{
+                domain::moderation::AccountBan{
                     .banned_account = domain::AccountId{1},
                     .banned_by      = domain::AccountId{2},
                     .reason         = "test",
@@ -96,10 +96,10 @@ public:
                 }
             };
         }
-        return std::optional<application::ports::AccountBan>{std::nullopt};
+        return std::optional<domain::moderation::AccountBan>{std::nullopt};
     }
 
-    core::Status<> add_ban(const application::ports::AccountBan&) override {
+    core::Status<> add_ban(const domain::moderation::AccountBan&) override {
         if (save_fails)
             return core::fail(core::Error{core::StatusCode::Internal, "db error"});
         return core::ok();
@@ -107,7 +107,7 @@ public:
 
     core::Status<> remove_ban(domain::AccountId) override { return core::ok(); }
 
-    void for_each(std::function<bool(const application::ports::AccountBan&)>) const override {}
+    void for_each(std::function<bool(const domain::moderation::AccountBan&)>) const override {}
 };
 
 class FakeEventBus final : public application::ports::IEventBus {

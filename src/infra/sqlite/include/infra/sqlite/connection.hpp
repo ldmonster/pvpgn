@@ -96,6 +96,13 @@ public:
         std::initializer_list<ParamValue> params,
         const RowCallback& cb);
 
+    /// Overload taking a runtime-built parameter range (e.g. from the
+    /// `IDbDriver` adapter, which can't use a compile-time initializer_list).
+    core::Result<void, core::Error> query_bind(
+        std::string_view sql,
+        std::span<const ParamValue> params,
+        const RowCallback& cb);
+
     /// Get the rowid of the last inserted row.
     std::int64_t last_insert_rowid() const;
 

@@ -18,6 +18,7 @@
 /// Writes are queued in a `std::deque<std::vector<std::byte>>` and
 /// serialised via a single in-flight `async_write`.
 
+#include <chrono>
 #include <cstddef>
 #include <deque>
 #include <functional>
@@ -27,6 +28,7 @@
 #include <vector>
 
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 
 #include "core/bytes.hpp"
@@ -44,6 +46,12 @@ public:
 
     void set_on_bytes(OnBytes cb) { on_bytes_ = std::move(cb); }
     void set_on_close(OnClose cb) { on_close_ = std::move(cb); }
+
+    /// Set the idle-read deadline. If no bytes are received within this
+    /// duration the session closes itself (delivering `on_close` with
+    /// `boost::asio::error::timed_out`). Zero (the default) disables the
+    /// timeout. Must be called before `start()`.
+    void set_idle_timeout(std::chrono::milliseconds d) noexcept { idle_timeout_ = d; }
 
     /// Begin reading. Idempotent: a second call after `close()` is a no-op.
     void start();
@@ -69,9 +77,14 @@ private:
     void do_read();
     void do_write_locked();
     void deliver_close(const boost::system::error_code& ec);
+    /// (Re)arm the idle-read deadline. No-op when the timeout is disabled.
+    /// Must run on `strand_`.
+    void arm_idle_timer();
 
     boost::asio::ip::tcp::socket                                socket_;
     boost::asio::strand<boost::asio::any_io_executor>           strand_;
+    boost::asio::steady_timer                                   idle_timer_;
+    std::chrono::milliseconds                                   idle_timeout_{0};
     std::array<std::byte, 4096>                                 read_buf_{};
     std::deque<std::vector<std::byte>>                          write_q_;
     bool                                                        writing_ = false;

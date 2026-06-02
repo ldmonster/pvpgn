@@ -136,7 +136,7 @@ inline bool send_all(socket_t sd, const void* data, std::size_t len) noexcept {
     auto* p = static_cast<const char*>(data);
     std::size_t left = len;
     while (left > 0) {
-        auto n = ::send(sd, p, static_cast<int>(left), 0);
+        auto n = ::send(sd, p, static_cast<std::size_t>(left), 0);
         if (n <= 0) {
             return false;
         }
@@ -152,7 +152,7 @@ inline bool recv_all(socket_t sd, void* data, std::size_t len) noexcept {
     auto* p = static_cast<char*>(data);
     std::size_t left = len;
     while (left > 0) {
-        auto n = ::recv(sd, p, static_cast<int>(left), 0);
+        auto n = ::recv(sd, p, static_cast<std::size_t>(left), 0);
         if (n <= 0) {
             return false;
         }

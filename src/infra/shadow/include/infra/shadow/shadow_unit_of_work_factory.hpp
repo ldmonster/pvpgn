@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "application/persistence/unit_of_work_factory.hpp"
+#include "application/persistence/unit_of_work.hpp"
 
 namespace pvpgn::infra::shadow {
 

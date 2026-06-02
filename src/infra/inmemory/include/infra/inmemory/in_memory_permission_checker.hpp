@@ -18,21 +18,22 @@
 #include "domain/moderation/ports.hpp"
 #include "domain/shared/ids.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryPermissionChecker final
-    : public application::ports::IPermissionChecker {
+    : public domain::moderation::IPermissionChecker {
 public:
     /// Grant a specific permission to an account (test helper).
     void grant(domain::AccountId account,
-               application::ports::Permission perm) {
+               domain::moderation::Permission perm) {
         std::unique_lock lock(mutex_);
         perms_[account.value()].insert(static_cast<std::uint16_t>(perm));
     }
 
     /// Revoke a specific permission from an account (test helper).
     void revoke(domain::AccountId account,
-                application::ports::Permission perm) {
+                domain::moderation::Permission perm) {
         std::unique_lock lock(mutex_);
         auto it = perms_.find(account.value());
         if (it != perms_.end()) {
@@ -57,7 +58,7 @@ public:
 
     [[nodiscard]] bool
     has_permission(domain::AccountId account,
-                   application::ports::Permission perm) const override {
+                   domain::moderation::Permission perm) const override {
         std::shared_lock lock(mutex_);
         auto it = perms_.find(account.value());
         if (it == perms_.end()) return false;

@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "application/ports/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
@@ -26,8 +25,8 @@ struct SessionInfo {
 class ListSessions {
 public:
     explicit ListSessions(
-        application::ports::ISessionRegistry&   sessions,
-        application::ports::IAccountRepository& repo) noexcept
+        domain::identity::ISessionRegistry&   sessions,
+        domain::identity::IAccountRepository& repo) noexcept
         : sessions_(sessions), repo_(repo) {}
 
     /// Returns all currently active sessions, each enriched with the
@@ -35,8 +34,8 @@ public:
     [[nodiscard]] core::Status<std::vector<SessionInfo>> execute() const;
 
 private:
-    application::ports::ISessionRegistry&   sessions_;
-    application::ports::IAccountRepository& repo_;
+    domain::identity::ISessionRegistry&   sessions_;
+    domain::identity::IAccountRepository& repo_;
 };
 
 }  // namespace pvpgn::application::auth

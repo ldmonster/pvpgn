@@ -5,7 +5,7 @@
 
 namespace pvpgn::application::realm {
 
-RegisterRealm::RegisterRealm(ports::IRealmRepository& realms)
+RegisterRealm::RegisterRealm(domain::realm::IRealmRepository& realms)
     : realms_(realms)
 {
 }

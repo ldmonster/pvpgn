@@ -25,10 +25,10 @@ pvpgn_v3_add_library(app_d2dbs
         src/dbserver_bridge.cpp
         src/handle_signal_bridge.cpp
         src/dbspacket_bridge.cpp
-        src/send_packet_bridge_link.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC_DEPS
         protocol_d2dbs
         domain_d2dbs
+        infra_config
 )

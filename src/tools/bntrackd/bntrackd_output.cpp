@@ -17,42 +17,42 @@ void write_outfile(std::FILE *outfile, std::time_t now)
 
         const TrackPacket &p = server.info;
         if (g_prefs.xml_mode == 1) {
-            std::fprintf(outfile, "<server>\n\t<address>%s</address>\n", addrstr);
-            std::fprintf(outfile, "\t<port>%" PRIu16 "</port>\n",                p.port);
-            std::fprintf(outfile, "\t<location>%s</location>\n",                 p.server_location.data());
-            std::fprintf(outfile, "\t<software>%s</software>\n",                 p.software.data());
-            std::fprintf(outfile, "\t<version>%s</version>\n",                   p.version.data());
-            std::fprintf(outfile, "\t<users>%" PRIu32 "</users>\n",              p.users);
-            std::fprintf(outfile, "\t<channels>%" PRIu32 "</channels>\n",        p.channels);
-            std::fprintf(outfile, "\t<games>%" PRIu32 "</games>\n",              p.games);
-            std::fprintf(outfile, "\t<description>%s</description>\n",           p.server_desc.data());
-            std::fprintf(outfile, "\t<platform>%s</platform>\n",                 p.platform.data());
-            std::fprintf(outfile, "\t<url>%s</url>\n",                           p.server_url.data());
-            std::fprintf(outfile, "\t<contact_name>%s</contact_name>\n",         p.contact_name.data());
-            std::fprintf(outfile, "\t<contact_email>%s</contact_email>\n",       p.contact_email.data());
-            std::fprintf(outfile, "\t<uptime>%" PRIu32 "</uptime>\n",            p.uptime);
-            std::fprintf(outfile, "\t<total_games>%" PRIu32 "</total_games>\n",  p.total_games);
-            std::fprintf(outfile, "\t<logins>%" PRIu32 "</logins>\n",            p.total_logins);
-            std::fprintf(outfile, "</server>\n");
+            std::println(outfile, "<server>\n\t<address>{}</address>", addrstr);
+            std::println(outfile, "\t<port>{{}}</port>",                p.port);
+            std::println(outfile, "\t<location>{}</location>",                 p.server_location.data());
+            std::println(outfile, "\t<software>{}</software>",                 p.software.data());
+            std::println(outfile, "\t<version>{}</version>",                   p.version.data());
+            std::println(outfile, "\t<users>{{}}</users>",              p.users);
+            std::println(outfile, "\t<channels>{{}}</channels>",        p.channels);
+            std::println(outfile, "\t<games>{{}}</games>",              p.games);
+            std::println(outfile, "\t<description>{}</description>",           p.server_desc.data());
+            std::println(outfile, "\t<platform>{}</platform>",                 p.platform.data());
+            std::println(outfile, "\t<url>{}</url>",                           p.server_url.data());
+            std::println(outfile, "\t<contact_name>{}</contact_name>",         p.contact_name.data());
+            std::println(outfile, "\t<contact_email>{}</contact_email>",       p.contact_email.data());
+            std::println(outfile, "\t<uptime>{{}}</uptime>",            p.uptime);
+            std::println(outfile, "\t<total_games>{{}}</total_games>",  p.total_games);
+            std::println(outfile, "\t<logins>{{}}</logins>",            p.total_logins);
+            std::println(outfile, "</server>");
         }
         else {
-            std::fprintf(outfile, "%s\n##\n", addrstr);
-            std::fprintf(outfile, "%" PRIu16 "\n##\n", p.port);
-            std::fprintf(outfile, "%s\n##\n",          p.server_location.data());
-            std::fprintf(outfile, "%s\n##\n",          p.software.data());
-            std::fprintf(outfile, "%s\n##\n",          p.version.data());
-            std::fprintf(outfile, "%" PRIu32 "\n##\n", p.users);
-            std::fprintf(outfile, "%" PRIu32 "\n##\n", p.channels);
-            std::fprintf(outfile, "%" PRIu32 "\n##\n", p.games);
-            std::fprintf(outfile, "%s\n##\n",          p.server_desc.data());
-            std::fprintf(outfile, "%s\n##\n",          p.platform.data());
-            std::fprintf(outfile, "%s\n##\n",          p.server_url.data());
-            std::fprintf(outfile, "%s\n##\n",          p.contact_name.data());
-            std::fprintf(outfile, "%s\n##\n",          p.contact_email.data());
-            std::fprintf(outfile, "%" PRIu32 "\n##\n", p.uptime);
-            std::fprintf(outfile, "%" PRIu32 "\n##\n", p.total_games);
-            std::fprintf(outfile, "%" PRIu32 "\n##\n", p.total_logins);
-            std::fprintf(outfile, "###\n");
+            std::println(outfile, "{}\n##", addrstr);
+            std::println(outfile, "{{}}\n##", p.port);
+            std::println(outfile, "{}\n##",          p.server_location.data());
+            std::println(outfile, "{}\n##",          p.software.data());
+            std::println(outfile, "{}\n##",          p.version.data());
+            std::println(outfile, "{{}}\n##", p.users);
+            std::println(outfile, "{{}}\n##", p.channels);
+            std::println(outfile, "{{}}\n##", p.games);
+            std::println(outfile, "{}\n##",          p.server_desc.data());
+            std::println(outfile, "{}\n##",          p.platform.data());
+            std::println(outfile, "{}\n##",          p.server_url.data());
+            std::println(outfile, "{}\n##",          p.contact_name.data());
+            std::println(outfile, "{}\n##",          p.contact_email.data());
+            std::println(outfile, "{{}}\n##", p.uptime);
+            std::println(outfile, "{{}}\n##", p.total_games);
+            std::println(outfile, "{{}}\n##", p.total_logins);
+            std::println(outfile, "###");
         }
     }
 }

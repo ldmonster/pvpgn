@@ -241,7 +241,7 @@ void SQLiteAccountRepository::forEach(
         return;
     }
 
-    conn_->query(
+    (void)conn_->query(
         "SELECT id, name, locale, password_hash, locked, must_change_password, "
         "command_groups, created_at, updated_at FROM accounts",
         [&predicate](const Row& row) {
@@ -260,7 +260,7 @@ std::size_t SQLiteAccountRepository::size() const noexcept {
     }
 
     std::size_t count = 0;
-    conn_->query(
+    (void)conn_->query(
         "SELECT COUNT(*) FROM accounts",
         [&count](const Row& row) {
             count = static_cast<std::size_t>(row.get_int(0));

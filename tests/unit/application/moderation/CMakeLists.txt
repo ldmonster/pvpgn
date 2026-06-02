@@ -23,7 +23,7 @@ pvpgn_v3_add_test(test_application_moderation_ban_ip
 
 pvpgn_v3_add_test(test_application_moderation_kick_connection
     SOURCES kick_connection_test.cpp
-    DEPS    application_moderation)
+    DEPS    application_moderation domain_connection domain_identity)
 
 # TODO(v3): same FakeAccountRepository drift as ban_account_test.
 # pvpgn_v3_add_test(test_application_moderation_silence_user

@@ -22,7 +22,7 @@ class BnetSessionContextImpl final : public ISessionContext {
 public:
     BnetSessionContextImpl(
         domain::SessionId session_id,
-        std::shared_ptr<application::ports::IConnectionEgress> egress)
+        std::shared_ptr<domain::connection::IConnectionEgress> egress)
         : session_id_(session_id), egress_(egress) {}
 
     core::Status<> send(const ServerMessage& msg) override {
@@ -60,7 +60,7 @@ public:
 
 private:
     domain::SessionId session_id_;
-    std::shared_ptr<application::ports::IConnectionEgress> egress_;
+    std::shared_ptr<domain::connection::IConnectionEgress> egress_;
 };
 
 }  // namespace pvpgn::protocol::bnet

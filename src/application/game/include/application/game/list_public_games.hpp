@@ -18,7 +18,7 @@
 #include "core/result.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/gameplay/ports.hpp"
 
 namespace pvpgn::application::game {
 
@@ -45,14 +45,14 @@ enum class ListPublicGamesError : std::uint8_t {
 
 class ListPublicGames {
 public:
-    explicit ListPublicGames(std::shared_ptr<application::ports::IGameRepository> games)
+    explicit ListPublicGames(std::shared_ptr<domain::gameplay::IGameRepository> games)
         : games_(games) {}
 
     core::Result<std::vector<GameInfo>, ListPublicGamesError>
     execute(const ListPublicGamesRequest& req);
 
 private:
-    std::shared_ptr<application::ports::IGameRepository> games_;
+    std::shared_ptr<domain::gameplay::IGameRepository> games_;
 };
 
 }  // namespace pvpgn::application::game

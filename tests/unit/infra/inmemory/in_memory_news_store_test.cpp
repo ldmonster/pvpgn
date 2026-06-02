@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "infra/inmemory/in_memory_news_store.hpp"
+#include "domain/social/ports/news_store.hpp"
 
 namespace pvpgn::infra::inmemory {
 

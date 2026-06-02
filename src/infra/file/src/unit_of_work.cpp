@@ -2,6 +2,14 @@
 
 #include "infra/file/unit_of_work.hpp"
 
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/realm/ports.hpp"
+#include "domain/social/ports.hpp"
+
 namespace pvpgn::infra::file {
 
 // R317: all in-memory repos are per-instance members — no static locals.
@@ -31,43 +39,43 @@ void FileUnitOfWork::rollback() noexcept {
     // No-op for file-based backend
 }
 
-application::ports::IAccountRepository& FileUnitOfWork::accounts() {
+domain::identity::IAccountRepository& FileUnitOfWork::accounts() {
     return *accounts_;
 }
 
-application::ports::IChannelRepository& FileUnitOfWork::channels() {
+domain::chat::IChannelRepository& FileUnitOfWork::channels() {
     return *channels_;
 }
 
-application::ports::IGameRepository& FileUnitOfWork::games() {
+domain::gameplay::IGameRepository& FileUnitOfWork::games() {
     return *games_;
 }
 
-application::ports::IClanRepository& FileUnitOfWork::clans() {
+domain::social::IClanRepository& FileUnitOfWork::clans() {
     return *clans_;
 }
 
-application::ports::ILadderRepository& FileUnitOfWork::ladder() {
+domain::ladder::ILadderRepository& FileUnitOfWork::ladder() {
     return *ladder_;
 }
 
-application::ports::IIpBanRepository& FileUnitOfWork::ip_bans() {
+domain::moderation::IIpBanRepository& FileUnitOfWork::ip_bans() {
     return *ip_bans_;
 }
 
-application::ports::IAccountBanRepository& FileUnitOfWork::account_bans() {
+domain::moderation::IAccountBanRepository& FileUnitOfWork::account_bans() {
     return *account_bans_;
 }
 
-application::ports::IFriendListRepository& FileUnitOfWork::friend_lists() {
+domain::social::IFriendListRepository& FileUnitOfWork::friend_lists() {
     return *friend_lists_;
 }
 
-application::ports::IRealmRepository& FileUnitOfWork::realms() {
+domain::realm::IRealmRepository& FileUnitOfWork::realms() {
     return *realms_;
 }
 
-application::ports::ITeamRepository& FileUnitOfWork::teams() {
+domain::social::ITeamRepository& FileUnitOfWork::teams() {
     return *teams_;
 }
 

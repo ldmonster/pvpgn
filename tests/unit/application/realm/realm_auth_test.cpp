@@ -12,10 +12,12 @@
 #include <string>
 #include <unordered_map>
 
+#include "domain/realm/ports.hpp"
+
 namespace pvpgn::application::realm {
 
 /// Inline fake realm repository for auth tests.
-class FakeAuthRealmRepository final : public ports::IRealmRepository {
+class FakeAuthRealmRepository final : public pvpgn::domain::realm::IRealmRepository {
 public:
     core::Result<domain::realm::Realm, core::Error>
     find_by_id(std::uint32_t id) const override {

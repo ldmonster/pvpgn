@@ -27,6 +27,8 @@
 #include "core/result.hpp"
 #include "domain/connection/connection_context.hpp"
 
+#include "domain/connection/ports.hpp"
+
 namespace pvpgn::app::bnetd {
 
 // ---------------------------------------------------------------------------

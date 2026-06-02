@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include "domain/identity/ports.hpp"
 #pragma once
 
 // R316: This implementation has been superseded by infra/sqlite/SQLiteAccountRepository.
@@ -9,7 +10,7 @@
 class SqliteDatabase;
 
 /// SQLite-backed implementation of IAccountRepository.
-class SqliteAccountRepository : public application::ports::IAccountRepository {
+class SqliteAccountRepository : public domain::identity::IAccountRepository {
 public:
     explicit SqliteAccountRepository(const std::filesystem::path& db_path);
     ~SqliteAccountRepository();

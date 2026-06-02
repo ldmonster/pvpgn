@@ -18,7 +18,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 // Client-tag conversion, validation, and human-readable title lookup (plan 15 §3 / SOLID-S).
-// Included as a sub-TU by tag.cpp — do not compile directly.
+// Split from tag.cpp (Plan 02 full-split: one TU per file).
+
+#include "tag.h"
+
+#include <cstring>
+
+#include "core/format.hpp"
 
 namespace pvpgn
 {
@@ -28,7 +34,7 @@ namespace pvpgn
 	{
 		if (!clienttag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL clienttag");
+			LOG_ERROR(__FUNCTION__, "got NULL clienttag");
 			return CLIENTTAG_UNKNOWN_UINT;
 		}
 

@@ -9,10 +9,11 @@
 #include "domain/realm/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
+
 namespace pvpgn::infra::sqlite {
 
 class SQLiteRealmRepository final
-    : public application::ports::IRealmRepository {
+    : public domain::realm::IRealmRepository {
 public:
     explicit SQLiteRealmRepository(std::shared_ptr<SQLiteConnection> conn);
 

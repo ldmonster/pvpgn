@@ -13,7 +13,7 @@
 namespace pvpgn::infra::legacy_crypto {
 
 class BnetSessionHasher final
-    : public application::ports::IPasswordHasher {
+    : public domain::identity::IPasswordHasher {
 public:
     domain::BNHash derive_session_hash(
         const domain::BNHash& password_hash1,

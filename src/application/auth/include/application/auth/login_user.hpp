@@ -14,7 +14,6 @@
 
 #include <utility>
 
-#include "application/ports/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/event_bus.hpp"
 #include "core/clock.hpp"
@@ -74,8 +73,8 @@ enum class LoginError {
 
 class LoginUser {
 public:
-    LoginUser(application::ports::IAccountRepository& accounts,
-              application::ports::ISessionRegistry& sessions,
+    LoginUser(domain::identity::IAccountRepository& accounts,
+              domain::identity::ISessionRegistry& sessions,
               application::ports::IEventBus& bus,
               core::IClock& clock) noexcept
         : accounts_(accounts), sessions_(sessions),
@@ -85,11 +84,11 @@ public:
     /// hasher the use-case also accepts
     /// `LoginWithSessionHashRequest`. The cleartext-hash1 overload
     /// remains available unconditionally.
-    LoginUser(application::ports::IAccountRepository& accounts,
-              application::ports::ISessionRegistry& sessions,
+    LoginUser(domain::identity::IAccountRepository& accounts,
+              domain::identity::ISessionRegistry& sessions,
               application::ports::IEventBus& bus,
               core::IClock& clock,
-              const application::ports::IPasswordHasher& hasher) noexcept
+              const domain::identity::IPasswordHasher& hasher) noexcept
         : accounts_(accounts), sessions_(sessions),
           bus_(bus), clock_(clock), hasher_(&hasher) {}
 
@@ -102,11 +101,11 @@ public:
     Result execute(LoginWithSessionHashRequest req);
 
 private:
-    application::ports::IAccountRepository&    accounts_;
-    application::ports::ISessionRegistry&      sessions_;
+    domain::identity::IAccountRepository&    accounts_;
+    domain::identity::ISessionRegistry&      sessions_;
     application::ports::IEventBus&             bus_;
     core::IClock&                              clock_;
-    const application::ports::IPasswordHasher* hasher_;
+    const domain::identity::IPasswordHasher* hasher_;
 };
 
 }  // namespace pvpgn::application::auth

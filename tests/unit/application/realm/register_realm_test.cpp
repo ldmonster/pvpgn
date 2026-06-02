@@ -12,10 +12,12 @@
 #include <string>
 #include <unordered_map>
 
+#include "domain/realm/ports.hpp"
+
 namespace pvpgn::application::realm {
 
 /// Inline fake: stores realms in a map keyed by lower-case name.
-class FakeRealmRepository final : public ports::IRealmRepository {
+class FakeRealmRepository final : public pvpgn::domain::realm::IRealmRepository {
 public:
     core::Result<domain::realm::Realm, core::Error>
     find_by_id(std::uint32_t id) const override {

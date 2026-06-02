@@ -10,6 +10,7 @@
 
 #include "domain/shared/event_bus.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryEventBus final : public application::ports::IEventBus {

@@ -21,11 +21,15 @@ add_library(pvpgn_infra_sqlite STATIC
     src/sqlite_channel_repository.cpp
     src/unit_of_work.cpp
     src/unit_of_work_factory.cpp
+    # Plan 07: SQLite IDbDriver adapter (wraps SQLiteConnection as an IDbDriver
+    # so the consolidated infra/persistence repositories can run over SQLite).
+    ${CMAKE_SOURCE_DIR}/src/infra/persistence/sql_builder/sqlite_driver.cpp
 )
 
 target_include_directories(pvpgn_infra_sqlite
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(pvpgn_infra_sqlite

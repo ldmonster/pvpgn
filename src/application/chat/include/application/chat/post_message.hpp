@@ -15,7 +15,8 @@
 #include "domain/shared/chat_message.hpp"
 #include "domain/shared/events.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -37,8 +38,8 @@ struct PostMessageResult {
 
 class PostMessage {
 public:
-    explicit PostMessage(application::ports::IChannelRepository& channel_repo,
-                         application::ports::ISessionRegistry& session_registry)
+    explicit PostMessage(domain::chat::IChannelRepository& channel_repo,
+                         domain::identity::ISessionRegistry& session_registry)
         : channel_repo_(channel_repo), session_registry_(session_registry) {}
 
     /// Execute: validate membership and post message to channel.
@@ -47,8 +48,8 @@ public:
             const domain::ChatMessage& message) const;
 
 private:
-    application::ports::IChannelRepository& channel_repo_;
-    application::ports::ISessionRegistry&   session_registry_;
+    domain::chat::IChannelRepository& channel_repo_;
+    domain::identity::ISessionRegistry&   session_registry_;
 };
 
 }  // namespace pvpgn::application::chat

@@ -2,12 +2,12 @@
 //
 // R236(3): observation bridges for d2cs d2gs-list lifecycle.
 
-#include "integration/legacy_d2cs/d2gs_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/d2gs_bridge.hpp"
 
 #include <string_view>
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2cs/bridge_logger.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/bridge_logger.hpp"
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 

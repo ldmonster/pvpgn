@@ -35,6 +35,7 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstdio>
+#include <print>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -100,7 +101,7 @@ namespace {
 extern int main(int argc, char *argv[])
 {
     if (argc < 1 || !argv || !argv[0]) {
-        std::fprintf(stderr, "bad arguments\n");
+        std::println(stderr, "bad arguments");
         return EXIT_FAILURE;
     }
 
@@ -112,8 +113,7 @@ extern int main(int argc, char *argv[])
 
     if (g_prefs.logfile) {
         if (std::freopen(g_prefs.logfile, "a", stderr) == nullptr) {
-            std::fprintf(stderr,
-                "could not redirect stderr to \"%s\" (freopen: %s)\n",
+            std::println(stderr, "could not redirect stderr to \"{}\" (freopen: {})",
                 g_prefs.logfile, std::strerror(errno));
             return EXIT_FAILURE;
         }
@@ -149,7 +149,7 @@ extern int main(int argc, char *argv[])
             g_prefs.pidfile = nullptr;
         }
         else {
-            std::fprintf(fp, "%lu", current_pid());
+            std::print(fp, "{}", current_pid());
             if (std::fclose(fp) < 0) {
                 LOG_ERROR("bntrackd",
                     "could not close pid file \"{}\" after writing"

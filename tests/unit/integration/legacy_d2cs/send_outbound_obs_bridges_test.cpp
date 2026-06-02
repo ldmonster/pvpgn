@@ -4,7 +4,7 @@
 /// All bridges are no-ops (return 0); tests verify the ABI is callable
 /// and that null conn_ptr is handled gracefully.
 
-#include "integration/legacy_d2cs/send_outbound_obs_bridges.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_outbound_obs_bridges.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

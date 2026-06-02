@@ -65,7 +65,9 @@
 #include "application/connection/connection_fsm.hpp"
 #include "infra/net/io_runtime.hpp"
 #include "infra/net/tcp_acceptor.hpp"
+#include <chrono>
 #include "infra/net/tcp_session.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
 #if defined(PVPGN_V3_BNETD_HAVE_CONFIG) && __has_include("infra/config/server_config.hpp")
 #  include "infra/config/server_config.hpp"
 #  include "infra/log/logger_factory.hpp"
@@ -312,17 +314,36 @@ int main(int argc, char* argv[]) {
 
         // 7. Create listeners
         //
+        // Per-protocol idle-read deadlines from [net.timeouts] (Plan 06).
+        // Defaults match infra::config::NetTimeoutsConfig; overridden by TOML.
+        std::chrono::milliseconds bnet_idle{std::chrono::seconds{300}};
+        std::chrono::milliseconds bnftp_idle{std::chrono::seconds{60}};
+        std::chrono::milliseconds wol_idle{std::chrono::seconds{300}};
+        std::chrono::milliseconds irc_idle{std::chrono::seconds{300}};
+#if defined(PVPGN_V3_BNETD_HAVE_LOGGER_FACTORY)
+        if (!cli.config_path.empty()) {
+            if (auto r = infra::config::load_server_config(cli.config_path); r.has_value()) {
+                const auto& nt = r.value().net_timeouts;
+                bnet_idle  = std::chrono::seconds{nt.bnet};
+                bnftp_idle = std::chrono::seconds{nt.bnftp};
+                wol_idle   = std::chrono::seconds{nt.wol};
+                irc_idle   = std::chrono::seconds{nt.irc};
+            }
+        }
+#endif
+
         // Port 6112: BNet + BNFTP (shared port, first-byte dispatch)
         TcpListener bnet_listener{
             rt,
-            BnetBnftpDispatchFactory{cfg, session_mgr, use_cases, bnetd_svc}};
+            BnetBnftpDispatchFactory{cfg, session_mgr, use_cases, bnetd_svc},
+            bnet_idle};
         bnet_listener.start(cfg.listen_address, cfg.bnet_port);
         LOG_INFO("bnetd", "BNet/BNFTP listening on {}:{}", cfg.listen_address, cfg.bnet_port);
 
         // Dedicated BNFTP-only port (when bnftp_port differs from bnet_port).
         std::optional<TcpListener> bnftp_listener;
         if (cfg.bnftp_port != cfg.bnet_port) {
-            bnftp_listener.emplace(rt, FileSessionFactory{cfg.data_dir});
+            bnftp_listener.emplace(rt, FileSessionFactory{cfg.data_dir}, bnftp_idle);
             bnftp_listener->start(cfg.listen_address, cfg.bnftp_port);
             LOG_INFO("bnetd", "BNFTP-only listening on {}:{}", cfg.listen_address, cfg.bnftp_port);
         }
@@ -332,12 +353,13 @@ int main(int argc, char* argv[]) {
             rt,
             [&cfg](std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
                 make_wol_session(std::move(tcp), cfg);
-            }};
+            },
+            wol_idle};
         wol_listener.start(cfg.listen_address, cfg.wol_port);
         LOG_INFO("bnetd", "WOL listening on {}:{}", cfg.listen_address, cfg.wol_port);
 
         // Port 6667: IRC — IrcFsm wired via IrcSessionFactory
-        TcpListener irc_listener{rt, IrcSessionFactory{cfg.server_name}};
+        TcpListener irc_listener{rt, IrcSessionFactory{cfg.server_name}, irc_idle};
         irc_listener.start(cfg.listen_address, cfg.irc_port);
         LOG_INFO("bnetd", "IRC listening on {}:{}", cfg.listen_address, cfg.irc_port);
 

@@ -27,10 +27,12 @@
 /// external synchronisation). The `SessionFactory` callback is invoked
 /// from an Asio worker thread; it must be thread-safe.
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "infra/net/io_runtime.hpp"
 #include "infra/net/tcp_acceptor.hpp"
@@ -45,10 +47,23 @@ public:
         std::function<void(std::shared_ptr<infra::net::TcpSession>)>;
 
     /// Construct a listener.
-    /// @param rt       Shared Asio runtime (io_context + thread pool).
-    /// @param factory  Called for each accepted connection.
-    TcpListener(infra::net::IoRuntime& rt, SessionFactory factory)
-        : acceptor_(rt, std::move(factory)) {}
+    /// @param rt           Shared Asio runtime (io_context + thread pool).
+    /// @param factory      Called for each accepted connection.
+    /// @param idle_timeout Idle-read deadline applied to every accepted
+    ///   session *before* the factory runs (so the factory's `start()`
+    ///   honours it). Zero (the default) disables the timeout. Sourced
+    ///   from `[net.timeouts]` (Plan 06).
+    TcpListener(infra::net::IoRuntime& rt, SessionFactory factory,
+                std::chrono::milliseconds idle_timeout =
+                    std::chrono::milliseconds::zero())
+        : acceptor_(rt,
+                    [factory = std::move(factory), idle_timeout]
+                    (std::shared_ptr<infra::net::TcpSession> s) {
+                        if (idle_timeout > std::chrono::milliseconds::zero()) {
+                            s->set_idle_timeout(idle_timeout);
+                        }
+                        factory(std::move(s));
+                    }) {}
 
     TcpListener(const TcpListener&)            = delete;
     TcpListener& operator=(const TcpListener&) = delete;

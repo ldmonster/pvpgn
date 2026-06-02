@@ -3,7 +3,7 @@
 
 namespace pvpgn::application::realm {
 
-RealmAuth::RealmAuth(ports::IRealmRepository& realms,
+RealmAuth::RealmAuth(domain::realm::IRealmRepository& realms,
                      IRealmCredentialStore&   credentials)
     : realms_(realms)
     , credentials_(credentials)

@@ -20,7 +20,7 @@
 namespace pvpgn::application::realm {
 
 /// Reuse the same fake realm repository pattern from register_realm_test.cpp.
-class FakeRealmRepo7 final : public ports::IRealmRepository {
+class FakeRealmRepo7 final : public pvpgn::domain::realm::IRealmRepository {
 public:
     core::Result<domain::realm::Realm, core::Error>
     find_by_id(std::uint32_t id) const override {

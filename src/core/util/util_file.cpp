@@ -17,7 +17,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 // File I/O utility: buffered line reader with continuation support (plan 15 §3 / SOLID-S).
-// Included as a sub-TU by util.cpp — do not compile directly.
+// Split from util.cpp (Plan 02 full-split: one TU per file).
+
+#include "util.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 namespace pvpgn
 {
@@ -51,11 +57,11 @@ namespace pvpgn
 		prev_char = '\0';
 		while ((curr_char = std::fgetc(fp)) != EOF)
 		{
-			if (((char)curr_char) == '\r')
+			if (static_cast<char>(curr_char) == '\r')
 				continue; /* make DOS line endings look Unix-like */
-			if (((char)curr_char) == '\n')
+			if (static_cast<char>(curr_char) == '\n')
 			{
-				if (pos < 1 || ((char)prev_char) != '\\')
+				if (pos < 1 || static_cast<char>(prev_char) != '\\')
 					break;
 				pos--; /* throw away the backslash */
 				prev_char = '\0';
@@ -63,7 +69,7 @@ namespace pvpgn
 			}
 			prev_char = curr_char;
 
-			line[pos++] = (char)curr_char;
+			line[pos++] = static_cast<char>(curr_char);
 			if ((pos + 1) >= len)
 			{
 				unsigned int newlen = len + INC_LEN;

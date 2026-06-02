@@ -14,10 +14,11 @@
 #include "domain/chat/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
+
 namespace pvpgn::infra::sqlite {
 
 class SqliteChannelRepository final
-    : public application::ports::IChannelRepository {
+    : public domain::chat::IChannelRepository {
 public:
     explicit SqliteChannelRepository(std::shared_ptr<SQLiteConnection> conn);
 

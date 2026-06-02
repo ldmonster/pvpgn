@@ -11,10 +11,11 @@
 
 #include "domain/social/ports.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryFriendListRepository final
-    : public application::ports::IFriendListRepository {
+    : public domain::social::IFriendListRepository {
 public:
     core::Result<domain::social::FriendList>
     find_by_owner(domain::AccountId owner_id) const override {

@@ -6,6 +6,8 @@
 #include "infra/migrations/migration_runner.hpp"
 #include "infra/migrations/all_migrations.hpp"
 
+#include "application/persistence/unit_of_work.hpp"
+
 namespace pvpgn::infra::sqlite {
 
 SQLiteUnitOfWorkFactory::SQLiteUnitOfWorkFactory(
@@ -22,7 +24,7 @@ SQLiteUnitOfWorkFactory::SQLiteUnitOfWorkFactory(
             },
             [this]() -> std::optional<std::uint32_t> {
                 std::optional<std::uint32_t> version;
-                conn_->query(
+                (void)conn_->query(
                     "SELECT MAX(version) FROM _schema_migrations",
                     [&version](const sqlite::Row& row) {
                         if (!row.is_null(0)) {
@@ -34,8 +36,8 @@ SQLiteUnitOfWorkFactory::SQLiteUnitOfWorkFactory(
             });
 
         // Ensure migration table and run pending migrations
-        runner.ensure_migration_table();
-        runner.migrate_to_latest(migrations::get_all_migrations());
+        (void)runner.ensure_migration_table();
+        (void)runner.migrate_to_latest(migrations::get_all_migrations());
     }
 }
 

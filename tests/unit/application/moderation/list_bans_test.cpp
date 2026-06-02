@@ -39,29 +39,29 @@ domain::IpAddress make_ip(std::string_view s) {
 // Fakes
 // ---------------------------------------------------------------------------
 
-class FakeAccountBanRepository final : public application::ports::IAccountBanRepository {
+class FakeAccountBanRepository final : public domain::moderation::IAccountBanRepository {
 public:
-    std::vector<application::ports::AccountBan> bans;
+    std::vector<domain::moderation::AccountBan> bans;
 
-    core::Result<std::optional<application::ports::AccountBan>>
+    core::Result<std::optional<domain::moderation::AccountBan>>
     find_active_ban(domain::AccountId, core::SystemTime) const override {
-        return std::optional<application::ports::AccountBan>{std::nullopt};
+        return std::optional<domain::moderation::AccountBan>{std::nullopt};
     }
 
-    core::Status<> add_ban(const application::ports::AccountBan&) override {
+    core::Status<> add_ban(const domain::moderation::AccountBan&) override {
         return core::ok();
     }
 
     core::Status<> remove_ban(domain::AccountId) override { return core::ok(); }
 
-    void for_each(std::function<bool(const application::ports::AccountBan&)> pred) const override {
+    void for_each(std::function<bool(const domain::moderation::AccountBan&)> pred) const override {
         for (const auto& b : bans) {
             if (!pred(b)) break;
         }
     }
 };
 
-class FakeIpBanRepository final : public application::ports::IIpBanRepository {
+class FakeIpBanRepository final : public domain::moderation::IIpBanRepository {
 public:
     std::vector<domain::moderation::IpBanEntry> entries;
 
@@ -126,7 +126,7 @@ TEST_CASE("ListBans: returns empty list when no bans exist",
 TEST_CASE("ListBans: returns account bans when filter is Account",
           "[application][moderation][list_bans]") {
     Fixture f;
-    f.account_bans->bans.push_back(application::ports::AccountBan{
+    f.account_bans->bans.push_back(domain::moderation::AccountBan{
         .banned_account = domain::AccountId{10},
         .banned_by      = domain::AccountId{1},
         .reason         = "cheating",
@@ -152,7 +152,7 @@ TEST_CASE("ListBans: returns account bans when filter is Account",
 TEST_CASE("ListBans: returns IP bans when filter is Ip",
           "[application][moderation][list_bans]") {
     Fixture f;
-    f.account_bans->bans.push_back(application::ports::AccountBan{
+    f.account_bans->bans.push_back(domain::moderation::AccountBan{
         .banned_account = domain::AccountId{10},
         .banned_by      = domain::AccountId{1},
         .reason         = "cheating",
@@ -178,7 +178,7 @@ TEST_CASE("ListBans: returns IP bans when filter is Ip",
 TEST_CASE("ListBans: returns all bans when filter is nullopt",
           "[application][moderation][list_bans]") {
     Fixture f;
-    f.account_bans->bans.push_back(application::ports::AccountBan{
+    f.account_bans->bans.push_back(domain::moderation::AccountBan{
         .banned_account = domain::AccountId{10},
         .banned_by      = domain::AccountId{1},
         .reason         = "cheating",
@@ -204,7 +204,7 @@ TEST_CASE("ListBans: respects max_results limit",
     Fixture f;
     // Add 3 account bans
     for (uint32_t i = 1; i <= 3; ++i) {
-        f.account_bans->bans.push_back(application::ports::AccountBan{
+        f.account_bans->bans.push_back(domain::moderation::AccountBan{
             .banned_account = domain::AccountId{i},
             .banned_by      = domain::AccountId{1},
             .reason         = "spam",

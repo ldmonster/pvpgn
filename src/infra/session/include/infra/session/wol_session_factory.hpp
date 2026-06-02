@@ -16,6 +16,8 @@
 #include "domain/shared/ids.hpp"
 #include "infra/net/tcp_session.hpp"
 #include "protocol/wolgameres/wol_fsm.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 
 namespace pvpgn::infra::session {
 
@@ -25,8 +27,8 @@ class WolSessionFactory {
 public:
     /// Create a factory with the given dependencies.
     WolSessionFactory(
-        std::shared_ptr<application::ports::ISessionRegistry> registry,
-        std::shared_ptr<pvpgn::application::ports::IGameRepository> games,
+        std::shared_ptr<domain::identity::ISessionRegistry> registry,
+        std::shared_ptr<pvpgn::domain::gameplay::IGameRepository> games,
         std::shared_ptr<pvpgn::application::ports::IEventBus> event_bus)
         : registry_(registry), games_(games), event_bus_(event_bus) {}
 
@@ -63,8 +65,8 @@ public:
     }
 
 private:
-    std::weak_ptr<application::ports::ISessionRegistry> registry_;
-    std::shared_ptr<pvpgn::application::ports::IGameRepository> games_;
+    std::weak_ptr<domain::identity::ISessionRegistry> registry_;
+    std::shared_ptr<pvpgn::domain::gameplay::IGameRepository> games_;
     std::shared_ptr<pvpgn::application::ports::IEventBus> event_bus_;
     static std::atomic<std::uint64_t> next_session_id_;
 };

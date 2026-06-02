@@ -20,6 +20,14 @@
 #include "infra/inmemory/realm_repository.hpp"
 #include "infra/inmemory/in_memory_team_repository.hpp"
 
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/realm/ports.hpp"
+#include "domain/social/ports.hpp"
+
 namespace pvpgn::infra::inmemory {
 
 /// In-memory Unit of Work implementation.
@@ -62,43 +70,43 @@ public:
         // No-op for in-memory; changes are ephemeral and live in shared_ptr refs
     }
 
-    application::ports::IAccountRepository& accounts() override {
+    domain::identity::IAccountRepository& accounts() override {
         return *accounts_;
     }
 
-    application::ports::IChannelRepository& channels() override {
+    domain::chat::IChannelRepository& channels() override {
         return *channels_;
     }
 
-    application::ports::IGameRepository& games() override {
+    domain::gameplay::IGameRepository& games() override {
         return *games_;
     }
 
-    application::ports::IClanRepository& clans() override {
+    domain::social::IClanRepository& clans() override {
         return *clans_;
     }
 
-    application::ports::ILadderRepository& ladder() override {
+    domain::ladder::ILadderRepository& ladder() override {
         return *ladder_;
     }
 
-    application::ports::IIpBanRepository& ip_bans() override {
+    domain::moderation::IIpBanRepository& ip_bans() override {
         return *ip_bans_;
     }
 
-    application::ports::IAccountBanRepository& account_bans() override {
+    domain::moderation::IAccountBanRepository& account_bans() override {
         return *account_bans_;
     }
 
-    application::ports::IFriendListRepository& friend_lists() override {
+    domain::social::IFriendListRepository& friend_lists() override {
         return *friend_lists_;
     }
 
-    application::ports::IRealmRepository& realms() override {
+    domain::realm::IRealmRepository& realms() override {
         return *realms_;
     }
 
-    application::ports::ITeamRepository& teams() override {
+    domain::social::ITeamRepository& teams() override {
         return *teams_;
     }
 

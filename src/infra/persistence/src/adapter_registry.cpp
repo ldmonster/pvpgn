@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "infra/persistence/adapter_registry.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
 
 namespace pvpgn::infra::persistence {
 

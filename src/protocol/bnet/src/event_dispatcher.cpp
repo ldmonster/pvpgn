@@ -37,7 +37,7 @@ inline constexpr std::uint32_t kServerRegAuth    = 0xBADC0FFEu;
 /// Encode a single SID_CHATEVENT packet into @p w and broadcast it to
 /// @p target_sessions via @p router.  Returns immediately if router is null.
 void send_chat_event(
-    application::ports::IMessageRouter*          router,
+    domain::connection::IMessageRouter*          router,
     std::span<const domain::SessionId>           target_sessions,
     std::uint32_t                                event_id,
     std::uint32_t                                flags,

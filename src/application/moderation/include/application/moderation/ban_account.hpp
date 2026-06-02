@@ -8,7 +8,9 @@
 #include <optional>
 #include <string>
 
-#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "core/clock.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
@@ -32,8 +34,8 @@ enum class BanAccountError : std::uint8_t {
 
 class BanAccount {
 public:
-    BanAccount(std::shared_ptr<application::ports::IAccountBanRepository> bans,
-               std::shared_ptr<application::ports::IAccountRepository> accounts,
+    BanAccount(std::shared_ptr<domain::moderation::IAccountBanRepository> bans,
+               std::shared_ptr<domain::identity::IAccountRepository> accounts,
                std::shared_ptr<application::ports::IEventBus> event_bus)
         : bans_(bans), accounts_(accounts), event_bus_(event_bus) {}
 
@@ -41,8 +43,8 @@ public:
     execute(const BanAccountRequest& req);
 
 private:
-    std::shared_ptr<application::ports::IAccountBanRepository> bans_;
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
+    std::shared_ptr<domain::moderation::IAccountBanRepository> bans_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

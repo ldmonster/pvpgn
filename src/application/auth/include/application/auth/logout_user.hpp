@@ -16,7 +16,6 @@
 /// the membership before detaching the session.  This prevents ghost members
 /// in the channel roster after a disconnect.
 
-#include "application/ports/ports.hpp"
 #include "domain/chat/ports.hpp"
 #include "domain/shared/event_bus.hpp"
 #include "domain/gameplay/ports.hpp"
@@ -39,9 +38,9 @@ struct LogoutRequest {
 class LogoutUser {
 public:
     /// Construct without channel cleanup (legacy / minimal mode).
-    LogoutUser(application::ports::ISessionRegistry& sessions,
-               application::ports::IChannelRepository& channels,
-               application::ports::IGameRepository& games,
+    LogoutUser(domain::identity::ISessionRegistry& sessions,
+               domain::chat::IChannelRepository& channels,
+               domain::gameplay::IGameRepository& games,
                application::ports::IEventBus& bus) noexcept
         : sessions_(sessions), channels_(channels), games_(games), bus_(bus)
         , leave_channel_(nullptr) {}
@@ -51,9 +50,9 @@ public:
     /// @param leave_channel  Non-owning pointer to the LeaveChannel use-case.
     ///                       Must outlive this object.  Pass nullptr to skip
     ///                       channel cleanup (backward-compatible).
-    LogoutUser(application::ports::ISessionRegistry& sessions,
-               application::ports::IChannelRepository& channels,
-               application::ports::IGameRepository& games,
+    LogoutUser(domain::identity::ISessionRegistry& sessions,
+               domain::chat::IChannelRepository& channels,
+               domain::gameplay::IGameRepository& games,
                application::ports::IEventBus& bus,
                application::chat::LeaveChannel* leave_channel) noexcept
         : sessions_(sessions), channels_(channels), games_(games), bus_(bus)
@@ -71,9 +70,9 @@ public:
     Result execute(const LogoutRequest& req);
 
 private:
-    application::ports::ISessionRegistry&   sessions_;
-    application::ports::IChannelRepository& channels_;
-    application::ports::IGameRepository&    games_;
+    domain::identity::ISessionRegistry&   sessions_;
+    domain::chat::IChannelRepository& channels_;
+    domain::gameplay::IGameRepository&    games_;
     application::ports::IEventBus&          bus_;
 
     /// Optional LeaveChannel use-case for channel cleanup on disconnect.

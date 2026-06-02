@@ -15,7 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "application/ports/icon_provider.hpp"
+#include "domain/shared/ports/icon_provider.hpp"
+
 
 namespace pvpgn::infra::inmemory {
 

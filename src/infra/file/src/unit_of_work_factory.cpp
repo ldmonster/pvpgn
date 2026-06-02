@@ -6,6 +6,8 @@
 #include "infra/file/ip_ban_repository.hpp"
 #include "infra/file/unit_of_work.hpp"
 
+#include "application/persistence/unit_of_work.hpp"
+
 namespace pvpgn::infra::file {
 
 FileUnitOfWorkFactory::FileUnitOfWorkFactory(

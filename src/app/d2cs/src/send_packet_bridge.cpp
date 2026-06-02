@@ -9,7 +9,7 @@
 // a registered handler the C entry-point returns 0 so callers fall
 // back to their existing path.
 
-#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_packet_bridge.hpp"
 
 #include <atomic>
 

@@ -18,6 +18,14 @@
 #include "infra/inmemory/ladder_repository.hpp"
 #include "infra/inmemory/realm_repository.hpp"
 
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/realm/ports.hpp"
+#include "domain/social/ports.hpp"
+
 namespace pvpgn::infra::file {
 
 class FileUnitOfWork final : public application::ports::IUnitOfWork {
@@ -30,16 +38,16 @@ public:
     void rollback() noexcept override;
 
     // Repository accessors
-    application::ports::IAccountRepository& accounts() override;
-    application::ports::IChannelRepository& channels() override;
-    application::ports::IGameRepository& games() override;
-    application::ports::IClanRepository& clans() override;
-    application::ports::ILadderRepository& ladder() override;
-    application::ports::IIpBanRepository& ip_bans() override;
-    application::ports::IAccountBanRepository& account_bans() override;
-    application::ports::IFriendListRepository& friend_lists() override;
-    application::ports::IRealmRepository& realms() override;
-    [[nodiscard]] application::ports::ITeamRepository& teams() override;
+    domain::identity::IAccountRepository& accounts() override;
+    domain::chat::IChannelRepository& channels() override;
+    domain::gameplay::IGameRepository& games() override;
+    domain::social::IClanRepository& clans() override;
+    domain::ladder::ILadderRepository& ladder() override;
+    domain::moderation::IIpBanRepository& ip_bans() override;
+    domain::moderation::IAccountBanRepository& account_bans() override;
+    domain::social::IFriendListRepository& friend_lists() override;
+    domain::realm::IRealmRepository& realms() override;
+    [[nodiscard]] domain::social::ITeamRepository& teams() override;
 
 private:
     std::unique_ptr<FileAccountRepository>              accounts_;

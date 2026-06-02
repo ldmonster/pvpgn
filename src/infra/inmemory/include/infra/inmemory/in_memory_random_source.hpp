@@ -11,7 +11,8 @@
 #include <random>
 #include <span>
 
-#include "application/ports/random_source.hpp"
+#include "domain/shared/ports/random_source.hpp"
+
 
 namespace pvpgn::infra::inmemory {
 

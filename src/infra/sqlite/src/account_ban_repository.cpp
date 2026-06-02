@@ -2,13 +2,15 @@
 
 #include "infra/sqlite/account_ban_repository.hpp"
 
+#include "domain/moderation/ports.hpp"
+
 namespace pvpgn::infra::sqlite {
 
 SQLiteAccountBanRepository::SQLiteAccountBanRepository(
     std::shared_ptr<SQLiteConnection> conn)
     : conn_(std::move(conn)) {}
 
-core::Result<std::optional<application::ports::AccountBan>>
+core::Result<std::optional<domain::moderation::AccountBan>>
 SQLiteAccountBanRepository::find_active_ban(domain::AccountId,
                                             core::SystemTime) const {
     return core::fail(core::Error{core::StatusCode::Unimplemented,
@@ -16,7 +18,7 @@ SQLiteAccountBanRepository::find_active_ban(domain::AccountId,
 }
 
 core::Status<>
-SQLiteAccountBanRepository::add_ban(const application::ports::AccountBan&) {
+SQLiteAccountBanRepository::add_ban(const domain::moderation::AccountBan&) {
     return core::fail(core::Error{core::StatusCode::Unimplemented,
                                   "sqlite account_ban: not yet implemented"});
 }
@@ -28,6 +30,6 @@ SQLiteAccountBanRepository::remove_ban(domain::AccountId) {
 }
 
 void SQLiteAccountBanRepository::for_each(
-    std::function<bool(const application::ports::AccountBan&)>) const {}
+    std::function<bool(const domain::moderation::AccountBan&)>) const {}
 
 }  // namespace pvpgn::infra::sqlite

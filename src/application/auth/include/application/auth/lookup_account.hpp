@@ -11,7 +11,6 @@
 #include <string>
 #include <string_view>
 
-#include "application/ports/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "core/result.hpp"
@@ -29,8 +28,8 @@ struct LookupAccountResult {
 class LookupAccountByName {
 public:
     explicit LookupAccountByName(
-        application::ports::IAccountRepository& repo,
-        application::ports::ISessionRegistry&   sessions) noexcept
+        domain::identity::IAccountRepository& repo,
+        domain::identity::ISessionRegistry&   sessions) noexcept
         : repo_(repo), sessions_(sessions) {}
 
     /// Returns the account info, or a `NotFound` error if no such account
@@ -39,8 +38,8 @@ public:
     execute(std::string_view name) const;
 
 private:
-    application::ports::IAccountRepository& repo_;
-    application::ports::ISessionRegistry&   sessions_;
+    domain::identity::IAccountRepository& repo_;
+    domain::identity::ISessionRegistry&   sessions_;
 };
 
 }  // namespace pvpgn::application::auth

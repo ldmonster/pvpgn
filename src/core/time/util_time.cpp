@@ -36,10 +36,10 @@ namespace pvpgn
 		int         minutes;
 		int         seconds;
 
-		days = totsecs / (24 * 60 * 60);
-		hours = (totsecs / (60 * 60)) % 24;
-		minutes = (totsecs / 60) % 60;
-		seconds = totsecs % 60;
+		days = static_cast<int>(totsecs / (24 * 60 * 60));
+		hours = static_cast<int>((totsecs / (60 * 60)) % 24);
+		minutes = static_cast<int>((totsecs / 60) % 60);
+		seconds = static_cast<int>(totsecs % 60);
 
 		if (days > 0)
 			std::sprintf(temp, "%d day%s %d hour%s %d minute%s %d second%s",
@@ -80,7 +80,7 @@ namespace pvpgn
 			{
 			case ':':
 				temp *= 60;
-				temp += std::strtoul(&clockstr[i], NULL, 10);
+				temp += static_cast<unsigned int>(std::strtoul(&clockstr[i], nullptr, 10));
 				i = j + 1;
 				break;
 			case '0':
@@ -101,7 +101,7 @@ namespace pvpgn
 		if (i < j)
 		{
 			temp *= 60;
-			temp += std::strtoul(&clockstr[i], NULL, 10);
+			temp += static_cast<unsigned int>(std::strtoul(&clockstr[i], nullptr, 10));
 		}
 
 		*totsecs = temp;

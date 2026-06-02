@@ -4,6 +4,7 @@
 /// Implementation of MetricsHandler (Plan 10 §5–6).
 
 #include "infra/health/metrics_handler.hpp"
+#include "core/metrics.hpp"
 
 #include <sstream>
 #include <stdexcept>
@@ -13,7 +14,7 @@
 namespace pvpgn::infra::health {
 
 MetricsHandler::MetricsHandler(
-    std::shared_ptr<application::ports::IMetricsRegistry> registry)
+    std::shared_ptr<core::IMetricsRegistry> registry)
     : registry_(std::move(registry)) {
     if (!registry_) {
         throw std::invalid_argument("MetricsHandler: registry must not be null");

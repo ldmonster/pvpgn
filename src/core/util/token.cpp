@@ -17,13 +17,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 //#define PREFS_INTERNAL_ACCESS
-#include "common/setup_before.h"
 #include "token.h"
 
 #include <cctype>
 
-#include "common/eventlog.h"
-#include "common/setup_after.h"
+#include "core/format.hpp"
 
 namespace pvpgn
 {
@@ -42,7 +40,7 @@ namespace pvpgn
 			return NULL;
 
 		/* skip leading whitespace */
-		for (i = *pos; std::isspace((int)ptr[i]); i++);
+		for (i = *pos; std::isspace(static_cast<unsigned char>(ptr[i])); i++);
 
 		if (ptr[i] == '\0')
 			return NULL; /* if after whitespace, we're done */
@@ -66,7 +64,7 @@ namespace pvpgn
 					break;
 			}
 			else
-			if (std::isspace((int)ptr[i]))
+			if (std::isspace(static_cast<unsigned char>(ptr[i])))
 				break;
 			i++;
 		}

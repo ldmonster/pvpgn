@@ -144,12 +144,12 @@ add_subdirectory(core/strings)
 add_subdirectory(core/encoding)
 add_subdirectory(core/types)
 add_subdirectory(core/time)
+add_subdirectory(core/net)
 add_subdirectory(core/util)
 add_subdirectory(core/debug)
 add_subdirectory(core/error)
 add_subdirectory(core/config)
 add_subdirectory(core/version)
-add_subdirectory(core/net)
 
 # ---- runtime (service host, peer-to-peer communication) -------------------
 
@@ -773,14 +773,21 @@ pvpgn_v3_add_library(domain_matchmaking
 
 # ---- application/ports (interface-only) ---------------------------------
 
+# Plan 05 finalization: src/application/ports/ has been DELETED. Every port
+# interface now lives in its owning bounded context (domain/<ctx>/ports*) or in
+# core (metrics). `application_ports` survives only as a build-convenience
+# INTERFACE aggregate so the 46 dependent targets keep resolving the domain/core
+# includes + the application/persistence ports; it contributes no headers of its
+# own.
 pvpgn_v3_add_library(application_ports
     INTERFACE
     PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/application/ports/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/persistence/include
     PUBLIC_DEPS
         core
         domain_shared
         domain_identity
+        domain_connection
         domain_chat
         domain_gameplay
         domain_moderation

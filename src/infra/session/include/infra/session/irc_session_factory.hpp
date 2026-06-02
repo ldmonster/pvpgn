@@ -28,7 +28,7 @@ public:
 
     /// Create a factory with the given dependencies.
     IrcSessionFactory(
-        std::shared_ptr<application::ports::ISessionRegistry> registry,
+        std::shared_ptr<domain::identity::ISessionRegistry> registry,
         UseCaseContext use_cases)
         : registry_(registry), use_cases_(use_cases) {}
 
@@ -65,7 +65,7 @@ public:
     }
 
 private:
-    std::weak_ptr<application::ports::ISessionRegistry> registry_;
+    std::weak_ptr<domain::identity::ISessionRegistry> registry_;
     UseCaseContext use_cases_;
     static std::atomic<std::uint64_t> next_session_id_;
 };

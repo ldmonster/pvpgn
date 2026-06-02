@@ -16,10 +16,11 @@
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemorySessionTokenIssuer final
-    : public application::ports::ISessionTokenIssuer {
+    : public domain::identity::ISessionTokenIssuer {
 public:
     std::string
     issue(domain::AccountId account_id) override {

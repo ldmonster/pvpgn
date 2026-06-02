@@ -18,7 +18,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 // Westwood Online (WOL) tag utilities: wolv1/v2 checks, SKU/channel/locale mapping (plan 15 §3 / SOLID-S).
-// Included as a sub-TU by tag.cpp — do not compile directly.
+// Split from tag.cpp (Plan 02 full-split: one TU per file).
+
+#include "tag.h"
+
+#include <cstring>
+
+#include "core/format.hpp"
 
 namespace pvpgn
 {
@@ -63,7 +69,7 @@ namespace pvpgn
 		 */
 
 		if (!sku) {
-			ERROR0("got NULL sku");
+			LOG_ERROR(__FUNCTION__, "got NULL sku");
 			return CLIENTTAG_UNKNOWN_UINT;
 		}
 
@@ -174,7 +180,7 @@ namespace pvpgn
 		 */
 
 		if (!channeltype) {
-			ERROR0("got NULL channeltype");
+			LOG_ERROR(__FUNCTION__, "got NULL channeltype");
 			return CLIENTTAG_UNKNOWN_UINT;
 		}
 
@@ -293,7 +299,7 @@ namespace pvpgn
 			/*        case tag_wol_locale_turkey:
 						return trTR*/
 		default:
-			WARN1("{} is not defined", locale);
+			LOG_WARN(__FUNCTION__, "{} is not defined", locale);
 			return GAMELANG_ENGLISH_UINT;
 		}
 	}

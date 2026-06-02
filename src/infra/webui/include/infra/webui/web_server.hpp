@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include "core/metrics.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
 #pragma once
 
 /// @file web_server.hpp
@@ -14,11 +18,21 @@
 namespace pvpgn::core {
 class IMetricsRegistry;
 }
-namespace pvpgn::application::ports {
+namespace pvpgn::domain::identity {
 class ISessionRegistry;
-class IChannelRepository;
-class IGameRepository;
 class IAccountRepository;
+}
+namespace pvpgn::domain::chat {
+class IChannelRepository;
+}
+namespace pvpgn::domain::gameplay {
+class IGameRepository;
+}
+namespace pvpgn::application::ports {
+using domain::identity::ISessionRegistry;
+using domain::identity::IAccountRepository;
+using domain::chat::IChannelRepository;
+using domain::gameplay::IGameRepository;
 using IMetricsRegistry = core::IMetricsRegistry;
 }
 namespace pvpgn::infra::net {
@@ -43,11 +57,11 @@ public:
     EmbeddedWebServer(
         std::string_view bind_address,
         std::uint16_t port,
-        std::shared_ptr<pvpgn::application::ports::ISessionRegistry> registry,
-        std::shared_ptr<pvpgn::application::ports::IChannelRepository> channels,
-        std::shared_ptr<pvpgn::application::ports::IGameRepository> games,
-        std::shared_ptr<pvpgn::application::ports::IAccountRepository> accounts,
-        std::shared_ptr<pvpgn::application::ports::IMetricsRegistry> metrics,
+        std::shared_ptr<pvpgn::domain::identity::ISessionRegistry> registry,
+        std::shared_ptr<pvpgn::domain::chat::IChannelRepository> channels,
+        std::shared_ptr<pvpgn::domain::gameplay::IGameRepository> games,
+        std::shared_ptr<pvpgn::domain::identity::IAccountRepository> accounts,
+        std::shared_ptr<pvpgn::core::IMetricsRegistry> metrics,
         pvpgn::infra::net::IoRuntime& runtime);
 
     ~EmbeddedWebServer();
@@ -66,11 +80,11 @@ public:
 private:
     std::string bind_address_;
     std::uint16_t port_;
-    std::shared_ptr<pvpgn::application::ports::ISessionRegistry> registry_;
-    std::shared_ptr<pvpgn::application::ports::IChannelRepository> channels_;
-    std::shared_ptr<pvpgn::application::ports::IGameRepository> games_;
-    std::shared_ptr<pvpgn::application::ports::IAccountRepository> accounts_;
-    std::shared_ptr<pvpgn::application::ports::IMetricsRegistry> metrics_;
+    std::shared_ptr<pvpgn::domain::identity::ISessionRegistry> registry_;
+    std::shared_ptr<pvpgn::domain::chat::IChannelRepository> channels_;
+    std::shared_ptr<pvpgn::domain::gameplay::IGameRepository> games_;
+    std::shared_ptr<pvpgn::domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<pvpgn::core::IMetricsRegistry> metrics_;
     pvpgn::infra::net::IoRuntime& runtime_;
 
     class Impl;

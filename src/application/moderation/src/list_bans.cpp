@@ -13,7 +13,7 @@ ListBans::execute(const ListBansQuery& query) const {
     // 1. Collect account bans (if filter is Account or nullopt)
     if (!query.filter_type.has_value() ||
         query.filter_type.value() == BanType::Account) {
-        account_bans_->for_each([&](const application::ports::AccountBan& ban) {
+        account_bans_->for_each([&](const domain::moderation::AccountBan& ban) {
             if (results.size() >= query.max_results) {
                 return false;  // Stop early
             }

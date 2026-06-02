@@ -15,10 +15,11 @@
 #include "domain/ladder/ports.hpp"
 #include "domain/ladder/ladder.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryLadderRepository final
-    : public application::ports::ILadderRepository {
+    : public domain::ladder::ILadderRepository {
 public:
     core::Result<uint32_t, core::Error>
     get_rank(std::string_view account_name) override {

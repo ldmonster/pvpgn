@@ -16,13 +16,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include "common/setup_before.h"
-#include "common/proginfo.h"
+#include "proginfo.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include "common/setup_after.h"
 
 
 namespace pvpgn
@@ -33,10 +31,10 @@ namespace pvpgn
 		if (!vernum)
 			return -1;
 
-		*vernum = (((unsigned long)v4) << 24) |
-			(((unsigned long)v3) << 16) |
-			(((unsigned long)v2) << 8) |
-			(((unsigned long)v1));
+		*vernum = (static_cast<unsigned long>(v4) << 24) |
+			(static_cast<unsigned long>(v3) << 16) |
+			(static_cast<unsigned long>(v2) << 8) |
+			(static_cast<unsigned long>(v1));
 		return 0;
 	}
 
@@ -87,10 +85,10 @@ namespace pvpgn
 		static char verstr[32];
 
 		std::snprintf(verstr, sizeof(verstr), "%u.%u.%u.%u",
-			(unsigned int)(vernum >> 24),
-			(unsigned int)((vernum >> 16) & 0xff),
-			(unsigned int)((vernum >> 8) & 0xff),
-			(unsigned int)(vernum & 0xff));
+			static_cast<unsigned int>(vernum >> 24),
+			static_cast<unsigned int>((vernum >> 16) & 0xff),
+			static_cast<unsigned int>((vernum >> 8) & 0xff),
+			static_cast<unsigned int>(vernum & 0xff));
 		return verstr;
 	}
 

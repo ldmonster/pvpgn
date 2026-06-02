@@ -23,11 +23,9 @@
 #include <string>
 #include <vector>
 
-#include "common/setup_before.h"
-#include "common/eventlog.h"
-#include "common/addr.h"
-#include "common/util.h"
-#include "common/setup_after.h"
+#include "core/format.hpp"
+#include "addr.h"
+#include "util.h"
 
 #define DEBUG_TRANS
 
@@ -57,11 +55,11 @@ namespace pvpgn
 		t_trans		*entry;
 
 		if (!filename) {
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL filename");
+			LOG_ERROR(__FUNCTION__, "got NULL filename");
 			return -1;
 		}
 		if (!(fp = std::fopen(filename, "r"))) {
-			eventlog(eventlog_level_error, __FUNCTION__, "could not open file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
+			LOG_ERROR(__FUNCTION__, "could not open file \"{}\" for reading (std::fopen: {})", filename, std::strerror(errno));
 			return -1;
 		}
 		trans_list.clear();
@@ -75,50 +73,50 @@ namespace pvpgn
 				unsigned int endpos;
 
 				*temp = '\0';
-				len = std::strlen(buff) + 1;
+				len = static_cast<unsigned int>(std::strlen(buff) + 1);
 				for (endpos = len - 1; buff[endpos] == '\t' || buff[endpos] == ' '; endpos--);
 				buff[endpos + 1] = '\0';
 			}
 			if (!(input = std::strtok(buff, " \t"))) { /* std::strtok modifies the string it is passed */
-				eventlog(eventlog_level_error, __FUNCTION__, "missing input line {} of file \"{}\"", line, filename);
+				LOG_ERROR(__FUNCTION__, "missing input line {} of file \"{}\"", line, filename);
 				continue;
 			}
 			/* check for port number - this tells us what programs will use this entry */
 			if (!(temp = std::strrchr(input, ':'))) {
-				eventlog(eventlog_level_error, __FUNCTION__, "missing port # on input line {} of file \"{}\"", line, filename);
+				LOG_ERROR(__FUNCTION__, "missing port # on input line {} of file \"{}\"", line, filename);
 				continue;
 			}
 			temp++;
 			/* bnetd doesn't want the port 4000 entries */
 			if (program == TRANS_BNETD  && std::strcmp(temp, "4000") == 0) {
 #ifdef DEBUG_TRANS
-				eventlog(eventlog_level_debug, __FUNCTION__, "d2gs input (ignoring) \"{}\"", input);
+				LOG_DEBUG(__FUNCTION__, "d2gs input (ignoring) \"{}\"", input);
 #endif
 				continue;
 			}
 			/* d2cs only wants the port 4000 entries */
 			if (program == TRANS_D2CS && std::strcmp(temp, "4000") != 0) {
 #ifdef DEBUG_TRANS
-				eventlog(eventlog_level_debug, __FUNCTION__, "non d2gs input (ignoring) \"{}\"", input);
+				LOG_DEBUG(__FUNCTION__, "non d2gs input (ignoring) \"{}\"", input);
 #endif
 				continue;
 			}
 			if (!(output = std::strtok(NULL, " \t"))) {
-				eventlog(eventlog_level_error, __FUNCTION__, "missing output on line {} of file \"{}\"", line, filename);
+				LOG_ERROR(__FUNCTION__, "missing output on line {} of file \"{}\"", line, filename);
 				continue;
 			}
 			if (!(exclude = std::strtok(NULL, " \t"))) {
-				eventlog(eventlog_level_error, __FUNCTION__, "missing exclude on line {} of file \"{}\"", line, filename);
+				LOG_ERROR(__FUNCTION__, "missing exclude on line {} of file \"{}\"", line, filename);
 				continue;
 			}
 			if (!(include = std::strtok(NULL, " \t"))) {
-				eventlog(eventlog_level_error, __FUNCTION__, "missing include on line {} of file \"{}\"", line, filename);
+				LOG_ERROR(__FUNCTION__, "missing include on line {} of file \"{}\"", line, filename);
 				continue;
 			}
 			/* add exlude networks */
 			tmp_storage = exclude; tmp = tmp_storage.empty() ? nullptr : &tmp_storage[0];
 			npos = 0;
-			while (tmp[npos]) {
+			while (tmp && tmp[npos]) {
 				network = &tmp[npos];
 				for (; tmp[npos] != ',' && tmp[npos] != '\0'; npos++);
 				if (tmp[npos] == '\0')
@@ -131,13 +129,13 @@ namespace pvpgn
 				}
 				entry = new t_trans{};
 				if (!(entry->input = addr_create_str(input, 0, 0))) {
-					eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for input address");
+					LOG_ERROR(__FUNCTION__, "could not allocate memory for input address");
 					delete entry;
 					npos++;
 					continue;
 				}
 				if (!(entry->output = addr_create_str(input, 0, 0))) {
-					eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for output address");
+					LOG_ERROR(__FUNCTION__, "could not allocate memory for output address");
 					addr_destroy(entry->input);
 					delete entry;
 					npos++;
@@ -145,7 +143,7 @@ namespace pvpgn
 				}
 				if (std::strcmp(network, "ANY") == 0) {
 					if (!(entry->network = netaddr_create_str("0.0.0.0/0"))) {
-						eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for network address");
+						LOG_ERROR(__FUNCTION__, "could not allocate memory for network address");
 						addr_destroy(entry->output);
 						addr_destroy(entry->input);
 						delete entry;
@@ -155,7 +153,7 @@ namespace pvpgn
 				}
 				else {
 					if (!(entry->network = netaddr_create_str(network))) {
-						eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for network address");
+						LOG_ERROR(__FUNCTION__, "could not allocate memory for network address");
 						addr_destroy(entry->output);
 						addr_destroy(entry->input);
 						delete entry;
@@ -164,7 +162,7 @@ namespace pvpgn
 					}
 				}
 #ifdef DEBUG_TRANS
-				eventlog(eventlog_level_debug, __FUNCTION__,
+				LOG_DEBUG(__FUNCTION__,
 					"Adding Host -> {}, Output -> {}, Network {} - (exclude)",
 					addr_get_addr_str(entry->input, tmp1, sizeof(tmp1)),
 					addr_get_addr_str(entry->output, tmp2, sizeof(tmp2)),
@@ -176,7 +174,7 @@ namespace pvpgn
 						/* add include networks */
 			tmp_storage = include; tmp = tmp_storage.empty() ? nullptr : &tmp_storage[0];
 			npos = 0;
-			while (tmp[npos]) {
+			while (tmp && tmp[npos]) {
 				network = &tmp[npos];
 				for (; tmp[npos] != ',' && tmp[npos] != '\0'; npos++);
 				if (tmp[npos] == '\0')
@@ -189,13 +187,13 @@ namespace pvpgn
 				}
 				entry = new t_trans{};
 				if (!(entry->input = addr_create_str(input, 0, 0))) {
-					eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for input address");
+					LOG_ERROR(__FUNCTION__, "could not allocate memory for input address");
 					delete entry;
 					npos++;
 					continue;
 				}
 				if (!(entry->output = addr_create_str(output, 0, 0))) {
-					eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for output address");
+					LOG_ERROR(__FUNCTION__, "could not allocate memory for output address");
 					addr_destroy(entry->input);
 					delete entry;
 					npos++;
@@ -203,7 +201,7 @@ namespace pvpgn
 				}
 				if (std::strcmp(network, "ANY") == 0) {
 					if (!(entry->network = netaddr_create_str("0.0.0.0/0"))) {
-						eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for network address");
+						LOG_ERROR(__FUNCTION__, "could not allocate memory for network address");
 						addr_destroy(entry->output);
 						addr_destroy(entry->input);
 						delete entry;
@@ -213,7 +211,7 @@ namespace pvpgn
 				}
 				else {
 					if (!(entry->network = netaddr_create_str(network))) {
-						eventlog(eventlog_level_error, __FUNCTION__, "could not allocate memory for network address");
+						LOG_ERROR(__FUNCTION__, "could not allocate memory for network address");
 						addr_destroy(entry->output);
 						addr_destroy(entry->input);
 						delete entry;
@@ -222,7 +220,7 @@ namespace pvpgn
 					}
 				}
 #ifdef DEBUG_TRANS
-				eventlog(eventlog_level_debug, __FUNCTION__,
+				LOG_DEBUG(__FUNCTION__,
 					"Adding Host -> {}, Output -> {}, Network {} - (include)",
 					addr_get_addr_str(entry->input, tmp1, sizeof(tmp1)),
 					addr_get_addr_str(entry->output, tmp2, sizeof(tmp2)),
@@ -234,7 +232,7 @@ namespace pvpgn
 				}
 		file_get_line(NULL); // clear file_get_line buffer
 		std::fclose(fp);
-		eventlog(eventlog_level_info, __FUNCTION__, "trans file loaded");
+		LOG_INFO(__FUNCTION__, "trans file loaded");
 		return 0;
 	}
 
@@ -266,7 +264,7 @@ namespace pvpgn
 		char	 temp4[32];
 
 #ifdef DEBUG_TRANS
-		eventlog(eventlog_level_debug, __FUNCTION__, "checking {} for client {} ...",
+		LOG_DEBUG(__FUNCTION__, "checking {} for client {} ...",
 			addr_num_to_addr_str(*addr, *port),
 			addr_num_to_ip_str(clientaddr));
 #endif
@@ -274,25 +272,25 @@ namespace pvpgn
 		for (t_trans * entry : trans_list)
 		{
 #ifdef DEBUG_TRANS
-			eventlog(eventlog_level_debug, __FUNCTION__, "against entry -> {} output {} network {}",
+			LOG_DEBUG(__FUNCTION__, "against entry -> {} output {} network {}",
 				addr_get_addr_str(entry->input, temp1, sizeof(temp1)),
 				addr_get_addr_str(entry->output, temp2, sizeof(temp2)),
 				netaddr_get_addr_str(entry->network, temp3, sizeof(temp3)));
 #endif
 			if (addr_get_ip(entry->input) != *addr || addr_get_port(entry->input) != *port) {
 #ifdef DEBUG_TRANS
-				eventlog(eventlog_level_debug, __FUNCTION__, "entry does match input address");
+				LOG_DEBUG(__FUNCTION__, "entry does match input address");
 #endif
 				continue;
 			}
 			if (netaddr_contains_addr_num(entry->network, clientaddr) == 0) {
 #ifdef DEBUG_TRANS
-				eventlog(eventlog_level_debug, __FUNCTION__, "client is not in the correct network");
+				LOG_DEBUG(__FUNCTION__, "client is not in the correct network");
 #endif
 				continue;
 			}
 #ifdef DEBUG_TRANS
-			eventlog(eventlog_level_debug, __FUNCTION__, "{} translated to {}",
+			LOG_DEBUG(__FUNCTION__, "{} translated to {}",
 				addr_num_to_addr_str(*addr, *port),
 				addr_get_addr_str(entry->output, temp4, sizeof(temp4)));
 #endif
@@ -301,7 +299,7 @@ namespace pvpgn
 			return 1; /* match found in list */
 		}
 #ifdef DEBUG_TRANS
-		eventlog(eventlog_level_debug, __FUNCTION__, "no match found for {} (not translated)",
+		LOG_DEBUG(__FUNCTION__, "no match found for {} (not translated)",
 			addr_num_to_addr_str(*addr, *port));
 #endif
 		return 0; /* no match found in list */

@@ -31,8 +31,8 @@ IssueWarning::execute(const IssueWarningCommand& cmd) const {
     }
 
     // 4. Record audit entry
-    audit_->record(application::ports::AuditEntry{
-        .action    = application::ports::AuditAction::AccountLocked,
+    audit_->record(domain::moderation::AuditEntry{
+        .action    = domain::moderation::AuditAction::AccountLocked,
         .actor     = cmd.admin_id,
         .subject   = cmd.target_account_name,
         .details   = cmd.reason,

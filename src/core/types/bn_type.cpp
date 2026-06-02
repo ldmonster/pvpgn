@@ -15,14 +15,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include "common/setup_before.h"
-#include "common/bn_type.h"
+#include "bn_type.h"
 
 #include <cstdint>
 #include <cstring>
 
-#include "common/eventlog.h"
-#include "common/setup_after.h"
+#include "core/format.hpp"
 
 
 /************************************************************/
@@ -36,22 +34,22 @@ namespace pvpgn
 
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 		if (len < 1)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got zero len");
+			LOG_ERROR(__FUNCTION__, "got zero len");
 			return -1;
 		}
 
 		for (i = 0; i < len - 1 && i < 1; i++)
-			dst[i] = (char)(*src)[-i];
+			dst[i] = static_cast<char>((*src)[-i]);
 		dst[i] = '\0';
 
 		return 0;
@@ -64,22 +62,22 @@ namespace pvpgn
 
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 		if (len < 1)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got zero len");
+			LOG_ERROR(__FUNCTION__, "got zero len");
 			return -1;
 		}
 
 		for (i = 0; i < len - 1 && i < 2; i++)
-			dst[i] = (char)(*src)[1 - i];
+			dst[i] = static_cast<char>((*src)[1 - i]);
 		dst[i] = '\0';
 
 		return 0;
@@ -92,22 +90,22 @@ namespace pvpgn
 
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 		if (len < 1)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got zero len");
+			LOG_ERROR(__FUNCTION__, "got zero len");
 			return -1;
 		}
 
 		for (i = 0; i < len - 1 && i < 4; i++)
-			dst[i] = (char)(*src)[3 - i];
+			dst[i] = static_cast<char>((*src)[3 - i]);
 		dst[i] = '\0';
 
 		return 0;
@@ -120,22 +118,22 @@ namespace pvpgn
 
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 		if (len < 1)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got zero len");
+			LOG_ERROR(__FUNCTION__, "got zero len");
 			return -1;
 		}
 
 		for (i = 0; i < len - 1 && i < 8; i++)
-			dst[i] = (char)(*src)[7 - i];
+			dst[i] = static_cast<char>((*src)[7 - i]);
 		dst[i] = '\0';
 
 		return 0;
@@ -149,16 +147,16 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!tag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return -1;
 		}
 
-		(*dst)[0] = (unsigned char)tag[0];
+		(*dst)[0] = static_cast<unsigned char>(tag[0]);
 		return 0;
 	}
 
@@ -167,17 +165,17 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!tag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return -1;
 		}
 
-		(*dst)[0] = (unsigned char)tag[3];
-		(*dst)[1] = (unsigned char)tag[2];
+		(*dst)[0] = static_cast<unsigned char>(tag[3]);
+		(*dst)[1] = static_cast<unsigned char>(tag[2]);
 		return 0;
 	}
 
@@ -186,19 +184,19 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!tag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return -1;
 		}
 
-		(*dst)[0] = (unsigned char)tag[3];
-		(*dst)[1] = (unsigned char)tag[2];
-		(*dst)[2] = (unsigned char)tag[1];
-		(*dst)[3] = (unsigned char)tag[0];
+		(*dst)[0] = static_cast<unsigned char>(tag[3]);
+		(*dst)[1] = static_cast<unsigned char>(tag[2]);
+		(*dst)[2] = static_cast<unsigned char>(tag[1]);
+		(*dst)[3] = static_cast<unsigned char>(tag[0]);
 		return 0;
 	}
 
@@ -207,23 +205,23 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!tag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return -1;
 		}
 
-		(*dst)[0] = (unsigned char)tag[7];
-		(*dst)[1] = (unsigned char)tag[6];
-		(*dst)[2] = (unsigned char)tag[5];
-		(*dst)[3] = (unsigned char)tag[4];
-		(*dst)[4] = (unsigned char)tag[3];
-		(*dst)[5] = (unsigned char)tag[2];
-		(*dst)[6] = (unsigned char)tag[1];
-		(*dst)[7] = (unsigned char)tag[0];
+		(*dst)[0] = static_cast<unsigned char>(tag[7]);
+		(*dst)[1] = static_cast<unsigned char>(tag[6]);
+		(*dst)[2] = static_cast<unsigned char>(tag[5]);
+		(*dst)[3] = static_cast<unsigned char>(tag[4]);
+		(*dst)[4] = static_cast<unsigned char>(tag[3]);
+		(*dst)[5] = static_cast<unsigned char>(tag[2]);
+		(*dst)[6] = static_cast<unsigned char>(tag[1]);
+		(*dst)[7] = static_cast<unsigned char>(tag[0]);
 		return 0;
 	}
 
@@ -237,11 +235,11 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return 0;
 		}
 
-		temp = ((std::uint8_t)src[0]);
+		temp = (static_cast<std::uint8_t>(src[0]));
 		return temp;
 	}
 
@@ -252,12 +250,12 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return 0;
 		}
 
-		temp = ((std::uint16_t)src[0]);
-		temp |= ((std::uint16_t)src[1]) << 8;
+		temp = (static_cast<std::uint16_t>(src[0]));
+		temp |= (static_cast<std::uint16_t>(src[1])) << 8;
 		return temp;
 	}
 
@@ -268,12 +266,12 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return 0;
 		}
 
-		temp = ((std::uint16_t)src[1]);
-		temp |= ((std::uint16_t)src[0]) << 8;
+		temp = (static_cast<std::uint16_t>(src[1]));
+		temp |= (static_cast<std::uint16_t>(src[0])) << 8;
 		return temp;
 	}
 
@@ -284,14 +282,14 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return 0;
 		}
 
-		temp = ((std::uint32_t)src[0]);
-		temp |= ((std::uint32_t)src[1]) << 8;
-		temp |= ((std::uint32_t)src[2]) << 16;
-		temp |= ((std::uint32_t)src[3]) << 24;
+		temp = (static_cast<std::uint32_t>(src[0]));
+		temp |= (static_cast<std::uint32_t>(src[1])) << 8;
+		temp |= (static_cast<std::uint32_t>(src[2])) << 16;
+		temp |= (static_cast<std::uint32_t>(src[3])) << 24;
 		return temp;
 	}
 
@@ -302,14 +300,14 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return 0;
 		}
 
-		temp = ((std::uint32_t)src[3]);
-		temp |= ((std::uint32_t)src[2]) << 8;
-		temp |= ((std::uint32_t)src[1]) << 16;
-		temp |= ((std::uint32_t)src[0]) << 24;
+		temp = (static_cast<std::uint32_t>(src[3]));
+		temp |= (static_cast<std::uint32_t>(src[2])) << 8;
+		temp |= (static_cast<std::uint32_t>(src[1])) << 16;
+		temp |= (static_cast<std::uint32_t>(src[0])) << 24;
 		return temp;
 	}
 
@@ -319,18 +317,18 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return 0;
 		}
 
-		temp = ((std::uint64_t)src[0]);
-		temp |= ((std::uint64_t)src[1]) << 8;
-		temp |= ((std::uint64_t)src[2]) << 16;
-		temp |= ((std::uint64_t)src[3]) << 24;
-		temp |= ((std::uint64_t)src[4]) << 32;
-		temp |= ((std::uint64_t)src[5]) << 40;
-		temp |= ((std::uint64_t)src[6]) << 48;
-		temp |= ((std::uint64_t)src[7]) << 56;
+		temp = (static_cast<std::uint64_t>(src[0]));
+		temp |= (static_cast<std::uint64_t>(src[1])) << 8;
+		temp |= (static_cast<std::uint64_t>(src[2])) << 16;
+		temp |= (static_cast<std::uint64_t>(src[3])) << 24;
+		temp |= (static_cast<std::uint64_t>(src[4])) << 32;
+		temp |= (static_cast<std::uint64_t>(src[5])) << 40;
+		temp |= (static_cast<std::uint64_t>(src[6])) << 48;
+		temp |= (static_cast<std::uint64_t>(src[7])) << 56;
 		return temp;
 	}
 
@@ -340,14 +338,14 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return 0;
 		}
 
-		temp = ((std::uint32_t)src[4]);
-		temp |= ((std::uint32_t)src[5]) << 8;
-		temp |= ((std::uint32_t)src[6]) << 16;
-		temp |= ((std::uint32_t)src[7]) << 24;
+		temp = (static_cast<std::uint32_t>(src[4]));
+		temp |= (static_cast<std::uint32_t>(src[5])) << 8;
+		temp |= (static_cast<std::uint32_t>(src[6])) << 16;
+		temp |= (static_cast<std::uint32_t>(src[7])) << 24;
 		return temp;
 	}
 
@@ -358,14 +356,14 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return 0;
 		}
 
-		temp = ((std::uint32_t)src[0]);
-		temp |= ((std::uint32_t)src[1]) << 8;
-		temp |= ((std::uint32_t)src[2]) << 16;
-		temp |= ((std::uint32_t)src[3]) << 24;
+		temp = (static_cast<std::uint32_t>(src[0]));
+		temp |= (static_cast<std::uint32_t>(src[1])) << 8;
+		temp |= (static_cast<std::uint32_t>(src[2])) << 16;
+		temp |= (static_cast<std::uint32_t>(src[3])) << 24;
 		return temp;
 	}
 
@@ -377,11 +375,11 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((src));
+		(*dst)[0] = static_cast<std::uint8_t>((src));
 		return 0;
 	}
 
@@ -390,12 +388,12 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((src)& 0xff);
-		(*dst)[1] = (std::uint8_t)((src >> 8));
+		(*dst)[0] = static_cast<std::uint8_t>((src)& 0xff);
+		(*dst)[1] = static_cast<std::uint8_t>((src >> 8));
 		return 0;
 	}
 
@@ -404,12 +402,12 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((src >> 8));
-		(*dst)[1] = (std::uint8_t)((src)& 0xff);
+		(*dst)[0] = static_cast<std::uint8_t>((src >> 8));
+		(*dst)[1] = static_cast<std::uint8_t>((src)& 0xff);
 		return 0;
 	}
 
@@ -418,14 +416,14 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((src)& 0xff);
-		(*dst)[1] = (std::uint8_t)((src >> 8) & 0xff);
-		(*dst)[2] = (std::uint8_t)((src >> 16) & 0xff);
-		(*dst)[3] = (std::uint8_t)((src >> 24));
+		(*dst)[0] = static_cast<std::uint8_t>((src)& 0xff);
+		(*dst)[1] = static_cast<std::uint8_t>((src >> 8) & 0xff);
+		(*dst)[2] = static_cast<std::uint8_t>((src >> 16) & 0xff);
+		(*dst)[3] = static_cast<std::uint8_t>((src >> 24));
 		return 0;
 	}
 
@@ -434,14 +432,14 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((src >> 24));
-		(*dst)[1] = (std::uint8_t)((src >> 16) & 0xff);
-		(*dst)[2] = (std::uint8_t)((src >> 8) & 0xff);
-		(*dst)[3] = (std::uint8_t)((src)& 0xff);
+		(*dst)[0] = static_cast<std::uint8_t>((src >> 24));
+		(*dst)[1] = static_cast<std::uint8_t>((src >> 16) & 0xff);
+		(*dst)[2] = static_cast<std::uint8_t>((src >> 8) & 0xff);
+		(*dst)[3] = static_cast<std::uint8_t>((src)& 0xff);
 		return 0;
 	}
 
@@ -449,18 +447,18 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((src)& 0xff);
-		(*dst)[1] = (std::uint8_t)((src >> 8) & 0xff);
-		(*dst)[2] = (std::uint8_t)((src >> 16) & 0xff);
-		(*dst)[3] = (std::uint8_t)((src >> 24) & 0xff);
-		(*dst)[4] = (std::uint8_t)((src >> 32) & 0xff);
-		(*dst)[5] = (std::uint8_t)((src >> 40) & 0xff);
-		(*dst)[6] = (std::uint8_t)((src >> 48) & 0xff);
-		(*dst)[7] = (std::uint8_t)((src >> 56));
+		(*dst)[0] = static_cast<std::uint8_t>((src)& 0xff);
+		(*dst)[1] = static_cast<std::uint8_t>((src >> 8) & 0xff);
+		(*dst)[2] = static_cast<std::uint8_t>((src >> 16) & 0xff);
+		(*dst)[3] = static_cast<std::uint8_t>((src >> 24) & 0xff);
+		(*dst)[4] = static_cast<std::uint8_t>((src >> 32) & 0xff);
+		(*dst)[5] = static_cast<std::uint8_t>((src >> 40) & 0xff);
+		(*dst)[6] = static_cast<std::uint8_t>((src >> 48) & 0xff);
+		(*dst)[7] = static_cast<std::uint8_t>((src >> 56));
 		return 0;
 	}
 
@@ -469,18 +467,18 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((src >> 56));
-		(*dst)[1] = (std::uint8_t)((src >> 48) & 0xff);
-		(*dst)[2] = (std::uint8_t)((src >> 40) & 0xff);
-		(*dst)[3] = (std::uint8_t)((src >> 32) & 0xff);
-		(*dst)[4] = (std::uint8_t)((src >> 24) & 0xff);
-		(*dst)[5] = (std::uint8_t)((src >> 16) & 0xff);
-		(*dst)[6] = (std::uint8_t)((src >> 8) & 0xff);
-		(*dst)[7] = (std::uint8_t)((src)& 0xff);
+		(*dst)[0] = static_cast<std::uint8_t>((src >> 56));
+		(*dst)[1] = static_cast<std::uint8_t>((src >> 48) & 0xff);
+		(*dst)[2] = static_cast<std::uint8_t>((src >> 40) & 0xff);
+		(*dst)[3] = static_cast<std::uint8_t>((src >> 32) & 0xff);
+		(*dst)[4] = static_cast<std::uint8_t>((src >> 24) & 0xff);
+		(*dst)[5] = static_cast<std::uint8_t>((src >> 16) & 0xff);
+		(*dst)[6] = static_cast<std::uint8_t>((src >> 8) & 0xff);
+		(*dst)[7] = static_cast<std::uint8_t>((src)& 0xff);
 		return 0;
 	}
 
@@ -488,18 +486,18 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((srcb)& 0xff);
-		(*dst)[1] = (std::uint8_t)((srcb >> 8) & 0xff);
-		(*dst)[2] = (std::uint8_t)((srcb >> 16) & 0xff);
-		(*dst)[3] = (std::uint8_t)((srcb >> 24) & 0xff);
-		(*dst)[4] = (std::uint8_t)((srca)& 0xff);
-		(*dst)[5] = (std::uint8_t)((srca >> 8) & 0xff);
-		(*dst)[6] = (std::uint8_t)((srca >> 16) & 0xff);
-		(*dst)[7] = (std::uint8_t)((srca >> 24));
+		(*dst)[0] = static_cast<std::uint8_t>((srcb)& 0xff);
+		(*dst)[1] = static_cast<std::uint8_t>((srcb >> 8) & 0xff);
+		(*dst)[2] = static_cast<std::uint8_t>((srcb >> 16) & 0xff);
+		(*dst)[3] = static_cast<std::uint8_t>((srcb >> 24) & 0xff);
+		(*dst)[4] = static_cast<std::uint8_t>((srca)& 0xff);
+		(*dst)[5] = static_cast<std::uint8_t>((srca >> 8) & 0xff);
+		(*dst)[6] = static_cast<std::uint8_t>((srca >> 16) & 0xff);
+		(*dst)[7] = static_cast<std::uint8_t>((srca >> 24));
 		return 0;
 	}
 
@@ -508,18 +506,18 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 
-		(*dst)[0] = (std::uint8_t)((srca >> 24));
-		(*dst)[1] = (std::uint8_t)((srca >> 16) & 0xff);
-		(*dst)[2] = (std::uint8_t)((srca >> 8) & 0xff);
-		(*dst)[3] = (std::uint8_t)((srca)& 0xff);
-		(*dst)[4] = (std::uint8_t)((srcb >> 24) & 0xff);
-		(*dst)[5] = (std::uint8_t)((srcb >> 16) & 0xff);
-		(*dst)[6] = (std::uint8_t)((srcb >> 8) & 0xff);
-		(*dst)[7] = (std::uint8_t)((srcb)& 0xff);
+		(*dst)[0] = static_cast<std::uint8_t>((srca >> 24));
+		(*dst)[1] = static_cast<std::uint8_t>((srca >> 16) & 0xff);
+		(*dst)[2] = static_cast<std::uint8_t>((srca >> 8) & 0xff);
+		(*dst)[3] = static_cast<std::uint8_t>((srca)& 0xff);
+		(*dst)[4] = static_cast<std::uint8_t>((srcb >> 24) & 0xff);
+		(*dst)[5] = static_cast<std::uint8_t>((srcb >> 16) & 0xff);
+		(*dst)[6] = static_cast<std::uint8_t>((srcb >> 8) & 0xff);
+		(*dst)[7] = static_cast<std::uint8_t>((srcb)& 0xff);
 		return 0;
 	}
 
@@ -531,12 +529,12 @@ namespace pvpgn
 	{
 		if (!dst)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL dst");
+			LOG_ERROR(__FUNCTION__, "got NULL dst");
 			return -1;
 		}
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 
@@ -554,12 +552,12 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 		if (!tag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return -1;
 		}
 
@@ -578,12 +576,12 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 		if (!tag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return -1;
 		}
 
@@ -602,12 +600,12 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 		if (!tag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return -1;
 		}
 
@@ -626,12 +624,12 @@ namespace pvpgn
 
 		if (!src)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL src");
+			LOG_ERROR(__FUNCTION__, "got NULL src");
 			return -1;
 		}
 		if (!tag)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return -1;
 		}
 
@@ -651,8 +649,8 @@ namespace pvpgn
 	extern int uint32_to_int(std::uint32_t num)
 	{
 		if (num < (1UL << 30))
-			return (int)num;
-		return (-(int)((~(num)) + 1));
+			return static_cast<int>(num);
+		return (-static_cast<int>((~(num)) + 1));
 	}
 
 }

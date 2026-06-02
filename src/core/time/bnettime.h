@@ -46,7 +46,7 @@ namespace pvpgn
 
 #include <ctime>
 #define JUST_NEED_TYPES
-#include "common/bn_type.h"
+#include "bn_type.h"
 #undef JUST_NEED_TYPES
 
 namespace pvpgn

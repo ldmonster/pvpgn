@@ -7,9 +7,10 @@
 #include "domain/social/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
+
 namespace pvpgn::infra::sqlite {
 
-class SQLiteClanRepository final : public application::ports::IClanRepository {
+class SQLiteClanRepository final : public domain::social::IClanRepository {
 public:
     explicit SQLiteClanRepository(std::shared_ptr<SQLiteConnection> conn);
 

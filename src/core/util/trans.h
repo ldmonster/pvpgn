@@ -21,10 +21,10 @@
 #ifdef TRANS_INTERNAL_ACCESS
 
 #ifdef JUST_NEED_TYPES
-# include "common/addr.h"
+# include "addr.h"
 #else
 # define JUST_NEED_TYPES
-# include "common/addr.h"
+# include "addr.h"
 # undef JUST_NEED_TYPES
 #endif
 

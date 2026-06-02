@@ -13,7 +13,8 @@
 #include <utility>
 #include <vector>
 
-#include "application/ports/resolver.hpp"
+#include "domain/shared/ports/resolver.hpp"
+
 
 namespace pvpgn::infra::inmemory {
 

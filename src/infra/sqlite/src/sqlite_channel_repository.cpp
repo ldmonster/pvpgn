@@ -161,7 +161,7 @@ void SqliteChannelRepository::forEach(
     std::function<bool(const domain::chat::Channel&)> predicate) const {
     if (!conn_) return;
 
-    conn_->query(
+    (void)conn_->query(
         "SELECT id, name, topic, flags, max_members FROM channels "
         "ORDER BY id ASC",
         [&predicate](const Row& row) {
@@ -174,7 +174,7 @@ std::size_t SqliteChannelRepository::size() const noexcept {
     if (!conn_) return 0;
 
     std::size_t count = 0;
-    conn_->query(
+    (void)conn_->query(
         "SELECT COUNT(*) FROM channels",
         [&count](const Row& row) {
             count = static_cast<std::size_t>(row.get_int(0));

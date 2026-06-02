@@ -314,6 +314,22 @@ void parse_network(const Config& cfg, ServerConfig& sc)
     }
     // Propagate servername to top-level compat field
     sc.servername = sc.network.servername;
+
+    // [net.timeouts] — per-protocol idle-read deadlines (seconds). Nested
+    // table, so resolve `net` first, then its `timeouts` sub-table.
+    auto u32 = [](const Config& s, std::string_view k, std::uint32_t def) -> std::uint32_t {
+        return static_cast<std::uint32_t>(s.get_or<std::int64_t>(k, static_cast<std::int64_t>(def)));
+    };
+    if (auto net = cfg.section("net")) {
+        if (auto sec = net->section("timeouts")) {
+            sc.net_timeouts.bnet   = u32(*sec, "bnet",   sc.net_timeouts.bnet);
+            sc.net_timeouts.irc    = u32(*sec, "irc",    sc.net_timeouts.irc);
+            sc.net_timeouts.telnet = u32(*sec, "telnet", sc.net_timeouts.telnet);
+            sc.net_timeouts.wol    = u32(*sec, "wol",    sc.net_timeouts.wol);
+            sc.net_timeouts.bnftp  = u32(*sec, "bnftp",  sc.net_timeouts.bnftp);
+            sc.net_timeouts.d2cs   = u32(*sec, "d2cs",   sc.net_timeouts.d2cs);
+        }
+    }
 }
 
 void parse_wol(const Config& cfg, ServerConfig& sc)

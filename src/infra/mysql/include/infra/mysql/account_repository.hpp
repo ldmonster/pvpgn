@@ -18,7 +18,7 @@ namespace pvpgn::infra::mysql {
 
 /// MySQL implementation of IAccountRepository.
 /// Currently a stub — all methods throw std::runtime_error until implemented.
-class MySQLAccountRepository final : public application::ports::IAccountRepository {
+class MySQLAccountRepository final : public domain::identity::IAccountRepository {
 public:
     explicit MySQLAccountRepository(std::shared_ptr<MySQLConnection> conn);
 

@@ -10,14 +10,19 @@
 #include <memory>
 
 #include "core/result.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
+#include "domain/identity/ports.hpp"
 
 // Forward declarations
 namespace pvpgn::infra::net {
 class IoRuntime;
 }
+namespace pvpgn::domain::identity {
+class ISessionRegistry;
+}
 namespace pvpgn::application::ports {
 class IUnitOfWorkFactory;
-class ISessionRegistry;
+using domain::identity::ISessionRegistry;
 }
 
 namespace pvpgn::infra::net {
@@ -28,7 +33,7 @@ public:
     ShutdownCoordinator(
         IoRuntime& runtime,
         std::shared_ptr<pvpgn::application::ports::IUnitOfWorkFactory> uow_factory,
-        std::shared_ptr<pvpgn::application::ports::ISessionRegistry> registry)
+        std::shared_ptr<pvpgn::domain::identity::ISessionRegistry> registry)
         : runtime_(runtime), uow_factory_(uow_factory), registry_(registry) {}
 
     /// Initiate graceful shutdown.
@@ -51,7 +56,7 @@ public:
 private:
     IoRuntime& runtime_;
     std::shared_ptr<pvpgn::application::ports::IUnitOfWorkFactory> uow_factory_;
-    std::shared_ptr<pvpgn::application::ports::ISessionRegistry> registry_;
+    std::shared_ptr<pvpgn::domain::identity::ISessionRegistry> registry_;
     std::atomic<bool> shutting_down_{false};
 };
 

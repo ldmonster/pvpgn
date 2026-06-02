@@ -46,7 +46,7 @@ domain::identity::Account make_account(domain::AccountId id,
 // Inline fake: ILadderRepository
 // ---------------------------------------------------------------------------
 
-class FakeLadderRepository final : public application::ports::ILadderRepository {
+class FakeLadderRepository final : public domain::ladder::ILadderRepository {
 public:
     std::vector<domain::ladder::LadderEntry> entries;
 
@@ -80,7 +80,7 @@ public:
 // Inline fake: IAccountRepository
 // ---------------------------------------------------------------------------
 
-class FakeAccountRepository final : public application::ports::IAccountRepository {
+class FakeAccountRepository final : public domain::identity::IAccountRepository {
 public:
     void add(domain::identity::Account acct) {
         accounts_.emplace(std::string{acct.name().display()}, std::move(acct));

@@ -14,24 +14,25 @@
 #include "domain/social/ports.hpp"
 #include "core/result.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryMailStore final
-    : public application::ports::IMailStore {
+    : public domain::social::IMailStore {
 public:
     core::Status<>
-    send(application::ports::MailMessage msg) override {
+    send(domain::social::MailMessage msg) override {
         std::unique_lock lock(mutex_);
         inboxes_[msg.to].push_back(std::move(msg));
         return core::ok();
     }
 
-    core::Result<std::vector<application::ports::MailMessage>>
+    core::Result<std::vector<domain::social::MailMessage>>
     inbox(std::string_view account_name) override {
         std::shared_lock lock(mutex_);
         auto it = inboxes_.find(std::string{account_name});
         if (it == inboxes_.end()) {
-            return std::vector<application::ports::MailMessage>{};
+            return std::vector<domain::social::MailMessage>{};
         }
         return it->second;
     }
@@ -51,7 +52,7 @@ public:
 private:
     mutable std::shared_mutex mutex_;
     std::unordered_map<std::string,
-                       std::vector<application::ports::MailMessage>> inboxes_;
+                       std::vector<domain::social::MailMessage>> inboxes_;
 };
 
 }  // namespace pvpgn::infra::inmemory

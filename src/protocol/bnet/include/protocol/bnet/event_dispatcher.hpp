@@ -26,7 +26,7 @@ namespace pvpgn::protocol::bnet {
 class BnetEventDispatcher {
 public:
     explicit BnetEventDispatcher(
-        std::shared_ptr<application::ports::IMessageRouter> router) noexcept
+        std::shared_ptr<domain::connection::IMessageRouter> router) noexcept
         : router_(router) {}
 
     // -----------------------------------------------------------------------
@@ -59,7 +59,7 @@ public:
         const std::vector<domain::SessionId>& target_sessions);
 
 private:
-    std::shared_ptr<application::ports::IMessageRouter> router_;
+    std::shared_ptr<domain::connection::IMessageRouter> router_;
 };
 
 }  // namespace pvpgn::protocol::bnet

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "infra/metrics/in_memory_metrics_registry.hpp"
+#include "core/metrics.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -107,16 +108,16 @@ std::size_t InMemoryHistogram::count() const {
 // InMemoryMetricsRegistry
 // ============================================================================
 
-std::shared_ptr<application::ports::ICounter> InMemoryMetricsRegistry::counter(
+std::shared_ptr<core::ICounter> InMemoryMetricsRegistry::counter(
     std::string_view name,
     std::string_view help,
-    application::ports::MetricLabels labels) {
+    core::MetricLabels labels) {
     std::unique_lock lock(metrics_mu_);
 
     auto key = std::string(name);
     auto it = metrics_.find(key);
     if (it != metrics_.end()) {
-        return std::static_pointer_cast<application::ports::ICounter>(it->second.metric);
+        return std::static_pointer_cast<core::ICounter>(it->second.metric);
     }
 
     auto counter = std::make_shared<InMemoryCounter>();
@@ -126,16 +127,16 @@ std::shared_ptr<application::ports::ICounter> InMemoryMetricsRegistry::counter(
     return counter;
 }
 
-std::shared_ptr<application::ports::IGauge> InMemoryMetricsRegistry::gauge(
+std::shared_ptr<core::IGauge> InMemoryMetricsRegistry::gauge(
     std::string_view name,
     std::string_view help,
-    application::ports::MetricLabels labels) {
+    core::MetricLabels labels) {
     std::unique_lock lock(metrics_mu_);
 
     auto key = std::string(name);
     auto it = metrics_.find(key);
     if (it != metrics_.end()) {
-        return std::static_pointer_cast<application::ports::IGauge>(it->second.metric);
+        return std::static_pointer_cast<core::IGauge>(it->second.metric);
     }
 
     auto gauge = std::make_shared<InMemoryGauge>();
@@ -145,17 +146,17 @@ std::shared_ptr<application::ports::IGauge> InMemoryMetricsRegistry::gauge(
     return gauge;
 }
 
-std::shared_ptr<application::ports::IHistogram> InMemoryMetricsRegistry::histogram(
+std::shared_ptr<core::IHistogram> InMemoryMetricsRegistry::histogram(
     std::string_view name,
     std::string_view help,
     std::vector<double> buckets,
-    application::ports::MetricLabels labels) {
+    core::MetricLabels labels) {
     std::unique_lock lock(metrics_mu_);
 
     auto key = std::string(name);
     auto it = metrics_.find(key);
     if (it != metrics_.end()) {
-        return std::static_pointer_cast<application::ports::IHistogram>(it->second.metric);
+        return std::static_pointer_cast<core::IHistogram>(it->second.metric);
     }
 
     auto histogram = std::make_shared<InMemoryHistogram>(buckets);
@@ -166,7 +167,7 @@ std::shared_ptr<application::ports::IHistogram> InMemoryMetricsRegistry::histogr
 }
 
 std::string InMemoryMetricsRegistry::labels_str(
-    const application::ports::MetricLabels& labels) const {
+    const core::MetricLabels& labels) const {
     if (labels.empty()) {
         return "";
     }

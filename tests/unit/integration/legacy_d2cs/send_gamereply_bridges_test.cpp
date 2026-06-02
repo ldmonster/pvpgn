@@ -3,9 +3,9 @@
 
 #include <vector>
 
-#include "integration/legacy_d2cs/send_creategamereply_bridge.hpp"
-#include "integration/legacy_d2cs/send_joingamereply_bridge.hpp"
-#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_creategamereply_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_joingamereply_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_packet_bridge.hpp"
 
 namespace ild = pvpgn::integration::legacy_d2cs;
 

@@ -3,7 +3,7 @@
 
 namespace pvpgn::application::realm {
 
-UnregisterRealm::UnregisterRealm(ports::IRealmRepository& realms)
+UnregisterRealm::UnregisterRealm(domain::realm::IRealmRepository& realms)
     : realms_(realms)
 {
 }

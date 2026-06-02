@@ -2,10 +2,10 @@
 //
 // R233(1): observation bridge for d2cs ladder load/destroy lifecycle.
 
-#include "integration/legacy_d2cs/d2ladder_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/d2ladder_bridge.hpp"
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2cs/bridge_logger.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/bridge_logger.hpp"
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 

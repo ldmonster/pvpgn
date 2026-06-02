@@ -14,10 +14,11 @@
 #include "domain/chat/ports.hpp"
 #include "domain/shared/ids.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryMessageBroadcaster final
-    : public application::ports::IMessageBroadcaster {
+    : public domain::chat::IMessageBroadcaster {
 public:
     void
     broadcast_to_channel(domain::ChannelId channel_id,

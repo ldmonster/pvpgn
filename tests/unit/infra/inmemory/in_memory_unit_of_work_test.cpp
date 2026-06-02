@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "infra/inmemory/unit_of_work_factory.hpp"
+#include "application/persistence/unit_of_work.hpp"
 
 namespace pvpgn::infra::inmemory {
 

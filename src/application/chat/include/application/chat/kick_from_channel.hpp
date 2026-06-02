@@ -13,7 +13,9 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -36,9 +38,9 @@ struct KickFromChannelRequest {
 class KickFromChannel {
 public:
     explicit KickFromChannel(
-        std::shared_ptr<application::ports::IChannelRepository> channels,
-        std::shared_ptr<application::ports::IAccountRepository> accounts,
-        std::shared_ptr<application::ports::IMessageRouter> router)
+        std::shared_ptr<domain::chat::IChannelRepository> channels,
+        std::shared_ptr<domain::identity::IAccountRepository> accounts,
+        std::shared_ptr<domain::connection::IMessageRouter> router)
         : channels_(channels), accounts_(accounts), router_(router) {}
 
     /// Execute: validate permissions and kick member from channel.
@@ -46,9 +48,9 @@ public:
     execute(const KickFromChannelRequest& req) const;
 
 private:
-    std::shared_ptr<application::ports::IChannelRepository> channels_;
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
-    std::shared_ptr<application::ports::IMessageRouter>     router_;
+    std::shared_ptr<domain::chat::IChannelRepository> channels_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::connection::IMessageRouter>     router_;
 };
 
 }  // namespace pvpgn::application::chat

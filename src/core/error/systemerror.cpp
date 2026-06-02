@@ -16,19 +16,17 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include "common/setup_before.h"
 #include "systemerror.h"
 
 #include <string>
 
-#include "compat/strerror.h"
-#include "common/setup_after.h"
+#include <cstring>
 
 namespace pvpgn
 {
 
 	SystemError::SystemError(const std::string& prefix, int err)
-		:std::runtime_error((prefix + ": ") + pstrerror(err))
+		:std::runtime_error((prefix + ": ") + std::strerror(err))
 	{
 	}
 

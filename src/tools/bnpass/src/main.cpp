@@ -19,6 +19,7 @@
 #include <array>
 #include <cctype>
 #include <cstdio>
+#include <print>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -40,9 +41,9 @@ enum class Mode {
 };
 
 [[noreturn]] void usage(const char* progname, int code) {
-    std::fprintf(
+    std::print(
         stderr,
-        "usage: %s [<options>] [--] [<cleartextpassword>]\n"
+        "usage: {} [<options>] [--] [<cleartextpassword>]\n"
         "    -h, --help, --usage  show this information and exit\n"
         "    -v, --version        print version number and exit\n"
         "        --sha1           emit a true SHA-1 digest of the input bytes\n"
@@ -61,7 +62,7 @@ void to_lower_ascii(std::string& s) {
 
 int main(int argc, char* argv[]) {
     if (argc < 1 || !argv || !argv[0]) {
-        std::fprintf(stderr, "bad arguments\n");
+        std::println(stderr, "bad arguments");
         return EXIT_FAILURE;
     }
 
@@ -79,20 +80,20 @@ int main(int argc, char* argv[]) {
             pass = argv[a];
         } else if (force_pass || arg.empty() || (arg.front() != '-')
                    || arg == "-") {
-            std::fprintf(stderr, "%s: extra password argument \"%s\"\n",
+            std::println(stderr, "{}: extra password argument \"{}\"",
                          argv[0], argv[a]);
             usage(argv[0], EXIT_FAILURE);
         } else if (arg == "--") {
             force_pass = true;
         } else if (arg == "-v" || arg == "--version") {
-            std::printf("version %s\n", PVPGN_VERSION);
+            std::println("version {}", PVPGN_VERSION);
             return EXIT_SUCCESS;
         } else if (arg == "-h" || arg == "--help" || arg == "--usage") {
             usage(argv[0], EXIT_SUCCESS);
         } else if (arg == "--sha1") {
             mode = Mode::Sha1;
         } else {
-            std::fprintf(stderr, "%s: unknown option \"%s\"\n",
+            std::println(stderr, "{}: unknown option \"{}\"",
                          argv[0], argv[a]);
             usage(argv[0], EXIT_FAILURE);
         }
@@ -100,7 +101,7 @@ int main(int argc, char* argv[]) {
 
     std::string buff;
     if (!pass) {
-        std::printf("Enter password to hash: ");
+        std::print("Enter password to hash: ");
         std::fflush(stdout);
         if (!std::getline(std::cin, buff)) {
             buff.clear();
@@ -115,11 +116,11 @@ int main(int argc, char* argv[]) {
         // Legacy contract: lower-case the password before hashing.
         to_lower_ascii(buff);
         const pc::BnetDigest h = pc::blizzard_hash(std::string_view{buff});
-        std::printf("\"BNET\\\\acct\\\\passhash1\"=\"%s\"\n",
+        std::println("\"BNET\\\\acct\\\\passhash1\"=\"{}\"",
                     pc::to_hex(h).c_str());
     } else {
         const pc::BnetDigest h = pc::sha1(std::string_view{buff});
-        std::printf("sha1 hash = %s\n", pc::to_hex(h).c_str());
+        std::println("sha1 hash = {}", pc::to_hex(h).c_str());
     }
 
     return EXIT_SUCCESS;

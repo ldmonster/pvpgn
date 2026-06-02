@@ -60,6 +60,37 @@ use_keepalive   = true
     REQUIRE(c.network.use_keepalive == true);
 }
 
+// ── [net.timeouts] section ──────────────────────────────────────────────────────
+
+TEST_CASE("config: [net.timeouts] defaults", "[infra][config]") {
+    auto r = infra::config::parse_server_config(""sv);
+    REQUIRE(r.has_value());
+    auto& c = r.value();
+    REQUIRE(c.net_timeouts.bnet   == 300u);
+    REQUIRE(c.net_timeouts.irc    == 300u);
+    REQUIRE(c.net_timeouts.telnet == 300u);
+    REQUIRE(c.net_timeouts.wol    == 300u);
+    REQUIRE(c.net_timeouts.bnftp  == 60u);
+    REQUIRE(c.net_timeouts.d2cs   == 300u);
+}
+
+TEST_CASE("config: [net.timeouts] section parses (nested table)", "[infra][config]") {
+    constexpr auto toml = R"(
+[net.timeouts]
+bnet   = 120
+bnftp  = 30
+telnet = 0
+)"sv;
+    auto r = infra::config::parse_server_config(toml);
+    REQUIRE(r.has_value());
+    auto& c = r.value();
+    REQUIRE(c.net_timeouts.bnet   == 120u);   // overridden
+    REQUIRE(c.net_timeouts.bnftp  == 30u);    // overridden
+    REQUIRE(c.net_timeouts.telnet == 0u);     // disabled
+    REQUIRE(c.net_timeouts.irc    == 300u);   // untouched default
+    REQUIRE(c.net_timeouts.d2cs   == 300u);   // untouched default
+}
+
 // ── files section ─────────────────────────────────────────────────────────────
 
 TEST_CASE("config: [files] section parses correctly", "[infra][config]") {

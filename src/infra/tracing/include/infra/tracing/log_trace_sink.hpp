@@ -19,7 +19,7 @@
 ///       [sink](const core::trace::Span& s){ sink->record(s); });
 /// @endcode
 
-#include "application/ports/trace_sink.hpp"
+#include "domain/shared/ports/trace_sink.hpp"
 
 namespace pvpgn::infra::tracing {
 

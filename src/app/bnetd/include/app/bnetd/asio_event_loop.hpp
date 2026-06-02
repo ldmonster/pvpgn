@@ -38,7 +38,7 @@
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 
-#include "application/ports/event_loop.hpp"
+#include "domain/shared/ports/event_loop.hpp"
 
 namespace pvpgn::app::bnetd {
 

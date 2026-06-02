@@ -200,8 +200,8 @@ core::Status<> PostgreSQLAccountRepository::save(
     }
 
     const std::string name_esc    = sql_escape(std::string{account.name().canonical()});
-    const std::string locale_str  = std::string{account.locale().tag()};
-    const std::string pw_hex      = bn_hash_to_hex(account.password_hash());
+    const std::string locale_str  = std::string{account.locale().text()};
+    const std::string pw_hex      = bn_hash_to_hex(account.password_hash1());
     const int locked_int          = account.is_locked() ? 1 : 0;
     const int mcp_int             = account.must_change_password() ? 1 : 0;
     const std::string groups_str  = groups_oss.str();

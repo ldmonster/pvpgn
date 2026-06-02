@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "integration/legacy_d2dbs/send_echorequest_bridge.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/send_echorequest_bridge.hpp"
 
 #include <cstdint>
 
-#include "integration/legacy_d2dbs/send_packet_bridge.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/send_packet_bridge.hpp"
 #include "protocol/d2dbs/codec.hpp"
 #include "protocol/common/writer.hpp"
 

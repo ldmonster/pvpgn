@@ -12,7 +12,6 @@
 #include <optional>
 #include <string>
 
-#include "application/ports/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/event_bus.hpp"
 #include "domain/moderation/ports.hpp"
@@ -50,8 +49,8 @@ enum class CreateAccountError {
 
 class CreateAccount {
 public:
-    CreateAccount(application::ports::IAccountRepository& accounts,
-                  application::ports::IIpBanRepository& ip_bans,
+    CreateAccount(domain::identity::IAccountRepository& accounts,
+                  domain::moderation::IIpBanRepository& ip_bans,
                   application::ports::IEventBus& bus,
                   core::IClock& clock) noexcept
         : accounts_(accounts), ip_bans_(ip_bans), bus_(bus), clock_(clock) {}
@@ -61,8 +60,8 @@ public:
     Result execute(const CreateAccountRequest& req);
 
 private:
-    application::ports::IAccountRepository& accounts_;
-    application::ports::IIpBanRepository& ip_bans_;
+    domain::identity::IAccountRepository& accounts_;
+    domain::moderation::IIpBanRepository& ip_bans_;
     application::ports::IEventBus& bus_;
     core::IClock& clock_;
 };

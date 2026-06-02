@@ -12,6 +12,7 @@ add_library(pvpgn_infra_shadow STATIC
 target_include_directories(pvpgn_infra_shadow
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src/application/persistence/include
 )
 
 target_link_libraries(pvpgn_infra_shadow

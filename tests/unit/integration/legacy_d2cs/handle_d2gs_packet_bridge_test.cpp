@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2cs/bridge_logger.hpp"
-#include "integration/legacy_d2cs/handle_d2gs_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/bridge_logger.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/handle_d2gs_packet_bridge.hpp"
 
 namespace ilc = pvpgn::integration::legacy_d2cs;
 

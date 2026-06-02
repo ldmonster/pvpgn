@@ -14,7 +14,7 @@
 #include "core/result.hpp"
 #include "domain/gameplay/game.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/gameplay/ports.hpp"
 
 namespace pvpgn::application::game {
 
@@ -39,7 +39,7 @@ struct JoinGameResult {
 
 class JoinGame {
 public:
-    explicit JoinGame(application::ports::IGameRepository& game_repo)
+    explicit JoinGame(domain::gameplay::IGameRepository& game_repo)
         : game_repo_(game_repo) {}
 
     /// Execute: add account to the given game.
@@ -47,7 +47,7 @@ public:
     execute(domain::GameId game_id, domain::AccountId account_id) const;
 
 private:
-    application::ports::IGameRepository& game_repo_;
+    domain::gameplay::IGameRepository& game_repo_;
 };
 
 }  // namespace pvpgn::application::game

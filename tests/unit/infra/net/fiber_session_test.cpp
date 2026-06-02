@@ -17,6 +17,7 @@
 // in that mode (round_robin's io_context::service is per-context).
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <mutex>
@@ -199,4 +200,119 @@ TEST_CASE("spawn_session: echoes loopback bytes via round_robin scheduler",
     }
     acc.close();
     rt.stop();
+}
+
+// ---- Idle-read timeout (Plan 06 [net.timeouts] acceptance) --------------
+
+TEST_CASE("SessionChannel: recv times out when no bytes arrive",
+          "[infra][net][fiber][timeout]") {
+    using namespace std::chrono_literals;
+    // 50ms idle-read deadline; no session, no bytes pushed.
+    infra::net::fiber::SessionChannel chan(/*session*/ nullptr,
+                                           /*capacity*/ 4,
+                                           /*read_timeout*/ 50ms);
+
+    bool has_value = true;
+    bool timed_out = false;
+    const auto start = std::chrono::steady_clock::now();
+
+    boost::fibers::fiber consumer([&] {
+        auto r = chan.recv();         // nothing pushed → must time out
+        has_value = r.has_value();
+        timed_out = chan.timed_out();
+    });
+    consumer.join();
+
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+    REQUIRE_FALSE(has_value);          // nullopt on timeout
+    REQUIRE(timed_out);                // flagged as a timeout, not a close
+    REQUIRE(elapsed >= 45ms);          // waited ~the configured deadline
+}
+
+TEST_CASE("SessionChannel: bytes before the deadline are not a timeout",
+          "[infra][net][fiber][timeout]") {
+    using namespace std::chrono_literals;
+    infra::net::fiber::SessionChannel chan(nullptr, 4, /*read_timeout*/ 500ms);
+
+    std::string got;
+    bool timed_out = true;
+    boost::fibers::fiber consumer([&] {
+        auto r = chan.recv();
+        if (r) got.assign(reinterpret_cast<const char*>(r->data()), r->size());
+        timed_out = chan.timed_out();
+    });
+
+    chan.push_from_network(bytes_of("hi"));   // well within the deadline
+    consumer.join();
+
+    REQUIRE(got == "hi");
+    REQUIRE_FALSE(timed_out);
+}
+
+TEST_CASE("spawn_session: idle connection is closed after the read timeout",
+          "[infra][net][fiber][integration][timeout]") {
+    using namespace std::chrono_literals;
+    infra::net::IoRuntime rt;
+
+    std::atomic<bool> handler_done{false};
+    std::atomic<bool> handler_timed_out{false};
+
+    auto handler = [&](infra::net::fiber::SessionChannel& chan) {
+        while (auto chunk = chan.recv()) {
+            chan.send(std::move(*chunk));   // echo until idle-timeout
+        }
+        handler_timed_out.store(chan.timed_out());
+        handler_done.store(true);
+    };
+
+    std::mutex live_mu;
+    std::vector<std::shared_ptr<infra::net::TcpSession>> live;
+
+    infra::net::TcpAcceptor acc(rt,
+        [&, handler](std::shared_ptr<infra::net::TcpSession> s) {
+            {
+                std::scoped_lock lk{live_mu};
+                live.push_back(s);
+            }
+            // 150ms idle-read deadline.
+            infra::net::fiber::spawn_session(rt, std::move(s), handler,
+                                             /*inbox_capacity*/ 64,
+                                             /*read_timeout*/ 150ms);
+        });
+
+    auto bound = acc.listen("127.0.0.1", 0);
+    REQUIRE(bound.has_value());
+    const std::uint16_t port = bound.value().port();
+    REQUIRE(port != 0);
+
+    rt.run(/*threads=*/1, /*install_fiber_scheduler=*/true);
+
+    asio::io_context cctx;
+    tcp::socket cli(cctx);
+    boost::system::error_code ec;
+    cli.connect(tcp::endpoint(asio::ip::make_address("127.0.0.1"), port), ec);
+    REQUIRE_FALSE(ec);
+
+    // Send nothing. The server-side fiber should hit its idle deadline,
+    // close the session, and our blocking read should observe EOF.
+    const auto start = std::chrono::steady_clock::now();
+    std::array<char, 16> rxbuf{};
+    std::size_t n = asio::read(cli, asio::buffer(rxbuf), ec);
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+
+    REQUIRE(n == 0);                       // no data, peer closed
+    REQUIRE(ec == asio::error::eof);       // clean half-close from the server
+    REQUIRE(elapsed >= 120ms);             // closed ~at the deadline, not before
+    REQUIRE(elapsed < 5s);                 // and not "never"
+
+    cli.close();
+    {
+        std::scoped_lock lk{live_mu};
+        for (auto& s : live) s->close();
+    }
+    acc.close();
+    rt.stop();
+
+    REQUIRE(handler_done.load());
+    REQUIRE(handler_timed_out.load());     // handler observed a timeout
 }

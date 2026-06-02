@@ -16,10 +16,11 @@
 #include "domain/social/ports.hpp"
 #include "domain/social/clan.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryClanRepository final
-    : public application::ports::IClanRepository {
+    : public domain::social::IClanRepository {
 public:
     core::Result<std::shared_ptr<domain::social::Clan>, core::Error>
     find_by_id(domain::ClanId id) override {

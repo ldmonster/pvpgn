@@ -14,10 +14,11 @@
 
 #include "domain/gameplay/ports.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryGameRepository final
-    : public application::ports::IGameRepository {
+    : public domain::gameplay::IGameRepository {
 public:
     core::Result<std::shared_ptr<domain::gameplay::Game>, core::Error>
     find_by_name(std::string_view name) override {

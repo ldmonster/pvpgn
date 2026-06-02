@@ -16,7 +16,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 // Network address (CIDR) creation, destruction, formatting, and containment check (plan 15 §3 / SOLID-S).
-// Included as a sub-TU by addr.cpp — do not compile directly.
+// Split from addr.cpp (Plan 02 full-split: one TU per file).
+
+#include "addr_internal.h"
 
 namespace pvpgn
 {
@@ -31,7 +33,7 @@ namespace pvpgn
 
 		std::memset(&tsa, 0, sizeof(tsa));
 		tsa.sin_family = AF_INET;
-		tsa.sin_port = htons((unsigned short)0);
+		tsa.sin_port = htons(static_cast<unsigned short>(0));
 		tsa.sin_addr.s_addr = htonl(netipaddr);
 
 		char addrstr[INET_ADDRSTRLEN] = { 0 };
@@ -52,7 +54,7 @@ namespace pvpgn
 
 		if (!netstr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "unable to allocate memory for netaddr");
+			LOG_ERROR(__FUNCTION__, "unable to allocate memory for netaddr");
 			return NULL;
 		}
 
@@ -72,7 +74,7 @@ namespace pvpgn
 		/* FIXME: call getnetbyname() first, then host_lookup() */
 		if (!host_lookup(netipstr, &netip))
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "could not lookup net");
+			LOG_ERROR(__FUNCTION__, "could not lookup net");
 			delete netaddr;
 			return NULL;
 		}
@@ -86,7 +88,7 @@ namespace pvpgn
 				netmask = ntohl(tsa.sin_addr.s_addr);
 			else
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not convert mask");
+				LOG_ERROR(__FUNCTION__, "could not convert mask");
 				delete netaddr;
 				return NULL;
 			}
@@ -95,13 +97,13 @@ namespace pvpgn
 		{
 			if (netmask > 32)
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "network bits must be less than or equal to 32 ({})", netmask);
+				LOG_ERROR(__FUNCTION__, "network bits must be less than or equal to 32 ({})", netmask);
 				delete netaddr;
 				return NULL;
 			}
 			/* for example, 8 -> 11111111000000000000000000000000 */
 			if (netmask != 0)
-				netmask = ~((1 << (32 - netmask)) - 1);
+				netmask = ~((1u << (32 - netmask)) - 1u);
 		}
 		netaddr->mask = netmask;
 
@@ -113,7 +115,7 @@ namespace pvpgn
 	{
 		if (!netaddr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL netaddr");
+			LOG_ERROR(__FUNCTION__, "got NULL netaddr");
 			return -1;
 		}
 
@@ -127,17 +129,17 @@ namespace pvpgn
 	{
 		if (!netaddr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL netaddr");
+			LOG_ERROR(__FUNCTION__, "got NULL netaddr");
 			return NULL;
 		}
 		if (!str)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL str");
+			LOG_ERROR(__FUNCTION__, "got NULL str");
 			return NULL;
 		}
 		if (len < 2)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "str too short");
+			LOG_ERROR(__FUNCTION__, "str too short");
 			return NULL;
 		}
 
@@ -152,7 +154,7 @@ namespace pvpgn
 	{
 		if (!netaddr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL netaddr");
+			LOG_ERROR(__FUNCTION__, "got NULL netaddr");
 			return -1;
 		}
 

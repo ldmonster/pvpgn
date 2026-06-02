@@ -7,7 +7,8 @@
 #include <memory>
 #include <string_view>
 
-#include "application/ports/ports.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
@@ -21,16 +22,16 @@ enum class KickConnectionError : std::uint8_t {
 
 class KickConnection {
 public:
-    KickConnection(std::shared_ptr<application::ports::ISessionRegistry> registry,
-                   std::shared_ptr<application::ports::IMessageRouter> router)
+    KickConnection(std::shared_ptr<domain::identity::ISessionRegistry> registry,
+                   std::shared_ptr<domain::connection::IMessageRouter> router)
         : registry_(registry), router_(router) {}
 
     core::Result<void, KickConnectionError>
     execute(domain::SessionId session_id, std::string_view reason);
 
 private:
-    std::shared_ptr<application::ports::ISessionRegistry> registry_;
-    std::shared_ptr<application::ports::IMessageRouter> router_;
+    std::shared_ptr<domain::identity::ISessionRegistry> registry_;
+    std::shared_ptr<domain::connection::IMessageRouter> router_;
 };
 
 }  // namespace pvpgn::application::moderation

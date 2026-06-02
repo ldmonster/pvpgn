@@ -19,6 +19,7 @@
 #include "bni.h"
 
 #include <cstdio>
+#include <print>
 
 #include "fileio.h"
 
@@ -45,14 +46,14 @@ namespace pvpgn
 
 			b->unknown1 = file_readd_le(f);
 			if (b->unknown1 != 0x00000010)
-				std::fprintf(stderr, "load_bni: field 1 is not 0x00000010. Data may be invalid!\n");
+				std::println(stderr, "load_bni: field 1 is not 0x00000010. Data may be invalid!");
 			b->unknown2 = file_readd_le(f);
 			if (b->unknown2 != 0x00000001)
-				std::fprintf(stderr, "load_bni: field 2 is not 0x00000001. Data may be invalid!\n");
+				std::println(stderr, "load_bni: field 2 is not 0x00000001. Data may be invalid!");
 			b->numicons = file_readd_le(f);
 			b->dataoffset = file_readd_le(f);
 			if (b->numicons < 1) {
-				std::fprintf(stderr, "load_bni: strange, no icons present in BNI file\n");
+				std::println(stderr, "load_bni: strange, no icons present in BNI file");
 			}
 			b->icons.resize(b->numicons);
 			for (unsigned int i = 0; i < b->numicons; i++) {
@@ -68,7 +69,7 @@ namespace pvpgn
 				b->icons[i].unknown = file_readd_le(f);
 			}
 			if (std::ftell(f) != static_cast<long>(b->dataoffset))
-				std::fprintf(stderr, "load_bni: Warning, %lu bytes of garbage after BNI header\n",
+				std::println(stderr, "load_bni: Warning, {} bytes of garbage after BNI header",
 					static_cast<unsigned long>(b->dataoffset - std::ftell(f)));
 			return b;
 		}
@@ -78,10 +79,10 @@ namespace pvpgn
 			if (b == NULL) return -1;
 			file_writed_le(f, b->unknown1);
 			if (b->unknown1 != 0x00000010)
-				std::fprintf(stderr, "write_bni: field 1 is not 0x00000010. Data may be invalid!\n");
+				std::println(stderr, "write_bni: field 1 is not 0x00000010. Data may be invalid!");
 			file_writed_le(f, b->unknown2);
 			if (b->unknown2 != 0x00000001)
-				std::fprintf(stderr, "write_bni: field 2 is not 0x00000001. Data may be invalid!\n");
+				std::println(stderr, "write_bni: field 2 is not 0x00000001. Data may be invalid!");
 			file_writed_le(f, b->numicons);
 			file_writed_le(f, b->dataoffset);
 			for (unsigned int i = 0; i < b->numicons; i++) {
@@ -94,7 +95,7 @@ namespace pvpgn
 				file_writed_le(f, b->icons[i].unknown);
 			}
 			if (std::ftell(f) != static_cast<long>(b->dataoffset))
-				std::fprintf(stderr, "Warning: dataoffset is incorrect! (=0x%lx should be 0x%lx)\n",
+				std::println(stderr, "Warning: dataoffset is incorrect! (=0x{:x} should be 0x{:x})",
 					static_cast<unsigned long>(b->dataoffset),
 					static_cast<unsigned long>(std::ftell(f)));
 			return 0;

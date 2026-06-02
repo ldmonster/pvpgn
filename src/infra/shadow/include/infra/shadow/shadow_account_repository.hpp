@@ -25,13 +25,13 @@ namespace pvpgn::infra::shadow {
 ///
 /// Lifetime: both @p primary and @p secondary must outlive this object.
 class ShadowAccountRepository final
-    : public application::ports::IAccountRepository {
+    : public domain::identity::IAccountRepository {
 public:
     /// @param primary   The authoritative backend (reads + writes always go here).
     /// @param secondary The mirror backend (writes go here when enabled).
     /// @param enabled   Feature flag — when false, behaves as a pass-through to primary.
-    ShadowAccountRepository(application::ports::IAccountRepository& primary,
-                            application::ports::IAccountRepository& secondary,
+    ShadowAccountRepository(domain::identity::IAccountRepository& primary,
+                            domain::identity::IAccountRepository& secondary,
                             bool enabled);
 
     // ---- Read operations — always delegate to primary --------------------
@@ -57,8 +57,8 @@ public:
     remove(domain::AccountId id) override;
 
 private:
-    application::ports::IAccountRepository& primary_;
-    application::ports::IAccountRepository& secondary_;
+    domain::identity::IAccountRepository& primary_;
+    domain::identity::IAccountRepository& secondary_;
     bool enabled_;
 };
 

@@ -64,6 +64,7 @@
 #include "protocol/file/file_session_context.hpp"
 #include "protocol/wol/wol_session_context.hpp"
 
+
 namespace pvpgn::app::bnetd {
 
 // ---------------------------------------------------------------------------
@@ -77,7 +78,7 @@ namespace pvpgn::app::bnetd {
 ///   * `BnetSessionContextImpl` (BNet protocol)
 ///   * `BnftpEgressContext`     (BNFTP file transfer)
 ///   * `WolEgressContext`       (WOL chat)
-class TcpSessionEgress final : public application::ports::IConnectionEgress {
+class TcpSessionEgress final : public domain::connection::IConnectionEgress {
 public:
     explicit TcpSessionEgress(
         std::shared_ptr<infra::net::TcpSession> tcp) noexcept

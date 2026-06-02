@@ -18,10 +18,15 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 // Core 4-byte tag encoding/decoding and architecture tag validation (plan 15 §3 / SOLID-S).
-// Included as a sub-TU by tag.cpp — do not compile directly.
+// Split from tag.cpp (Plan 02 full-split: one TU per file).
 
-#include "common/setup_before.h"
+#include "tag.h"
+#include "xstring.h"
+
 #include <cstring>
+#include <cctype>
+
+#include "core/format.hpp"
 
 namespace pvpgn
 {
@@ -33,12 +38,12 @@ namespace pvpgn
 		unsigned int i, len;
 		char temp_str[5];
 
-		len = std::strlen(tag_str);
+		len = static_cast<unsigned int>(std::strlen(tag_str));
 		if (len != 4)
-			eventlog(eventlog_level_warn, __FUNCTION__, "got unusual sized clienttag '{}'", tag_str);
+			LOG_WARN(__FUNCTION__, "got unusual sized clienttag '{}'", tag_str);
 
 		for (i = 0; i < len && i < 4; i++)
-			temp_str[i] = safe_toupper(tag_str[i]);
+			temp_str[i] = static_cast<char>(safe_toupper(tag_str[i]));
 
 		temp_str[4] = '\0';
 
@@ -50,14 +55,14 @@ namespace pvpgn
 		t_tag	tag_uint;
 
 		if (!tag_str) {
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL tag");
+			LOG_ERROR(__FUNCTION__, "got NULL tag");
 			return 0; /* unknown */
 		}
 
-		tag_uint = tag_str[0] << 24;
-		tag_uint |= tag_str[1] << 16;
-		tag_uint |= tag_str[2] << 8;
-		tag_uint |= tag_str[3];
+		tag_uint  = static_cast<t_tag>(static_cast<unsigned char>(tag_str[0])) << 24;
+		tag_uint |= static_cast<t_tag>(static_cast<unsigned char>(tag_str[1])) << 16;
+		tag_uint |= static_cast<t_tag>(static_cast<unsigned char>(tag_str[2])) << 8;
+		tag_uint |= static_cast<t_tag>(static_cast<unsigned char>(tag_str[3]));
 
 		return tag_uint;
 	}
@@ -76,10 +81,10 @@ namespace pvpgn
 		if (!tag_uint) /* return "UNKN" if tag_uint = 0 */
 			return TAG_UNKNOWN;
 
-		tag_str[0] = ((unsigned char)(tag_uint >> 24));
-		tag_str[1] = ((unsigned char)(tag_uint >> 16) & 0xff);
-		tag_str[2] = ((unsigned char)(tag_uint >> 8) & 0xff);
-		tag_str[3] = ((unsigned char)(tag_uint)& 0xff);
+		tag_str[0] = static_cast<char>((tag_uint >> 24) & 0xff);
+		tag_str[1] = static_cast<char>((tag_uint >> 16) & 0xff);
+		tag_str[2] = static_cast<char>((tag_uint >> 8) & 0xff);
+		tag_str[3] = static_cast<char>((tag_uint) & 0xff);
 		tag_str[4] = '\0';
 		return tag_str;
 	}
@@ -90,10 +95,10 @@ namespace pvpgn
 			return std::string(TAG_UNKNOWN);
 
 		char tag_str[5] = {};
-		tag_str[0] = ((unsigned char)(tag_uint >> 24));
-		tag_str[1] = ((unsigned char)(tag_uint >> 16) & 0xff);
-		tag_str[2] = ((unsigned char)(tag_uint >> 8) & 0xff);
-		tag_str[3] = ((unsigned char)(tag_uint)& 0xff);
+		tag_str[0] = static_cast<char>((tag_uint >> 24) & 0xff);
+		tag_str[1] = static_cast<char>((tag_uint >> 16) & 0xff);
+		tag_str[2] = static_cast<char>((tag_uint >> 8) & 0xff);
+		tag_str[3] = static_cast<char>((tag_uint) & 0xff);
 		tag_str[4] = '\0';
 		return std::string(tag_str);
 	}
@@ -103,10 +108,10 @@ namespace pvpgn
 		if (!tag_uint) /* return "UNKN" if tag_uint = 0 */
 			return TAG_UNKNOWN;
 
-		tag_str[0] = ((unsigned char)(tag_uint)& 0xff);
-		tag_str[1] = ((unsigned char)(tag_uint >> 8) & 0xff);
-		tag_str[2] = ((unsigned char)(tag_uint >> 16) & 0xff);
-		tag_str[3] = ((unsigned char)(tag_uint >> 24));
+		tag_str[0] = static_cast<char>((tag_uint) & 0xff);
+		tag_str[1] = static_cast<char>((tag_uint >> 8) & 0xff);
+		tag_str[2] = static_cast<char>((tag_uint >> 16) & 0xff);
+		tag_str[3] = static_cast<char>((tag_uint >> 24) & 0xff);
 		tag_str[4] = '\0';
 		return tag_str;
 	}

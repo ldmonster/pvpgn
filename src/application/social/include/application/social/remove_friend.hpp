@@ -9,7 +9,8 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::application::social {
 
@@ -21,7 +22,7 @@ enum class RemoveFriendError : std::uint8_t {
 
 class RemoveFriend {
 public:
-    RemoveFriend(std::shared_ptr<application::ports::IFriendListRepository> friend_lists,
+    RemoveFriend(std::shared_ptr<domain::social::IFriendListRepository> friend_lists,
                  std::shared_ptr<application::ports::IEventBus> event_bus)
         : friend_lists_(friend_lists), event_bus_(event_bus) {}
 
@@ -29,7 +30,7 @@ public:
     execute(domain::AccountId owner, domain::AccountId target);
 
 private:
-    std::shared_ptr<application::ports::IFriendListRepository> friend_lists_;
+    std::shared_ptr<domain::social::IFriendListRepository> friend_lists_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

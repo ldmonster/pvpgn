@@ -2,6 +2,14 @@
 
 #include "infra/sqlite/unit_of_work.hpp"
 
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/realm/ports.hpp"
+#include "domain/social/ports.hpp"
+
 namespace pvpgn::infra::sqlite {
 
 // R317: games_ and teams_ are per-instance members — no static locals.
@@ -31,45 +39,45 @@ void SQLiteUnitOfWork::rollback() noexcept {
     conn_->rollback();
 }
 
-application::ports::IAccountRepository& SQLiteUnitOfWork::accounts() {
+domain::identity::IAccountRepository& SQLiteUnitOfWork::accounts() {
     return *accounts_;
 }
 
-application::ports::IChannelRepository& SQLiteUnitOfWork::channels() {
+domain::chat::IChannelRepository& SQLiteUnitOfWork::channels() {
     // Channels are session-scoped, not persisted to DB
     return *channels_;
 }
 
-application::ports::IGameRepository& SQLiteUnitOfWork::games() {
+domain::gameplay::IGameRepository& SQLiteUnitOfWork::games() {
     // Games are session-scoped, not persisted to DB
     return *games_;
 }
 
-application::ports::IClanRepository& SQLiteUnitOfWork::clans() {
+domain::social::IClanRepository& SQLiteUnitOfWork::clans() {
     return *clans_;
 }
 
-application::ports::ILadderRepository& SQLiteUnitOfWork::ladder() {
+domain::ladder::ILadderRepository& SQLiteUnitOfWork::ladder() {
     return *ladder_;
 }
 
-application::ports::IIpBanRepository& SQLiteUnitOfWork::ip_bans() {
+domain::moderation::IIpBanRepository& SQLiteUnitOfWork::ip_bans() {
     return *ip_bans_;
 }
 
-application::ports::IAccountBanRepository& SQLiteUnitOfWork::account_bans() {
+domain::moderation::IAccountBanRepository& SQLiteUnitOfWork::account_bans() {
     return *account_bans_;
 }
 
-application::ports::IFriendListRepository& SQLiteUnitOfWork::friend_lists() {
+domain::social::IFriendListRepository& SQLiteUnitOfWork::friend_lists() {
     return *friend_lists_;
 }
 
-application::ports::IRealmRepository& SQLiteUnitOfWork::realms() {
+domain::realm::IRealmRepository& SQLiteUnitOfWork::realms() {
     return *realms_;
 }
 
-application::ports::ITeamRepository& SQLiteUnitOfWork::teams() {
+domain::social::ITeamRepository& SQLiteUnitOfWork::teams() {
     // Teams are not yet persisted to SQL — backed by in-memory store
     return *teams_;
 }

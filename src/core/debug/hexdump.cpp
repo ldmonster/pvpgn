@@ -17,12 +17,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include "common/setup_before.h"
-#include "common/hexdump.h"
+#include "hexdump.h"
 
-#include "common/packet.h"
-#include "common/eventlog.h"
-#include "common/setup_after.h"
+#include "core/format.hpp"
 
 namespace pvpgn
 {
@@ -34,16 +31,16 @@ namespace pvpgn
 		unsigned char * datac;
 
 		if (!data) {
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL data");
+			LOG_ERROR(__FUNCTION__, "got NULL data");
 			return;
 		}
 
 		if (!stream) {
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL stream");
+			LOG_ERROR(__FUNCTION__, "got NULL stream");
 			return;
 		}
 
-		for (i = 0, datac = (unsigned char*)data; i < len; i += 16, datac += 16)
+		for (i = 0, datac = static_cast<unsigned char*>(const_cast<void*>(data)); i < len; i += 16, datac += 16)
 		{
 			hexdump_string(datac, (len - i < 16) ? (len - i) : 16, dst, i);
 			std::fprintf(stream, "%s\n", dst);

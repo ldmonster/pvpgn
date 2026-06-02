@@ -224,6 +224,19 @@ struct NetworkConfig {
     bool          localize_by_country = true;
 };
 
+// ── [net.timeouts] ───
+// Per-protocol idle-read deadlines, in seconds. If a connection sends no bytes
+// within its deadline the server closes it. 0 disables the timeout for that
+// protocol. Consumed by the infra/net fiber sessions (Plan 06).
+struct NetTimeoutsConfig {
+    std::uint32_t bnet   = 300;  ///< BNCS (Battle.net) clients
+    std::uint32_t irc    = 300;  ///< IRC / WOL chat
+    std::uint32_t telnet = 300;  ///< telnet admin
+    std::uint32_t wol    = 300;  ///< Westwood Online
+    std::uint32_t bnftp  = 60;   ///< BNFTP file transfer
+    std::uint32_t d2cs   = 300;  ///< Diablo II realm server
+};
+
 // ── [wol] ────────────────────────────────────────────────────────────────────
 
 struct WolConfig {
@@ -322,6 +335,7 @@ struct ServerConfig {
     AccountConfig         account;
     TrackingConfig        tracking;
     NetworkConfig         network;
+    NetTimeoutsConfig     net_timeouts;
     WolConfig             wol;
     IrcConfig             irc;
     TelnetConfig          telnet;

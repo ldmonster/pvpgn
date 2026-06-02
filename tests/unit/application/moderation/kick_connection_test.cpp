@@ -24,7 +24,7 @@ using application::moderation::KickConnectionError;
 // Fakes
 // ---------------------------------------------------------------------------
 
-class FakeSessionRegistry final : public application::ports::ISessionRegistry {
+class FakeSessionRegistry final : public domain::identity::ISessionRegistry {
 public:
     bool session_exists = true;
     bool detach_called  = false;
@@ -46,7 +46,7 @@ public:
     std::vector<domain::SessionId> list() const override { return {}; }
 };
 
-class FakeMessageRouter final : public application::ports::IMessageRouter {
+class FakeMessageRouter final : public domain::connection::IMessageRouter {
 public:
     core::Result<void, core::Error>
     send(domain::SessionId, std::span<const std::byte>) override { return {}; }

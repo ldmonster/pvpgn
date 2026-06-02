@@ -5,7 +5,7 @@
 #include <csignal>
 #include <iostream>
 
-#include "application/ports/metrics_registry.hpp"
+#include "core/metrics.hpp"
 #include "application/persistence/unit_of_work_factory.hpp"
 #include "application/persistence/unit_of_work.hpp"
 #include "core/logging.hpp"
@@ -52,7 +52,7 @@ SignalHandler::SignalHandler(
     IoRuntime& runtime,
     std::shared_ptr<infra::config::ConfigWatcher> config_watcher,
     std::shared_ptr<application::ports::IUnitOfWorkFactory> uow_factory,
-    std::shared_ptr<application::ports::IMetricsRegistry> metrics,
+    std::shared_ptr<core::IMetricsRegistry> metrics,
     std::function<void(int)> on_shutdown)
     : runtime_(runtime),
       config_watcher_(config_watcher),

@@ -11,7 +11,7 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/gameplay/ports.hpp"
 
 namespace pvpgn::application::game {
 
@@ -29,7 +29,7 @@ struct CancelGameCommand {
 
 class CancelGame {
 public:
-    explicit CancelGame(application::ports::IGameRepository& games)
+    explicit CancelGame(domain::gameplay::IGameRepository& games)
         : games_(games) {}
 
     /// Execute: cancel the game identified by cmd.game_id.
@@ -39,7 +39,7 @@ public:
     execute(CancelGameCommand cmd) const;
 
 private:
-    application::ports::IGameRepository& games_;
+    domain::gameplay::IGameRepository& games_;
 };
 
 }  // namespace pvpgn::application::game

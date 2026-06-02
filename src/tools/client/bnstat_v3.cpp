@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <print>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -60,8 +61,8 @@ struct Options {
 };
 
 [[noreturn]] void usage(const char* prog) {
-    std::fprintf(stderr,
-        "usage: %s [<options>] [<host> [<port>]]\n"
+    std::print(stderr,
+        "usage: {} [<options>] [<host> [<port>]]\n"
         "  -c TAG, --client=TAG    STAR | SEXP | SSHR | DRTL | DSHR\n"
         "                          | W2BN | D2DV | D2XP | WAR3 (default STAR)\n"
         "  -p NAME, --player=NAME  query stats for NAME (repeatable)\n"
@@ -100,8 +101,7 @@ Options parse_args(int argc, char** argv) {
         std::string_view a{argv[i]};
         auto need_value = [&](std::string_view flag) -> const char* {
             if (i + 1 >= argc) {
-                std::fprintf(stderr, "%s: %.*s requires a value\n",
-                    argv[0], static_cast<int>(flag.size()), flag.data());
+                std::println(stderr, "{}: {} requires a value", argv[0], flag);
                 usage(argv[0]);
             }
             return argv[++i];
@@ -109,7 +109,7 @@ Options parse_args(int argc, char** argv) {
         if (a == "-h" || a == "--help" || a == "--usage") {
             usage(argv[0]);
         } else if (a == "-v" || a == "--version") {
-            std::printf("bnstat (pvpgn v3)\n");
+            std::println("bnstat (pvpgn v3)");
             std::exit(EXIT_SUCCESS);
         } else if (a == "-c") {
             o.clienttag = need_value(a);
@@ -138,8 +138,7 @@ Options parse_args(int argc, char** argv) {
         } else if (a == "--stdin") {
             o.read_stdin = true;
         } else if (!a.empty() && a[0] == '-') {
-            std::fprintf(stderr, "%s: unknown option \"%.*s\"\n",
-                argv[0], static_cast<int>(a.size()), a.data());
+            std::println(stderr, "{}: unknown option \"{}\"", argv[0], a);
             usage(argv[0]);
         } else {
             positional.emplace_back(a);
@@ -154,14 +153,13 @@ Options parse_args(int argc, char** argv) {
     }
     if (positional.size() == 2) {
         if (!parse_ushort(positional[1].c_str(), o.port)) {
-            std::fprintf(stderr, "%s: \"%s\" should be a positive port number\n",
+            std::println(stderr, "{}: \"{}\" should be a positive port number",
                 argv[0], positional[1].c_str());
             usage(argv[0]);
         }
     }
     if (o.players.empty() && !o.read_stdin) {
-        std::fprintf(stderr,
-            "%s: no -p PLAYER specified (and --stdin not given)\n",
+        std::println(stderr, "{}: no -p PLAYER specified (and --stdin not given)",
             argv[0]);
         usage(argv[0]);
     }
@@ -253,18 +251,18 @@ bool query_player(net::socket_t sd,
     proto::int_set(body->requestid, bnet::kStatsReqRequestId);
 
     if (!pkt.append_cstr(player.c_str())) {
-        std::fprintf(stderr, "STATSREQ: player name too long\n");
+        std::println(stderr, "STATSREQ: player name too long");
         return false;
     }
     for (const auto& k : keys) {
         if (!pkt.append_cstr(k.c_str())) {
-            std::fprintf(stderr, "STATSREQ: too many keys\n");
+            std::println(stderr, "STATSREQ: too many keys");
             return false;
         }
     }
     pkt.set_bnet_size(static_cast<std::uint16_t>(pkt.size()));
     if (!proto::send_bnet(sd, pkt)) {
-        std::fprintf(stderr, "STATSREQ: send failed\n");
+        std::println(stderr, "STATSREQ: send failed");
         return false;
     }
 
@@ -272,7 +270,7 @@ bool query_player(net::socket_t sd,
     proto::Packet rpkt;
     for (;;) {
         if (!proto::recv_bnet(sd, rpkt)) {
-            std::fprintf(stderr, "STATSREPLY: server closed connection\n");
+            std::println(stderr, "STATSREPLY: server closed connection");
             return false;
         }
         if (rpkt.bnet_type() == bnet::packet_id::SERVER_STATSREPLY) {
@@ -284,9 +282,9 @@ bool query_player(net::socket_t sd,
     const std::uint32_t name_count = proto::int_get(rep->name_count);
     const std::uint32_t key_count  = proto::int_get(rep->key_count);
 
-    std::printf("---- %s ----\n", player.c_str());
+    std::println("---- {} ----", player.c_str());
     if (name_count == 0) {
-        std::printf("(no such account)\n");
+        std::println("(no such account)");
         return true;
     }
 
@@ -295,8 +293,7 @@ bool query_player(net::socket_t sd,
     std::size_t pos = proto::kBnetHeaderSize + sizeof(bnet::SServerStatsReply);
     for (std::uint32_t i = 0; i < key_count; ++i) {
         if (pos >= total) {
-            std::fprintf(stderr,
-                "STATSREPLY: truncated at key %u of %u\n", i, key_count);
+            std::println(stderr, "STATSREPLY: truncated at key {} of {}", i, key_count);
             return false;
         }
         const char* val = reinterpret_cast<const char*>(rpkt.data() + pos);
@@ -306,13 +303,12 @@ bool query_player(net::socket_t sd,
             ++end;
         }
         if (end >= total) {
-            std::fprintf(stderr,
-                "STATSREPLY: unterminated value at key %u\n", i);
+            std::println(stderr, "STATSREPLY: unterminated value at key {}", i);
             return false;
         }
         const std::string label =
             (i < keys.size()) ? keys[i] : std::string{"(extra)"};
-        std::printf("%-40s = %s\n", label.c_str(), val);
+        std::println("{:<40} = {}", label.c_str(), val);
         pos = end + 1;
     }
     return true;
@@ -337,12 +333,10 @@ int main(int argc, char** argv) {
     login::Session ses{cfg};
     login::Result  res;
     if (!ses.run(res)) {
-        std::fprintf(stderr,
-            "%s: handshake failed: %s\n", argv[0], ses.error().c_str());
+        std::println(stderr, "{}: handshake failed: {}", argv[0], ses.error().c_str());
         return EXIT_FAILURE;
     }
-    std::fprintf(stderr,
-        "%s: connected to %s:%u (sessionkey=0x%08x sessionnum=0x%08x)\n",
+    std::println(stderr, "{}: connected to {}:{} (sessionkey=0x{:08x} sessionnum=0x{:08x})",
         argv[0], opts.host.c_str(), opts.port,
         res.sessionkey, res.sessionnum);
 

@@ -42,6 +42,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <print>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
@@ -79,8 +80,8 @@ struct Options {
 };
 
 [[noreturn]] void usage(const char* prog) {
-    std::fprintf(stderr,
-        "usage: %s -u USER -p PASS [<options>] [<host> [<port>]]\n"
+    std::print(stderr,
+        "usage: {} -u USER -p PASS [<options>] [<host> [<port>]]\n"
         "  -u USER, --user=USER       account name (required)\n"
         "  -p PASS, --password=PASS   account password (required)\n"
         "  -c TAG,  --client=TAG      STAR | SEXP | SSHR | DRTL | DSHR\n"
@@ -118,8 +119,7 @@ Options parse_args(int argc, char** argv) {
     std::vector<std::string> positional;
     auto need_value = [&](int& i, std::string_view flag) -> const char* {
         if (i + 1 >= argc) {
-            std::fprintf(stderr, "%s: %.*s requires a value\n",
-                argv[0], static_cast<int>(flag.size()), flag.data());
+            std::println(stderr, "{}: {} requires a value", argv[0], flag);
             usage(argv[0]);
         }
         return argv[++i];
@@ -129,7 +129,7 @@ Options parse_args(int argc, char** argv) {
         if (a == "-h" || a == "--help" || a == "--usage") {
             usage(argv[0]);
         } else if (a == "-v" || a == "--version") {
-            std::printf("bnchat (pvpgn v3)\n");
+            std::println("bnchat (pvpgn v3)");
             std::exit(EXIT_SUCCESS);
         } else if (a == "-u") {
             o.user = need_value(i, a);
@@ -162,8 +162,7 @@ Options parse_args(int argc, char** argv) {
         } else if (starts_with(a, "--linger-secs=")) {
             o.linger_secs = std::atoi(std::string{a.substr(14)}.c_str());
         } else if (!a.empty() && a[0] == '-') {
-            std::fprintf(stderr, "%s: unknown option \"%.*s\"\n",
-                argv[0], static_cast<int>(a.size()), a.data());
+            std::println(stderr, "{}: unknown option \"{}\"", argv[0], a);
             usage(argv[0]);
         } else {
             positional.emplace_back(a);
@@ -177,13 +176,13 @@ Options parse_args(int argc, char** argv) {
     }
     if (positional.size() == 2) {
         if (!parse_ushort(positional[1].c_str(), o.port)) {
-            std::fprintf(stderr, "%s: bad port \"%s\"\n",
+            std::println(stderr, "{}: bad port \"{}\"",
                 argv[0], positional[1].c_str());
             usage(argv[0]);
         }
     }
     if (o.user.empty() || o.password.empty()) {
-        std::fprintf(stderr, "%s: -u and -p are required\n", argv[0]);
+        std::println(stderr, "{}: -u and -p are required", argv[0]);
         usage(argv[0]);
     }
     if (o.channel.empty()) {
@@ -300,15 +299,13 @@ void render_server_message(const proto::Packet& p) {
     if (name >= end) {
         return;
     }
-    const std::size_t name_len = ::strnlen(name, end - name);
+    const std::size_t name_len = ::strnlen(name, static_cast<std::size_t>(end - name));
     const char* text = name + name_len + 1;
     if (text > end) {
         text = "";
     }
-    const std::size_t text_len = ::strnlen(text, end - text);
-    std::printf("[%s] %.*s: %.*s\n", msg_type_str(type),
-        static_cast<int>(name_len), name,
-        static_cast<int>(text_len), text);
+    const std::size_t text_len = ::strnlen(text, static_cast<std::size_t>(end - text));
+    std::println("[{}] {}: {}", msg_type_str(type), std::string_view{name, static_cast<std::size_t>(name_len)}, std::string_view{text, static_cast<std::size_t>(text_len)});
     std::fflush(stdout);
 }
 
@@ -346,27 +343,24 @@ int main(int argc, char** argv) {
     login::Session sess{cfg};
     login::Result lr{};
     if (!sess.run(lr)) {
-        std::fprintf(stderr, "%s: handshake failed: %s\n",
+        std::println(stderr, "{}: handshake failed: {}",
             argv[0], sess.error().c_str());
         return EXIT_FAILURE;
     }
     net::socket_holder sock{lr.sock};
-    std::fprintf(stderr,
-        "%s: handshake ok, sessionkey=0x%08x sessionnum=0x%08x\n",
+    std::println(stderr, "{}: handshake ok, sessionkey=0x{:08x} sessionnum=0x{:08x}",
         argv[0], lr.sessionkey, lr.sessionnum);
 
     // ---- (R197) optional CLIENT_CREATEACCTREQ1 ----
     proto::Packet p;
     if (opts.create_account) {
         if (!send_createacctreq1(sock.get(), opts.user, opts.password)) {
-            std::fprintf(stderr,
-                "%s: send CLIENT_CREATEACCTREQ1 failed\n", argv[0]);
+            std::println(stderr, "{}: send CLIENT_CREATEACCTREQ1 failed", argv[0]);
             return EXIT_FAILURE;
         }
         for (;;) {
             if (!proto::recv_bnet(sock.get(), p)) {
-                std::fprintf(stderr,
-                    "%s: server closed before CREATEACCTREPLY1\n", argv[0]);
+                std::println(stderr, "{}: server closed before CREATEACCTREPLY1", argv[0]);
                 return EXIT_FAILURE;
             }
             if (p.bnet_type() == bnet::packet_id::SERVER_CREATEACCTREPLY1) {
@@ -379,8 +373,7 @@ int main(int argc, char** argv) {
                 reply ? proto::int_get(reply->result) : 0;
             // Both Ok (new account) and No (already exists) are treated
             // as success so the smoke is idempotent across restarts.
-            std::fprintf(stderr,
-                "%s: createacctreply1 result=0x%08x (%s)\n",
+            std::println(stderr, "{}: createacctreply1 result=0x{:08x} ({})",
                 argv[0], r,
                 r == bnet::kCreateAcctReply1_Ok
                     ? "created"
@@ -390,13 +383,12 @@ int main(int argc, char** argv) {
 
     // ---- CLIENT_LOGINREQ1 -> SERVER_LOGINREPLY1 ----
     if (!send_loginreq1(sock.get(), opts.user, opts.password, lr.sessionkey)) {
-        std::fprintf(stderr, "%s: send CLIENT_LOGINREQ1 failed\n", argv[0]);
+        std::println(stderr, "{}: send CLIENT_LOGINREQ1 failed", argv[0]);
         return EXIT_FAILURE;
     }
     for (;;) {
         if (!proto::recv_bnet(sock.get(), p)) {
-            std::fprintf(stderr,
-                "%s: server closed before LOGINREPLY1\n", argv[0]);
+            std::println(stderr, "{}: server closed before LOGINREPLY1", argv[0]);
             return EXIT_FAILURE;
         }
         if (p.bnet_type() == bnet::packet_id::SERVER_LOGINREPLY1) {
@@ -408,13 +400,12 @@ int main(int argc, char** argv) {
         const std::uint32_t msg =
             reply ? proto::int_get(reply->message) : 0;
         if (msg != bnet::kLoginReply1_Success) {
-            std::fprintf(stderr,
-                "%s: login refused (LOGINREPLY1 message=0x%08x)\n",
+            std::println(stderr, "{}: login refused (LOGINREPLY1 message=0x{:08x})",
                 argv[0], msg);
             return EXIT_FAILURE;
         }
     }
-    std::fprintf(stderr, "%s: login ok as \"%s\"\n",
+    std::println(stderr, "{}: login ok as \"{}\"",
         argv[0], opts.user.c_str());
 
     // ---- CLIENT_PROGIDENT2 -> drain SERVER_CHANNELLIST ----
@@ -430,15 +421,14 @@ int main(int argc, char** argv) {
         proto::int_tag_set(prog->clienttag, ct);
         pi.set_bnet_size(static_cast<std::uint16_t>(pi.size()));
         if (!proto::send_bnet(sock.get(), pi)) {
-            std::fprintf(stderr, "%s: send CLIENT_PROGIDENT2 failed\n",
+            std::println(stderr, "{}: send CLIENT_PROGIDENT2 failed",
                 argv[0]);
             return EXIT_FAILURE;
         }
     }
     for (;;) {
         if (!proto::recv_bnet(sock.get(), p)) {
-            std::fprintf(stderr,
-                "%s: server closed before CHANNELLIST\n", argv[0]);
+            std::println(stderr, "{}: server closed before CHANNELLIST", argv[0]);
             return EXIT_FAILURE;
         }
         if (p.bnet_type() == bnet::packet_id::SERVER_CHANNELLIST) {
@@ -456,12 +446,12 @@ int main(int argc, char** argv) {
         pj.append_cstr(opts.channel.c_str());
         pj.set_bnet_size(static_cast<std::uint16_t>(pj.size()));
         if (!proto::send_bnet(sock.get(), pj)) {
-            std::fprintf(stderr, "%s: send CLIENT_JOINCHANNEL failed\n",
+            std::println(stderr, "{}: send CLIENT_JOINCHANNEL failed",
                 argv[0]);
             return EXIT_FAILURE;
         }
     }
-    std::fprintf(stderr, "%s: joining channel \"%s\"...\n",
+    std::println(stderr, "{}: joining channel \"{}\"...",
         argv[0], opts.channel.c_str());
 
     // ---- R197.b: --say one-shot mode ---------------------------------
@@ -471,11 +461,10 @@ int main(int argc, char** argv) {
     // scripted-smoke entry point.
     if (!opts.say.empty()) {
         if (!send_chat_message(sock.get(), opts.say)) {
-            std::fprintf(stderr,
-                "%s: send CLIENT_MESSAGE failed\n", argv[0]);
+            std::println(stderr, "{}: send CLIENT_MESSAGE failed", argv[0]);
             return EXIT_FAILURE;
         }
-        std::fprintf(stderr, "%s: sent CLIENT_MESSAGE %zu bytes\n",
+        std::println(stderr, "{}: sent CLIENT_MESSAGE {} bytes",
             argv[0], opts.say.size());
         const int sd_oneshot = static_cast<int>(sock.get());
         const int linger = opts.linger_secs > 0 ? opts.linger_secs : 2;
@@ -499,16 +488,16 @@ int main(int argc, char** argv) {
                 break;
             }
             if (n == 0) break;
-            if (!FD_ISSET(sd_oneshot, &rfds)) continue;
+            if (!FD_ISSET(static_cast<std::size_t>(sd_oneshot), &rfds)) continue;
             if (!proto::recv_bnet(sock.get(), p)) {
-                std::fprintf(stderr, "%s: server disconnected\n", argv[0]);
+                std::println(stderr, "{}: server disconnected", argv[0]);
                 return EXIT_SUCCESS;
             }
             if (p.bnet_type() == bnet::packet_id::SERVER_MESSAGE) {
                 render_server_message(p);
             }
         }
-        std::fprintf(stderr, "%s: linger expired, exiting\n", argv[0]);
+        std::println(stderr, "{}: linger expired, exiting", argv[0]);
         return EXIT_SUCCESS;
     }
 
@@ -527,13 +516,13 @@ int main(int argc, char** argv) {
             if (errno == EINTR) {
                 continue;
             }
-            std::fprintf(stderr, "%s: select: %s\n",
+            std::println(stderr, "{}: select: {}",
                 argv[0], std::strerror(errno));
             return EXIT_FAILURE;
         }
-        if (FD_ISSET(sd, &rfds)) {
+        if (FD_ISSET(static_cast<std::size_t>(sd), &rfds)) {
             if (!proto::recv_bnet(sock.get(), p)) {
-                std::fprintf(stderr, "%s: server disconnected\n", argv[0]);
+                std::println(stderr, "{}: server disconnected", argv[0]);
                 return EXIT_SUCCESS;
             }
             if (p.bnet_type() == bnet::packet_id::SERVER_MESSAGE) {
@@ -546,7 +535,7 @@ int main(int argc, char** argv) {
             const ssize_t got =
                 ::read(STDIN_FILENO, chunk, sizeof(chunk));
             if (got <= 0) {
-                std::fprintf(stderr, "%s: stdin closed, exiting\n", argv[0]);
+                std::println(stderr, "{}: stdin closed, exiting", argv[0]);
                 return EXIT_SUCCESS;
             }
             line_buf.append(chunk, static_cast<std::size_t>(got));
@@ -564,12 +553,11 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 if (line == "/quit" || line == "/exit") {
-                    std::fprintf(stderr, "%s: bye\n", argv[0]);
+                    std::println(stderr, "{}: bye", argv[0]);
                     return EXIT_SUCCESS;
                 }
                 if (!send_chat_message(sock.get(), line)) {
-                    std::fprintf(stderr,
-                        "%s: send CLIENT_MESSAGE failed\n", argv[0]);
+                    std::println(stderr, "{}: send CLIENT_MESSAGE failed", argv[0]);
                     return EXIT_FAILURE;
                 }
             }

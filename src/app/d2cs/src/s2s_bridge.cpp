@@ -2,10 +2,10 @@
 //
 // R233(2): observation bridge for d2cs server-to-server bootstrap.
 
-#include "integration/legacy_d2cs/s2s_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/s2s_bridge.hpp"
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2cs/bridge_logger.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/bridge_logger.hpp"
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 

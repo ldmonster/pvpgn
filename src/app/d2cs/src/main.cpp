@@ -42,6 +42,7 @@
 
 // v3 infrastructure
 #include "core/format.hpp"
+#include <chrono>
 #include "infra/net/io_runtime.hpp"
 #include "infra/net/tcp_acceptor.hpp"
 #include "infra/net/tcp_session.hpp"
@@ -220,11 +221,17 @@ int main(int argc, char* argv[]) {
         // 4. Create TcpListener on port 6113
         //    The bnetd TcpListener is reused — it lives in app/bnetd headers
         //    and is a thin wrapper around infra::net::TcpAcceptor.
+        //
+        //    Idle-read deadline (Plan 06 [net.timeouts].d2cs). The d2cs binary
+        //    uses D2csServerConfig (no net_timeouts section yet), so apply the
+        //    NetTimeoutsConfig default here; a config-driven override is a
+        //    tracked follow-up once net_timeouts is added to D2csServerConfig.
         pvpgn::app::bnetd::TcpListener d2cs_listener{
             rt,
             [](std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
                 make_d2cs_session(std::move(tcp));
-            }};
+            },
+            std::chrono::seconds{300}};
         d2cs_listener.start(cfg.listen_address, cfg.d2cs_port);
 
         LOG_INFO("d2cs", "D2CS listening on port {}", cfg.d2cs_port);

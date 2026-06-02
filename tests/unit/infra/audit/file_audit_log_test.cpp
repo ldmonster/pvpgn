@@ -10,7 +10,7 @@
 #include "domain/moderation/ports.hpp"
 #include "infra/audit/file_audit_log.hpp"
 
-namespace ap = pvpgn::application::ports;
+namespace ap = pvpgn::domain::moderation;
 using pvpgn::infra::audit::FileAuditLog;
 
 namespace {

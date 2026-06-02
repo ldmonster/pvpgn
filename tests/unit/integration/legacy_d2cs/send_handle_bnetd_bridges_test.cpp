@@ -9,10 +9,10 @@
 #include <cstring>
 #include <vector>
 
-#include "integration/legacy_d2cs/send_authreply_bnetd_bridge.hpp"
-#include "integration/legacy_d2cs/send_gameinforeply_bnetd_bridge.hpp"
-#include "integration/legacy_d2cs/send_init_bnetd_bridge.hpp"
-#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_authreply_bnetd_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_gameinforeply_bnetd_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_init_bnetd_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_packet_bridge.hpp"
 
 namespace ild = pvpgn::integration::legacy_d2cs;
 

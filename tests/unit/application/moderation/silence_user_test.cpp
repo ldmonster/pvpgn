@@ -42,7 +42,7 @@ domain::identity::Account make_account(domain::AccountId id,
 // Fakes
 // ---------------------------------------------------------------------------
 
-class FakeAccountRepository final : public application::ports::IAccountRepository {
+class FakeAccountRepository final : public domain::identity::IAccountRepository {
 public:
     bool account_exists = true;
     bool save_fails     = false;

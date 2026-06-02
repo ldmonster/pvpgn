@@ -19,6 +19,7 @@
 /* setup_before.h dropped: standalone v3 tool */
 
 #include <cerrno>
+#include <print>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -49,7 +50,7 @@ namespace
 
 		f = std::fopen(name, "r");
 		if (f == NULL) {
-			std::fprintf(stderr, "%s: could not open index file \"%s\" for reading (std::fopen: %s)\n", progname, name, std::strerror(errno));
+			std::println(stderr, "{}: could not open index file \"{}\" for reading (std::fopen: {})", progname, name, std::strerror(errno));
 			return -1;
 		}
 		bnifile->unknown1 = 0x00000010; /* in case they are not set */
@@ -75,7 +76,7 @@ namespace
 					unsigned int x, y, unknown;
 					std::sscanf(line, "icon !%c%c%c%c %u %u %08x", &tg[0], &tg[1], &tg[2], &tg[3], &x, &y, &unknown);
 					tag = tg[3] + (tg[2] << 8) + (tg[1] << 16) + (tg[0] << 24);
-				std::fprintf(stderr, "Icon[%d]: id=0x%x x=%u y=%u unknown=0x%x tag=\"%c%c%c%c\"\n", bnifile->numicons, 0, x, y, unknown, static_cast<unsigned char>((tag >> 24) & 0xff), static_cast<unsigned char>((tag >> 16) & 0xff), static_cast<unsigned char>((tag >> 8) & 0xff), static_cast<unsigned char>(tag & 0xff));
+				std::println(stderr, "Icon[{}]: id=0x{:x} x={} y={} unknown=0x{:x} tag=\"{}{}{}{}\"", bnifile->numicons, 0, x, y, unknown, static_cast<unsigned char>((tag >> 24) & 0xff), static_cast<unsigned char>((tag >> 16) & 0xff), static_cast<unsigned char>((tag >> 8) & 0xff), static_cast<unsigned char>(tag & 0xff));
 				bnifile->icons.push_back(t_bniicon{0, x, y, static_cast<unsigned int>(tag), unknown});
 					bnifile->numicons++;
 					bnifile->dataoffset += 20;
@@ -83,27 +84,27 @@ namespace
 				else if (c == '#') {
 					unsigned int id, x, y, unknown;
 					std::sscanf(line, "icon #%08x %u %u %08x", &id, &x, &y, &unknown);
-					std::fprintf(stderr, "Icon[%d]: id=0x%x x=%u y=%u unknown=0x%x tag=0x00000000\n", bnifile->numicons, id, x, y, unknown);
+					std::println(stderr, "Icon[{}]: id=0x{:x} x={} y={} unknown=0x{:x} tag=0x00000000", bnifile->numicons, id, x, y, unknown);
 					bnifile->icons.push_back(t_bniicon{id, x, y, 0, unknown});
 					bnifile->numicons++;
 					bnifile->dataoffset += 16;
 				}
 				else
-					std::fprintf(stderr, "Bad character '%c' in icon specifier for icon %u in index file \"%s\"\n", c, bnifile->numicons + 1, name);
+					std::println(stderr, "Bad character '{}' in icon specifier for icon {} in index file \"{}\"", c, bnifile->numicons + 1, name);
 			}
 			else
-				std::fprintf(stderr, "Unknown command \"%s\" in index file \"%s\"\n", cmd, name);
+				std::println(stderr, "Unknown command \"{}\" in index file \"{}\"", cmd, name);
 		}
 		if (std::fclose(f) < 0)
-			std::fprintf(stderr, "%s: could not close index file \"%s\" after reading (std::fclose: %s)\n", progname, name, std::strerror(errno));
+			std::println(stderr, "{}: could not close index file \"{}\" after reading (std::fclose: {})", progname, name, std::strerror(errno));
 		return 0;
 	}
 
 
 	std::string geticonfilename(t_bnifile *bnifile, char const * indir, int i) {
 		char buf[1024];
-		if (bnifile->icons[i].id == 0) {
-			unsigned int tag = bnifile->icons[i].tag;
+		if (bnifile->icons[static_cast<std::size_t>(i)].id == 0) {
+			unsigned int tag = bnifile->icons[static_cast<std::size_t>(i)].tag;
 			std::snprintf(buf, sizeof(buf), "%s/%c%c%c%c.tga", indir,
 				static_cast<unsigned char>((tag >> 24) & 0xff),
 				static_cast<unsigned char>((tag >> 16) & 0xff),
@@ -111,7 +112,7 @@ namespace
 				static_cast<unsigned char>(tag & 0xff));
 		}
 		else {
-			std::snprintf(buf, sizeof(buf), "%s/%08x.tga", indir, bnifile->icons[i].id);
+			std::snprintf(buf, sizeof(buf), "%s/%08x.tga", indir, bnifile->icons[static_cast<std::size_t>(i)].id);
 		}
 		return std::string(buf);
 	}
@@ -125,7 +126,7 @@ namespace
 
 		pixelsize = getpixelsize(dst);
 		if (getpixelsize(src) != pixelsize) {
-			std::fprintf(stderr, "Error: source pixelsize is %d should be %d!\n", getpixelsize(src), pixelsize);
+			std::println(stderr, "Error: source pixelsize is {} should be {}!", getpixelsize(src), pixelsize);
 			return -1;
 		}
 		if (src->width + x > dst->width) return -1;
@@ -134,7 +135,7 @@ namespace
 		ddp = dst->data.data() + (y * dst->width * pixelsize);
 		for (i = 0; i < src->height; i++) {
 			ddp += x*pixelsize;
-			std::memcpy(ddp, sdp, src->width*pixelsize);
+			std::memcpy(ddp, sdp, static_cast<std::size_t>(src->width)*static_cast<std::size_t>(pixelsize));
 			sdp += src->width*pixelsize;
 			ddp += (dst->width - x)*pixelsize;
 		}
@@ -144,8 +145,8 @@ namespace
 
 	void usage(char const * progname)
 	{
-		std::fprintf(stderr,
-			"usage: %s [<options>] [--] <input directory> [<BNI file>]\n"
+		std::print(stderr,
+			"usage: {} [<options>] [--] <input directory> [<BNI file>]\n"
 			"    -h, --help, --usage  show this information and exit\n"
 			"    -v, --version        print version number and exit\n", progname);
 
@@ -165,7 +166,7 @@ extern int main(int argc, char * argv[])
 
 	if (argc < 1 || !argv || !argv[0])
 	{
-		std::fprintf(stderr, "bad arguments\n");
+		std::println(stderr, "bad arguments");
 		return EXIT_FAILURE;
 	}
 
@@ -184,14 +185,14 @@ extern int main(int argc, char * argv[])
 		bnifile = argv[a];
 	else if (forcefile || argv[a][0] != '-' || std::strcmp(argv[a], "-") == 0)
 	{
-		std::fprintf(stderr, "%s: extra file argument \"%s\"\n", argv[0], argv[a]);
+		std::println(stderr, "{}: extra file argument \"{}\"", argv[0], argv[a]);
 		usage(argv[0]);
 	}
 	else if (std::strcmp(argv[a], "--") == 0)
 		forcefile = 1;
 	else if (std::strcmp(argv[a], "-v") == 0 || std::strcmp(argv[a], "--version") == 0)
 	{
-		std::printf("version " PVPGN_VERSION "\n");
+		std::print("version " PVPGN_VERSION "\n");
 		return EXIT_SUCCESS;
 	}
 	else if (std::strcmp(argv[a], "-h") == 0 || std::strcmp(argv[a], "--help") == 0 || std::strcmp(argv[a], "--usage")
@@ -199,13 +200,13 @@ extern int main(int argc, char * argv[])
 		usage(argv[0]);
 	else
 	{
-		std::fprintf(stderr, "%s: unknown option \"%s\"\n", argv[0], argv[a]);
+		std::println(stderr, "{}: unknown option \"{}\"", argv[0], argv[a]);
 		usage(argv[0]);
 	}
 
 	if (!indir)
 	{
-		std::fprintf(stderr, "%s: input directory not specified\n", argv[0]);
+		std::println(stderr, "{}: input directory not specified", argv[0]);
 		usage(argv[0]);
 	}
 	if (!bnifile)
@@ -213,19 +214,19 @@ extern int main(int argc, char * argv[])
 
 	if (indir == dash)
 	{
-		std::fprintf(stderr, "%s: can not read directory from <stdin>\n", argv[0]);
+		std::println(stderr, "{}: can not read directory from <stdin>", argv[0]);
 		return EXIT_FAILURE;
 	}
 	{
 		std::error_code ec;
 		auto status = std::filesystem::status(indir, ec);
 		if (ec) {
-			std::fprintf(stderr, "%s: could not stat input directory \"%s\" (%s)\n",
+			std::println(stderr, "{}: could not stat input directory \"{}\" ({})",
 				argv[0], indir, ec.message().c_str());
 			return EXIT_FAILURE;
 		}
 		if (!std::filesystem::is_directory(status)) {
-			std::fprintf(stderr, "%s: \"%s\" is not a directory\n", argv[0], indir);
+			std::println(stderr, "{}: \"{}\" is not a directory", argv[0], indir);
 			return -1;
 		}
 	}
@@ -235,7 +236,7 @@ extern int main(int argc, char * argv[])
 	else
 	if (!(fbni = std::fopen(bnifile, "w")))
 	{
-		std::fprintf(stderr, "%s: could not open BNI file \"%s\" for writing (std::fopen: %s)\n", argv[0], bnifile, std::strerror(errno));
+		std::println(stderr, "{}: could not open BNI file \"{}\" for writing (std::fopen: {})", argv[0], bnifile, std::strerror(errno));
 		return EXIT_FAILURE;
 	}
 
@@ -246,26 +247,26 @@ extern int main(int argc, char * argv[])
 		t_bnifile    bni;
 
 		std::string listfilename = std::string(indir) + "/bniindex.lst";
-		std::fprintf(stderr, "Info: Reading index from file \"%s\"...\n", listfilename.c_str());
+		std::println(stderr, "Info: Reading index from file \"{}\"...", listfilename.c_str());
 		if (read_list(argv[0], &bni, listfilename.c_str()) < 0)
 			return EXIT_FAILURE;
-		std::fprintf(stderr, "BNIHeader: unknown1=%u unknown2=%u numicons=%u dataoffset=%u\n", bni.unknown1, bni.unknown2, bni.numicons, bni.dataoffset);
+		std::println(stderr, "BNIHeader: unknown1={} unknown2={} numicons={} dataoffset={}", bni.unknown1, bni.unknown2, bni.numicons, bni.dataoffset);
 		if (write_bni(fbni, &bni) < 0) {
-			std::fprintf(stderr, "Error: Failed to write BNI header.\n");
+			std::println(stderr, "Error: Failed to write BNI header.");
 			return EXIT_FAILURE;
 		}
 		img = new_tgaimg(0, 0, 24, tgaimgtype_rlecompressed_truecolor);
 		for (i = 0; i < bni.numicons; i++) {
-			if (bni.icons[i].x > img->width) img->width = bni.icons[i].x;
-			img->height += bni.icons[i].y;
+			if (bni.icons[static_cast<std::size_t>(i)].x > img->width) img->width = static_cast<std::uint16_t>(bni.icons[static_cast<std::size_t>(i)].x);
+			img->height = static_cast<std::uint16_t>(img->height + bni.icons[static_cast<std::size_t>(i)].y);
 		}
-		std::fprintf(stderr, "Info: Creating TGA with %ux%ux%ubpp.\n", img->width, img->height, img->bpp);
-		img->data.resize(static_cast<std::size_t>(img->width)*img->height*getpixelsize(img));
+		std::println(stderr, "Info: Creating TGA with {}x{}x{}bpp.", img->width, img->height, img->bpp);
+		img->data.resize(static_cast<std::size_t>(img->width)*static_cast<std::size_t>(img->height)*static_cast<std::size_t>(getpixelsize(img)));
 		yline = 0;
 		for (i = 0; i < bni.numicons; i++) {
 			t_tgaimg *icon;
 			std::FILE *f;
-			std::string name = geticonfilename(&bni, indir, i);
+			std::string name = geticonfilename(&bni, indir, static_cast<int>(i));
 			f = std::fopen(name.c_str(), "r");
 			if (f == NULL) {
 				std::perror("std::fopen");
@@ -273,27 +274,27 @@ extern int main(int argc, char * argv[])
 			}
 			icon = load_tga(f);
 			if (std::fclose(f) < 0)
-				std::fprintf(stderr, "Error: could not close TGA file \"%s\" after reading (std::fclose: %s)\n", name.c_str(), std::strerror(errno));
+				std::println(stderr, "Error: could not close TGA file \"{}\" after reading (std::fclose: {})", name.c_str(), std::strerror(errno));
 			if (icon == NULL) {
-				std::fprintf(stderr, "Error: load_tga failed with data from TGA file \"%s\"\n", name.c_str());
+				std::println(stderr, "Error: load_tga failed with data from TGA file \"{}\"", name.c_str());
 				return EXIT_FAILURE;
 			}
-			if (img2area(img, icon, 0, yline) < 0) {
-				std::fprintf(stderr, "Error: inserting icon from TGA file \"%s\" into big TGA failed\n", name.c_str());
+			if (img2area(img, icon, 0, static_cast<int>(yline)) < 0) {
+				std::println(stderr, "Error: inserting icon from TGA file \"{}\" into big TGA failed", name.c_str());
 				return EXIT_FAILURE;
 			}
 			yline += icon->height;
 			destroy_img(icon);
 		}
 		if (write_tga(fbni, img) < 0) {
-			std::fprintf(stderr, "Error: Failed to write TGA to BNI file.\n");
+			std::println(stderr, "Error: Failed to write TGA to BNI file.");
 			return EXIT_FAILURE;
 		}
 		if (bnifile != dash && std::fclose(fbni) < 0) {
-			std::fprintf(stderr, "%s: could not close BNI file \"%s\" after writing (std::fclose: %s)\n", argv[0], bnifile, std::strerror(errno));
+			std::println(stderr, "{}: could not close BNI file \"{}\" after writing (std::fclose: {})", argv[0], bnifile, std::strerror(errno));
 			return EXIT_FAILURE;
 		}
 	}
-	std::fprintf(stderr, "Info: Writing to \"%s\" finished.\n", bnifile);
+	std::println(stderr, "Info: Writing to \"{}\" finished.", bnifile);
 	return EXIT_SUCCESS;
 }

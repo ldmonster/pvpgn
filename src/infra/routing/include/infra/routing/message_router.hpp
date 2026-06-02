@@ -27,16 +27,16 @@ namespace pvpgn::infra::routing {
 /// - Holds weak_ptr to ISessionRegistry for account lookup
 /// - Maintains SessionId → weak_ptr<IConnectionEgress> map
 /// - Thread-safe with shared_mutex
-class MessageRouterImpl final : public application::ports::IMessageRouter {
+class MessageRouterImpl final : public domain::connection::IMessageRouter {
 public:
     explicit MessageRouterImpl(
-        std::weak_ptr<application::ports::ISessionRegistry> registry)
+        std::weak_ptr<domain::identity::ISessionRegistry> registry)
         : registry_(registry) {}
 
     /// Register a session's egress channel.
     /// Called when a new session is created.
     void register_session(domain::SessionId session_id,
-                          std::shared_ptr<application::ports::IConnectionEgress>
+                          std::shared_ptr<domain::connection::IConnectionEgress>
                               egress) {
         std::unique_lock lock(mu_);
         sessions_[session_id.value()] = egress;
@@ -117,10 +117,10 @@ public:
     }
 
 private:
-    std::weak_ptr<application::ports::ISessionRegistry> registry_;
+    std::weak_ptr<domain::identity::ISessionRegistry> registry_;
     mutable std::shared_mutex mu_;
     std::unordered_map<std::uint64_t,
-                       std::weak_ptr<application::ports::IConnectionEgress>>
+                       std::weak_ptr<domain::connection::IConnectionEgress>>
         sessions_;
 };
 

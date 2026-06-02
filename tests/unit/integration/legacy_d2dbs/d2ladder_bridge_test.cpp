@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2dbs/bridge_logger.hpp"
-#include "integration/legacy_d2dbs/d2ladder_bridge.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/bridge_logger.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/d2ladder_bridge.hpp"
 
 namespace ild = pvpgn::integration::legacy_d2dbs;
 

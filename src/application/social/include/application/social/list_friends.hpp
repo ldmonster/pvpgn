@@ -12,7 +12,8 @@
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::application::social {
 
@@ -31,18 +32,18 @@ enum class ListFriendsError : std::uint8_t {
 
 class ListFriends {
 public:
-    ListFriends(std::shared_ptr<application::ports::IFriendListRepository> friend_lists,
-                std::shared_ptr<application::ports::ISessionRegistry> registry,
-                std::shared_ptr<application::ports::IAccountRepository> accounts)
+    ListFriends(std::shared_ptr<domain::social::IFriendListRepository> friend_lists,
+                std::shared_ptr<domain::identity::ISessionRegistry> registry,
+                std::shared_ptr<domain::identity::IAccountRepository> accounts)
         : friend_lists_(friend_lists), registry_(registry), accounts_(accounts) {}
 
     core::Result<std::vector<FriendInfo>, ListFriendsError>
     execute(domain::AccountId owner);
 
 private:
-    std::shared_ptr<application::ports::IFriendListRepository> friend_lists_;
-    std::shared_ptr<application::ports::ISessionRegistry> registry_;
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
+    std::shared_ptr<domain::social::IFriendListRepository> friend_lists_;
+    std::shared_ptr<domain::identity::ISessionRegistry> registry_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
 };
 
 }  // namespace pvpgn::application::social

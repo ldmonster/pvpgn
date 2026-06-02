@@ -19,7 +19,9 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 
 namespace pvpgn::application::game {
 
@@ -47,8 +49,8 @@ enum class ReportGameResultError : std::uint8_t {
 
 class ReportGameResult {
 public:
-    ReportGameResult(std::shared_ptr<application::ports::IGameRepository> games,
-                     std::shared_ptr<application::ports::ILadderRepository> ladder,
+    ReportGameResult(std::shared_ptr<domain::gameplay::IGameRepository> games,
+                     std::shared_ptr<domain::ladder::ILadderRepository> ladder,
                      std::shared_ptr<application::ports::IEventBus> event_bus)
         : games_(games), ladder_(ladder), event_bus_(event_bus) {}
 
@@ -56,8 +58,8 @@ public:
     execute(const ReportGameResultRequest& req);
 
 private:
-    std::shared_ptr<application::ports::IGameRepository> games_;
-    std::shared_ptr<application::ports::ILadderRepository> ladder_;
+    std::shared_ptr<domain::gameplay::IGameRepository> games_;
+    std::shared_ptr<domain::ladder::ILadderRepository> ladder_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

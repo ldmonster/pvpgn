@@ -8,6 +8,13 @@
 /// (channels, games, teams are session-scoped and not persisted to MySQL yet).
 
 #include "infra/mysql/unit_of_work.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/realm/ports.hpp"
+#include "domain/social/ports.hpp"
 
 #ifdef PVPGN_V3_WITH_MYSQL
 
@@ -52,43 +59,43 @@ void MySQLUnitOfWork::rollback() noexcept {
     conn_->rollback();
 }
 
-application::ports::IAccountRepository& MySQLUnitOfWork::accounts() {
+domain::identity::IAccountRepository& MySQLUnitOfWork::accounts() {
     return *accounts_;
 }
 
-application::ports::IChannelRepository& MySQLUnitOfWork::channels() {
+domain::chat::IChannelRepository& MySQLUnitOfWork::channels() {
     return *channels_;
 }
 
-application::ports::IGameRepository& MySQLUnitOfWork::games() {
+domain::gameplay::IGameRepository& MySQLUnitOfWork::games() {
     return *games_;
 }
 
-application::ports::IClanRepository& MySQLUnitOfWork::clans() {
+domain::social::IClanRepository& MySQLUnitOfWork::clans() {
     return *clans_;
 }
 
-application::ports::ILadderRepository& MySQLUnitOfWork::ladder() {
+domain::ladder::ILadderRepository& MySQLUnitOfWork::ladder() {
     return *ladder_;
 }
 
-application::ports::IIpBanRepository& MySQLUnitOfWork::ip_bans() {
+domain::moderation::IIpBanRepository& MySQLUnitOfWork::ip_bans() {
     return *ip_bans_;
 }
 
-application::ports::IAccountBanRepository& MySQLUnitOfWork::account_bans() {
+domain::moderation::IAccountBanRepository& MySQLUnitOfWork::account_bans() {
     return *account_bans_;
 }
 
-application::ports::IFriendListRepository& MySQLUnitOfWork::friend_lists() {
+domain::social::IFriendListRepository& MySQLUnitOfWork::friend_lists() {
     return *friend_lists_;
 }
 
-application::ports::IRealmRepository& MySQLUnitOfWork::realms() {
+domain::realm::IRealmRepository& MySQLUnitOfWork::realms() {
     return *realms_;
 }
 
-application::ports::ITeamRepository& MySQLUnitOfWork::teams() {
+domain::social::ITeamRepository& MySQLUnitOfWork::teams() {
     return *teams_;
 }
 

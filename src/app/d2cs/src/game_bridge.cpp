@@ -2,7 +2,7 @@
 //
 // R238: observation bridges for d2cs game catalogue + per-game lifecycle.
 
-#include "integration/legacy_d2cs/game_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/game_bridge.hpp"
 
 #include <array>
 #include <charconv>
@@ -11,7 +11,7 @@
 #include <system_error>
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2cs/bridge_logger.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/bridge_logger.hpp"
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 

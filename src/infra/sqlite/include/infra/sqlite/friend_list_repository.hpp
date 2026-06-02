@@ -6,10 +6,11 @@
 #include "domain/social/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
+
 namespace pvpgn::infra::sqlite {
 
 class SQLiteFriendListRepository final
-    : public application::ports::IFriendListRepository {
+    : public domain::social::IFriendListRepository {
 public:
     explicit SQLiteFriendListRepository(std::shared_ptr<SQLiteConnection> conn);
 

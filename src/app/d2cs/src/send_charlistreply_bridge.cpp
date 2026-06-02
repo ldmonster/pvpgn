@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "integration/legacy_d2cs/send_charlistreply_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_charlistreply_bridge.hpp"
 
 #include <vector>
 
-#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_packet_bridge.hpp"
 #include "protocol/d2cs/charlistreply_encoder.hpp"
 
 namespace clr = pvpgn::protocol::d2cs::charlistreply;

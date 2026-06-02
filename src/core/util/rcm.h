@@ -25,7 +25,7 @@
 #ifndef __RCM_H_TYPES__
 #define __RCM_H_TYPES__
 
-#include "common/elist.h"
+#include "elist.h"
 
 namespace pvpgn
 {

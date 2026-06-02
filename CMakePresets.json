@@ -49,6 +49,18 @@
             }
         },
         {
+            "name": "v3-ubsan",
+            "displayName": "V3 UndefinedBehaviorSanitizer",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/v3-ubsan",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "PVPGN_V3": "ON",
+                "PVPGN_V3_UNIT_TESTS": "ON",
+                "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer"
+            }
+        },
+        {
             "name": "v3-tsan",
             "displayName": "V3 ThreadSanitizer",
             "generator": "Ninja",
@@ -90,6 +102,7 @@
         { "name": "v3-dev",      "configurePreset": "v3-dev" },
         { "name": "v3-release",  "configurePreset": "v3-release" },
         { "name": "v3-asan",     "configurePreset": "v3-asan" },
+        { "name": "v3-ubsan",    "configurePreset": "v3-ubsan" },
         { "name": "v3-tsan",     "configurePreset": "v3-tsan" },
         { "name": "v3-coverage", "configurePreset": "v3-coverage" },
         { "name": "v3-fuzz",     "configurePreset": "v3-fuzz" }

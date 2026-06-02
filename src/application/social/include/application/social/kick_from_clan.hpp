@@ -9,7 +9,8 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::application::social {
 
@@ -24,7 +25,7 @@ enum class KickFromClanError : std::uint8_t {
 
 class KickFromClan {
 public:
-    KickFromClan(std::shared_ptr<application::ports::IClanRepository> clans,
+    KickFromClan(std::shared_ptr<domain::social::IClanRepository> clans,
                  std::shared_ptr<application::ports::IEventBus> event_bus)
         : clans_(clans), event_bus_(event_bus) {}
 
@@ -32,7 +33,7 @@ public:
     execute(domain::ClanId clan_id, domain::AccountId kicker, domain::AccountId target);
 
 private:
-    std::shared_ptr<application::ports::IClanRepository> clans_;
+    std::shared_ptr<domain::social::IClanRepository> clans_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

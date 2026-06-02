@@ -15,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include "common/setup_before.h"
 #include "xstring.h"
 
 #include <algorithm>
@@ -28,19 +27,17 @@
 #include <iomanip>
 
 #include <strings.h>
-#include "common/setup_after.h"
 
 namespace pvpgn
 {
 
 	extern char * strtolower(char * str)
 	{
-		unsigned int	i;
-		unsigned char	ch;
-
-		if (!str) return NULL;
-		for (i = 0; (ch = str[i]); i++) {
-			if ((std::isupper(ch))) str[i] = ch + ('a' - 'A');
+		if (!str) return nullptr;
+		for (std::size_t i = 0; str[i]; i++) {
+			const unsigned char ch = static_cast<unsigned char>(str[i]);
+			if (std::isupper(ch))
+				str[i] = static_cast<char>(std::tolower(ch));
 		}
 		return str;
 	}
@@ -49,10 +46,10 @@ namespace pvpgn
 	{
 		unsigned char retval;
 
-		if (std::isalpha(ch)) retval = safe_tolower(ch);
+		if (std::isalpha(ch)) retval = static_cast<unsigned char>(std::tolower(ch));
 		else retval = ch;
-		if (retval < 'A') retval -= ('0' - 0);
-		else retval -= ('a' - 0xa);
+		if (retval < 'A') retval = static_cast<unsigned char>(retval - '0');
+		else retval = static_cast<unsigned char>(retval - ('a' - 0xa));
 		return retval;
 	}
 
@@ -73,7 +70,7 @@ namespace pvpgn
 			}
 			if (!match) break;
 		}
-		for (j = std::strlen(str) - 1; j >= i; j--) {
+		for (j = static_cast<unsigned int>(std::strlen(str)) - 1; j >= i; j--) {
 			match = 0;
 			for (n = 0; affix[n]; n++) {
 				if (str[j] == affix[n]) {
@@ -95,14 +92,11 @@ namespace pvpgn
 
 	extern char * hexstrdup(unsigned char const * src)
 	{
-		char	* dest;
-		int	len;
-
-		if (!src) return NULL;
-		std::size_t slen = std::strlen((const char*)src);
-		dest = new char[slen + 1];
-		std::strcpy(dest, (const char*)src);
-		len = hexstrtoraw(src, dest, slen + 1);
+		if (!src) return nullptr;
+		const std::size_t slen = std::strlen(reinterpret_cast<const char*>(src));
+		char * dest = new char[slen + 1];
+		std::strcpy(dest, reinterpret_cast<const char*>(src));
+		const unsigned int len = hexstrtoraw(src, dest, static_cast<unsigned int>(slen + 1));
 		dest[len] = '\0';
 		return dest;
 	}
@@ -122,21 +116,21 @@ namespace pvpgn
 					break;
 				}
 				else if (ch == '\\') {
-					data[j++] = ch;
+					data[j++] = static_cast<char>(ch);
 				}
 				else if (ch == 'x') {
 					if (std::isxdigit(src[i + 1])) {
 						if (std::isxdigit(src[i + 2])) {
-							data[j++] = xtoi(src[i + 1]) * 0x10 + xtoi(src[i + 2]);
+							data[j++] = static_cast<char>(xtoi(src[i + 1]) * 0x10 + xtoi(src[i + 2]));
 							i += 2;
 						}
 						else {
-							data[j++] = xtoi(src[i + 1]);
+							data[j++] = static_cast<char>(xtoi(src[i + 1]));
 							i++;
 						}
 					}
 					else {
-						data[j++] = ch;
+						data[j++] = static_cast<char>(ch);
 					}
 				}
 				else if (ch == 'n') {
@@ -161,11 +155,11 @@ namespace pvpgn
 					data[j++] = '\v';
 				}
 				else {
-					data[j++] = ch;
+					data[j++] = static_cast<char>(ch);
 				}
 			}
 			else {
-				data[j++] = ch;
+				data[j++] = static_cast<char>(ch);
 				continue;
 			}
 		}
@@ -189,7 +183,8 @@ namespace pvpgn
 		n = SPLIT_STRING_INIT_COUNT;
 		pindex = new int[n]{};
 
-		i = j = 0;
+		i = 0;
+		j = 0;
 		*count = 0;
 		while (str[i]) {
 			while (str[i] == ' ' || str[i] == '\t') i++;
@@ -231,8 +226,8 @@ namespace pvpgn
 			delete[] pindex;
 			return NULL;
 		}
-		result = new char[j + index_size]{};
-		std::memcpy(result + index_size, temp, j);
+		result = new char[static_cast<std::size_t>(j) + index_size]{};
+		std::memcpy(result + index_size, temp, static_cast<std::size_t>(j));
 
 		ptrindex = new void*[*count]{};
 		for (i = 0; i < *count; i++) {
@@ -242,7 +237,7 @@ namespace pvpgn
 		delete[] temp;
 		delete[] pindex;
 		delete[] ptrindex;
-		return (char * *)result;
+		return reinterpret_cast<char **>(result);
 	}
 
 #define COMBINE_STRING_INIT_LEN		1024
@@ -295,47 +290,43 @@ namespace pvpgn
 		if (!orig)
 			return nullptr;
 
-		if (!rep)
-			std::strcpy(rep, "");
-		int len_rep = std::strlen(rep);
+		const char *rep_s = rep ? rep : "";
+		const std::size_t len_rep = std::strlen(rep_s);
 
-		if (!with)
-			std::strcpy(with, "");
-		int len_with = std::strlen(with);
+		const char *with_s = with ? with : "";
+		const std::size_t len_with = std::strlen(with_s);
+
+		// str_replace requires a non-empty needle; an empty needle would
+		// never advance and loop forever.
+		if (len_rep == 0)
+			return nullptr;
 
 		// number of replacements
-		int count = 0;
+		std::size_t count = 0;
 
 		// next insert point
-		char *ins = orig;
-		char *tmp = nullptr;
-		for (count = 0; tmp = std::strstr(ins, rep); ++count)
+		const char *ins = orig;
+		for (const char *tmp; (tmp = std::strstr(ins, rep_s)); ++count)
 			ins = tmp + len_rep;
 
 		// the return string
-		char *result = nullptr;
+		char *result = new char[std::strlen(orig) + (len_with - len_rep) * count + 1];
+		char *out = result;
 
-		// first time through the loop, all the variable are set correctly
 		// from here on,
-		//    tmp points to the end of the result string
-		//    ins points to the next occurrence of rep in orig
+		//    out points to the end of the result string
 		//    orig points to the remainder of orig after "end of rep"
-		tmp = result = new char[std::strlen(orig) + (len_with - len_rep) * count + 1];
-
-		if (!result)
-			return nullptr;
-
-		// distance between rep and end of last rep
-		int len_front = 0;
 		while (count--)
 		{
-			ins = std::strstr(orig, rep);
-			len_front = ins - orig;
-			tmp = std::strncpy(tmp, orig, len_front) + len_front;
-			tmp = std::strcpy(tmp, with) + len_with;
+			const char *match = std::strstr(orig, rep_s);
+			const std::size_t len_front = static_cast<std::size_t>(match - orig);
+			std::memcpy(out, orig, len_front);
+			out += len_front;
+			std::memcpy(out, with_s, len_with);
+			out += len_with;
 			orig += len_front + len_rep; // move to next "end of rep"
 		}
-		std::strcpy(tmp, orig);
+		std::strcpy(out, orig);
 		return result;
 	}
 

@@ -11,7 +11,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
-#include "application/ports/metrics_registry.hpp"
+#include "core/metrics.hpp"
 #include "core/logging.hpp"
 #include "core/version.hpp"
 #include "infra/net/io_runtime.hpp"
@@ -52,7 +52,7 @@ public:
     using tcp = boost::asio::ip::tcp;
 
     explicit HttpSession(tcp::socket socket,
-                         std::shared_ptr<application::ports::IMetricsRegistry> registry,
+                         std::shared_ptr<core::IMetricsRegistry> registry,
                          const std::atomic<bool>& ready_flag)
         : socket_(std::move(socket))
         , registry_(registry)
@@ -62,7 +62,7 @@ public:
 
 private:
     tcp::socket socket_;
-    std::shared_ptr<application::ports::IMetricsRegistry> registry_;
+    std::shared_ptr<core::IMetricsRegistry> registry_;
     const std::atomic<bool>& ready_flag_;
     std::array<char, BUFFER_SIZE> buffer_{};
     std::string request_data_;
@@ -212,7 +212,7 @@ public:
 
     Impl(std::string_view bind_address,
          std::uint16_t port,
-         std::shared_ptr<application::ports::IMetricsRegistry> registry,
+         std::shared_ptr<core::IMetricsRegistry> registry,
          boost::asio::io_context& io_ctx,
          const std::atomic<bool>& ready_flag)
         : bind_address_(bind_address),
@@ -258,7 +258,7 @@ public:
 private:
     std::string bind_address_;
     std::uint16_t port_;
-    std::shared_ptr<application::ports::IMetricsRegistry> registry_;
+    std::shared_ptr<core::IMetricsRegistry> registry_;
     tcp::acceptor acceptor_;
     boost::asio::io_context& io_ctx_;
     const std::atomic<bool>& ready_flag_;
@@ -292,7 +292,7 @@ private:
 
 HttpMetricsServer::HttpMetricsServer(std::string_view bind_address,
                                      std::uint16_t port,
-                                     std::shared_ptr<application::ports::IMetricsRegistry> registry,
+                                     std::shared_ptr<core::IMetricsRegistry> registry,
                                      infra::net::IoRuntime& runtime)
     : bind_address_(bind_address),
       port_(port),

@@ -14,7 +14,8 @@
 #include "core/result.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -41,9 +42,9 @@ struct JoinChannelResult {
 
 class JoinChannel {
 public:
-    explicit JoinChannel(application::ports::IChannelRepository& channel_repo,
-                         application::ports::IAccountRepository& account_repo,
-                         application::ports::ISessionRegistry& session_registry)
+    explicit JoinChannel(domain::chat::IChannelRepository& channel_repo,
+                         domain::identity::IAccountRepository& account_repo,
+                         domain::identity::ISessionRegistry& session_registry)
         : channel_repo_(channel_repo), account_repo_(account_repo),
           session_registry_(session_registry) {}
 
@@ -54,9 +55,9 @@ public:
             domain::ClientTag client_tag) const;
 
 private:
-    application::ports::IChannelRepository&  channel_repo_;
-    application::ports::IAccountRepository&  account_repo_;
-    application::ports::ISessionRegistry&    session_registry_;
+    domain::chat::IChannelRepository&  channel_repo_;
+    domain::identity::IAccountRepository&  account_repo_;
+    domain::identity::ISessionRegistry&    session_registry_;
 };
 
 }  // namespace pvpgn::application::chat

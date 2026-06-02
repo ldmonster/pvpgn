@@ -13,7 +13,8 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -33,8 +34,8 @@ struct LeaveChannelResult {
 
 class LeaveChannel {
 public:
-    explicit LeaveChannel(application::ports::IChannelRepository& channel_repo,
-                          application::ports::ISessionRegistry& session_registry)
+    explicit LeaveChannel(domain::chat::IChannelRepository& channel_repo,
+                          domain::identity::ISessionRegistry& session_registry)
         : channel_repo_(channel_repo), session_registry_(session_registry) {}
 
     /// Execute: remove account from channel.
@@ -43,8 +44,8 @@ public:
     execute(domain::ChannelId channel_id, domain::AccountId account_id) const;
 
 private:
-    application::ports::IChannelRepository& channel_repo_;
-    application::ports::ISessionRegistry&   session_registry_;
+    domain::chat::IChannelRepository& channel_repo_;
+    domain::identity::ISessionRegistry&   session_registry_;
 };
 
 }  // namespace pvpgn::application::chat

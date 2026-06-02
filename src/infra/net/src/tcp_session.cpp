@@ -2,6 +2,7 @@
 #include "infra/net/tcp_session.hpp"
 
 #include <boost/asio/bind_executor.hpp>
+#include <boost/asio/error.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
@@ -14,11 +15,35 @@ using boost::system::error_code;
 
 TcpSession::TcpSession(asio::ip::tcp::socket sock)
     : socket_(std::move(sock)),
-      strand_(asio::make_strand(socket_.get_executor())) {}
+      strand_(asio::make_strand(socket_.get_executor())),
+      idle_timer_(strand_) {}
 
 void TcpSession::start() {
     auto self = shared_from_this();
-    asio::post(strand_, [self] { self->do_read(); });
+    asio::post(strand_, [self] {
+        self->arm_idle_timer();
+        self->do_read();
+    });
+}
+
+void TcpSession::arm_idle_timer() {
+    // Runs on strand_. Re-arming cancels the prior async_wait (its handler
+    // then sees operation_aborted and bails). Zero == disabled.
+    if (idle_timeout_ <= std::chrono::milliseconds::zero()) {
+        return;
+    }
+    auto self = shared_from_this();
+    idle_timer_.expires_after(idle_timeout_);
+    idle_timer_.async_wait(asio::bind_executor(strand_, [self](const error_code& ec) {
+        if (ec == asio::error::operation_aborted) {
+            return;  // re-armed by a fresh read, or cancelled at close.
+        }
+        if (self->closed_) {
+            return;
+        }
+        // No bytes arrived within the deadline: close the idle session.
+        self->deliver_close(asio::error::timed_out);
+    }));
 }
 
 asio::ip::tcp::endpoint TcpSession::remote_endpoint() const {
@@ -46,6 +71,7 @@ void TcpSession::do_read() {
                 self->on_bytes_(core::ByteView{self->read_buf_.data(), n});
             }
             if (self->closed_) return;
+            self->arm_idle_timer();  // bytes seen → reset the idle deadline
             self->do_read();
         }));
 }
@@ -92,6 +118,7 @@ void TcpSession::close() {
     asio::post(strand_, [self] {
         if (self->closed_) return;
         self->closed_ = true;
+        self->idle_timer_.cancel();
         error_code ignored;
         self->socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored);
         self->socket_.close(ignored);
@@ -102,7 +129,9 @@ void TcpSession::close() {
 void TcpSession::deliver_close(const error_code& ec) {
     if (closed_) return;
     closed_ = true;
+    idle_timer_.cancel();
     error_code ignored;
+    socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored);
     socket_.close(ignored);
     if (on_close_) on_close_(ec);
 }

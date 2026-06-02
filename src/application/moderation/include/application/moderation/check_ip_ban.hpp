@@ -11,7 +11,7 @@
 #include <optional>
 #include <string>
 
-#include "application/ports/ports.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/clock.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
@@ -31,7 +31,7 @@ struct CheckIpBanResult {
 
 class CheckIpBan {
 public:
-    explicit CheckIpBan(application::ports::IIpBanRepository& ban_repo)
+    explicit CheckIpBan(domain::moderation::IIpBanRepository& ban_repo)
         : ban_repo_(ban_repo) {}
 
     /// Execute: check if an IP address is banned.
@@ -40,7 +40,7 @@ public:
     execute(const domain::IpAddress& ip) const;
 
 private:
-    application::ports::IIpBanRepository& ban_repo_;
+    domain::moderation::IIpBanRepository& ban_repo_;
 };
 
 }  // namespace pvpgn::application::moderation

@@ -12,10 +12,11 @@
 
 #include "domain/identity/ports.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemorySessionRegistry final
-    : public application::ports::ISessionRegistry {
+    : public domain::identity::ISessionRegistry {
 public:
     core::Status<> attach(domain::SessionId session,
                           domain::AccountId account) override {

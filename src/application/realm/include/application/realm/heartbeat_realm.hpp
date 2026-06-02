@@ -9,7 +9,6 @@
 /// re-saves the aggregate so that any infrastructure-layer adapter can
 /// update its own timestamp column / field.
 
-#include "application/ports/ports.hpp"
 #include "domain/realm/ports.hpp"
 #include "core/clock.hpp"
 #include "core/result.hpp"
@@ -29,7 +28,7 @@ struct HeartbeatRealmCommand {
 ///   - The realm identified by `realm_id` must exist.
 class HeartbeatRealm {
 public:
-    explicit HeartbeatRealm(application::ports::IRealmRepository& realms);
+    explicit HeartbeatRealm(domain::realm::IRealmRepository& realms);
 
     /// Returns `NotFound` if no realm with the given ID exists.
     /// On success the realm is re-saved so infrastructure adapters can
@@ -38,7 +37,7 @@ public:
     execute(HeartbeatRealmCommand cmd) const;
 
 private:
-    application::ports::IRealmRepository& realms_;
+    domain::realm::IRealmRepository& realms_;
 };
 
 } // namespace pvpgn::application::realm

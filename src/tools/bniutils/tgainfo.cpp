@@ -18,6 +18,7 @@
 	*/
 /* setup_before.h dropped: pure standalone v3 tool */
 #include <cstdlib>
+#include <print>
 #include <cstring>
 #include <cerrno>
 
@@ -35,8 +36,8 @@ namespace
 
 	void usage(char const * progname)
 	{
-		std::fprintf(stderr,
-			"usage: %s [<options>] [--] [<TGA file>]\n"
+		std::print(stderr,
+			"usage: {} [<options>] [--] [<TGA file>]\n"
 			"    -h, --help, --usage  show this information and exit\n"
 			"    -v, --version        print version number and exit\n", progname);
 
@@ -55,7 +56,7 @@ extern int main(int argc, char * argv[])
 
 	if (argc < 1 || !argv || !argv[0])
 	{
-		std::fprintf(stderr, "bad arguments\n");
+		std::println(stderr, "bad arguments");
 		return EXIT_FAILURE;
 	}
 
@@ -68,14 +69,14 @@ extern int main(int argc, char * argv[])
 		tgafile = argv[a];
 	else if (forcefile || argv[a][0] != '-' || std::strcmp(argv[a], "-") == 0)
 	{
-		std::fprintf(stderr, "%s: extra file argument \"%s\"\n", argv[0], argv[a]);
+		std::println(stderr, "{}: extra file argument \"{}\"", argv[0], argv[a]);
 		usage(argv[0]);
 	}
 	else if (std::strcmp(argv[a], "--") == 0)
 		forcefile = 1;
 	else if (std::strcmp(argv[a], "-v") == 0 || std::strcmp(argv[a], "--version") == 0)
 	{
-		std::printf("version " PVPGN_VERSION "\n");
+		std::print("version " PVPGN_VERSION "\n");
 		return EXIT_SUCCESS;
 	}
 	else if (std::strcmp(argv[a], "-h") == 0 || std::strcmp(argv[a], "--help") == 0 || std::strcmp(argv[a], "--usage")
@@ -83,7 +84,7 @@ extern int main(int argc, char * argv[])
 		usage(argv[0]);
 	else
 	{
-		std::fprintf(stderr, "%s: unknown option \"%s\"\n", argv[0], argv[a]);
+		std::println(stderr, "{}: unknown option \"{}\"", argv[0], argv[a]);
 		usage(argv[0]);
 	}
 
@@ -95,7 +96,7 @@ extern int main(int argc, char * argv[])
 	else
 	if (!(fp = std::fopen(tgafile, "r")))
 	{
-		std::fprintf(stderr, "%s: could not open TGA file \"%s\" for reading (std::fopen: %s)\n", argv[0], tgafile, std::strerror(errno));
+		std::println(stderr, "{}: could not open TGA file \"{}\" for reading (std::fopen: {})", argv[0], tgafile, std::strerror(errno));
 		return EXIT_FAILURE;
 	}
 
@@ -103,15 +104,15 @@ extern int main(int argc, char * argv[])
 		t_tgaimg * tgaimg;
 		if (!(tgaimg = load_tgaheader(fp)))
 		{
-			std::fprintf(stderr, "%s: could not load TGA header\n", argv[0]);
+			std::println(stderr, "{}: could not load TGA header", argv[0]);
 			if (tgafile != dash && std::fclose(fp) < 0)
-				std::fprintf(stderr, "%s: could not close file \"%s\" after reading (std::fclose: %s)\n", argv[0], tgafile, std::strerror(errno));
+				std::println(stderr, "{}: could not close file \"{}\" after reading (std::fclose: {})", argv[0], tgafile, std::strerror(errno));
 			return EXIT_FAILURE;
 		}
 		print_tga_info(tgaimg, stdout);
 	}
 
 	if (tgafile != dash && std::fclose(fp) < 0)
-		std::fprintf(stderr, "%s: could not close file \"%s\" after reading (std::fclose: %s)\n", argv[0], tgafile, std::strerror(errno));
+		std::println(stderr, "{}: could not close file \"{}\" after reading (std::fclose: {})", argv[0], tgafile, std::strerror(errno));
 	return EXIT_SUCCESS;
 }

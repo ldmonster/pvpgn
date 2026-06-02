@@ -3,7 +3,7 @@
 
 /// @file bridge_logger.hpp
 /// Shared logging helper for strangler bridges under
-/// `integration/legacy_d2cs/src/` (R233).
+/// `app/d2cs/legacy_d2cs_bridges/src/` (R233).
 ///
 /// Mirrors the `legacy_bnetd::bridge_logger` and
 /// `legacy_d2dbs::bridge_logger` seams. The d2cs integration keeps

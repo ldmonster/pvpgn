@@ -3,7 +3,7 @@
 
 namespace pvpgn::application::realm {
 
-HeartbeatRealm::HeartbeatRealm(ports::IRealmRepository& realms)
+HeartbeatRealm::HeartbeatRealm(domain::realm::IRealmRepository& realms)
     : realms_(realms)
 {
 }

@@ -3,10 +3,10 @@
 // R232(3): observation bridges for d2dbs signal init + per-tick
 // dispatch.
 
-#include "integration/legacy_d2dbs/handle_signal_bridge.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/handle_signal_bridge.hpp"
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2dbs/bridge_logger.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/bridge_logger.hpp"
 
 namespace pld = pvpgn::integration::legacy_d2dbs;
 

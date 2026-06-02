@@ -9,6 +9,8 @@
 #include "application/persistence/unit_of_work_factory.hpp"
 #include "infra/sqlite/connection.hpp"
 
+#include "application/persistence/unit_of_work.hpp"
+
 namespace pvpgn::infra::sqlite {
 
 class SQLiteUnitOfWorkFactory final : public application::ports::IUnitOfWorkFactory {

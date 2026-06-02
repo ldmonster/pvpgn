@@ -81,6 +81,67 @@ TEST_CASE("echo: TcpAcceptor + TcpSession round-trip on loopback",
     rt.stop();
 }
 
+TEST_CASE("TcpSession: idle connection is closed after set_idle_timeout",
+          "[infra][net][integration][timeout]") {
+    using namespace std::chrono_literals;
+    infra::net::IoRuntime rt;
+
+    std::atomic<bool> closed_seen{false};
+    std::atomic<bool> closed_timed_out{false};
+
+    std::vector<std::shared_ptr<infra::net::TcpSession>> live_sessions;
+    std::mutex live_mu;
+
+    infra::net::TcpAcceptor acc(rt, [&](std::shared_ptr<infra::net::TcpSession> s) {
+        s->set_idle_timeout(150ms);            // close if idle for 150ms
+        s->set_on_close([&](const boost::system::error_code& ec) {
+            closed_timed_out.store(ec == boost::asio::error::timed_out);
+            closed_seen.store(true);
+        });
+        {
+            std::scoped_lock lk{live_mu};
+            live_sessions.push_back(s);
+        }
+        s->start();
+    });
+
+    auto bound = acc.listen("127.0.0.1", 0);
+    REQUIRE(bound.has_value());
+    const std::uint16_t port = bound.value().port();
+    REQUIRE(port != 0);
+
+    rt.run(2);
+
+    asio::io_context cctx;
+    tcp::socket cli(cctx);
+    boost::system::error_code ec;
+    cli.connect(tcp::endpoint(asio::ip::make_address("127.0.0.1"), port), ec);
+    REQUIRE_FALSE(ec);
+
+    // Send nothing; the server must hit its idle deadline and half-close,
+    // which our blocking read observes as EOF.
+    const auto start = std::chrono::steady_clock::now();
+    std::array<char, 16> rxbuf{};
+    std::size_t n = asio::read(cli, asio::buffer(rxbuf), ec);
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+
+    REQUIRE(n == 0);
+    REQUIRE(ec == asio::error::eof);
+    REQUIRE(elapsed >= 120ms);
+    REQUIRE(elapsed < 5s);
+
+    cli.close();
+    {
+        std::scoped_lock lk{live_mu};
+        for (auto& s : live_sessions) s->close();
+    }
+    acc.close();
+    rt.stop();
+
+    REQUIRE(closed_seen.load());
+    REQUIRE(closed_timed_out.load());      // on_close reported timed_out
+}
+
 TEST_CASE("IoRuntime: post executes on a worker thread",
           "[infra][net][io_runtime]") {
     infra::net::IoRuntime rt;

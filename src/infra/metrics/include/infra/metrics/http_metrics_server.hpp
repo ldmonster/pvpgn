@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include "core/metrics.hpp"
 #pragma once
 
 /// @file http_metrics_server.hpp
@@ -46,7 +47,7 @@ public:
     /// @param runtime IoRuntime instance providing the io_context
     HttpMetricsServer(std::string_view bind_address,
                       std::uint16_t port,
-                      std::shared_ptr<application::ports::IMetricsRegistry> registry,
+                      std::shared_ptr<core::IMetricsRegistry> registry,
                       infra::net::IoRuntime& runtime);
 
     ~HttpMetricsServer();
@@ -75,7 +76,7 @@ public:
 private:
     std::string bind_address_;
     std::uint16_t port_;
-    std::shared_ptr<application::ports::IMetricsRegistry> registry_;
+    std::shared_ptr<core::IMetricsRegistry> registry_;
     infra::net::IoRuntime& runtime_;
     std::atomic<bool> ready_{false};
 

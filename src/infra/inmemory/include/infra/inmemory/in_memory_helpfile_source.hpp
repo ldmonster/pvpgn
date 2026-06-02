@@ -15,10 +15,11 @@
 
 #include "domain/chat/ports.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryHelpfileSource final
-    : public application::ports::IHelpfileSource {
+    : public domain::chat::IHelpfileSource {
 public:
     /// Register a help entry for a command (test helper).
     void set(std::string command_name, std::string text) {

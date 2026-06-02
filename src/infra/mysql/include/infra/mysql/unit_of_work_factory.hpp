@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "application/persistence/unit_of_work_factory.hpp"
+#include "application/persistence/unit_of_work.hpp"
 
 #ifdef PVPGN_V3_WITH_MYSQL
 

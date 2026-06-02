@@ -37,7 +37,7 @@ domain::IpAddress make_ip(std::string_view s) {
 // Fakes
 // ---------------------------------------------------------------------------
 
-class FakeIpBanRepository final : public application::ports::IIpBanRepository {
+class FakeIpBanRepository final : public domain::moderation::IIpBanRepository {
 public:
     bool already_banned = false;
     bool save_fails     = false;

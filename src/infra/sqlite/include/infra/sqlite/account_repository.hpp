@@ -9,10 +9,11 @@
 #include "domain/identity/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
+
 namespace pvpgn::infra::sqlite {
 
 class SQLiteAccountRepository final
-    : public application::ports::IAccountRepository {
+    : public domain::identity::IAccountRepository {
 public:
     explicit SQLiteAccountRepository(std::shared_ptr<SQLiteConnection> conn);
 

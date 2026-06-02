@@ -12,9 +12,10 @@
 #include "domain/moderation/ports.hpp"
 #include "infra/inmemory/ip_ban_repository.hpp"
 
+
 namespace pvpgn::infra::file {
 
-class FileIpBanRepository final : public application::ports::IIpBanRepository {
+class FileIpBanRepository final : public domain::moderation::IIpBanRepository {
 public:
     /// Create a file repository that loads from bnban.conf.
     /// @param ban_file Path to bnban.conf file

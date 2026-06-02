@@ -13,6 +13,8 @@
 
 #ifdef PVPGN_V3_WITH_POSTGRESQL
 
+#include "application/persistence/unit_of_work.hpp"
+
 namespace pvpgn::infra::postgres {
 
 /// PostgreSQL factory for creating IUnitOfWork instances.

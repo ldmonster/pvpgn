@@ -47,7 +47,7 @@ domain::identity::Account make_account(domain::AccountId id,
 // ---------------------------------------------------------------------------
 
 class FakeAccountRepository final
-    : public application::ports::IAccountRepository {
+    : public domain::identity::IAccountRepository {
 public:
     void add(domain::identity::Account acct) {
         accounts_.emplace(std::string{acct.name().display()}, std::move(acct));
@@ -101,7 +101,7 @@ private:
 // ---------------------------------------------------------------------------
 
 class FakePermissionChecker final
-    : public application::ports::IPermissionChecker {
+    : public domain::moderation::IPermissionChecker {
 public:
     /// Grant a command group to an account.
     void grant_group(domain::AccountId account, std::string group) {
@@ -109,7 +109,7 @@ public:
     }
 
     bool has_permission(domain::AccountId,
-                        application::ports::Permission) const override {
+                        domain::moderation::Permission) const override {
         return false;
     }
 

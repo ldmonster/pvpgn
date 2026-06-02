@@ -9,7 +9,8 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::application::social {
 
@@ -21,7 +22,7 @@ enum class DisbandTeamError : std::uint8_t {
 
 class DisbandTeam {
 public:
-    DisbandTeam(std::shared_ptr<application::ports::ITeamRepository> teams,
+    DisbandTeam(std::shared_ptr<domain::social::ITeamRepository> teams,
                 std::shared_ptr<application::ports::IEventBus> event_bus)
         : teams_(teams), event_bus_(event_bus) {}
 
@@ -30,7 +31,7 @@ public:
     execute(domain::TeamId team_id, domain::AccountId requester_id);
 
 private:
-    std::shared_ptr<application::ports::ITeamRepository> teams_;
+    std::shared_ptr<domain::social::ITeamRepository> teams_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

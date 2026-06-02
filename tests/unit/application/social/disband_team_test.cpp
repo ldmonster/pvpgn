@@ -26,7 +26,7 @@ using application::social::DisbandTeamError;
 // ---------------------------------------------------------------------------
 // Inline fake ITeamRepository
 // ---------------------------------------------------------------------------
-class FakeTeamRepository final : public application::ports::ITeamRepository {
+class FakeTeamRepository final : public domain::social::ITeamRepository {
 public:
     core::Result<std::shared_ptr<domain::social::Team>, core::Error>
     find_by_id(domain::TeamId id) override {

@@ -26,7 +26,7 @@ class FileSessionFactory {
 public:
     /// Create a factory with the given dependencies.
     FileSessionFactory(
-        std::shared_ptr<application::ports::ISessionRegistry> registry,
+        std::shared_ptr<domain::identity::ISessionRegistry> registry,
         std::string files_dir)
         : registry_(registry), files_dir_(files_dir) {}
 
@@ -63,7 +63,7 @@ public:
     }
 
 private:
-    std::weak_ptr<application::ports::ISessionRegistry> registry_;
+    std::weak_ptr<domain::identity::ISessionRegistry> registry_;
     std::string files_dir_;
     static std::atomic<std::uint64_t> next_session_id_;
 };

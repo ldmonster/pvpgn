@@ -15,15 +15,16 @@
 #include "domain/chat/ports.hpp"
 #include "core/result.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryChannelStore final
-    : public application::ports::IChannelStore {
+    : public domain::chat::IChannelStore {
 public:
-    [[nodiscard]] core::Status<std::vector<application::ports::ChannelDefinition>>
+    [[nodiscard]] core::Status<std::vector<domain::chat::ChannelDefinition>>
     load_all() const override {
         std::shared_lock lock(mutex_);
-        std::vector<application::ports::ChannelDefinition> result;
+        std::vector<domain::chat::ChannelDefinition> result;
         result.reserve(defs_.size());
         for (const auto& [name, def] : defs_) {
             result.push_back(def);
@@ -32,7 +33,7 @@ public:
     }
 
     core::Status<void>
-    save(application::ports::ChannelDefinition def) override {
+    save(domain::chat::ChannelDefinition def) override {
         std::unique_lock lock(mutex_);
         defs_[def.name] = std::move(def);
         return core::ok();
@@ -53,7 +54,7 @@ public:
 private:
     mutable std::shared_mutex mutex_;
     std::unordered_map<std::string,
-                       application::ports::ChannelDefinition> defs_;
+                       domain::chat::ChannelDefinition> defs_;
 };
 
 }  // namespace pvpgn::infra::inmemory

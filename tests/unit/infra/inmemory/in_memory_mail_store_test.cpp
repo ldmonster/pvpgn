@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "infra/inmemory/in_memory_mail_store.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::infra::inmemory {
 
@@ -16,7 +17,7 @@ TEST_CASE("InMemoryMailStore: InboxEmptyForUnknownAccount", "[infra][inmemory]")
 TEST_CASE("InMemoryMailStore: SendAndReceiveMessage", "[infra][inmemory]") {
     InMemoryMailStore store;
 
-    application::ports::MailMessage msg;
+    domain::social::MailMessage msg;
     msg.to      = "bob";
     msg.subject = "Hello";
     msg.body    = "World";
@@ -36,7 +37,7 @@ TEST_CASE("InMemoryMailStore: MultipleMessagesToSameRecipient", "[infra][inmemor
     InMemoryMailStore store;
 
     for (int i = 0; i < 3; ++i) {
-        application::ports::MailMessage msg;
+        domain::social::MailMessage msg;
         msg.to      = "carol";
         msg.subject = "msg" + std::to_string(i);
         msg.body    = "body" + std::to_string(i);
@@ -51,11 +52,11 @@ TEST_CASE("InMemoryMailStore: MultipleMessagesToSameRecipient", "[infra][inmemor
 TEST_CASE("InMemoryMailStore: InboxIsolatedPerRecipient", "[infra][inmemory]") {
     InMemoryMailStore store;
 
-    application::ports::MailMessage m1;
+    domain::social::MailMessage m1;
     m1.to = "alice"; m1.subject = "for alice";
     REQUIRE(store.send(std::move(m1)).has_value());
 
-    application::ports::MailMessage m2;
+    domain::social::MailMessage m2;
     m2.to = "bob"; m2.subject = "for bob";
     REQUIRE(store.send(std::move(m2)).has_value());
 
@@ -73,11 +74,11 @@ TEST_CASE("InMemoryMailStore: InboxIsolatedPerRecipient", "[infra][inmemory]") {
 TEST_CASE("InMemoryMailStore: DeleteMessageByIndex", "[infra][inmemory]") {
     InMemoryMailStore store;
 
-    application::ports::MailMessage m1;
+    domain::social::MailMessage m1;
     m1.to = "dave"; m1.subject = "first";
     REQUIRE(store.send(std::move(m1)).has_value());
 
-    application::ports::MailMessage m2;
+    domain::social::MailMessage m2;
     m2.to = "dave"; m2.subject = "second";
     REQUIRE(store.send(std::move(m2)).has_value());
 
@@ -100,7 +101,7 @@ TEST_CASE("InMemoryMailStore: DeleteMessageNotFoundAccount", "[infra][inmemory]"
 TEST_CASE("InMemoryMailStore: DeleteMessageOutOfRangeIndex", "[infra][inmemory]") {
     InMemoryMailStore store;
 
-    application::ports::MailMessage msg;
+    domain::social::MailMessage msg;
     msg.to = "eve"; msg.subject = "only";
     REQUIRE(store.send(std::move(msg)).has_value());
 

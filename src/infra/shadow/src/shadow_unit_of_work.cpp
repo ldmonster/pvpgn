@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "infra/shadow/shadow_unit_of_work.hpp"
+#include "application/persistence/unit_of_work.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/realm/ports.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::infra::shadow {
 
@@ -47,43 +55,43 @@ void ShadowUnitOfWork::rollback() noexcept {
     }
 }
 
-application::ports::IAccountRepository& ShadowUnitOfWork::accounts() {
+domain::identity::IAccountRepository& ShadowUnitOfWork::accounts() {
     return *shadow_accounts_;
 }
 
-application::ports::IChannelRepository& ShadowUnitOfWork::channels() {
+domain::chat::IChannelRepository& ShadowUnitOfWork::channels() {
     return primary_.channels();
 }
 
-application::ports::IGameRepository& ShadowUnitOfWork::games() {
+domain::gameplay::IGameRepository& ShadowUnitOfWork::games() {
     return primary_.games();
 }
 
-application::ports::IClanRepository& ShadowUnitOfWork::clans() {
+domain::social::IClanRepository& ShadowUnitOfWork::clans() {
     return primary_.clans();
 }
 
-application::ports::ILadderRepository& ShadowUnitOfWork::ladder() {
+domain::ladder::ILadderRepository& ShadowUnitOfWork::ladder() {
     return primary_.ladder();
 }
 
-application::ports::IIpBanRepository& ShadowUnitOfWork::ip_bans() {
+domain::moderation::IIpBanRepository& ShadowUnitOfWork::ip_bans() {
     return primary_.ip_bans();
 }
 
-application::ports::IAccountBanRepository& ShadowUnitOfWork::account_bans() {
+domain::moderation::IAccountBanRepository& ShadowUnitOfWork::account_bans() {
     return primary_.account_bans();
 }
 
-application::ports::IFriendListRepository& ShadowUnitOfWork::friend_lists() {
+domain::social::IFriendListRepository& ShadowUnitOfWork::friend_lists() {
     return primary_.friend_lists();
 }
 
-application::ports::IRealmRepository& ShadowUnitOfWork::realms() {
+domain::realm::IRealmRepository& ShadowUnitOfWork::realms() {
     return primary_.realms();
 }
 
-application::ports::ITeamRepository& ShadowUnitOfWork::teams() {
+domain::social::ITeamRepository& ShadowUnitOfWork::teams() {
     return primary_.teams();
 }
 
@@ -112,43 +120,43 @@ void OwningShadowUnitOfWork::rollback() noexcept {
     delegate_->rollback();
 }
 
-application::ports::IAccountRepository& OwningShadowUnitOfWork::accounts() {
+domain::identity::IAccountRepository& OwningShadowUnitOfWork::accounts() {
     return delegate_->accounts();
 }
 
-application::ports::IChannelRepository& OwningShadowUnitOfWork::channels() {
+domain::chat::IChannelRepository& OwningShadowUnitOfWork::channels() {
     return delegate_->channels();
 }
 
-application::ports::IGameRepository& OwningShadowUnitOfWork::games() {
+domain::gameplay::IGameRepository& OwningShadowUnitOfWork::games() {
     return delegate_->games();
 }
 
-application::ports::IClanRepository& OwningShadowUnitOfWork::clans() {
+domain::social::IClanRepository& OwningShadowUnitOfWork::clans() {
     return delegate_->clans();
 }
 
-application::ports::ILadderRepository& OwningShadowUnitOfWork::ladder() {
+domain::ladder::ILadderRepository& OwningShadowUnitOfWork::ladder() {
     return delegate_->ladder();
 }
 
-application::ports::IIpBanRepository& OwningShadowUnitOfWork::ip_bans() {
+domain::moderation::IIpBanRepository& OwningShadowUnitOfWork::ip_bans() {
     return delegate_->ip_bans();
 }
 
-application::ports::IAccountBanRepository& OwningShadowUnitOfWork::account_bans() {
+domain::moderation::IAccountBanRepository& OwningShadowUnitOfWork::account_bans() {
     return delegate_->account_bans();
 }
 
-application::ports::IFriendListRepository& OwningShadowUnitOfWork::friend_lists() {
+domain::social::IFriendListRepository& OwningShadowUnitOfWork::friend_lists() {
     return delegate_->friend_lists();
 }
 
-application::ports::IRealmRepository& OwningShadowUnitOfWork::realms() {
+domain::realm::IRealmRepository& OwningShadowUnitOfWork::realms() {
     return delegate_->realms();
 }
 
-application::ports::ITeamRepository& OwningShadowUnitOfWork::teams() {
+domain::social::ITeamRepository& OwningShadowUnitOfWork::teams() {
     return delegate_->teams();
 }
 

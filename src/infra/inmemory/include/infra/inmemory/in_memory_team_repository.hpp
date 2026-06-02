@@ -16,10 +16,11 @@
 #include "domain/shared/ids.hpp"
 #include "domain/social/team.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryTeamRepository final
-    : public application::ports::ITeamRepository {
+    : public domain::social::ITeamRepository {
 public:
     core::Result<std::shared_ptr<domain::social::Team>, core::Error>
     find_by_id(domain::TeamId id) override {

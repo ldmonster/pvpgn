@@ -19,7 +19,7 @@
 namespace pvpgn::infra::storage {
 
 class InMemoryRealmRepository final
-    : public application::ports::IRealmRepository {
+    : public domain::realm::IRealmRepository {
 public:
     core::Result<domain::realm::Realm>
     find_by_id(std::uint32_t id) const override {

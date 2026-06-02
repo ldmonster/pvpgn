@@ -18,6 +18,7 @@
 	*/
 /* setup_before.h dropped: standalone v3 tool */
 #include <cstdlib>
+#include <print>
 #include <cstring>
 #include <cerrno>
 
@@ -35,8 +36,8 @@ namespace
 
 	void usage(char const * progname)
 	{
-		std::fprintf(stderr,
-			"usage: %s [<options>] [--] [<BNI file>]\n"
+		std::print(stderr,
+			"usage: {} [<options>] [--] [<BNI file>]\n"
 			"    -h, --help, --usage  show this information and exit\n"
 			"    -v, --version        print version number and exit\n", progname);
 
@@ -55,7 +56,7 @@ extern int main(int argc, char * argv[])
 
 	if (argc < 1 || !argv || !argv[0])
 	{
-		std::fprintf(stderr, "bad arguments\n");
+		std::println(stderr, "bad arguments");
 		return EXIT_FAILURE;
 	}
 
@@ -68,14 +69,14 @@ extern int main(int argc, char * argv[])
 		bnifile = argv[a];
 	else if (forcefile || argv[a][0] != '-' || std::strcmp(argv[a], "-") == 0)
 	{
-		std::fprintf(stderr, "%s: extra file argument \"%s\"\n", argv[0], argv[a]);
+		std::println(stderr, "{}: extra file argument \"{}\"", argv[0], argv[a]);
 		usage(argv[0]);
 	}
 	else if (std::strcmp(argv[a], "--") == 0)
 		forcefile = 1;
 	else if (std::strcmp(argv[a], "-v") == 0 || std::strcmp(argv[a], "--version") == 0)
 	{
-		std::printf("version " PVPGN_VERSION "\n");
+		std::print("version " PVPGN_VERSION "\n");
 		return EXIT_SUCCESS;
 	}
 	else if (std::strcmp(argv[a], "-h") == 0 || std::strcmp(argv[a], "--help") == 0 || std::strcmp(argv[a], "--usage")
@@ -83,7 +84,7 @@ extern int main(int argc, char * argv[])
 		usage(argv[0]);
 	else
 	{
-		std::fprintf(stderr, "%s: unknown option \"%s\"\n", argv[0], argv[a]);
+		std::println(stderr, "{}: unknown option \"{}\"", argv[0], argv[a]);
 		usage(argv[0]);
 	}
 
@@ -95,7 +96,7 @@ extern int main(int argc, char * argv[])
 	else
 	if (!(fp = std::fopen(bnifile, "r")))
 	{
-		std::fprintf(stderr, "%s: could not open BNI file \"%s\" for reading (std::fopen: %s)\n", argv[0], bnifile, std::strerror(errno));
+		std::println(stderr, "{}: could not open BNI file \"{}\" for reading (std::fopen: {})", argv[0], bnifile, std::strerror(errno));
 		std::exit(EXIT_FAILURE);
 	}
 
@@ -104,26 +105,26 @@ extern int main(int argc, char * argv[])
 		int        i;
 		int        bniid, unknown, icons, datastart;
 		int        expected_width, expected_height;
-		bniid = file_readd_le(fp);
-		unknown = file_readd_le(fp);
-		icons = file_readd_le(fp);
-		datastart = file_readd_le(fp);
-		std::fprintf(stderr, "BNIHeader: id=0x%08x unknown=0x%08x icons=0x%08x datastart=0x%08x\n", bniid, unknown, icons, datastart);
+		bniid = static_cast<int>(file_readd_le(fp));
+		unknown = static_cast<int>(file_readd_le(fp));
+		icons = static_cast<int>(file_readd_le(fp));
+		datastart = static_cast<int>(file_readd_le(fp));
+		std::println(stderr, "BNIHeader: id=0x{:08x} unknown=0x{:08x} icons=0x{:08x} datastart=0x{:08x}", bniid, unknown, icons, datastart);
 		expected_width = 0;
 		expected_height = 0;
 		for (i = 0; i < icons; i++) {
 			int id, x, y, flags, tag;
-			id = file_readd_le(fp);
-			x = file_readd_le(fp);
-			y = file_readd_le(fp);
+			id = static_cast<int>(file_readd_le(fp));
+			x = static_cast<int>(file_readd_le(fp));
+			y = static_cast<int>(file_readd_le(fp));
 			if (id == 0) {
-				tag = file_readd_le(fp);
+				tag = static_cast<int>(file_readd_le(fp));
 			}
 			else {
 				tag = 0;
 			}
-			flags = file_readd_le(fp);
-			std::fprintf(stderr, "Icon[%d]: id=0x%08x x=%d y=%d tag=0x%08x(\"%c%c%c%c\") flags=0x%08x\n", i, id, x, y, tag,
+			flags = static_cast<int>(file_readd_le(fp));
+			std::println(stderr, "Icon[{}]: id=0x{:08x} x={} y={} tag=0x{:08x}(\"{}{}{}{}\") flags=0x{:08x}", i, id, x, y, tag,
 				static_cast<unsigned char>((tag >> 24) & 0xff),
 				static_cast<unsigned char>((tag >> 16) & 0xff),
 				static_cast<unsigned char>((tag >> 8) & 0xff),
@@ -132,17 +133,17 @@ extern int main(int argc, char * argv[])
 			expected_height += y;
 		}
 		if (std::ftell(fp) != datastart) {
-			std::fprintf(stderr, "Warning: garbage after header (pos=0x%lx-datastart=0x%lx) = %ld bytes of garbage! \n", static_cast<unsigned long>(std::ftell(fp)), static_cast<unsigned long>(datastart), static_cast<long>(std::ftell(fp) - datastart));
+			std::println(stderr, "Warning: garbage after header (pos=0x{:x}-datastart=0x{:x}) = {} bytes of garbage! ", static_cast<unsigned long>(std::ftell(fp)), static_cast<unsigned long>(datastart), static_cast<long>(std::ftell(fp) - datastart));
 		}
 		tgaimg = load_tgaheader(fp);
 		print_tga_info(tgaimg, stdout);
-		std::fprintf(stderr, "\n");
-		std::fprintf(stderr, "Check: Expected %dx%d TGA, got %ux%u. %s\n", expected_width, expected_height, tgaimg->width, tgaimg->height, ((tgaimg->width == expected_width) && (tgaimg->height == expected_height)) ? "OK." : "FAIL.");
-		std::fprintf(stderr, "Check: Expected 24bit color depth TGA, got %dbit. %s\n", tgaimg->bpp, (tgaimg->bpp == 24) ? "OK." : "FAIL.");
-		std::fprintf(stderr, "Check: Expected ImageType 10, got %d. %s\n", tgaimg->imgtype, (tgaimg->imgtype == 10) ? "OK." : "FAIL.");
+		std::println(stderr, "");
+		std::println(stderr, "Check: Expected {}x{} TGA, got {}x{}. {}", expected_width, expected_height, tgaimg->width, tgaimg->height, ((tgaimg->width == expected_width) && (tgaimg->height == expected_height)) ? "OK." : "FAIL.");
+		std::println(stderr, "Check: Expected 24bit color depth TGA, got {}bit. {}", tgaimg->bpp, (tgaimg->bpp == 24) ? "OK." : "FAIL.");
+		std::println(stderr, "Check: Expected ImageType 10, got {}. {}", tgaimg->imgtype, (tgaimg->imgtype == 10) ? "OK." : "FAIL.");
 	}
 
 	if (bnifile != dash && std::fclose(fp) < 0)
-		std::fprintf(stderr, "%s: could not close BNI file \"%s\" after reading (std::fclose: %s)\n", argv[0], bnifile, std::strerror(errno));
+		std::println(stderr, "{}: could not close BNI file \"{}\" after reading (std::fclose: {})", argv[0], bnifile, std::strerror(errno));
 	return EXIT_SUCCESS;
 }

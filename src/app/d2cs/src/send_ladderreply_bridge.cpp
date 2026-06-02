@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "integration/legacy_d2cs/send_ladderreply_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_ladderreply_bridge.hpp"
 
 #include <cstring>
 #include <vector>
 
-#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_packet_bridge.hpp"
 #include "protocol/d2cs/ladderreply_encoder.hpp"
 
 namespace lr = pvpgn::protocol::d2cs::ladderreply;

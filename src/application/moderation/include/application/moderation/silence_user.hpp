@@ -8,7 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
@@ -31,7 +32,7 @@ enum class SilenceUserError : std::uint8_t {
 
 class SilenceUser {
 public:
-    SilenceUser(std::shared_ptr<application::ports::IAccountRepository> accounts,
+    SilenceUser(std::shared_ptr<domain::identity::IAccountRepository> accounts,
                 std::shared_ptr<application::ports::IEventBus> event_bus)
         : accounts_(accounts), event_bus_(event_bus) {}
 
@@ -39,7 +40,7 @@ public:
     execute(const SilenceUserRequest& req);
 
 private:
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

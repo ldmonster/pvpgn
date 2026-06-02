@@ -12,6 +12,8 @@
 #include <cstring>
 
 #include "core/result.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 
 // Forward declarations
 namespace pvpgn::protocol::bnet {
@@ -28,7 +30,7 @@ namespace pvpgn::protocol::wol {
 class WolFsm {
 public:
     WolFsm(std::shared_ptr<pvpgn::protocol::bnet::ISessionContext> ctx,
-            std::shared_ptr<pvpgn::application::ports::IGameRepository> games,
+            std::shared_ptr<pvpgn::domain::gameplay::IGameRepository> games,
             std::shared_ptr<pvpgn::application::ports::IEventBus> event_bus)
         : ctx_(ctx), games_(games), event_bus_(event_bus) {}
 
@@ -43,7 +45,7 @@ private:
     core::Status<> handle_game_report(std::span<const std::byte> packet);
 
     std::shared_ptr<pvpgn::protocol::bnet::ISessionContext> ctx_;
-    std::shared_ptr<pvpgn::application::ports::IGameRepository> games_;
+    std::shared_ptr<pvpgn::domain::gameplay::IGameRepository> games_;
     std::shared_ptr<pvpgn::application::ports::IEventBus> event_bus_;
 };
 

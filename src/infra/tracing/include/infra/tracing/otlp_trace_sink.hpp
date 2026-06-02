@@ -27,7 +27,7 @@
 
 #include <string>
 
-#include "application/ports/trace_sink.hpp"
+#include "domain/shared/ports/trace_sink.hpp"
 
 namespace pvpgn::infra::tracing {
 

@@ -17,6 +17,8 @@
 
 #include "infra/postgres/unit_of_work.hpp"
 
+#include "application/persistence/unit_of_work.hpp"
+
 namespace pvpgn::infra::postgres {
 
 namespace {

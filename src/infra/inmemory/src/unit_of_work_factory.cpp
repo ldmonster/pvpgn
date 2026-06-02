@@ -12,6 +12,7 @@
 #include "infra/inmemory/realm_repository.hpp"
 #include "infra/inmemory/in_memory_team_repository.hpp"
 #include "infra/inmemory/unit_of_work.hpp"
+#include "application/persistence/unit_of_work.hpp"
 
 namespace pvpgn::infra::inmemory {
 

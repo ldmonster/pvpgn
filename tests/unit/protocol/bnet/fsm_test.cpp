@@ -50,7 +50,7 @@ BnetUseCaseContext make_test_context() {
 }
 
 /// Fake message router that records broadcast calls.
-class FakeMessageRouter : public application::ports::IMessageRouter {
+class FakeMessageRouter : public domain::connection::IMessageRouter {
 public:
     struct BroadcastCall {
         std::vector<domain::SessionId> sessions;

@@ -24,16 +24,16 @@ using application::moderation::UnbanAccountError;
 // Fakes
 // ---------------------------------------------------------------------------
 
-class FakeAccountBanRepository final : public application::ports::IAccountBanRepository {
+class FakeAccountBanRepository final : public domain::moderation::IAccountBanRepository {
 public:
     bool has_active_ban = true;
     bool remove_fails   = false;
 
-    core::Result<std::optional<application::ports::AccountBan>>
+    core::Result<std::optional<domain::moderation::AccountBan>>
     find_active_ban(domain::AccountId, core::SystemTime) const override {
         if (has_active_ban) {
-            return std::optional<application::ports::AccountBan>{
-                application::ports::AccountBan{
+            return std::optional<domain::moderation::AccountBan>{
+                domain::moderation::AccountBan{
                     .banned_account = domain::AccountId{42},
                     .banned_by      = domain::AccountId{1},
                     .reason         = "cheating",
@@ -42,10 +42,10 @@ public:
                 }
             };
         }
-        return std::optional<application::ports::AccountBan>{std::nullopt};
+        return std::optional<domain::moderation::AccountBan>{std::nullopt};
     }
 
-    core::Status<> add_ban(const application::ports::AccountBan&) override {
+    core::Status<> add_ban(const domain::moderation::AccountBan&) override {
         return core::ok();
     }
 
@@ -55,7 +55,7 @@ public:
         return core::ok();
     }
 
-    void for_each(std::function<bool(const application::ports::AccountBan&)>) const override {}
+    void for_each(std::function<bool(const domain::moderation::AccountBan&)>) const override {}
 };
 
 class FakeEventBus final : public application::ports::IEventBus {

@@ -87,7 +87,9 @@ void FileAccountRepository::load_all() {
         if (entry.is_regular_file() && entry.path().extension() == ".plain") {
             auto account = load_account_file(entry.path().filename().string());
             if (account) {
-                cache_->save(*account);
+                // Best-effort warm of the in-memory cache during load; a
+                // failure here is non-fatal and intentionally discarded.
+                (void)cache_->save(*account);
             }
         }
     }

@@ -10,7 +10,7 @@
 
 #include <string>
 
-#include "application/ports/ports.hpp"
+#include "domain/gameplay/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/gameplay/game.hpp"
@@ -38,7 +38,7 @@ struct StartGameResult {
 
 class StartGame {
 public:
-    explicit StartGame(application::ports::IGameRepository& game_repo)
+    explicit StartGame(domain::gameplay::IGameRepository& game_repo)
         : game_repo_(game_repo) {}
 
     /// Execute: create a new game with the given parameters.
@@ -48,7 +48,7 @@ public:
             std::uint8_t max_players) const;
 
 private:
-    application::ports::IGameRepository& game_repo_;
+    domain::gameplay::IGameRepository& game_repo_;
 };
 
 }  // namespace pvpgn::application::game

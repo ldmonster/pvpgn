@@ -51,7 +51,7 @@ int server_process(socket_t sockfd)
             continue;
         }
         if (s == 0) continue;
-        if (!FD_ISSET(sockfd, &rfds)) continue;
+        if (!FD_ISSET(static_cast<std::size_t>(sockfd), &rfds)) continue;
 
         unsigned char buf[1024]{};
         sockaddr_in cliaddr{};

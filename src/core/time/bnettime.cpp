@@ -17,8 +17,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #define BNETTIME_INTERNAL_ACCESS
-#include "common/setup_before.h"
-#include "common/bnettime.h"
+#include "bnettime.h"
 
 #include <cstdio>
 #include <cstring>
@@ -26,9 +25,8 @@
 #include <chrono>
 #include <ctime>
 
-#include "common/eventlog.h"
-#include "common/bn_type.h"
-#include "common/setup_after.h"
+#include "core/format.hpp"
+#include "bn_type.h"
 
 
 namespace pvpgn
@@ -91,8 +89,8 @@ namespace pvpgn
 	{
 		t_bnettime temp;
 
-		temp.u = (unsigned int)(secs*UPPER_PER_SEC);
-		temp.l = (unsigned int)(secs*LOWER_PER_SEC);
+		temp.u = static_cast<unsigned int>(secs*UPPER_PER_SEC);
+		temp.l = static_cast<unsigned int>(secs*LOWER_PER_SEC);
 
 		return temp;
 	}
@@ -100,20 +98,20 @@ namespace pvpgn
 
 	extern double bnettime_to_secs(t_bnettime bntime)
 	{
-		return ((double)bntime.u)*SEC_PER_UPPER +
-			((double)bntime.l)*SEC_PER_LOWER;
+		return (static_cast<double>(bntime.u))*SEC_PER_UPPER +
+			(static_cast<double>(bntime.l))*SEC_PER_LOWER;
 	}
 
 
 	extern t_bnettime time_to_bnettime(std::time_t stdtime, unsigned int usec)
 	{
-		return secs_to_bnettime((double)stdtime + (double)usec*SEC_PER_USEC + UNIX_EPOCH);
+		return secs_to_bnettime(static_cast<double>(stdtime) + static_cast<double>(usec)*SEC_PER_USEC + UNIX_EPOCH);
 	}
 
 
 	extern std::time_t bnettime_to_time(t_bnettime bntime)
 	{
-		return (std::time_t)(bnettime_to_secs(bntime) - UNIX_EPOCH);
+		return static_cast<std::time_t>(bnettime_to_secs(bntime) - UNIX_EPOCH);
 	}
 
 
@@ -124,7 +122,7 @@ namespace pvpgn
 		auto const now = system_clock::now().time_since_epoch();
 		auto const sec = duration_cast<seconds>(now).count();
 		auto const usec = duration_cast<microseconds>(now - seconds(sec)).count();
-		return time_to_bnettime(static_cast<std::time_t>(sec), static_cast<long>(usec));
+		return time_to_bnettime(static_cast<std::time_t>(sec), static_cast<unsigned int>(usec));
 	}
 
 
@@ -143,12 +141,12 @@ namespace pvpgn
 	{
 		if (!bntime)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL bntime");
+			LOG_ERROR(__FUNCTION__, "got NULL bntime");
 			return -1;
 		}
 		if (!timestr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL timestr");
+			LOG_ERROR(__FUNCTION__, "got NULL timestr");
 			return -1;
 		}
 
@@ -163,7 +161,7 @@ namespace pvpgn
 	{
 		if (!out)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL out");
+			LOG_ERROR(__FUNCTION__, "got NULL out");
 			return;
 		}
 
@@ -175,7 +173,7 @@ namespace pvpgn
 	{
 		if (!out)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL out");
+			LOG_ERROR(__FUNCTION__, "got NULL out");
 			return;
 		}
 
@@ -195,23 +193,23 @@ namespace pvpgn
 
 		if (!(temp = std::gmtime(&now)))
 			return 0;
-		if ((test = std::mktime(temp)) == (std::time_t)(-1))
+		if ((test = std::mktime(temp)) == static_cast<std::time_t>(-1))
 			return 0;
 
 		if (!(temp = std::localtime(&now)))
 			return 0;
-		if ((testloc = std::mktime(temp)) == (std::time_t)(-1))
+		if ((testloc = std::mktime(temp)) == static_cast<std::time_t>(-1))
 			return 0;
 
 		if (testloc > test) /* std::time_t is probably unsigned... */
-			return -(int)(testloc - test) / 60;
-		return (int)(test - testloc) / 60;
+			return -static_cast<int>(testloc - test) / 60;
+		return static_cast<int>(test - testloc) / 60;
 	}
 
 
 	extern t_bnettime bnettime_add_tzbias(t_bnettime bntime, int tzbias)
 	{
-		return secs_to_bnettime(bnettime_to_secs(bntime) - (double)tzbias*60.0);
+		return secs_to_bnettime(bnettime_to_secs(bntime) - static_cast<double>(tzbias)*60.0);
 	}
 
 }

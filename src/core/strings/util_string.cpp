@@ -19,6 +19,12 @@
 // String parsing, formatting, and escaping utilities (plan 15 §3 / SOLID-S).
 // Included as a sub-TU by util.cpp — do not compile directly.
 
+#include <cstddef>
+#include <cstring>
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
+
 namespace pvpgn
 {
 
@@ -53,11 +59,11 @@ namespace pvpgn
 	{
 		unsigned int val;
 		unsigned int pval;
-		char * pos;
+		char const * pos;
 
 		if (!str || !num)
 			return -1;
-		for (pos = (char *)str; *pos == ' ' || *pos == '\t'; pos++);
+		for (pos = str; *pos == ' ' || *pos == '\t'; pos++);
 		if (*pos == '+')
 			pos++;
 
@@ -70,8 +76,8 @@ namespace pvpgn
 				return -1;
 
 			pval = val;
-			if (std::isdigit(*pos))
-				val += *pos - '0';
+			if (std::isdigit(static_cast<unsigned char>(*pos)))
+				val += static_cast<unsigned int>(*pos - '0');
 			else
 				return -1;
 
@@ -88,11 +94,11 @@ namespace pvpgn
 	{
 		unsigned short val;
 		unsigned short pval;
-		char * pos;
+		char const * pos;
 
 		if (!str || !num)
 			return -1;
-		for (pos = (char *)str; *pos == ' ' || *pos == '\t'; pos++);
+		for (pos = str; *pos == ' ' || *pos == '\t'; pos++);
 		if (*pos == '+')
 			pos++;
 
@@ -106,8 +112,8 @@ namespace pvpgn
 
 			pval = val;
 
-			if (std::isdigit(*pos))
-				val += *pos - '0';
+			if (std::isdigit(static_cast<unsigned char>(*pos)))
+				val = static_cast<unsigned short>(val + (*pos - '0'));
 			else
 				return -1;
 
@@ -133,13 +139,13 @@ namespace pvpgn
 			return -1;
 
 		if (len == 0)
-			len = std::strlen(str);
+			len = static_cast<unsigned int>(std::strlen(str));
 		for (i = 0; i < len; i++)
 		if ((str[i] == '\177' || (str[i] >= '\000' && str[i] < '\040')) &&
 			(!allow_nl || (str[i] != '\r' && str[i] != '\n')))
 			std::fprintf(fp, "^%c", str[i] + 64);
 		else
-			std::fputc((int)str[i], fp);
+			std::fputc(static_cast<int>(str[i]), fp);
 
 		return 0;
 	}
@@ -183,7 +189,7 @@ namespace pvpgn
 			{
 				out[outpos++] = '%';
 				/* always 00 through FF hex */
-				std::sprintf(&out[outpos], "%02X", (unsigned int)(unsigned char)in[inpos]);
+				std::sprintf(&out[outpos], "%02X", static_cast<unsigned int>(static_cast<unsigned char>(in[inpos])));
 				outpos += 2;
 			}
 			else
@@ -218,7 +224,7 @@ namespace pvpgn
 				out[outpos++] = '\\';
 				out[outpos++] = '"';
 			}
-			else if (std::isprint((unsigned char)in[inpos]))
+			else if (std::isprint(static_cast<unsigned char>(in[inpos])))
 				out[outpos++] = in[inpos];
 			else if (in[inpos] == '\a')
 			{
@@ -259,7 +265,7 @@ namespace pvpgn
 			{
 				out[outpos++] = '\\';
 				/* always 001 through 377 octal */
-				std::sprintf(&out[outpos], "%03o", (unsigned int)(unsigned char)in[inpos]);
+				std::sprintf(&out[outpos], "%03o", static_cast<unsigned int>(static_cast<unsigned char>(in[inpos])));
 				outpos += 3;
 			}
 		}
@@ -280,7 +286,7 @@ namespace pvpgn
 		if (!in)
 			return NULL;
 
-		inlen = std::strlen(in);
+		inlen = static_cast<unsigned int>(std::strlen(in));
 		out = new char[inlen + 1]{};
 
 		for (inpos = 0, outpos = 0; inpos < inlen; inpos++)
@@ -339,15 +345,15 @@ namespace pvpgn
 						   temp[i] = '\0';
 						   inpos--;
 
-						   num = std::strtoul(temp, NULL, 8);
+						   num = static_cast<unsigned int>(std::strtoul(temp, nullptr, 8));
 						   if (i < 3 || num<1 || num>255) /* bad escape (including \000), leave it as-is */
 						   {
 							   out[outpos++] = '\\';
 							   std::strcpy(&out[outpos], temp);
-							   outpos += std::strlen(temp);
+							   outpos += static_cast<unsigned int>(std::strlen(temp));
 						   }
 						   else
-							   out[outpos++] = (unsigned char)num;
+							   out[outpos++] = static_cast<char>(num);
 				}
 			}
 		}

@@ -9,10 +9,11 @@
 #include "domain/ladder/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
+
 namespace pvpgn::infra::sqlite {
 
 class SQLiteLadderRepository final
-    : public application::ports::ILadderRepository {
+    : public domain::ladder::ILadderRepository {
 public:
     explicit SQLiteLadderRepository(std::shared_ptr<SQLiteConnection> conn);
 

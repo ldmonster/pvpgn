@@ -14,17 +14,29 @@
 #include "domain/realm/ports.hpp"
 #include "domain/moderation/ports.hpp"
 #include "domain/chat/ports.hpp"
+#include "infra/persistence/sql_builder/db_driver.hpp"
 
 namespace pvpgn::infra::persistence {
 
 /// Factory for creating repository instances.
 /// Reads the storage backend from configuration and constructs appropriate
 /// repository implementations (SQLite, MySQL, or PostgreSQL).
+///
+/// Plan 07: aggregates that have been consolidated onto the single
+/// `IDbDriver`-parameterized implementation (currently: account) are created
+/// by handing the repository the injected driver — switching backend means
+/// constructing a different driver, with **no recompilation** of the factory
+/// or repositories. Aggregates not yet consolidated still throw.
 class RepositoryFactory {
 public:
     /// Create a repository factory for the specified backend.
     /// @param backend One of "sqlite", "mysql", "postgres"
     explicit RepositoryFactory(std::string_view backend);
+
+    /// Create a factory bound to an already-constructed driver (the
+    /// composition root builds the driver for the chosen `[storage].backend`).
+    RepositoryFactory(std::string_view backend,
+                      std::shared_ptr<IDbDriver> driver);
 
     ~RepositoryFactory();
 
@@ -64,6 +76,7 @@ public:
 
 private:
     std::string backend_;
+    std::shared_ptr<IDbDriver> driver_;
 };
 
 }  // namespace pvpgn::infra::persistence

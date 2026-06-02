@@ -12,28 +12,28 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
 #include "domain/moderation/ports.hpp"
 #include "domain/shared/ids.hpp"
 
 namespace pvpgn::application::auth {
 
-class InMemoryPermissionChecker : public application::ports::IPermissionChecker {
+class InMemoryPermissionChecker : public domain::moderation::IPermissionChecker {
 public:
     explicit InMemoryPermissionChecker(
-        std::shared_ptr<application::ports::IAccountRepository> accounts)
+        std::shared_ptr<domain::identity::IAccountRepository> accounts)
         : accounts_(accounts) {
         init_group_mappings();
     }
 
     bool has_permission(domain::AccountId account,
-                        application::ports::Permission perm) const override;
+                        domain::moderation::Permission perm) const override;
 
     bool has_command_group(domain::AccountId account,
                            std::string_view group) const override;
 
 private:
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
 
     // Maps command groups to their associated Permission sets
     std::unordered_map<std::string, std::unordered_set<std::uint16_t>>

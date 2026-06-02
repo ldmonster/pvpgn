@@ -13,10 +13,11 @@
 #include "domain/moderation/ports.hpp"
 #include "domain/moderation/ip_ban_list.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryIpBanRepository final
-    : public application::ports::IIpBanRepository {
+    : public domain::moderation::IIpBanRepository {
 public:
     core::Result<bool>
     is_banned(const domain::IpAddress& ip) const override {

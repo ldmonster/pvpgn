@@ -27,9 +27,9 @@ class TelnetSessionFactory {
 public:
     /// Create a factory with the given dependencies.
     TelnetSessionFactory(
-        std::shared_ptr<application::ports::ISessionRegistry> registry,
+        std::shared_ptr<domain::identity::ISessionRegistry> registry,
         std::shared_ptr<application::ports::ICommandRegistry> commands,
-        std::shared_ptr<application::ports::IPermissionChecker> permissions)
+        std::shared_ptr<domain::moderation::IPermissionChecker> permissions)
         : registry_(registry), commands_(commands), permissions_(permissions) {}
 
     /// Called by TcpAcceptor for each accepted connection.
@@ -65,9 +65,9 @@ public:
     }
 
 private:
-    std::weak_ptr<application::ports::ISessionRegistry> registry_;
+    std::weak_ptr<domain::identity::ISessionRegistry> registry_;
     std::shared_ptr<application::ports::ICommandRegistry> commands_;
-    std::shared_ptr<application::ports::IPermissionChecker> permissions_;
+    std::shared_ptr<domain::moderation::IPermissionChecker> permissions_;
     static std::atomic<std::uint64_t> next_session_id_;
 };
 

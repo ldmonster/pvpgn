@@ -16,7 +16,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 // Address list (t_addrlist) creation, destruction, append, and length query (plan 15 §3 / SOLID-S).
-// Included as a sub-TU by addr.cpp — do not compile directly.
+// Split from addr.cpp (Plan 02 full-split: one TU per file).
+
+#include "addr_internal.h"
 
 namespace pvpgn
 {
@@ -30,7 +32,7 @@ namespace pvpgn
 
 		if (!str)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL str");
+			LOG_ERROR(__FUNCTION__, "got NULL str");
 			return -1;
 		}
 
@@ -40,7 +42,7 @@ namespace pvpgn
 		{
 			if (!(addr = addr_create_str(tok, defipaddr, defport)))
 			{
-				eventlog(eventlog_level_error, __FUNCTION__, "could not create addr");
+				LOG_ERROR(__FUNCTION__, "could not create addr");
 				return -1;
 			}
 			list_append_data(addrlist, addr);
@@ -55,14 +57,14 @@ namespace pvpgn
 
 		if (!str)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL str");
+			LOG_ERROR(__FUNCTION__, "got NULL str");
 			return NULL;
 		}
 
 		addrlist = list_create();
 
 		if (addrlist_append(addrlist, str, defipaddr, defport) < 0) {
-			eventlog(eventlog_level_error, __FUNCTION__, "could not append to newly created addrlist");
+			LOG_ERROR(__FUNCTION__, "could not append to newly created addrlist");
 			list_destroy(addrlist);
 			return NULL;
 		}
@@ -77,14 +79,14 @@ namespace pvpgn
 
 		if (!addrlist)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL addrlist");
+			LOG_ERROR(__FUNCTION__, "got NULL addrlist");
 			return -1;
 		}
 
 		LIST_TRAVERSE(addrlist, curr)
 		{
-			if (!(addr = (t_addr*)elem_get_data(curr)))
-				eventlog(eventlog_level_error, __FUNCTION__, "found NULL addr in list");
+			if (!(addr = static_cast<t_addr*>(elem_get_data(curr))))
+				LOG_ERROR(__FUNCTION__, "found NULL addr in list");
 			else
 				addr_destroy(addr);
 			list_remove_elem(addrlist, &curr);
@@ -96,7 +98,7 @@ namespace pvpgn
 
 	extern int addrlist_get_length(t_addrlist const * addrlist)
 	{
-		return list_get_length(addrlist);
+		return static_cast<int>(list_get_length(addrlist));
 	}
 
 } // namespace pvpgn

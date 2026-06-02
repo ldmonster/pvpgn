@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <vector>
 
-#include "integration/legacy_d2dbs/send_packet_bridge.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/send_packet_bridge.hpp"
 
 namespace ild = pvpgn::integration::legacy_d2dbs;
 

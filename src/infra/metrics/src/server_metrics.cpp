@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "infra/metrics/server_metrics.hpp"
+#include "core/metrics.hpp"
 
 namespace pvpgn::infra::metrics {
 
-ServerMetrics ServerMetrics::create(application::ports::IMetricsRegistry& registry) {
+ServerMetrics ServerMetrics::create(core::IMetricsRegistry& registry) {
     ServerMetrics metrics;
 
     // Network metrics
@@ -54,7 +55,7 @@ ServerMetrics ServerMetrics::create(application::ports::IMetricsRegistry& regist
         "Total login failures");
 
     // Protocol breakdown with labels
-    application::ports::MetricLabels bnet_label{{"protocol", "bnet"}};
+    core::MetricLabels bnet_label{{"protocol", "bnet"}};
     metrics.connections_by_protocol = registry.gauge(
         "pvpgn_net_connections_by_protocol",
         "Active connections grouped by protocol",

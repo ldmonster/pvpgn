@@ -14,7 +14,8 @@
 #include "domain/shared/chat_message.hpp"
 #include "domain/shared/events.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/connection/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -45,8 +46,8 @@ struct SendEmoteResult {
 class SendEmote {
 public:
     explicit SendEmote(
-        std::shared_ptr<application::ports::IChannelRepository> channels,
-        std::shared_ptr<application::ports::IMessageRouter> router)
+        std::shared_ptr<domain::chat::IChannelRepository> channels,
+        std::shared_ptr<domain::connection::IMessageRouter> router)
         : channels_(channels), router_(router) {}
 
     /// Execute: validate membership and send emote to channel.
@@ -54,8 +55,8 @@ public:
     execute(const SendEmoteRequest& req) const;
 
 private:
-    std::shared_ptr<application::ports::IChannelRepository> channels_;
-    std::shared_ptr<application::ports::IMessageRouter>     router_;
+    std::shared_ptr<domain::chat::IChannelRepository> channels_;
+    std::shared_ptr<domain::connection::IMessageRouter>     router_;
 };
 
 }  // namespace pvpgn::application::chat

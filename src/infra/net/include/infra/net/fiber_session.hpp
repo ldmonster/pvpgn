@@ -36,6 +36,7 @@
 #if defined(PVPGN_V3_HAVE_FIBER)
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -63,24 +64,50 @@ public:
     ///   power of two >= 2 (Boost.Fibers requirement). Note: the
     ///   ring buffer holds `capacity - 1` chunks before pushes start
     ///   dropping.
+    /// @param read_timeout Idle-read deadline. If no chunk arrives within
+    ///   this duration, `recv()` closes the underlying session and returns
+    ///   `std::nullopt` (the handler's read loop exits). Zero (the default)
+    ///   means "block forever" — no timeout.
     explicit SessionChannel(std::shared_ptr<TcpSession> session,
-                            std::size_t capacity = 64)
-        : session_(std::move(session)), inbox_(capacity) {}
+                            std::size_t capacity = 64,
+                            std::chrono::milliseconds read_timeout =
+                                std::chrono::milliseconds::zero())
+        : session_(std::move(session)),
+          inbox_(capacity),
+          read_timeout_(read_timeout) {}
 
     SessionChannel(const SessionChannel&)            = delete;
     SessionChannel& operator=(const SessionChannel&) = delete;
 
-    /// Block the fiber until either a chunk arrives or the channel is
-    /// closed. Returns nullopt on close. Each chunk is the exact byte
+    /// Block the fiber until either a chunk arrives, the configured
+    /// idle-read timeout elapses, or the channel is closed. Returns
+    /// nullopt on close *or* timeout. Each chunk is the exact byte
     /// sequence delivered by one `on_bytes` callback (no additional
-    /// framing).
+    /// framing). On timeout the underlying session is closed and
+    /// `timed_out()` flips to true.
     std::optional<std::vector<std::byte>> recv() {
         std::vector<std::byte> chunk;
-        const auto status = inbox_.pop(chunk);
+        boost::fibers::channel_op_status status;
+        if (read_timeout_ > std::chrono::milliseconds::zero()) {
+            status = inbox_.pop_wait_for(chunk, read_timeout_);
+            if (status == boost::fibers::channel_op_status::timeout) {
+                timed_out_.store(true, std::memory_order_relaxed);
+                close();
+                return std::nullopt;
+            }
+        } else {
+            status = inbox_.pop(chunk);
+        }
         if (status != boost::fibers::channel_op_status::success) {
             return std::nullopt;
         }
         return chunk;
+    }
+
+    /// Whether the last `recv()` ended because the idle-read timeout
+    /// elapsed (as opposed to a peer/local close).
+    bool timed_out() const noexcept {
+        return timed_out_.load(std::memory_order_relaxed);
     }
 
     /// Push bytes onto the session's outbound queue. Thread-safe and
@@ -124,6 +151,8 @@ private:
     std::weak_ptr<TcpSession>                          session_;
     boost::fibers::buffered_channel<std::vector<std::byte>> inbox_;
     std::atomic<std::size_t>                           dropped_{0};
+    std::chrono::milliseconds                          read_timeout_;
+    std::atomic<bool>                                  timed_out_{false};
 };
 
 /// Fiber-style session handler.
@@ -150,8 +179,11 @@ using SessionHandler = std::function<void(SessionChannel&)>;
 inline void spawn_session(IoRuntime& rt,
                           std::shared_ptr<TcpSession> session,
                           SessionHandler handler,
-                          std::size_t inbox_capacity = 64) {
-    auto chan = std::make_shared<SessionChannel>(session, inbox_capacity);
+                          std::size_t inbox_capacity = 64,
+                          std::chrono::milliseconds read_timeout =
+                              std::chrono::milliseconds::zero()) {
+    auto chan = std::make_shared<SessionChannel>(session, inbox_capacity,
+                                                 read_timeout);
 
     session->set_on_bytes([chan](core::ByteView v) {
         chan->push_from_network(std::vector<std::byte>(v.begin(), v.end()));

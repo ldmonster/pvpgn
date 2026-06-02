@@ -28,12 +28,10 @@ http://www.gnu.org/licenses/gpl.txt
 
 */
 
-#include "common/setup_before.h"
-#include "common/peerchat.h"
+#include "peerchat.h"
 
-#include "common/eventlog.h"
+#include "core/format.hpp"
 
-#include "common/setup_after.h"
 
 namespace pvpgn
 {
@@ -50,7 +48,7 @@ namespace pvpgn
 	extern void  gs_peerchat_destroy(gs_peerchat_ctx const * ctx)
 	{
 		if (!ctx) {
-			ERROR0("got NULL ctx");
+			LOG_ERROR(__FUNCTION__, "got NULL ctx");
 			return;
 		}
 
@@ -89,7 +87,7 @@ namespace pvpgn
 		p = crypt;
 		p1 = challenge;
 		do {
-			t1 += *p1 + *p;
+			t1 = static_cast<unsigned char>(t1 + *p1 + *p);
 			t = crypt[t1];
 			crypt[t1] = *p;
 			*p = t;
@@ -98,7 +96,7 @@ namespace pvpgn
 			if (p1 == l) p1 = challenge;
 		} while (p != l1);
 
-		//   DEBUG3("initialised: %u/%u/%s",ctx->gs_peerchat_1,ctx->gs_peerchat_2,ctx->gs_peerchat_crypt);
+		//   LOG_DEBUG(__FUNCTION__, "initialised: %u/%u/%s",ctx->gs_peerchat_1,ctx->gs_peerchat_2,ctx->gs_peerchat_crypt);
 	}
 
 	void gs_peerchat(gs_peerchat_ctx *ctx, unsigned char *data, int size) {

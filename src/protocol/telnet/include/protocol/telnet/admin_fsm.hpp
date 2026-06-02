@@ -11,6 +11,7 @@
 
 #include "core/result.hpp"
 #include "protocol/telnet/telnet_session_context.hpp"
+#include "domain/chat/ports/command_registry.hpp"
 
 // Forward declarations
 namespace pvpgn::protocol::bnet {

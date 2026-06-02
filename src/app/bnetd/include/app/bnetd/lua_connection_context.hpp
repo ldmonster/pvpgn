@@ -50,6 +50,8 @@
 #include "domain/connection/connection_context.hpp"
 #include "infra/lua/lua_runtime.hpp"
 
+#include "domain/connection/ports.hpp"
+
 namespace pvpgn::app::bnetd {
 
 // ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@
 #include <string>
 #include <string_view>
 
-#include "application/ports/metrics_registry.hpp"
+#include "core/metrics.hpp"
 
 namespace pvpgn::infra::health {
 
@@ -25,7 +25,7 @@ public:
     /// @param registry  The metrics registry to serialize on each request.
     ///                  Must not be null.
     explicit MetricsHandler(
-        std::shared_ptr<application::ports::IMetricsRegistry> registry);
+        std::shared_ptr<core::IMetricsRegistry> registry);
 
     /// Handle an HTTP GET /metrics request.
     ///
@@ -35,7 +35,7 @@ public:
     [[nodiscard]] std::string handle() const;
 
 private:
-    std::shared_ptr<application::ports::IMetricsRegistry> registry_;
+    std::shared_ptr<core::IMetricsRegistry> registry_;
 
     static std::string make_response(std::string_view body);
 };

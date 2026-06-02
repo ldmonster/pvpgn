@@ -8,7 +8,8 @@
 #include <optional>
 #include <string>
 
-#include "application/ports/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "core/clock.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
@@ -34,7 +35,7 @@ enum class BanIpError : std::uint8_t {
 
 class BanIp {
 public:
-    BanIp(std::shared_ptr<application::ports::IIpBanRepository> bans,
+    BanIp(std::shared_ptr<domain::moderation::IIpBanRepository> bans,
           std::shared_ptr<application::ports::IEventBus> event_bus)
         : bans_(bans), event_bus_(event_bus) {}
 
@@ -42,7 +43,7 @@ public:
     execute(const BanIpRequest& req);
 
 private:
-    std::shared_ptr<application::ports::IIpBanRepository> bans_;
+    std::shared_ptr<domain::moderation::IIpBanRepository> bans_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

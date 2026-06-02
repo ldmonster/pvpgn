@@ -30,6 +30,11 @@
 /// subsequent refactoring steps.
 
 #include "services/bnetd/bnetd_service.hpp"
+#include "application/persistence/unit_of_work_factory.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/shared/ports/event_loop.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -58,7 +63,7 @@ namespace pvpgn::services::bnetd {
 namespace {
 
 struct NoDelete {
-    void operator()(application::ports::IChannelRepository*) const noexcept {}
+    void operator()(domain::chat::IChannelRepository*) const noexcept {}
 };
 
 /// Default permanent channels seeded at startup.
@@ -86,10 +91,10 @@ BnetdService::BnetdService(
     application::ports::IUnitOfWorkFactory& uow_factory,
     application::ports::IEventLoop&         event_loop,
     application::auth::INlsCredentialStore& nls_store,
-    application::ports::IChannelRepository& channel_repo,
-    application::ports::IAccountRepository& account_repo,
-    application::ports::ISessionRegistry&   session_reg,
-    application::ports::IGameRepository&    game_repo,
+    domain::chat::IChannelRepository& channel_repo,
+    domain::identity::IAccountRepository& account_repo,
+    domain::identity::ISessionRegistry&   session_reg,
+    domain::gameplay::IGameRepository&    game_repo,
     application::ports::IEventBus&          event_bus)
     : uow_factory_(uow_factory)
     , event_loop_(event_loop)
@@ -111,7 +116,7 @@ BnetdService::BnetdService(
     , leave_channel_(std::make_unique<application::chat::LeaveChannel>(
           channel_repo_, session_reg_))
     , list_channels_(std::make_unique<application::chat::ListChannels>(
-          std::shared_ptr<application::ports::IChannelRepository>(
+          std::shared_ptr<domain::chat::IChannelRepository>(
               &channel_repo_, NoDelete{})))
     // Logout use-case (R305: wired with LeaveChannel for channel cleanup on disconnect)
     , logout_user_(std::make_unique<application::auth::LogoutUser>(

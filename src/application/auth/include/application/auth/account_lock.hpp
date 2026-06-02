@@ -12,7 +12,6 @@
 
 #include <string_view>
 
-#include "application/ports/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/event_bus.hpp"
 #include "core/error.hpp"
@@ -23,7 +22,7 @@ namespace pvpgn::application::auth {
 
 class LockAccount {
 public:
-    LockAccount(application::ports::IAccountRepository& accounts,
+    LockAccount(domain::identity::IAccountRepository& accounts,
                 application::ports::IEventBus& bus) noexcept
         : accounts_(accounts), bus_(bus) {}
 
@@ -33,13 +32,13 @@ public:
                    std::string_view reason);
 
 private:
-    application::ports::IAccountRepository& accounts_;
+    domain::identity::IAccountRepository& accounts_;
     application::ports::IEventBus& bus_;
 };
 
 class UnlockAccount {
 public:
-    UnlockAccount(application::ports::IAccountRepository& accounts,
+    UnlockAccount(domain::identity::IAccountRepository& accounts,
                   application::ports::IEventBus& bus) noexcept
         : accounts_(accounts), bus_(bus) {}
 
@@ -48,7 +47,7 @@ public:
     Result execute(domain::AccountId target, domain::AccountId by_admin);
 
 private:
-    application::ports::IAccountRepository& accounts_;
+    domain::identity::IAccountRepository& accounts_;
     application::ports::IEventBus& bus_;
 };
 

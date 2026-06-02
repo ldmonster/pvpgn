@@ -7,13 +7,14 @@
 #include "application/chat/command_registry.hpp"
 #include "infra/inmemory/in_memory_permission_checker.hpp"
 #include "domain/shared/ids.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace {
 
 using pvpgn::domain::AccountId;
 using pvpgn::application::chat::CommandRegistry;
 using pvpgn::application::chat::CommandHandler;
-using pvpgn::application::ports::Permission;
+using pvpgn::domain::moderation::Permission;
 using pvpgn::infra::inmemory::InMemoryPermissionChecker;
 
 AccountId make_id(std::uint32_t v) { return AccountId{v}; }

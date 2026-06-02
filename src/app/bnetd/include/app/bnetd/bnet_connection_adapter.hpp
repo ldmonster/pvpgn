@@ -78,6 +78,8 @@
 #include "core/result.hpp"
 #include "domain/connection/connection_context.hpp"
 
+#include "domain/connection/ports.hpp"
+
 namespace pvpgn::application::auth {
 class LoginUser;
 }  // namespace pvpgn::application::auth

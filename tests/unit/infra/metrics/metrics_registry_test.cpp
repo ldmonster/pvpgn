@@ -4,6 +4,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include "infra/metrics/in_memory_metrics_registry.hpp"
+#include "core/metrics.hpp"
 
 namespace pvpgn::infra::metrics {
 
@@ -68,7 +69,7 @@ TEST_CASE("InMemoryMetricsRegistry: HistogramObserve", "[infra][metrics]") {
 TEST_CASE("InMemoryMetricsRegistry: PrometheusFormat", "[infra][metrics]") {
     InMemoryMetricsRegistry registry;
     auto counter = registry.counter("pvpgn_test_counter_total", "Test counter",
-                                     application::ports::MetricLabels{});
+                                     core::MetricLabels{});
     counter->increment(42.0);
 
     auto gauge = registry.gauge("pvpgn_test_gauge", "Test gauge");
@@ -88,7 +89,7 @@ TEST_CASE("InMemoryMetricsRegistry: PrometheusFormat", "[infra][metrics]") {
 
 TEST_CASE("InMemoryMetricsRegistry: MetricWithLabels", "[infra][metrics]") {
     InMemoryMetricsRegistry registry;
-    application::ports::MetricLabels labels;
+    core::MetricLabels labels;
     labels.emplace("protocol", "bnet");
 
     auto gauge = registry.gauge("pvpgn_connections_by_protocol",

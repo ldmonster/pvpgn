@@ -12,7 +12,7 @@
 #include "core/result.hpp"
 #include "domain/gameplay/game.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/gameplay/ports.hpp"
 
 namespace pvpgn::application::game {
 
@@ -34,7 +34,7 @@ struct LeaveGameResult {
 
 class LeaveGame {
 public:
-    explicit LeaveGame(application::ports::IGameRepository& game_repo)
+    explicit LeaveGame(domain::gameplay::IGameRepository& game_repo)
         : game_repo_(game_repo) {}
 
     /// Execute: remove account from the given game.
@@ -43,7 +43,7 @@ public:
     execute(domain::GameId game_id, domain::AccountId account_id) const;
 
 private:
-    application::ports::IGameRepository& game_repo_;
+    domain::gameplay::IGameRepository& game_repo_;
 };
 
 }  // namespace pvpgn::application::game

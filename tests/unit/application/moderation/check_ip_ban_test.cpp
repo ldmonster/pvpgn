@@ -24,7 +24,7 @@ domain::IpAddress make_ip(std::string_view s) {
 }
 
 // Mock IP ban repository for testing
-class MockIpBanRepository : public application::ports::IIpBanRepository {
+class MockIpBanRepository : public domain::moderation::IIpBanRepository {
 public:
     core::Result<bool> is_banned(const domain::IpAddress&) const override {
         return false;  // Default: not banned

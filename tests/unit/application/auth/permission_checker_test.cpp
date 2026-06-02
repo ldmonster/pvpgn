@@ -11,12 +11,13 @@
 
 #include "infra/inmemory/in_memory_permission_checker.hpp"
 #include "domain/shared/ids.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace {
 
 using pvpgn::domain::AccountId;
 using pvpgn::infra::inmemory::InMemoryPermissionChecker;
-using pvpgn::application::ports::Permission;
+using pvpgn::domain::moderation::Permission;
 
 AccountId make_id(std::uint32_t v) { return AccountId{v}; }
 

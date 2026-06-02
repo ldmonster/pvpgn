@@ -4,7 +4,6 @@
 /// @file unregister_realm.hpp
 /// Use case: unregister (remove) a realm server from the catalog.
 
-#include "application/ports/ports.hpp"
 #include "domain/realm/ports.hpp"
 #include "core/result.hpp"
 #include <cstdint>
@@ -22,14 +21,14 @@ struct UnregisterRealmCommand {
 ///   - The realm identified by `realm_id` must exist.
 class UnregisterRealm {
 public:
-    explicit UnregisterRealm(application::ports::IRealmRepository& realms);
+    explicit UnregisterRealm(domain::realm::IRealmRepository& realms);
 
     /// Returns `NotFound` if no realm with the given ID exists.
     [[nodiscard]] core::Result<void, core::Error>
     execute(UnregisterRealmCommand cmd) const;
 
  private:
-    application::ports::IRealmRepository& realms_;
+    domain::realm::IRealmRepository& realms_;
 };
 
 } // namespace pvpgn::application::realm

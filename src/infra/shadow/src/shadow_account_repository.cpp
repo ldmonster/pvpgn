@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "infra/shadow/shadow_account_repository.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::infra::shadow {
 
 ShadowAccountRepository::ShadowAccountRepository(
-    application::ports::IAccountRepository& primary,
-    application::ports::IAccountRepository& secondary,
+    domain::identity::IAccountRepository& primary,
+    domain::identity::IAccountRepository& secondary,
     bool enabled)
     : primary_(primary), secondary_(secondary), enabled_(enabled) {}
 

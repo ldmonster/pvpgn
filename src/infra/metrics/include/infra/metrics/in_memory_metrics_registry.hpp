@@ -12,12 +12,12 @@
 #include <string_view>
 #include <vector>
 
-#include "application/ports/metrics_registry.hpp"
+#include "core/metrics.hpp"
 
 namespace pvpgn::infra::metrics {
 
 /// In-memory counter implementation.
-class InMemoryCounter : public application::ports::ICounter {
+class InMemoryCounter : public core::ICounter {
 public:
     void increment(double amount = 1.0) override;
     double value() const override;
@@ -27,7 +27,7 @@ private:
 };
 
 /// In-memory gauge implementation.
-class InMemoryGauge : public application::ports::IGauge {
+class InMemoryGauge : public core::IGauge {
 public:
     void set(double value) override;
     void increment(double amount = 1.0) override;
@@ -40,7 +40,7 @@ private:
 
 /// In-memory histogram implementation.
 /// Uses standard Prometheus buckets: 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, +Inf
-class InMemoryHistogram : public application::ports::IHistogram {
+class InMemoryHistogram : public core::IHistogram {
 public:
     explicit InMemoryHistogram(std::vector<double> buckets = {});
     void observe(double value) override;
@@ -61,25 +61,25 @@ private:
 };
 
 /// In-memory metrics registry with Prometheus text format serialization.
-class InMemoryMetricsRegistry : public application::ports::IMetricsRegistry {
+class InMemoryMetricsRegistry : public core::IMetricsRegistry {
 public:
     InMemoryMetricsRegistry() = default;
 
-    std::shared_ptr<application::ports::ICounter> counter(
+    std::shared_ptr<core::ICounter> counter(
         std::string_view name,
         std::string_view help,
-        application::ports::MetricLabels labels = {}) override;
+        core::MetricLabels labels = {}) override;
 
-    std::shared_ptr<application::ports::IGauge> gauge(
+    std::shared_ptr<core::IGauge> gauge(
         std::string_view name,
         std::string_view help,
-        application::ports::MetricLabels labels = {}) override;
+        core::MetricLabels labels = {}) override;
 
-    std::shared_ptr<application::ports::IHistogram> histogram(
+    std::shared_ptr<core::IHistogram> histogram(
         std::string_view name,
         std::string_view help,
         std::vector<double> buckets = {},
-        application::ports::MetricLabels labels = {}) override;
+        core::MetricLabels labels = {}) override;
 
     std::string serialize() const override;
 
@@ -87,7 +87,7 @@ private:
     struct MetricInfo {
         std::string name;
         std::string help;
-        application::ports::MetricLabels labels;
+        core::MetricLabels labels;
         std::shared_ptr<void> metric;  // Holds ICounter, IGauge, or IHistogram
         enum class Type { Counter, Gauge, Histogram } type;
     };
@@ -95,7 +95,7 @@ private:
     mutable std::shared_mutex metrics_mu_;
     std::map<std::string, MetricInfo> metrics_;
 
-    std::string labels_str(const application::ports::MetricLabels& labels) const;
+    std::string labels_str(const core::MetricLabels& labels) const;
 };
 
 }  // namespace pvpgn::infra::metrics

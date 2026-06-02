@@ -11,9 +11,10 @@
 #include "domain/identity/ports.hpp"
 #include "infra/inmemory/account_repository.hpp"
 
+
 namespace pvpgn::infra::file {
 
-class FileAccountRepository final : public application::ports::IAccountRepository {
+class FileAccountRepository final : public domain::identity::IAccountRepository {
 public:
     /// Create a file repository that loads from var/users/ directory.
     /// @param data_dir Directory containing account files (e.g., "var/users/")

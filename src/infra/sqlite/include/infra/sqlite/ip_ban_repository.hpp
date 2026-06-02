@@ -9,10 +9,11 @@
 #include "domain/moderation/ports.hpp"
 #include "infra/sqlite/connection.hpp"
 
+
 namespace pvpgn::infra::sqlite {
 
 class SQLiteIpBanRepository final
-    : public application::ports::IIpBanRepository {
+    : public domain::moderation::IIpBanRepository {
 public:
     explicit SQLiteIpBanRepository(std::shared_ptr<SQLiteConnection> conn);
 

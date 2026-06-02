@@ -9,7 +9,8 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/shared/event_bus.hpp"
+#include "domain/social/ports.hpp"
 
 namespace pvpgn::application::social {
 
@@ -22,7 +23,7 @@ enum class LeaveClanError : std::uint8_t {
 
 class LeaveClan {
 public:
-    LeaveClan(std::shared_ptr<application::ports::IClanRepository> clans,
+    LeaveClan(std::shared_ptr<domain::social::IClanRepository> clans,
               std::shared_ptr<application::ports::IEventBus> event_bus)
         : clans_(clans), event_bus_(event_bus) {}
 
@@ -30,7 +31,7 @@ public:
     execute(domain::ClanId clan_id, domain::AccountId account_id);
 
 private:
-    std::shared_ptr<application::ports::IClanRepository> clans_;
+    std::shared_ptr<domain::social::IClanRepository> clans_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

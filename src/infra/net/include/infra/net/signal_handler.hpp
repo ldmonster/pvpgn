@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include "application/persistence/unit_of_work_factory.hpp"
+#include "core/metrics.hpp"
 #pragma once
 
 /// @file signal_handler.hpp
@@ -45,7 +47,7 @@ public:
     SignalHandler(IoRuntime& runtime,
                   std::shared_ptr<infra::config::ConfigWatcher> config_watcher,
                   std::shared_ptr<application::ports::IUnitOfWorkFactory> uow_factory,
-                  std::shared_ptr<application::ports::IMetricsRegistry> metrics,
+                  std::shared_ptr<core::IMetricsRegistry> metrics,
                   std::function<void(int)> on_shutdown = {});
 
     ~SignalHandler();
@@ -58,7 +60,7 @@ private:
     IoRuntime& runtime_;
     std::shared_ptr<infra::config::ConfigWatcher> config_watcher_;
     std::shared_ptr<application::ports::IUnitOfWorkFactory> uow_factory_;
-    std::shared_ptr<application::ports::IMetricsRegistry> metrics_;
+    std::shared_ptr<core::IMetricsRegistry> metrics_;
     std::function<void(int)> on_shutdown_;
 
     void on_sighup();

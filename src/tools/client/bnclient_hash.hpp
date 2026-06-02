@@ -47,7 +47,7 @@ inline void hash_init(HashDigest& h) noexcept {
 // `ROTL32(x ^ y ^ z ^ w, 1)`).
 inline void compress_block(HashDigest& h, std::uint32_t tmp[80]) noexcept {
     for (unsigned i = 0; i < 64; ++i) {
-        tmp[i + 16] = rotl32(1, tmp[i] ^ tmp[i + 8] ^ tmp[i + 2] ^ tmp[i + 13]);
+        tmp[i + 16] = rotl32(1, static_cast<int>(tmp[i] ^ tmp[i + 8] ^ tmp[i + 2] ^ tmp[i + 13]));
     }
 
     std::uint32_t a = h[0];

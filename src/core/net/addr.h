@@ -19,10 +19,10 @@
 #define INCLUDED_ADDR_TYPES
 
 #ifdef JUST_NEED_TYPES
-# include "common/list.h"
+# include "list.h"
 #else
 # define JUST_NEED_TYPES
-# include "common/list.h"
+# include "list.h"
 # undef JUST_NEED_TYPES
 #endif
 

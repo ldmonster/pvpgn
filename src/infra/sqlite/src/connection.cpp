@@ -122,6 +122,15 @@ core::Result<void, core::Error> SQLiteConnection::query_bind(
     std::string_view sql,
     std::initializer_list<ParamValue> params,
     const RowCallback& cb) {
+    return query_bind(sql,
+                      std::span<const ParamValue>{params.begin(), params.size()},
+                      cb);
+}
+
+core::Result<void, core::Error> SQLiteConnection::query_bind(
+    std::string_view sql,
+    std::span<const ParamValue> params,
+    const RowCallback& cb) {
     if (!db_) {
         return core::fail(core::Error{
             core::StatusCode::Internal, "sqlite: connection not open"});

@@ -16,7 +16,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 // Core address creation, destruction, formatting, and accessor functions (plan 15 §3 / SOLID-S).
-// Included as a sub-TU by addr.cpp — do not compile directly.
+// Split from addr.cpp (Plan 02 full-split: one TU per file).
+
+#include "addr_internal.h"
 
 namespace pvpgn
 {
@@ -28,12 +30,12 @@ namespace pvpgn
 	{
 		static unsigned int curr = 0;
 		static char         temp[HACK_SIZE][64];
-		struct sockaddr_in  tsa = { 0 };
+		struct sockaddr_in  tsa = {};
 
 		curr = (curr + 1) % HACK_SIZE;
 
 		tsa.sin_family = AF_INET;
-		tsa.sin_port = htons((unsigned short)0);
+		tsa.sin_port = htons(static_cast<unsigned short>(0));
 		tsa.sin_addr.s_addr = htonl(ipaddr);
 
 		char addrstr[INET_ADDRSTRLEN] = { 0 };
@@ -55,7 +57,7 @@ namespace pvpgn
 
 		std::memset(&tsa, 0, sizeof(tsa));
 		tsa.sin_family = AF_INET;
-		tsa.sin_port = htons((unsigned short)0);
+		tsa.sin_port = htons(static_cast<unsigned short>(0));
 		tsa.sin_addr.s_addr = htonl(ipaddr);
 
 		char addrstr[INET_ADDRSTRLEN] = { 0 };
@@ -75,12 +77,12 @@ namespace pvpgn
 
 		if (!hoststr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL hoststr");
+			LOG_ERROR(__FUNCTION__, "got NULL hoststr");
 			return NULL;
 		}
 		if (!ipaddr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL ipaddr");
+			LOG_ERROR(__FUNCTION__, "got NULL ipaddr");
 			return NULL;
 		}
 
@@ -101,7 +103,7 @@ namespace pvpgn
 						   it when sending a dotted-quad to gethostbyname().  This is
 						   good enough when that fails. */
 			}
-			eventlog(eventlog_level_error, __FUNCTION__, "could not lookup host \"{}\"", hoststr);
+			LOG_ERROR(__FUNCTION__, "could not lookup host \"{}\"", hoststr);
 			return NULL;
 		}
 
@@ -147,7 +149,7 @@ namespace pvpgn
 
 		if (!str)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL str");
+			LOG_ERROR(__FUNCTION__, "got NULL str");
 			return NULL;
 		}
 
@@ -177,7 +179,7 @@ namespace pvpgn
 					if (!(sp = getservbyname(portstr, protstr ? protstr : "tcp")))
 #endif
 					{
-						eventlog(eventlog_level_error, __FUNCTION__, "could not convert \"{}\" to a port number", portstr);
+						LOG_ERROR(__FUNCTION__, "could not convert \"{}\" to a port number", portstr);
 						return NULL;
 					}
 #ifdef HAVE_GETSERVBYNAME
@@ -207,7 +209,7 @@ namespace pvpgn
 
 		if (!(hostname = host_lookup(hoststr, &ipaddr)))
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "could not lookup host \"{}\"", hoststr);
+			LOG_ERROR(__FUNCTION__, "could not lookup host \"{}\"", hoststr);
 			return NULL;
 		}
 
@@ -230,7 +232,7 @@ namespace pvpgn
 	{
 		if (!addr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL addr");
+			LOG_ERROR(__FUNCTION__, "got NULL addr");
 			return -1;
 		}
 
@@ -247,23 +249,23 @@ namespace pvpgn
 	{
 		if (!addr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL addr");
+			LOG_ERROR(__FUNCTION__, "got NULL addr");
 			return NULL;
 		}
 		if (!str)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL str");
+			LOG_ERROR(__FUNCTION__, "got NULL str");
 			return NULL;
 		}
 		if (len < 2)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "str too short");
+			LOG_ERROR(__FUNCTION__, "str too short");
 			return NULL;
 		}
 
 		if (!addr->str)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "addr has NULL str");
+			LOG_ERROR(__FUNCTION__, "addr has NULL str");
 			return NULL;
 		}
 
@@ -279,21 +281,21 @@ namespace pvpgn
 	{
 		if (!addr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL addr");
+			LOG_ERROR(__FUNCTION__, "got NULL addr");
 			return NULL;
 		}
 		if (!str)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL str");
+			LOG_ERROR(__FUNCTION__, "got NULL str");
 			return NULL;
 		}
 		if (len < 2)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "str too short");
+			LOG_ERROR(__FUNCTION__, "str too short");
 			return NULL;
 		}
 
-		std::strncpy(str, addr_num_to_addr_str(addr->ip, addr->port), len - 1);
+		std::strncpy(str, addr_num_to_addr_str(addr->ip, static_cast<unsigned short>(addr->port)), len - 1);
 		str[len - 1] = '\0';
 
 		return str;
@@ -304,7 +306,7 @@ namespace pvpgn
 	{
 		if (!addr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL addr");
+			LOG_ERROR(__FUNCTION__, "got NULL addr");
 			return 0;
 		}
 
@@ -316,11 +318,11 @@ namespace pvpgn
 	{
 		if (!addr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL addr");
+			LOG_ERROR(__FUNCTION__, "got NULL addr");
 			return 0;
 		}
 
-		return addr->port;
+		return static_cast<unsigned short>(addr->port);
 	}
 
 
@@ -328,7 +330,7 @@ namespace pvpgn
 	{
 		if (!addr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL addr");
+			LOG_ERROR(__FUNCTION__, "got NULL addr");
 			return -1;
 		}
 
@@ -343,7 +345,7 @@ namespace pvpgn
 
 		if (!addr)
 		{
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL addr");
+			LOG_ERROR(__FUNCTION__, "got NULL addr");
 			tdata.p = NULL;
 			return tdata;
 		}

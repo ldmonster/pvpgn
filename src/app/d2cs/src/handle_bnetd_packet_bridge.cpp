@@ -2,7 +2,7 @@
 //
 // R235(3): observation bridge for d2cs bnetd s2s-packet dispatch.
 
-#include "integration/legacy_d2cs/handle_bnetd_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/handle_bnetd_packet_bridge.hpp"
 
 #include <array>
 #include <charconv>
@@ -11,7 +11,7 @@
 #include <system_error>
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2cs/bridge_logger.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/bridge_logger.hpp"
 
 namespace plc = pvpgn::integration::legacy_d2cs;
 

@@ -26,8 +26,8 @@ bool parse_ushort(std::string_view sv, std::uint16_t &out)
 
 [[noreturn]] void usage(const char *progname)
 {
-    std::fprintf(stderr, "usage: %s [<options>]\n", progname);
-    std::fprintf(stderr,
+    std::println(stderr, "usage: {} [<options>]", progname);
+    std::print(stderr,
         "  -c COMMAND, --command=COMMAND  execute COMMAND update\n"
         "  -d, --debug                    turn on debug mode\n"
         "  -e SECS, --expire SECS         forget a list entry after SEC seconds\n"
@@ -38,7 +38,7 @@ bool parse_ushort(std::string_view sv, std::uint16_t &out)
 #endif
         "  -l FILE, --logfile=FILE        write event messages to FILE\n"
         "  -o FILE, --outfile=FILE        write server list to FILE\n");
-    std::fprintf(stderr,
+    std::print(stderr,
         "  -p PORT, --port=PORT           listen for announcments on UDP port PORT\n"
         "  -P FILE, --pidfile=FILE        write pid to FILE\n"
         "  -u SECS, --update SECS         write output file every SEC seconds\n"
@@ -54,8 +54,7 @@ void getprefs(int argc, char *argv[])
 
     auto need_arg = [&](int &a) {
         if (a + 1 >= argc) {
-            std::fprintf(stderr,
-                "%s: option \"%s\" requires an argument\n",
+            std::println(stderr, "{}: option \"{}\" requires an argument",
                 argv[0], argv[a]);
             usage(argv[0]);
         }
@@ -68,8 +67,7 @@ void getprefs(int argc, char *argv[])
 
         if (arg.starts_with("--command=")) {
             if (g_prefs.process) {
-                std::fprintf(stderr,
-                    "%s: processing command was already specified as \"%s\"\n",
+                std::println(stderr, "{}: processing command was already specified as \"{}\"",
                     argv[0], g_prefs.process);
                 usage(argv[0]);
             }
@@ -78,8 +76,7 @@ void getprefs(int argc, char *argv[])
         else if (arg == "-c") {
             const char *val = need_arg(a);
             if (g_prefs.process) {
-                std::fprintf(stderr,
-                    "%s: processing command was already specified as \"%s\"\n",
+                std::println(stderr, "{}: processing command was already specified as \"{}\"",
                     argv[0], g_prefs.process);
                 usage(argv[0]);
             }
@@ -90,14 +87,12 @@ void getprefs(int argc, char *argv[])
         }
         else if (arg.starts_with("--expire=")) {
             if (g_prefs.expire) {
-                std::fprintf(stderr,
-                    "%s: expiration period was already specified as \"%u\"\n",
+                std::println(stderr, "{}: expiration period was already specified as \"{}\"",
                     argv[0], g_prefs.expire);
                 usage(argv[0]);
             }
             if (!parse_uint(arg.substr(9), g_prefs.expire)) {
-                std::fprintf(stderr,
-                    "%s: \"%s\" should be a positive integer\n",
+                std::println(stderr, "{}: \"{}\" should be a positive integer",
                     argv[0], argv[a] + 9);
                 usage(argv[0]);
             }
@@ -105,14 +100,12 @@ void getprefs(int argc, char *argv[])
         else if (arg == "-e") {
             const char *val = need_arg(a);
             if (g_prefs.expire) {
-                std::fprintf(stderr,
-                    "%s: expiration period was already specified as \"%u\"\n",
+                std::println(stderr, "{}: expiration period was already specified as \"{}\"",
                     argv[0], g_prefs.expire);
                 usage(argv[0]);
             }
             if (!parse_uint(val, g_prefs.expire)) {
-                std::fprintf(stderr,
-                    "%s: \"%s\" should be a positive integer\n",
+                std::println(stderr, "{}: \"{}\" should be a positive integer",
                     argv[0], val);
                 usage(argv[0]);
             }
@@ -125,8 +118,7 @@ void getprefs(int argc, char *argv[])
         }
         else if (arg.starts_with("--logfile=")) {
             if (g_prefs.logfile) {
-                std::fprintf(stderr,
-                    "%s: eventlog file was already specified as \"%s\"\n",
+                std::println(stderr, "{}: eventlog file was already specified as \"{}\"",
                     argv[0], g_prefs.logfile);
                 usage(argv[0]);
             }
@@ -135,8 +127,7 @@ void getprefs(int argc, char *argv[])
         else if (arg == "-l") {
             const char *val = need_arg(a);
             if (g_prefs.logfile) {
-                std::fprintf(stderr,
-                    "%s: eventlog file was already specified as \"%s\"\n",
+                std::println(stderr, "{}: eventlog file was already specified as \"{}\"",
                     argv[0], g_prefs.logfile);
                 usage(argv[0]);
             }
@@ -144,8 +135,7 @@ void getprefs(int argc, char *argv[])
         }
         else if (arg.starts_with("--outfile=")) {
             if (g_prefs.outfile) {
-                std::fprintf(stderr,
-                    "%s: output file was already specified as \"%s\"\n",
+                std::println(stderr, "{}: output file was already specified as \"{}\"",
                     argv[0], g_prefs.outfile);
                 usage(argv[0]);
             }
@@ -154,8 +144,7 @@ void getprefs(int argc, char *argv[])
         else if (arg == "-o") {
             const char *val = need_arg(a);
             if (g_prefs.outfile) {
-                std::fprintf(stderr,
-                    "%s: output file was already specified as \"%s\"\n",
+                std::println(stderr, "{}: output file was already specified as \"{}\"",
                     argv[0], g_prefs.outfile);
                 usage(argv[0]);
             }
@@ -163,8 +152,7 @@ void getprefs(int argc, char *argv[])
         }
         else if (arg.starts_with("--pidfile=")) {
             if (g_prefs.pidfile) {
-                std::fprintf(stderr,
-                    "%s: pid file was already specified as \"%s\"\n",
+                std::println(stderr, "{}: pid file was already specified as \"{}\"",
                     argv[0], g_prefs.pidfile);
                 usage(argv[0]);
             }
@@ -173,8 +161,7 @@ void getprefs(int argc, char *argv[])
         else if (arg == "-P") {
             const char *val = need_arg(a);
             if (g_prefs.pidfile) {
-                std::fprintf(stderr,
-                    "%s: pid file was already specified as \"%s\"\n",
+                std::println(stderr, "{}: pid file was already specified as \"{}\"",
                     argv[0], g_prefs.pidfile);
                 usage(argv[0]);
             }
@@ -182,14 +169,12 @@ void getprefs(int argc, char *argv[])
         }
         else if (arg.starts_with("--port=")) {
             if (g_prefs.port) {
-                std::fprintf(stderr,
-                    "%s: port number was already specified as \"%hu\"\n",
+                std::println(stderr, "{}: port number was already specified as \"{}\"",
                     argv[0], g_prefs.port);
                 usage(argv[0]);
             }
             if (!parse_ushort(arg.substr(7), g_prefs.port)) {
-                std::fprintf(stderr,
-                    "%s: \"%s\" should be a positive integer\n",
+                std::println(stderr, "{}: \"{}\" should be a positive integer",
                     argv[0], argv[a] + 7);
                 usage(argv[0]);
             }
@@ -197,28 +182,24 @@ void getprefs(int argc, char *argv[])
         else if (arg == "-p") {
             const char *val = need_arg(a);
             if (g_prefs.port) {
-                std::fprintf(stderr,
-                    "%s: port number was already specified as \"%hu\"\n",
+                std::println(stderr, "{}: port number was already specified as \"{}\"",
                     argv[0], g_prefs.port);
                 usage(argv[0]);
             }
             if (!parse_ushort(val, g_prefs.port)) {
-                std::fprintf(stderr,
-                    "%s: \"%s\" should be a positive integer\n",
+                std::println(stderr, "{}: \"{}\" should be a positive integer",
                     argv[0], val);
                 usage(argv[0]);
             }
         }
         else if (arg.starts_with("--update=")) {
             if (g_prefs.update) {
-                std::fprintf(stderr,
-                    "%s: update period was already specified as \"%u\"\n",
+                std::println(stderr, "{}: update period was already specified as \"{}\"",
                     argv[0], g_prefs.update);
                 usage(argv[0]);
             }
             if (!parse_uint(arg.substr(9), g_prefs.update)) {
-                std::fprintf(stderr,
-                    "%s: \"%s\" should be a positive integer\n",
+                std::println(stderr, "{}: \"{}\" should be a positive integer",
                     argv[0], argv[a] + 9);
                 usage(argv[0]);
             }
@@ -226,14 +207,12 @@ void getprefs(int argc, char *argv[])
         else if (arg == "-u") {
             const char *val = need_arg(a);
             if (g_prefs.update) {
-                std::fprintf(stderr,
-                    "%s: update period was already specified as \"%u\"\n",
+                std::println(stderr, "{}: update period was already specified as \"{}\"",
                     argv[0], g_prefs.update);
                 usage(argv[0]);
             }
             if (!parse_uint(val, g_prefs.update)) {
-                std::fprintf(stderr,
-                    "%s: \"%s\" should be a positive integer\n",
+                std::println(stderr, "{}: \"{}\" should be a positive integer",
                     argv[0], val);
                 usage(argv[0]);
             }
@@ -242,11 +221,11 @@ void getprefs(int argc, char *argv[])
             usage(argv[0]);
         }
         else if (arg == "-v" || arg == "--version") {
-            std::printf("bntrackd version " PVPGN_VERSION "\n");
+            std::print("bntrackd version " PVPGN_VERSION "\n");
             std::exit(EXIT_SUCCESS);
         }
         else {
-            std::fprintf(stderr, "%s: unrecognized option \"%s\"\n",
+            std::println(stderr, "{}: unrecognized option \"{}\"",
                 argv[0], argv[a]);
             usage(argv[0]);
         }

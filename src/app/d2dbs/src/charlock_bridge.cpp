@@ -2,7 +2,7 @@
 //
 // R231(1): observation bridge for d2dbs charlock init/destroy.
 
-#include "integration/legacy_d2dbs/charlock_bridge.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/charlock_bridge.hpp"
 
 #include <array>
 #include <charconv>
@@ -11,7 +11,7 @@
 #include <system_error>
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2dbs/bridge_logger.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/bridge_logger.hpp"
 
 namespace pld = pvpgn::integration::legacy_d2dbs;
 

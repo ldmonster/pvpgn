@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <print>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -62,8 +63,8 @@ constexpr std::uint8_t  kInitBot           = 0x03;     // CLIENT_INITCONN_CLASS_
 constexpr char          kBotProtocolMarker = '\004';   // ^D, mandatory after class byte
 
 [[noreturn]] void usage(const char* progname) {
-    std::fprintf(stderr,
-        "usage: %s [<options>] [<servername> [<TCP portnumber>]]\n"
+    std::print(stderr,
+        "usage: {} [<options>] [<servername> [<TCP portnumber>]]\n"
         "    -h, --help, --usage         show this information and exit\n"
         "    -v, --version               print version number and exit\n",
         progname);
@@ -232,22 +233,20 @@ int run(int argc, char** argv) {
         if (arg == "-h" || arg == "--help" || arg == "--usage") {
             usage(argv[0]);
         } else if (arg == "-v" || arg == "--version") {
-            std::printf("version %s\n", PVPGN_VERSION);
+            std::println("version {}", PVPGN_VERSION);
             return EXIT_SUCCESS;
         } else if (!arg.empty() && arg.front() == '-') {
-            std::fprintf(stderr, "%s: unknown option \"%.*s\"\n", argv[0],
-                         static_cast<int>(arg.size()), arg.data());
+            std::println(stderr, "{}: unknown option \"{}\"", argv[0], arg);
             usage(argv[0]);
         } else if (servname.empty()) {
             servname = arg;
         } else if (servport == 0) {
             if (!parse_port(arg, servport)) {
-                std::fprintf(stderr, "%s: \"%.*s\" should be a positive integer\n",
-                             argv[0], static_cast<int>(arg.size()), arg.data());
+                std::println(stderr, "{}: \"{}\" should be a positive integer", argv[0], arg);
                 usage(argv[0]);
             }
         } else {
-            std::fprintf(stderr, "%s: too many arguments\n", argv[0]);
+            std::println(stderr, "{}: too many arguments", argv[0]);
             usage(argv[0]);
         }
     }
@@ -258,16 +257,13 @@ int run(int argc, char** argv) {
     default_logger().set_level(LogLevel::Info);
 
     if (!pvpgn::client_v3::net::sockets_startup()) {
-        std::fprintf(stderr, "%s: could not initialize socket subsystem\n", argv[0]);
+        std::println(stderr, "{}: could not initialize socket subsystem", argv[0]);
         return EXIT_FAILURE;
     }
 
     socket_holder sock{pvpgn::client_v3::net::connect_tcp(servname, servport)};
     if (!sock.valid()) {
-        std::fprintf(stderr,
-                     "%s: could not connect to server \"%.*s\" port %hu\n",
-                     argv[0], static_cast<int>(servname.size()), servname.data(),
-                     servport);
+        std::println(stderr, "{}: could not connect to server \"{}\" port {}", argv[0], servname, servport);
         pvpgn::client_v3::net::sockets_cleanup();
         return EXIT_FAILURE;
     }
@@ -275,7 +271,7 @@ int run(int argc, char** argv) {
     {
         sockaddr_in resolved{};
         pvpgn::client_v3::net::resolve_host(servname, servport, resolved);
-        std::printf("Connected to %s:%hu.\n",
+        std::println("Connected to {}:{}.",
                     pvpgn::client_v3::net::addr_to_string(resolved).c_str(),
                     servport);
     }
@@ -284,14 +280,13 @@ int run(int argc, char** argv) {
 
     TtyGuard tty;
     if (!tty.engage(fd_stdin)) {
-        std::fprintf(stderr,
-                     "%s: could not set terminal attributes for stdin\n",
+        std::println(stderr, "{}: could not set terminal attributes for stdin",
                      argv[0]);
     }
 
     unsigned screen_w = 0, screen_h = 0;
     if (!query_term_size(fd_stdin, screen_w, screen_h)) {
-        std::fprintf(stderr, "%s: could not determine screen size\n", argv[0]);
+        std::println(stderr, "{}: could not determine screen size", argv[0]);
         pvpgn::client_v3::net::sockets_cleanup();
         return EXIT_FAILURE;
     }
@@ -303,14 +298,14 @@ int run(int argc, char** argv) {
     using ::pvpgn::client_v3::net::recv_all;
 
     if (!send_init_classbyte(sock.get(), kInitBot)) {
-        std::fprintf(stderr, "%s: could not send init class byte\n", argv[0]);
+        std::println(stderr, "{}: could not send init class byte", argv[0]);
         pvpgn::client_v3::net::sockets_cleanup();
         return EXIT_FAILURE;
     }
     {
         const char marker[2] = { kBotProtocolMarker, '\0' };
         if (!send_all(sock.get(), marker, sizeof(marker))) {
-            std::fprintf(stderr, "%s: could not send bot marker\n", argv[0]);
+            std::println(stderr, "{}: could not send bot marker", argv[0]);
             pvpgn::client_v3::net::sockets_cleanup();
             return EXIT_FAILURE;
         }
@@ -333,7 +328,7 @@ int run(int argc, char** argv) {
         if (rc < 0) {
             int err = pvpgn::client_v3::net::last_error();
             if (err == EINTR) continue;
-            std::fprintf(stderr, "%s: select failed (%d)\n", argv[0], err);
+            std::println(stderr, "{}: select failed ({})", argv[0], err);
             break;
         }
         const bool sock_ready = rc > 0 && FD_ISSET(sock.get(), &rfds);
@@ -345,18 +340,18 @@ int run(int argc, char** argv) {
         int rc = ::select(nfds, &rfds, nullptr, nullptr, nullptr);
         if (rc < 0) {
             if (errno == EINTR) continue;
-            std::fprintf(stderr, "%s: select failed (%s)\n", argv[0], std::strerror(errno));
+            std::println(stderr, "{}: select failed ({})", argv[0], std::strerror(errno));
             continue;
         }
-        const bool sock_ready  = FD_ISSET(sock.get(),  &rfds);
-        const bool stdin_ready = FD_ISSET(fd_stdin,    &rfds);
+        const bool sock_ready  = FD_ISSET(static_cast<std::size_t>(sock.get()),  &rfds);
+        const bool stdin_ready = FD_ISSET(static_cast<std::size_t>(fd_stdin),    &rfds);
 #endif
 
         if (sock_ready) {
             auto n = ::recv(sock.get(), netbuf.data(),
                             static_cast<int>(netbuf.size() - 1), 0);
             if (n <= 0) {
-                std::printf("Connection closed by server.\n");
+                std::println("Connection closed by server.");
                 pvpgn::client_v3::net::sockets_cleanup();
                 return EXIT_SUCCESS;
             }
@@ -376,7 +371,7 @@ int run(int argc, char** argv) {
                 case LineState::Ready: {
                     line.append("\r\n");
                     if (!send_all(sock.get(), line.data(), line.size())) {
-                        std::fprintf(stderr, "%s: send failed\n", argv[0]);
+                        std::println(stderr, "{}: send failed", argv[0]);
                         pvpgn::client_v3::net::sockets_cleanup();
                         return EXIT_FAILURE;
                     }

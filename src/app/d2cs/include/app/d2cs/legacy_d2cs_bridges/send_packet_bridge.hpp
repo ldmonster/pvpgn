@@ -38,7 +38,6 @@ SendPacketHandler get_send_packet_handler() noexcept;
 /// (future) `integration_legacy_d2cs_linked` translation unit;
 /// calling it from a build without legacy d2cs is a link-time
 /// error by design.
-void install_legacy_send_packet_handler() noexcept;
 
 }  // namespace pvpgn::integration::legacy_d2cs
 

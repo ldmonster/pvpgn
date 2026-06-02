@@ -28,6 +28,7 @@ pvpgn_v3_add_library(services_bnetd
         src/bnetd_service.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src/application/persistence/include
     PUBLIC_DEPS
         application_ports
         application_auth

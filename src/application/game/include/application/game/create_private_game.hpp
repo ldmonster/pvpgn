@@ -14,7 +14,8 @@
 #include "core/result.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 
 namespace pvpgn::application::game {
 
@@ -37,7 +38,7 @@ enum class CreatePrivateGameError : std::uint8_t {
 
 class CreatePrivateGame {
 public:
-    CreatePrivateGame(std::shared_ptr<application::ports::IGameRepository> games,
+    CreatePrivateGame(std::shared_ptr<domain::gameplay::IGameRepository> games,
                       std::shared_ptr<application::ports::IEventBus> event_bus)
         : games_(games), event_bus_(event_bus) {}
 
@@ -45,7 +46,7 @@ public:
     execute(const CreatePrivateGameRequest& req);
 
 private:
-    std::shared_ptr<application::ports::IGameRepository> games_;
+    std::shared_ptr<domain::gameplay::IGameRepository> games_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

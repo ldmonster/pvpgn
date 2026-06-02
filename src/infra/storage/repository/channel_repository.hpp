@@ -19,7 +19,7 @@
 namespace pvpgn::infra::storage {
 
 class InMemoryChannelRepository final
-    : public application::ports::IChannelRepository {
+    : public domain::chat::IChannelRepository {
 public:
     core::Result<domain::chat::Channel>
     find_by_id(domain::ChannelId id) const override {

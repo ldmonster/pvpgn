@@ -14,7 +14,9 @@
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/user_name.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/connection/ports.hpp"
+#include "domain/identity/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -38,9 +40,9 @@ struct BanFromChannelRequest {
 class BanFromChannel {
 public:
     explicit BanFromChannel(
-        std::shared_ptr<application::ports::IChannelRepository> channels,
-        std::shared_ptr<application::ports::IAccountRepository> accounts,
-        std::shared_ptr<application::ports::IMessageRouter> router)
+        std::shared_ptr<domain::chat::IChannelRepository> channels,
+        std::shared_ptr<domain::identity::IAccountRepository> accounts,
+        std::shared_ptr<domain::connection::IMessageRouter> router)
         : channels_(channels), accounts_(accounts), router_(router) {}
 
     /// Execute: validate permissions and ban member from channel.
@@ -48,9 +50,9 @@ public:
     execute(const BanFromChannelRequest& req) const;
 
 private:
-    std::shared_ptr<application::ports::IChannelRepository> channels_;
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
-    std::shared_ptr<application::ports::IMessageRouter>     router_;
+    std::shared_ptr<domain::chat::IChannelRepository> channels_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::connection::IMessageRouter>     router_;
 };
 
 }  // namespace pvpgn::application::chat

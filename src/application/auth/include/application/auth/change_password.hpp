@@ -21,7 +21,6 @@
 
 #include <cstdint>
 
-#include "application/ports/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/event_bus.hpp"
 #include "domain/identity/ports.hpp"
@@ -66,7 +65,7 @@ enum class ChangePasswordError {
 
 class ChangePasswordUseCase {
 public:
-    ChangePasswordUseCase(application::ports::IAccountRepository& accounts,
+    ChangePasswordUseCase(domain::identity::IAccountRepository& accounts,
                           application::ports::IEventBus& bus) noexcept
         : accounts_(accounts), bus_(bus), hasher_(nullptr) {}
 
@@ -74,9 +73,9 @@ public:
     /// hasher the use-case can also accept
     /// `ChangePasswordWithSessionHashRequest`. The cleartext-hash1
     /// overload remains available regardless.
-    ChangePasswordUseCase(application::ports::IAccountRepository& accounts,
+    ChangePasswordUseCase(domain::identity::IAccountRepository& accounts,
                           application::ports::IEventBus& bus,
-                          const application::ports::IPasswordHasher& hasher) noexcept
+                          const domain::identity::IPasswordHasher& hasher) noexcept
         : accounts_(accounts), bus_(bus), hasher_(&hasher) {}
 
     using Result = core::Result<domain::AccountId, ChangePasswordError>;
@@ -88,9 +87,9 @@ public:
     Result execute(const ChangePasswordWithSessionHashRequest& req);
 
 private:
-    application::ports::IAccountRepository&    accounts_;
+    domain::identity::IAccountRepository&    accounts_;
     application::ports::IEventBus&             bus_;
-    const application::ports::IPasswordHasher* hasher_;
+    const domain::identity::IPasswordHasher* hasher_;
 };
 
 }  // namespace pvpgn::application::auth

@@ -14,11 +14,12 @@
 
 #ifdef PVPGN_V3_WITH_POSTGRESQL
 
+
 namespace pvpgn::infra::postgres {
 
 /// PostgreSQL implementation of IAccountRepository.
 /// Currently a stub — all methods throw std::runtime_error until implemented.
-class PostgreSQLAccountRepository final : public application::ports::IAccountRepository {
+class PostgreSQLAccountRepository final : public domain::identity::IAccountRepository {
 public:
     explicit PostgreSQLAccountRepository(std::shared_ptr<PostgreSQLConnection> conn);
 

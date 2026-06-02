@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "integration/legacy_d2dbs/bridge_logger.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/bridge_logger.hpp"
 
 namespace pvpgn::integration::legacy_d2dbs {
 

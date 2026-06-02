@@ -27,7 +27,7 @@ BanAccount::execute(const BanAccountRequest& req) {
     }
 
     // 4. Create and save ban entry
-    application::ports::AccountBan ban{
+    domain::moderation::AccountBan ban{
         .banned_account = req.target,
         .banned_by = req.banned_by,
         .reason = req.reason,

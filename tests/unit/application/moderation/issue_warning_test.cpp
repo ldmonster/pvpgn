@@ -41,7 +41,7 @@ domain::identity::Account make_account(domain::AccountId id,
 // Fakes
 // ---------------------------------------------------------------------------
 
-class FakeAccountRepository final : public application::ports::IAccountRepository {
+class FakeAccountRepository final : public domain::identity::IAccountRepository {
 public:
     bool account_exists = true;
 
@@ -75,15 +75,15 @@ public:
     count() override { return 0u; }
 };
 
-class FakeAuditLog final : public application::ports::IAuditLog {
+class FakeAuditLog final : public domain::moderation::IAuditLog {
 public:
-    std::vector<application::ports::AuditEntry> recorded;
+    std::vector<domain::moderation::AuditEntry> recorded;
 
-    void record(const application::ports::AuditEntry& entry) override {
+    void record(const domain::moderation::AuditEntry& entry) override {
         recorded.push_back(entry);
     }
 
-    std::vector<application::ports::AuditEntry>
+    std::vector<domain::moderation::AuditEntry>
     recent(std::size_t count) const override {
         if (recorded.size() <= count) return recorded;
         return {recorded.end() - static_cast<std::ptrdiff_t>(count), recorded.end()};

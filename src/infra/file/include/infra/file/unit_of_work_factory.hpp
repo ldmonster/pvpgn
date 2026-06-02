@@ -8,6 +8,8 @@
 
 #include "application/persistence/unit_of_work_factory.hpp"
 
+#include "application/persistence/unit_of_work.hpp"
+
 namespace pvpgn::infra::file {
 
 class FileUnitOfWorkFactory final : public application::ports::IUnitOfWorkFactory {

@@ -1,4 +1,8 @@
-add_subdirectory(legacy_bnetd)
+# legacy_bnetd integration tests were DELETED (Plan 10 legacy-linkage cleanup):
+# they exercised the strangler bridges under src/integration/legacy_bnetd/,
+# themselves removed in the Plan 03 finalization. The behaviour is now covered
+# by the v3-native bnetd path; the d2cs/d2dbs strangler tests below were
+# migrated to the app_d2cs/app_d2dbs targets and are kept.
 add_subdirectory(legacy_d2cs)
 add_subdirectory(legacy_d2dbs)
 if(TARGET pvpgn_integration_wol)

@@ -43,6 +43,12 @@ pvpgn_v3_add_header_selfcheck(test_domain_shared_headers_selfcontained
         domain/shared/locale.hpp
         domain/shared/match_report.hpp
         domain/shared/user_name.hpp
+        domain/shared/ports/config_subscriber.hpp
+        domain/shared/ports/event_loop.hpp
+        domain/shared/ports/trace_sink.hpp
+        domain/shared/ports/resolver.hpp
+        domain/shared/ports/random_source.hpp
+        domain/shared/ports/icon_provider.hpp
     DEPS domain_shared
 )
 

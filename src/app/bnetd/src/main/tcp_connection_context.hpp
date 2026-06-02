@@ -17,6 +17,8 @@
 #include "domain/connection/connection_context.hpp"
 #include "app/bnetd/tcp_session.hpp"
 
+#include "domain/connection/ports.hpp"
+
 namespace pvpgn::app::bnetd {
 
 class TcpConnectionContext final

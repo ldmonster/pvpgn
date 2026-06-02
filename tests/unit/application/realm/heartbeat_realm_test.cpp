@@ -13,12 +13,14 @@
 #include <string>
 #include <unordered_map>
 
+#include "domain/realm/ports.hpp"
+
 namespace pvpgn::application::realm {
 
 /// Inline fake: stores realms in a map keyed by id.
 /// Tracks how many times save() was called so tests can assert the
 /// heartbeat actually persisted the realm.
-class FakeHeartbeatRealmRepository final : public ports::IRealmRepository {
+class FakeHeartbeatRealmRepository final : public pvpgn::domain::realm::IRealmRepository {
 public:
     int save_call_count = 0;
 

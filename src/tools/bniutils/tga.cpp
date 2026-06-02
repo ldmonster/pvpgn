@@ -18,6 +18,7 @@
 	*/
 /* setup_before.h dropped: standalone v3 tool */
 #include "tga.h"
+#include <print>
 
 #include <cerrno>
 #include <cstdint>
@@ -44,11 +45,11 @@ namespace pvpgn
 				if (img->data.empty()) return -1;
 				pixelsize = getpixelsize(img);
 				if (pixelsize == 0) return -1;
-				std::vector<std::uint8_t> ndata(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+				std::vector<std::uint8_t> ndata(static_cast<std::size_t>(img->width)*static_cast<std::size_t>(img->height)*static_cast<std::size_t>(pixelsize));
 				for (y = 0; y < img->height; y++) {
 					std::memcpy(ndata.data() + (y*img->width*pixelsize),
 						img->data.data() + ((img->width*img->height*pixelsize) - ((y + 1)*img->width*pixelsize)),
-						img->width*pixelsize);
+					static_cast<std::size_t>(img->width)*static_cast<std::size_t>(pixelsize));
 				}
 				img->data = std::move(ndata);
 				return 0;
@@ -58,17 +59,17 @@ namespace pvpgn
 				unsigned char *datap;
 				int pixelsize;
 				int y, x;
-				std::fprintf(stderr, "WARNING: rotate_leftright: this function is untested!\n");
+				std::println(stderr, "WARNING: rotate_leftright: this function is untested!");
 				if (img == NULL) return -1;
 				if (img->data.empty()) return -1;
 				pixelsize = getpixelsize(img);
 				if (pixelsize == 0) return -1;
-				std::vector<std::uint8_t> ndata(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+				std::vector<std::uint8_t> ndata(static_cast<std::size_t>(img->width)*static_cast<std::size_t>(img->height)*static_cast<std::size_t>(pixelsize));
 				datap = img->data.data();
 				for (y = 0; y < img->height; y++) {
 					unsigned char *linep = (ndata.data() + (((y + 1)*img->width*pixelsize) - pixelsize));
 					for (x = 0; x < img->width; x++) {
-						std::memcpy(linep, datap, pixelsize);
+						std::memcpy(linep, datap, static_cast<std::size_t>(pixelsize));
 						linep -= pixelsize;
 						datap += pixelsize;
 					}
@@ -88,20 +89,20 @@ namespace pvpgn
 				for (bufi = 0; bufi<bufsize;) {
 					pt = file_readb(f);
 					if (std::feof(f)) {
-						std::fprintf(stderr, "RLE_decompress: after final packet only got %d of %d bytes\n", bufi, bufsize);
+						std::println(stderr, "RLE_decompress: after final packet only got {} of {} bytes", bufi, bufsize);
 						return -1;
 					}
 					count = (pt & 0x7f) + 1;
 					if (bufi + count*pixelsize>bufsize) {
-						std::fprintf(stderr, "RLE_decompress: buffer too short for next packet (need %d bytes, have %d)\n", bufi + count*pixelsize, bufsize);
+						std::println(stderr, "RLE_decompress: buffer too short for next packet (need {} bytes, have {})", bufi + count*pixelsize, bufsize);
 						return -1;
 					}
 					if ((pt & 0x80) == 0) {	/* RAW PACKET */
-						if (std::fread(bufp, pixelsize, count, f) < static_cast<unsigned>(count)) {
+						if (std::fread(bufp, static_cast<std::size_t>(pixelsize), static_cast<std::size_t>(count), f) < static_cast<unsigned>(count)) {
 							if (std::feof(f))
-								std::fprintf(stderr, "RLE_decompress: short RAW packet (expected %d bytes) (EOF)\n", pixelsize*count);
+								std::println(stderr, "RLE_decompress: short RAW packet (expected {} bytes) (EOF)", pixelsize*count);
 							else
-								std::fprintf(stderr, "RLE_decompress: short RAW packet (expected %d bytes) (std::fread: %s)\n", pixelsize*count, std::strerror(errno));
+								std::println(stderr, "RLE_decompress: short RAW packet (expected {} bytes) (std::fread: {})", pixelsize*count, std::strerror(errno));
 #if 0
 							return -1;
 #endif
@@ -110,20 +111,20 @@ namespace pvpgn
 						bufi += count*pixelsize;
 					}
 					else { /* RLE PACKET */
-						if (std::fread(temp, pixelsize, 1, f) < 1) {
+						if (std::fread(temp, static_cast<std::size_t>(pixelsize), 1, f) < 1) {
 							if (std::feof(f))
-								std::fprintf(stderr, "RLE_decompress: short RLE packet (expected %d bytes) (EOF)\n", pixelsize);
+								std::println(stderr, "RLE_decompress: short RLE packet (expected {} bytes) (EOF)", pixelsize);
 							else
-								std::fprintf(stderr, "RLE_decompress: short RLE packet (expected %d bytes) (std::fread: %s)\n", pixelsize, std::strerror(errno));
+								std::println(stderr, "RLE_decompress: short RLE packet (expected {} bytes) (std::fread: {})", pixelsize, std::strerror(errno));
 #if 0
 							return -1;
 #endif
 						}
 						if (count<2) {
-							std::fprintf(stderr, "RLE_decompress: suspicious RLE repetition count %d\n", count);
+							std::println(stderr, "RLE_decompress: suspicious RLE repetition count {}", count);
 						}
 						for (; count > 0; count--) {
-							std::memcpy(bufp, temp, pixelsize);
+							std::memcpy(bufp, temp, static_cast<std::size_t>(pixelsize));
 							bufp += pixelsize;
 							bufi += pixelsize;
 						}
@@ -136,26 +137,26 @@ namespace pvpgn
 				unsigned char count;
 
 				if (len<1 || len>128) {
-					std::fprintf(stderr, "RLE_write_pkt: packet has bad length (%d bytes)\n", len);
+					std::println(stderr, "RLE_write_pkt: packet has bad length ({} bytes)", len);
 					return;
 				}
 				if (pkttype == RLE) {
 					if (len < 2) {
-						std::fprintf(stderr, "RLE_write_pkt: RLE packet has bad length (%d bytes)\n", len);
+						std::println(stderr, "RLE_write_pkt: RLE packet has bad length ({} bytes)", len);
 						return;
 					}
 					count = static_cast<unsigned char>(0x80 | (len - 1));
 					if (std::fwrite(&count, 1, 1, f) < 1)
-						std::fprintf(stderr, "RLE_write_pkt: could not write RLE pixel count (std::fwrite: %s)\n", std::strerror(errno));
-					if (std::fwrite(data, pixelsize, 1, f) < 1)
-						std::fprintf(stderr, "RLE_write_pkt: could not write RLE pixel value (std::fwrite: %s)\n", std::strerror(errno));
+						std::println(stderr, "RLE_write_pkt: could not write RLE pixel count (std::fwrite: {})", std::strerror(errno));
+					if (std::fwrite(data, static_cast<std::size_t>(pixelsize), 1, f) < 1)
+						std::println(stderr, "RLE_write_pkt: could not write RLE pixel value (std::fwrite: {})", std::strerror(errno));
 				}
 				else {
 					count = static_cast<unsigned char>(len - 1);
 					if (std::fwrite(&count, 1, 1, f) < 1)
-						std::fprintf(stderr, "RLE_write_pkt: could not write RAW pixel count (std::fwrite: %s)\n", std::strerror(errno));
-					if (std::fwrite(data, pixelsize, len, f) < static_cast<unsigned>(len))
-						std::fprintf(stderr, "RLE_write_pkt: could not write %d RAW pixels (std::fwrite: %s)\n", len, std::strerror(errno));
+						std::println(stderr, "RLE_write_pkt: could not write RAW pixel count (std::fwrite: {})", std::strerror(errno));
+					if (std::fwrite(data, static_cast<std::size_t>(pixelsize), static_cast<std::size_t>(len), f) < static_cast<unsigned>(len))
+						std::println(stderr, "RLE_write_pkt: could not write {} RAW pixels (std::fwrite: {})", len, std::strerror(errno));
 				}
 			}
 
@@ -179,14 +180,14 @@ namespace pvpgn
 				if (pixelsize == 0) return -1;
 
 				datap = img->data.data();
-				std::vector<unsigned char> pktdata_vec(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+				std::vector<unsigned char> pktdata_vec(static_cast<std::size_t>(img->width)*static_cast<std::size_t>(img->height)*static_cast<std::size_t>(pixelsize));
 				pktdata = pktdata_vec.data();
 				pktlen = 0;
 
 				for (i = 0; i < img->width*img->height;) {
 					if (pktlen == 0) {
 						pktdatap = pktdata;
-						std::memcpy(pktdatap, datap, pixelsize);
+						std::memcpy(pktdatap, datap, static_cast<std::size_t>(pixelsize));
 						pktlen++;
 						i++;
 						pktdatap += pixelsize;
@@ -195,15 +196,15 @@ namespace pvpgn
 						continue;
 					}
 					if (pktlen == 1) {
-						if (std::memcmp(datap - pixelsize, datap, pixelsize) == 0) {
+						if (std::memcmp(datap - pixelsize, datap, static_cast<std::size_t>(pixelsize)) == 0) {
 							pkttype = RLE;
 						}
 					}
 					if (pkttype == RLE) {
-						if (std::memcmp(datap - pixelsize, datap, pixelsize) != 0 || pktlen >= 128) {
-							RLE_write_pkt(f, pkttype, pktlen, pktdata, pixelsize);
-							actual += 1 + pixelsize;
-							perceived += pixelsize*pktlen;
+						if (std::memcmp(datap - pixelsize, datap, static_cast<std::size_t>(pixelsize)) != 0 || pktlen >= 128) {
+							RLE_write_pkt(f, pkttype, static_cast<int>(pktlen), pktdata, pixelsize);
+							actual += static_cast<unsigned int>(1 + pixelsize);
+							perceived += static_cast<unsigned int>(pixelsize*static_cast<int>(pktlen));
 							pktlen = 0;
 						}
 						else {
@@ -213,18 +214,18 @@ namespace pvpgn
 						}
 					}
 					else {
-						if (std::memcmp(datap - pixelsize, datap, pixelsize) == 0 || pktlen >= 129) {
+						if (std::memcmp(datap - pixelsize, datap, static_cast<std::size_t>(pixelsize)) == 0 || pktlen >= 129) {
 							datap -= pixelsize; /* push back last pixel */
 							i--;
-							if (i < 0) std::fprintf(stderr, "BUG!\n");
+							if (i < 0) std::println(stderr, "BUG!");
 							pktlen--;
-							RLE_write_pkt(f, pkttype, pktlen, pktdata, pixelsize);
-							actual += 1 + pixelsize*pktlen;
-							perceived += pixelsize*pktlen;
+							RLE_write_pkt(f, pkttype, static_cast<int>(pktlen), pktdata, pixelsize);
+							actual += static_cast<unsigned int>(1 + pixelsize*static_cast<int>(pktlen));
+							perceived += static_cast<unsigned int>(pixelsize*static_cast<int>(pktlen));
 							pktlen = 0;
 						}
 						else {
-							std::memcpy(pktdatap, datap, pixelsize);
+							std::memcpy(pktdatap, datap, static_cast<std::size_t>(pixelsize));
 							pktlen++;
 							i++;
 							pktdatap += pixelsize;
@@ -233,18 +234,18 @@ namespace pvpgn
 					}
 				}
 				if (pktlen) {
-					RLE_write_pkt(f, pkttype, pktlen, pktdata, pixelsize);
+					RLE_write_pkt(f, pkttype, static_cast<int>(pktlen), pktdata, pixelsize);
 					if (pkttype == RLE) {
-						actual += 1 + pixelsize;
-						perceived += pixelsize*pktlen;
+						actual += static_cast<unsigned int>(1 + pixelsize);
+						perceived += static_cast<unsigned int>(pixelsize*static_cast<int>(pktlen));
 					}
 					else {
-						actual += 1 + pixelsize*pktlen;
-						perceived += pixelsize*pktlen;
+						actual += static_cast<unsigned int>(1 + pixelsize*static_cast<int>(pktlen));
+						perceived += static_cast<unsigned int>(pixelsize*static_cast<int>(pktlen));
 					}
 					pktlen = 0;
 				}
-				std::fprintf(stderr, "RLE_compress: wrote %u bytes (%u uncompressed)\n", actual, perceived);
+				std::println(stderr, "RLE_compress: wrote {} bytes ({} uncompressed)", actual, perceived);
 				return 0;
 			}
 
@@ -262,7 +263,7 @@ namespace pvpgn
 			case 32:
 				return 4;
 			default:
-				std::fprintf(stderr, "load_tga: color depth %u is not supported!\n", img->bpp);
+				std::println(stderr, "load_tga: color depth {} is not supported!", img->bpp);
 				return 0;
 			}
 		}
@@ -278,9 +279,9 @@ namespace pvpgn
 			img->cmapes = 0;
 			img->xorigin = 0;
 			img->yorigin = 0;
-			img->width = width;
-			img->height = height;
-			img->bpp = bpp;
+			img->width = static_cast<std::uint16_t>(width);
+			img->height = static_cast<std::uint16_t>(height);
+			img->bpp = static_cast<std::uint8_t>(bpp);
 			img->desc = 0; /* no attribute bits, top, left, and zero reserved */
 			img->extareaoff = 0;
 			img->devareaoff = 0;
@@ -315,12 +316,12 @@ namespace pvpgn
 
 			/* make sure we understand the header fields */
 			if (img->cmaptype != tgacmap_none) {
-				std::fprintf(stderr, "load_tga: Color-mapped images are not (yet?) supported!\n");
+				std::println(stderr, "load_tga: Color-mapped images are not (yet?) supported!");
 				delete img;
 				return NULL;
 			}
 			if (img->imgtype != tgaimgtype_uncompressed_truecolor && img->imgtype != tgaimgtype_rlecompressed_truecolor) {
-				std::fprintf(stderr, "load_tga: imagetype %u is not supported. (only 2 and 10 are supported)\n", img->imgtype);
+				std::println(stderr, "load_tga: imagetype {} is not supported. (only 2 and 10 are supported)", img->imgtype);
 				delete img;
 				return NULL;
 			}
@@ -332,35 +333,35 @@ namespace pvpgn
 			}
 			/* Skip the ID if there is one */
 			if (img->idlen > 0) {
-				std::fprintf(stderr, "load_tga: ID present, skipping %d bytes\n", img->idlen);
+				std::println(stderr, "load_tga: ID present, skipping {} bytes", img->idlen);
 				if (std::fseek(f, img->idlen, SEEK_CUR) < 0)
-					std::fprintf(stderr, "load_tga: could not seek %u bytes forward (std::fseek: %s)\n", img->idlen, std::strerror(errno));
+					std::println(stderr, "load_tga: could not seek {} bytes forward (std::fseek: {})", img->idlen, std::strerror(errno));
 			}
 
 			/* Now, we can alloc img->data */
-			img->data.resize(static_cast<std::size_t>(img->width)*img->height*pixelsize);
+			img->data.resize(static_cast<std::size_t>(img->width)*static_cast<std::size_t>(img->height)*static_cast<std::size_t>(pixelsize));
 			if (img->imgtype == tgaimgtype_uncompressed_truecolor) {
-				if (std::fread(img->data.data(), pixelsize, img->width*img->height, f) < static_cast<unsigned>(img->width*img->height)) {
-					std::fprintf(stderr, "load_tga: error while reading data!\n");
+				if (std::fread(img->data.data(), static_cast<std::size_t>(pixelsize), static_cast<std::size_t>(img->width)*static_cast<std::size_t>(img->height), f) < static_cast<unsigned>(img->width*img->height)) {
+					std::println(stderr, "load_tga: error while reading data!");
 					delete img;
 					return NULL;
 				}
 			}
 			else { /* == tgaimgtype_rlecompressed_truecolor */
 				if (RLE_decompress(f, img->data.data(), img->width*img->height*pixelsize, pixelsize) < 0) {
-					std::fprintf(stderr, "load_tga: error while decompressing data!\n");
+					std::println(stderr, "load_tga: error while decompressing data!");
 					delete img;
 					return NULL;
 				}
 			}
 			if ((img->desc & tgadesc_horz) != 0) { /* right, want left */
 				if (rotate_leftright(img) < 0) {
-					std::fprintf(stderr, "ERROR: rotate_leftright failed!\n");
+					std::println(stderr, "ERROR: rotate_leftright failed!");
 				}
 			}
 			if ((img->desc & tgadesc_vert) == 0) { /* bottom, want top */
 				if (rotate_updown(img) < 0) {
-					std::fprintf(stderr, "ERROR: rotate_updown failed!\n");
+					std::println(stderr, "ERROR: rotate_updown failed!");
 				}
 			}
 			return img;
@@ -387,15 +388,15 @@ namespace pvpgn
 			file_writeb(f, img->desc);
 
 			if ((img->desc&tgadesc_horz) != 0) { /* right, want left */
-				std::fprintf(stderr, "write_tga: flipping horizontally\n");
+				std::println(stderr, "write_tga: flipping horizontally");
 				if (rotate_leftright(img) < 0) {
-					std::fprintf(stderr, "ERROR: rotate_updown failed!\n");
+					std::println(stderr, "ERROR: rotate_updown failed!");
 				}
 			}
 			if ((img->desc&tgadesc_vert) == 0) { /* bottom, want top */
-				std::fprintf(stderr, "write_tga: flipping vertically\n");
+				std::println(stderr, "write_tga: flipping vertically");
 				if (rotate_updown(img) < 0) {
-					std::fprintf(stderr, "ERROR: rotate_updown failed!\n");
+					std::println(stderr, "ERROR: rotate_updown failed!");
 				}
 			}
 			if (img->imgtype == tgaimgtype_uncompressed_truecolor) {
@@ -403,22 +404,22 @@ namespace pvpgn
 
 				pixelsize = getpixelsize(img);
 				if (pixelsize == 0) return -1;
-				if (std::fwrite(img->data.data(), pixelsize, img->width*img->height, f) < static_cast<unsigned>(img->width*img->height)) {
-					std::fprintf(stderr, "write_tga: could not write %d pixels (std::fwrite: %s)\n", img->width*img->height, std::strerror(errno));
+				if (std::fwrite(img->data.data(), static_cast<std::size_t>(pixelsize), static_cast<std::size_t>(img->width)*static_cast<std::size_t>(img->height), f) < static_cast<unsigned>(img->width*img->height)) {
+					std::println(stderr, "write_tga: could not write {} pixels (std::fwrite: {})", img->width*img->height, std::strerror(errno));
 					return -1;
 				}
 			}
 			else if (img->imgtype == tgaimgtype_rlecompressed_truecolor) {
-				std::fprintf(stderr, "write_tga: using RLE compression\n");
+				std::println(stderr, "write_tga: using RLE compression");
 				if (RLE_compress(f, img) < 0) {
-					std::fprintf(stderr, "write_tga: RLE compression failed.\n");
+					std::println(stderr, "write_tga: RLE compression failed.");
 				}
 			}
 			/* Write the file-footer */
 			file_writed_le(f, img->extareaoff);
 			file_writed_le(f, img->devareaoff);
 			if (std::fwrite(TGAMAGIC, std::strlen(TGAMAGIC) + 1, 1, f) < 1)
-				std::fprintf(stderr, "write_tga: could not write TGA footer magic (std::fwrite: %s)\n", std::strerror(errno));
+				std::println(stderr, "write_tga: could not write TGA footer magic (std::fwrite: {})", std::strerror(errno));
 			/* Ready */
 			return 0;
 		}
@@ -439,7 +440,7 @@ namespace pvpgn
 			if (!img || !fp)
 				return;
 
-			interleave = ((img->desc&tgadesc_interleave1) != 0) * 2 + ((img->desc&tgadesc_interleave2) != 0);
+			interleave = static_cast<unsigned int>(((img->desc&tgadesc_interleave1) != 0) * 2 + ((img->desc&tgadesc_interleave2) != 0));
 			attrbits = img->desc&(tgadesc_attrbits0 | tgadesc_attrbits1 | tgadesc_attrbits2 | tgadesc_attrbits3);
 			switch (img->imgtype) {
 			case tgaimgtype_empty:
@@ -510,12 +511,12 @@ namespace pvpgn
 				break;
 			}
 
-			std::fprintf(fp, "TGAHeader: IDLength=%u ColorMapType=%u(%s)\n", img->idlen, img->cmaptype, cmapstr);
-			std::fprintf(fp, "TGAHeader: ImageType=%u(%s)\n", img->imgtype, typestr);
-			std::fprintf(fp, "TGAHeader: ColorMap: FirstEntryIndex=%u ColorMapLength=%u\n", img->cmapfirst, img->cmaplen);
-			std::fprintf(fp, "TGAHeader: ColorMap: ColorMapEntrySize=%ubits\n", img->cmapes);
-			std::fprintf(fp, "TGAHeader: X-origin=%u Y-origin=%u Width=%u(0x%x) Height=%u(0x%x)\n", img->xorigin, img->yorigin, img->width, img->width, img->height, img->height);
-			std::fprintf(fp, "TGAHeader: PixelDepth=%ubits ImageDescriptor=0x%02x(%u attribute bits, origin is %s %s, interleave=%s)\n", img->bpp, img->desc, attrbits, vertstr, horzstr, intlstr);
+			std::println(fp, "TGAHeader: IDLength={} ColorMapType={}({})", img->idlen, img->cmaptype, cmapstr);
+			std::println(fp, "TGAHeader: ImageType={}({})", img->imgtype, typestr);
+			std::println(fp, "TGAHeader: ColorMap: FirstEntryIndex={} ColorMapLength={}", img->cmapfirst, img->cmaplen);
+			std::println(fp, "TGAHeader: ColorMap: ColorMapEntrySize={}bits", img->cmapes);
+			std::println(fp, "TGAHeader: X-origin={} Y-origin={} Width={}(0x{:x}) Height={}(0x{:x})", img->xorigin, img->yorigin, img->width, img->width, img->height, img->height);
+			std::println(fp, "TGAHeader: PixelDepth={}bits ImageDescriptor=0x{:02x}({} attribute bits, origin is {} {}, interleave={})", img->bpp, img->desc, attrbits, vertstr, horzstr, intlstr);
 		}
 
 	}

@@ -8,7 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
@@ -31,8 +32,8 @@ enum class IssueWarningError : std::uint8_t {
 
 class IssueWarning {
 public:
-    IssueWarning(std::shared_ptr<application::ports::IAccountRepository> accounts,
-                 std::shared_ptr<application::ports::IAuditLog> audit)
+    IssueWarning(std::shared_ptr<domain::identity::IAccountRepository> accounts,
+                 std::shared_ptr<domain::moderation::IAuditLog> audit)
         : accounts_(accounts), audit_(audit) {}
 
     /// Returns TargetNotFound if the target account does not exist.
@@ -42,8 +43,8 @@ public:
     execute(const IssueWarningCommand& cmd) const;
 
 private:
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
-    std::shared_ptr<application::ports::IAuditLog>          audit_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::moderation::IAuditLog>          audit_;
 };
 
 }  // namespace pvpgn::application::moderation

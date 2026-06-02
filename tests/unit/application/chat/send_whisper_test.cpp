@@ -46,7 +46,7 @@ domain::identity::Account make_account(domain::AccountId id,
 // ---------------------------------------------------------------------------
 
 class FakeAccountRepository final
-    : public application::ports::IAccountRepository {
+    : public domain::identity::IAccountRepository {
 public:
     void add(domain::identity::Account acct) {
         accounts_.emplace(std::string{acct.name().display()}, std::move(acct));
@@ -102,7 +102,7 @@ private:
 // ---------------------------------------------------------------------------
 
 class FakeSessionRegistry final
-    : public application::ports::ISessionRegistry {
+    : public domain::identity::ISessionRegistry {
 public:
     void set_online(domain::AccountId account, domain::SessionId session) {
         account_to_session_[account.value()] = session;
@@ -153,7 +153,7 @@ private:
 // Fake IMessageRouter
 // ---------------------------------------------------------------------------
 
-class FakeMessageRouter final : public application::ports::IMessageRouter {
+class FakeMessageRouter final : public domain::connection::IMessageRouter {
 public:
     int route_count = 0;
 

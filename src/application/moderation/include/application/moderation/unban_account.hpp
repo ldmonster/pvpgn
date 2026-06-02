@@ -6,7 +6,8 @@
 
 #include <memory>
 
-#include "application/ports/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/shared/event_bus.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
@@ -21,7 +22,7 @@ enum class UnbanAccountError : std::uint8_t {
 
 class UnbanAccount {
 public:
-    UnbanAccount(std::shared_ptr<application::ports::IAccountBanRepository> bans,
+    UnbanAccount(std::shared_ptr<domain::moderation::IAccountBanRepository> bans,
                  std::shared_ptr<application::ports::IEventBus> event_bus)
         : bans_(bans), event_bus_(event_bus) {}
 
@@ -29,7 +30,7 @@ public:
     execute(domain::AccountId target, domain::AccountId by_admin);
 
 private:
-    std::shared_ptr<application::ports::IAccountBanRepository> bans_;
+    std::shared_ptr<domain::moderation::IAccountBanRepository> bans_;
     std::shared_ptr<application::ports::IEventBus> event_bus_;
 };
 

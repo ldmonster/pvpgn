@@ -50,12 +50,13 @@ pvpgn_v3_add_library(app_d2cs
         src/d2gs_bridge.cpp
         src/game_bridge.cpp
         src/net_bridge.cpp
-        src/send_packet_bridge_link.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC_DEPS
         protocol_d2cs
+        protocol_d2gs
         domain_d2cs
+        infra_config
 )
 
 # ---------------------------------------------------------------------------

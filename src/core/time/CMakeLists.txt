@@ -6,7 +6,7 @@ pvpgn_v3_add_library(core_time
         util_time.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/src/common
     PUBLIC_DEPS
         core
+        core_types
 )

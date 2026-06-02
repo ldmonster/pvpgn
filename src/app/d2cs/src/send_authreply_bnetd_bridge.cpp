@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "integration/legacy_d2cs/send_authreply_bnetd_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_authreply_bnetd_bridge.hpp"
 
 #include <cstdint>
 #include <cstring>
 
-#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_packet_bridge.hpp"
 #include "protocol/common/writer.hpp"
 #include "protocol/d2cs/bnetd_wire_types.hpp"
 

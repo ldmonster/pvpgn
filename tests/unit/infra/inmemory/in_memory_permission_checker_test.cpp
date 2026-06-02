@@ -3,10 +3,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "infra/inmemory/in_memory_permission_checker.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::infra::inmemory {
 
-using Perm = application::ports::Permission;
+using Perm = domain::moderation::Permission;
 
 TEST_CASE("InMemoryPermissionChecker: HasPermissionFalseByDefault", "[infra][inmemory]") {
     InMemoryPermissionChecker checker;

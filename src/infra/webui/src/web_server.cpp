@@ -8,7 +8,7 @@
 #include "domain/chat/ports.hpp"
 #include "domain/gameplay/ports.hpp"
 #include "domain/identity/ports.hpp"
-#include "application/ports/metrics_registry.hpp"
+#include "core/metrics.hpp"
 #include "infra/net/io_runtime.hpp"
 #include "infra/webui/channel_json.hpp"
 #include "infra/webui/dashboard_html.hpp"
@@ -23,11 +23,11 @@ public:
 EmbeddedWebServer::EmbeddedWebServer(
     std::string_view bind_address,
     std::uint16_t port,
-    std::shared_ptr<pvpgn::application::ports::ISessionRegistry> registry,
-    std::shared_ptr<pvpgn::application::ports::IChannelRepository> channels,
-    std::shared_ptr<pvpgn::application::ports::IGameRepository> games,
-    std::shared_ptr<pvpgn::application::ports::IAccountRepository> accounts,
-    std::shared_ptr<pvpgn::application::ports::IMetricsRegistry> metrics,
+    std::shared_ptr<pvpgn::domain::identity::ISessionRegistry> registry,
+    std::shared_ptr<pvpgn::domain::chat::IChannelRepository> channels,
+    std::shared_ptr<pvpgn::domain::gameplay::IGameRepository> games,
+    std::shared_ptr<pvpgn::domain::identity::IAccountRepository> accounts,
+    std::shared_ptr<pvpgn::core::IMetricsRegistry> metrics,
     pvpgn::infra::net::IoRuntime& runtime)
     : bind_address_(bind_address),
       port_(port),

@@ -25,7 +25,6 @@ SendPacketHandler get_send_packet_handler() noexcept;
 
 /// Install the legacy-d2dbs implementation. Defined only in
 /// `integration_legacy_d2dbs_linked` (requires d2dbs_legacy).
-void install_legacy_send_packet_handler() noexcept;
 
 }  // namespace pvpgn::integration::legacy_d2dbs
 

@@ -15,7 +15,7 @@
 #include "core/result.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -41,7 +41,7 @@ enum class ListChannelsError : std::uint8_t {
 class ListChannels {
 public:
     explicit ListChannels(
-        std::shared_ptr<application::ports::IChannelRepository> channels)
+        std::shared_ptr<domain::chat::IChannelRepository> channels)
         : channels_(channels) {}
 
     /// Execute: list channels with optional filtering.
@@ -49,7 +49,7 @@ public:
     execute(const ListChannelsRequest& req) const;
 
 private:
-    std::shared_ptr<application::ports::IChannelRepository> channels_;
+    std::shared_ptr<domain::chat::IChannelRepository> channels_;
 };
 
 }  // namespace pvpgn::application::chat

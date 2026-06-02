@@ -43,7 +43,7 @@
 #include "domain/identity/ports.hpp"
 #include "domain/chat/ports.hpp"
 #include "domain/shared/event_bus.hpp"
-#include "application/ports/event_loop.hpp"
+#include "domain/shared/ports/event_loop.hpp"
 #include "domain/gameplay/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "application/persistence/unit_of_work_factory.hpp"
@@ -79,10 +79,10 @@ public:
     BnetdService(application::ports::IUnitOfWorkFactory&      uow_factory,
                  application::ports::IEventLoop&              event_loop,
                  application::auth::INlsCredentialStore&      nls_store,
-                 application::ports::IChannelRepository&      channel_repo,
-                 application::ports::IAccountRepository&      account_repo,
-                 application::ports::ISessionRegistry&        session_reg,
-                 application::ports::IGameRepository&         game_repo,
+                 domain::chat::IChannelRepository&      channel_repo,
+                 domain::identity::IAccountRepository&      account_repo,
+                 domain::identity::ISessionRegistry&        session_reg,
+                 domain::gameplay::IGameRepository&         game_repo,
                  application::ports::IEventBus&               event_bus);
 
     ~BnetdService();
@@ -143,10 +143,10 @@ public:
 private:
     application::ports::IUnitOfWorkFactory& uow_factory_;
     application::ports::IEventLoop&         event_loop_;
-    application::ports::IChannelRepository& channel_repo_;
-    application::ports::IAccountRepository& account_repo_;
-    application::ports::ISessionRegistry&   session_reg_;
-    application::ports::IGameRepository&    game_repo_;
+    domain::chat::IChannelRepository& channel_repo_;
+    domain::identity::IAccountRepository& account_repo_;
+    domain::identity::ISessionRegistry&   session_reg_;
+    domain::gameplay::IGameRepository&    game_repo_;
     application::ports::IEventBus&          event_bus_;
 
     /// Owned NLS crypto adapter (concrete `INlsCryptoService`). Declared

@@ -14,6 +14,7 @@
 #include "domain/social/ports/news_store.hpp"
 #include "core/result.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryNewsStore final

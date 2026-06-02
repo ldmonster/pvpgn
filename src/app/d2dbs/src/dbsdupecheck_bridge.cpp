@@ -2,7 +2,7 @@
 //
 // R232(1): observation bridge for d2dbs dbsdupecheck per-call.
 
-#include "integration/legacy_d2dbs/dbsdupecheck_bridge.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/dbsdupecheck_bridge.hpp"
 
 #include <array>
 #include <charconv>
@@ -11,7 +11,7 @@
 #include <system_error>
 
 #include "core/logging.hpp"
-#include "integration/legacy_d2dbs/bridge_logger.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/bridge_logger.hpp"
 
 namespace pld = pvpgn::integration::legacy_d2dbs;
 

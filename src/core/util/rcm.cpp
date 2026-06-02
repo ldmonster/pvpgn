@@ -16,13 +16,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include "common/setup_before.h"
-#include "common/rcm.h"
+#include "rcm.h"
 
 #include <cassert>
 
-#include "common/elist.h"
-#include "common/setup_after.h"
+#include "elist.h"
 
 namespace pvpgn
 {

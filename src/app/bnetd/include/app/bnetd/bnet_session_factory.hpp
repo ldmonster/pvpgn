@@ -55,7 +55,7 @@ public:
     ///                    Non-owning pointer; must outlive the factory.
     BnetSessionFactory(
         std::shared_ptr<infra::routing::MessageRouterImpl>    router,
-        std::shared_ptr<application::ports::ISessionRegistry> registry,
+        std::shared_ptr<domain::identity::ISessionRegistry> registry,
         const protocol::bnet::BnetUseCaseContext&             use_cases,
         application::auth::LoginUser*                         login_ols = nullptr,
         application::auth::LoginUserNls*                      login_nls = nullptr)
@@ -139,7 +139,7 @@ public:
 
 private:
     /// Adapter: wrap TcpSession in IConnectionEgress interface.
-    class TcpSessionEgress : public application::ports::IConnectionEgress {
+    class TcpSessionEgress : public domain::connection::IConnectionEgress {
     public:
         explicit TcpSessionEgress(std::shared_ptr<infra::net::TcpSession> session)
             : session_(session) {}
@@ -177,7 +177,7 @@ private:
     }
 
     std::weak_ptr<infra::routing::MessageRouterImpl>      router_;
-    std::weak_ptr<application::ports::ISessionRegistry>   registry_;
+    std::weak_ptr<domain::identity::ISessionRegistry>   registry_;
     protocol::bnet::BnetUseCaseContext                    use_cases_;
     /// Non-owning pointer to the OLS use-case; nullptr → no OLS credential check.
     application::auth::LoginUser*                         login_ols_;

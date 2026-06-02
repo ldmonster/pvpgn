@@ -26,7 +26,7 @@ using application::ladder::RecomputeLadderCommand;
 // ---------------------------------------------------------------------------
 // Inline fake: ILadderRepository
 // ---------------------------------------------------------------------------
-class FakeLadderRepository final : public application::ports::ILadderRepository {
+class FakeLadderRepository final : public domain::ladder::ILadderRepository {
 public:
     std::vector<domain::ladder::LadderEntry> entries;
 

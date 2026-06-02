@@ -14,7 +14,9 @@
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -36,9 +38,9 @@ struct OpFromChannelCommand {
 class OpFromChannel {
 public:
     explicit OpFromChannel(
-        std::shared_ptr<application::ports::IChannelRepository> channels,
-        std::shared_ptr<application::ports::IAccountRepository> accounts,
-        std::shared_ptr<application::ports::IPermissionChecker> permissions)
+        std::shared_ptr<domain::chat::IChannelRepository> channels,
+        std::shared_ptr<domain::identity::IAccountRepository> accounts,
+        std::shared_ptr<domain::moderation::IPermissionChecker> permissions)
         : channels_(channels), accounts_(accounts), permissions_(permissions) {}
 
     /// Execute: check permissions, resolve target, and update op status.
@@ -48,9 +50,9 @@ public:
     execute(OpFromChannelCommand cmd) const;
 
 private:
-    std::shared_ptr<application::ports::IChannelRepository> channels_;
-    std::shared_ptr<application::ports::IAccountRepository> accounts_;
-    std::shared_ptr<application::ports::IPermissionChecker> permissions_;
+    std::shared_ptr<domain::chat::IChannelRepository> channels_;
+    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::moderation::IPermissionChecker> permissions_;
 };
 
 }  // namespace pvpgn::application::chat

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "integration/legacy_d2cs/d2cs_prefs_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/d2cs_prefs_bridge.hpp"
 
 #include <atomic>
 #include <filesystem>

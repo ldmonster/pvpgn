@@ -2,7 +2,7 @@
 // Dispatcher half of the v3 -> legacy-d2dbs send-packet strangler
 // bridge. Pattern parity with legacy_bnetd / legacy_d2cs.
 
-#include "integration/legacy_d2dbs/send_packet_bridge.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/send_packet_bridge.hpp"
 
 #include <atomic>
 

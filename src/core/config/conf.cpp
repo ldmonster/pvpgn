@@ -16,16 +16,14 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include "common/setup_before.h"
-#include "common/conf.h"
+#include "conf.h"
 
 #include <cassert>
 #include <cstring>
 #include <string>
 
-#include "common/eventlog.h"
-#include "common/util.h"
-#include "common/setup_after.h"
+#include "core/format.hpp"
+#include "util.h"
 
 namespace pvpgn
 {
@@ -37,7 +35,7 @@ namespace pvpgn
 			unsigned temp;
 
 			if (str_to_uint(valstr, &temp) < 0) {
-				eventlog(eventlog_level_error, __FUNCTION__, "invalid integer value '{}'", valstr);
+				LOG_ERROR(__FUNCTION__, "invalid integer value '{}'", valstr);
 				return -1;
 			}
 			else *pint = temp;
@@ -58,7 +56,7 @@ namespace pvpgn
 				*pbool = 0;
 				break;
 			default:
-				eventlog(eventlog_level_error, __FUNCTION__, "invalid boolean value '{}'", valstr);
+				LOG_ERROR(__FUNCTION__, "invalid boolean value '{}'", valstr);
 				return -1;
 			}
 		}
@@ -85,7 +83,7 @@ namespace pvpgn
 	{
 		if (!valstr) *ptime = def;
 		else if (timestr_to_time(valstr, ptime) < 0) {
-			eventlog(eventlog_level_error, __FUNCTION__, "invalid timestr value '{}'", valstr);
+			LOG_ERROR(__FUNCTION__, "invalid timestr value '{}'", valstr);
 			return -1;
 		}
 
@@ -136,14 +134,14 @@ namespace pvpgn
 			}
 
 			if (*cp != '"') {
-				eventlog(eventlog_level_error, __FUNCTION__, "missing end quota at line {}", lineno);
+				LOG_ERROR(__FUNCTION__, "missing end quota at line {}", lineno);
 				return NULL;
 			}
 
 			*cp = '\0';
 			cp = str_skip_space(cp + 1);
 			if (*cp) {
-				eventlog(eventlog_level_error, __FUNCTION__, "extra characters in value after ending quote at line {}", lineno);
+				LOG_ERROR(__FUNCTION__, "extra characters in value after ending quote at line {}", lineno);
 				return NULL;
 			}
 		}
@@ -153,7 +151,7 @@ namespace pvpgn
 				*cp = '\0';
 				cp = str_skip_space(cp + 1);
 				if (*cp) {
-					eventlog(eventlog_level_error, __FUNCTION__, "extra characters after the value at line {}", lineno);
+					LOG_ERROR(__FUNCTION__, "extra characters after the value at line {}", lineno);
 					return NULL;
 				}
 			}
@@ -172,7 +170,7 @@ namespace pvpgn
 			return;
 		}
 
-		eventlog(eventlog_level_error, __FUNCTION__, "option '{}' unknown", key);
+		LOG_ERROR(__FUNCTION__, "option '{}' unknown", key);
 	}
 
 	extern int conf_load_file(std::FILE *fd, t_conf_entry *conftab)
@@ -181,12 +179,12 @@ namespace pvpgn
 		unsigned cflag, lineno;
 
 		if (!fd) {
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL file");
+			LOG_ERROR(__FUNCTION__, "got NULL file");
 			return -1;
 		}
 
 		if (!conftab) {
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL conftab");
+			LOG_ERROR(__FUNCTION__, "got NULL conftab");
 			return -1;
 		}
 
@@ -223,13 +221,13 @@ namespace pvpgn
 
 			cp = str_skip_space(cp);
 			if (*cp != '=') {
-				eventlog(eventlog_level_error, __FUNCTION__, "missing = on line {}", lineno);
+				LOG_ERROR(__FUNCTION__, "missing = on line {}", lineno);
 				continue;
 			}
 
 			cp = str_skip_space(cp + 1);
 			if (!*cp) {
-				eventlog(eventlog_level_error, __FUNCTION__, "missing value at line {}", lineno);
+				LOG_ERROR(__FUNCTION__, "missing value at line {}", lineno);
 				continue;
 			}
 
@@ -247,7 +245,7 @@ namespace pvpgn
 		t_conf_entry *curr;
 
 		if (!conftab) {
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL conftab");
+			LOG_ERROR(__FUNCTION__, "got NULL conftab");
 			return;
 		}
 
@@ -261,7 +259,7 @@ namespace pvpgn
 		char *key, *val;
 
 		if (!conftab) {
-			eventlog(eventlog_level_error, __FUNCTION__, "got NULL conftab");
+			LOG_ERROR(__FUNCTION__, "got NULL conftab");
 			return -1;
 		}
 
@@ -288,7 +286,7 @@ namespace pvpgn
 			}
 
 			if (!val)	/* option without argument, so it's like boolean */
-				val = (char *)("true");
+				val = const_cast<char*>("true");
 
 			_process_option(key, val, conftab);
 		}

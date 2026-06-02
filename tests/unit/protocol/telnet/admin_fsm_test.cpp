@@ -16,8 +16,9 @@
 #include "protocol/telnet/admin_fsm.hpp"
 #include "protocol/telnet/telnet_session_context.hpp"
 
+#include "domain/connection/ports.hpp"
+
 namespace pt = pvpgn::protocol::telnet;
-namespace ap = pvpgn::application::ports;
 
 namespace {
 
@@ -38,9 +39,9 @@ public:
     bool        closed = false;
 };
 
-class FakePerms : public ap::IPermissionChecker {
+class FakePerms : public pvpgn::domain::moderation::IPermissionChecker {
 public:
-    bool has_permission(pvpgn::domain::AccountId, ap::Permission) const override {
+    bool has_permission(pvpgn::domain::AccountId, pvpgn::domain::moderation::Permission) const override {
         return true;
     }
     bool has_command_group(pvpgn::domain::AccountId, std::string_view) const override {
@@ -48,12 +49,12 @@ public:
     }
 };
 
-class FakeRegistry : public ap::ICommandRegistry {
+class FakeRegistry : public pvpgn::application::ports::ICommandRegistry {
 public:
     pvpgn::core::Result<std::string, pvpgn::core::Error>
     dispatch(pvpgn::domain::AccountId,
              std::string_view line,
-             const ap::IPermissionChecker&) const override {
+             const pvpgn::domain::moderation::IPermissionChecker&) const override {
         ++calls;
         last_line.assign(line);
         if (line == "fail") {
@@ -67,7 +68,7 @@ public:
     }
     std::vector<std::string>
     list_available(pvpgn::domain::AccountId,
-                   const ap::IPermissionChecker&) const override {
+                   const pvpgn::domain::moderation::IPermissionChecker&) const override {
         return {};
     }
 

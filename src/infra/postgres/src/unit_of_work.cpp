@@ -25,6 +25,14 @@
 #include "infra/inmemory/ladder_repository.hpp"
 #include "infra/inmemory/realm_repository.hpp"
 
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/realm/ports.hpp"
+#include "domain/social/ports.hpp"
+
 namespace pvpgn::infra::postgres {
 
 PostgreSQLUnitOfWork::PostgreSQLUnitOfWork(std::shared_ptr<PostgreSQLConnection> conn)
@@ -52,43 +60,43 @@ void PostgreSQLUnitOfWork::rollback() noexcept {
     conn_->rollback();
 }
 
-application::ports::IAccountRepository& PostgreSQLUnitOfWork::accounts() {
+domain::identity::IAccountRepository& PostgreSQLUnitOfWork::accounts() {
     return *accounts_;
 }
 
-application::ports::IChannelRepository& PostgreSQLUnitOfWork::channels() {
+domain::chat::IChannelRepository& PostgreSQLUnitOfWork::channels() {
     return *channels_;
 }
 
-application::ports::IGameRepository& PostgreSQLUnitOfWork::games() {
+domain::gameplay::IGameRepository& PostgreSQLUnitOfWork::games() {
     return *games_;
 }
 
-application::ports::IClanRepository& PostgreSQLUnitOfWork::clans() {
+domain::social::IClanRepository& PostgreSQLUnitOfWork::clans() {
     return *clans_;
 }
 
-application::ports::ILadderRepository& PostgreSQLUnitOfWork::ladder() {
+domain::ladder::ILadderRepository& PostgreSQLUnitOfWork::ladder() {
     return *ladder_;
 }
 
-application::ports::IIpBanRepository& PostgreSQLUnitOfWork::ip_bans() {
+domain::moderation::IIpBanRepository& PostgreSQLUnitOfWork::ip_bans() {
     return *ip_bans_;
 }
 
-application::ports::IAccountBanRepository& PostgreSQLUnitOfWork::account_bans() {
+domain::moderation::IAccountBanRepository& PostgreSQLUnitOfWork::account_bans() {
     return *account_bans_;
 }
 
-application::ports::IFriendListRepository& PostgreSQLUnitOfWork::friend_lists() {
+domain::social::IFriendListRepository& PostgreSQLUnitOfWork::friend_lists() {
     return *friend_lists_;
 }
 
-application::ports::IRealmRepository& PostgreSQLUnitOfWork::realms() {
+domain::realm::IRealmRepository& PostgreSQLUnitOfWork::realms() {
     return *realms_;
 }
 
-application::ports::ITeamRepository& PostgreSQLUnitOfWork::teams() {
+domain::social::ITeamRepository& PostgreSQLUnitOfWork::teams() {
     return *teams_;
 }
 

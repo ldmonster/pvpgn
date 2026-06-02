@@ -42,7 +42,13 @@ pvpgn_v3_add_test(test_app_bnetd_asio_event_loop
         Threads::Threads
 )
 
-# PVPGN_V3_BNETD_INTEGRATION removed in Phase 3 (strangler finalization)
+# PVPGN_V3_BNETD_INTEGRATION was removed from the production build in Phase 3
+# (strangler finalization), but this test exercises the real LegacyBridge, so
+# it must be defined for *all* of this target's TUs — including the separately
+# compiled legacy_bridge.cpp, which otherwise #ifdef's out LegacyBridge::shutdown()
+# and leaves an undefined reference at link time.
+target_compile_definitions(test_app_bnetd_asio_event_loop
+    PRIVATE PVPGN_V3_BNETD_INTEGRATION=1)
 
 # Expose the app/bnetd include directory so the test can
 # #include "app/bnetd/asio_event_loop.hpp" etc.

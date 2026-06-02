@@ -18,7 +18,10 @@ include_guard(GLOBAL)
 # R342: pull in the dedicated warning-flag helpers.
 include(v3_warnings)
 
-set(PVPGN_V3_CXX_STANDARD 20 CACHE STRING "C++ standard for the v3 sub-tree")
+# Plan 09: v3 tree uplifted to C++23 (toolchain floor GCC 14 / Clang 18 /
+# MSVC 19.40). The codebase's custom `core::Result` predates and can later be
+# backed by `std::expected`; no `tl::expected` dependency exists.
+set(PVPGN_V3_CXX_STANDARD 23 CACHE STRING "C++ standard for the v3 sub-tree")
 
 option(PVPGN_V3_WARNINGS_AS_ERRORS "Treat warnings as errors in v3 targets"
        ON)

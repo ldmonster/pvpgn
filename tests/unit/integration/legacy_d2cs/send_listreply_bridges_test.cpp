@@ -7,8 +7,8 @@
 #include <cstring>
 #include <vector>
 
-#include "integration/legacy_d2cs/send_listreply_bridges.hpp"
-#include "integration/legacy_d2cs/send_packet_bridge.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_listreply_bridges.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/send_packet_bridge.hpp"
 
 namespace ild = pvpgn::integration::legacy_d2cs;
 

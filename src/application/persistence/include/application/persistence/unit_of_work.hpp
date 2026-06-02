@@ -6,7 +6,13 @@
 
 #include "core/error.hpp"
 #include "core/result.hpp"
-#include "application/ports/ports.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/social/ports.hpp"
+#include "domain/ladder/ports.hpp"
+#include "domain/moderation/ports.hpp"
+#include "domain/realm/ports.hpp"
 
 namespace pvpgn::application::ports {
 
@@ -25,16 +31,16 @@ public:
     virtual core::Result<void, core::Error> commit() = 0;
     virtual void rollback() noexcept                 = 0;
 
-    virtual IAccountRepository&     accounts()      = 0;
-    virtual IChannelRepository&     channels()      = 0;
-    virtual IGameRepository&        games()         = 0;
-    virtual IClanRepository&        clans()         = 0;
-    virtual ILadderRepository&      ladder()        = 0;
-    virtual IIpBanRepository&       ip_bans()       = 0;
-    virtual IAccountBanRepository&  account_bans()  = 0;
-    virtual IFriendListRepository&  friend_lists()  = 0;
-    virtual IRealmRepository&       realms()        = 0;
-    virtual ITeamRepository&        teams()         = 0;
+    virtual domain::identity::IAccountRepository&     accounts()      = 0;
+    virtual domain::chat::IChannelRepository&     channels()      = 0;
+    virtual domain::gameplay::IGameRepository&        games()         = 0;
+    virtual domain::social::IClanRepository&        clans()         = 0;
+    virtual domain::ladder::ILadderRepository&      ladder()        = 0;
+    virtual domain::moderation::IIpBanRepository&       ip_bans()       = 0;
+    virtual domain::moderation::IAccountBanRepository&  account_bans()  = 0;
+    virtual domain::social::IFriendListRepository&  friend_lists()  = 0;
+    virtual domain::realm::IRealmRepository&       realms()        = 0;
+    virtual domain::social::ITeamRepository&        teams()         = 0;
 
 protected:
     IUnitOfWork() = default;

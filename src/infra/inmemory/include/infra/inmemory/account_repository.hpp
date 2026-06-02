@@ -18,10 +18,11 @@
 
 #include "domain/identity/ports.hpp"
 
+
 namespace pvpgn::infra::inmemory {
 
 class InMemoryAccountRepository final
-    : public application::ports::IAccountRepository {
+    : public domain::identity::IAccountRepository {
 public:
     core::Result<domain::identity::Account>
     find_by_id(domain::AccountId id) const override {

@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "application/ports/ports.hpp"
+#include "domain/moderation/ports.hpp"
 #include "core/clock.hpp"
 #include "core/error.hpp"
 #include "core/result.hpp"
@@ -38,16 +38,16 @@ struct ListBansQuery {
 
 class ListBans {
 public:
-    ListBans(std::shared_ptr<application::ports::IAccountBanRepository> account_bans,
-             std::shared_ptr<application::ports::IIpBanRepository> ip_bans)
+    ListBans(std::shared_ptr<domain::moderation::IAccountBanRepository> account_bans,
+             std::shared_ptr<domain::moderation::IIpBanRepository> ip_bans)
         : account_bans_(account_bans), ip_bans_(ip_bans) {}
 
     [[nodiscard]] core::Result<std::vector<BanRecord>>
     execute(const ListBansQuery& query) const;
 
 private:
-    std::shared_ptr<application::ports::IAccountBanRepository> account_bans_;
-    std::shared_ptr<application::ports::IIpBanRepository>      ip_bans_;
+    std::shared_ptr<domain::moderation::IAccountBanRepository> account_bans_;
+    std::shared_ptr<domain::moderation::IIpBanRepository>      ip_bans_;
 };
 
 }  // namespace pvpgn::application::moderation
