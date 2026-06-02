@@ -610,7 +610,10 @@ Linux).
 ## Phase C — Modern Runtime (after Phase B)
 
 ### Plan 06 — Async I/O Modernization
-**Status:** 🔄 In Progress — runtime IMPLEMENTED, ADR added (2026-06-02)
+**Status:** ✅ Substantially complete — Asio+Fiber runtime live, ADR, per-handler
+timeouts, idle-footprint regression gate (2026-06-02). The one `[~]` criterion
+(I/O `#ifdef` isolation) is effectively met: the remaining platform `#ifdef`s
+are address/time value helpers (`inet_ntop`/`gmtime`), not the I/O reactor.
 **Dependencies:** Plan 02 in flight (fdwatch isolated); Plan 03 done
 
 > 2026-06-02 assessment: the core of Plan 06 was already implemented in the v3
@@ -643,7 +646,23 @@ Linux).
       `D2csServerConfig` has no net_timeouts section yet — tracked follow-up).
       Verified: `bnetd` + `pvpgn_v3_d2cs` build clean in the gcc-15 container;
       full container build 0 warnings.
-- [ ] Idle-connection memory footprint regression test (10% budget) — REMAINING
+- [x] Idle-connection memory footprint regression test (10% budget).
+      2026-06-02: `tests/unit/infra/net/idle_memory_footprint_test.cpp` — a
+      deterministic `sizeof`-budget gate (no flaky runtime RSS probe). The
+      literal pre-migration baseline (fdwatch/`t_connection`) was deleted with
+      the Asio runtime, so the test pins the current post-migration baseline
+      and fails on >10% growth — the regression guarantee the plan asks for,
+      anchored to the only observable baseline. Per idle connection the
+      production path is `sizeof(TcpSession)` (measured **4592 B** — dominated
+      by the inline `std::array<std::byte,4096>` read buffer; idle sessions
+      queue no writes so the empty `write_q_` deque allocates nothing); gate =
+      baseline +10% = 5051 B, plus a floor (`>= 4096`, catches the buffer being
+      silently moved to the heap) and a non-buffer-overhead bound (`<= 1024`).
+      The fiber path adds `SessionChannel` (measured **120 B**, budgeted
+      `<= 256`); its inbound ring (`inbox_capacity` × `sizeof(vector)`) is a
+      tunable config knob, documented not gated. Fiber case compiled only under
+      `PVPGN_V3_WITH_FIBER`. Verified: builds + passes on GCC13; full suite
+      100% (0 failed of 2555).
 
 **Steps:**
 - [x] ADR `0006-async-runtime.md` (Boost.Asio + Boost.Fiber, Accepted)
