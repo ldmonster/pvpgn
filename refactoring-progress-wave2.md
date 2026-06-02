@@ -1101,8 +1101,14 @@ can't exercise, and the optional `std::expected` re-backing follow-up.
       constraint, GCC-vs-glibc tension). Needs a real `docker build` to validate
       (no Docker here) — the GCC install + < 80 MB target are first-run
       calibration points
-- [ ] Multi-arch tags published for the next release
-- [ ] Release artefacts signed; SBOM attached
+- [~] Multi-arch tags published for the next release — **workflow scaffold
+      done, unrun.** `.github/workflows/release.yml` (tag-triggered) builds
+      `linux/amd64`+`linux/arm64` via Buildx/QEMU from `Dockerfile.distroless`
+      and pushes to GHCR
+- [~] Release artefacts signed; SBOM attached — same `release.yml`: keyless
+      **cosign** image signing (OIDC) + a **CycloneDX SBOM** (anchore/sbom-action)
+      attested to the image and attached to the GitHub release. Design-only/
+      first-run: validate on a pre-release tag (no Actions/Docker here)
 - [x] `CHANGELOG.md` lints in CI — `check-changelog.sh` (Keep a Changelog) in
       `ci.yml` lint; CHANGELOG reworked to comply
 
@@ -1113,9 +1119,12 @@ can't exercise, and the optional `std::expected` re-backing follow-up.
       pre-existing; linked from the release process
 - [~] Distroless image (`Dockerfile.distroless`): `gcr.io/distroless/cc-debian12`
       base; < 80 MB; non-root — scaffold + ADR 0011 done, untested (no Docker)
-- [ ] Multi-arch build: publish `linux/amd64` and `linux/arm64` via `docker buildx`
-- [ ] Signed artefacts: sign release binaries and container images with sigstore/cosign
-- [ ] SBOM: emit CycloneDX SBOM with every release artefact
+- [~] Multi-arch build: publish `linux/amd64` and `linux/arm64` via `docker buildx`
+      — `release.yml` scaffold (unrun)
+- [~] Signed artefacts: sign release binaries and container images with
+      sigstore/cosign — `release.yml` keyless cosign (unrun)
+- [~] SBOM: emit CycloneDX SBOM with every release artefact — `release.yml`
+      anchore/sbom-action + cosign attest (unrun)
 - [x] `CHANGELOG.md` discipline: enforce Keep a Changelog format; CI lints headings
       (`check-changelog.sh`)
 

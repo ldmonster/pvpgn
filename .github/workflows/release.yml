@@ -1,0 +1,100 @@
+name: Release
+
+# Plan 15 — release pipeline: multi-arch distroless image, cosign-signed, with a
+# CycloneDX SBOM attached to the GitHub release. Triggered by a semver tag.
+#
+# DESIGN-ONLY / FIRST-RUN: this workflow has not been executed in this
+# environment. Validate it on a pre-release tag (a dry run, per the plan's
+# Risks) before relying on it — in particular the keyless cosign OIDC flow and
+# the arm64 emulation build of Dockerfile.distroless (see ADR 0011, still
+# untested). Image is published to GHCR; flip the registry/visibility as needed.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'        # vMAJOR.MINOR.PATCH
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'      # pre-releases (vX.Y.Z-rc1, ...)
+
+permissions:
+  contents: write       # create the GitHub release + upload the SBOM
+  packages: write       # push to GHCR
+  id-token: write       # cosign keyless signing via OIDC
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- multi-arch build prerequisites -----------------------------------
+      - name: Set up QEMU (arm64 emulation)
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image tags / labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      # --- build + push linux/amd64 + linux/arm64 ---------------------------
+      - name: Build and push (multi-arch, distroless)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.distroless
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+
+      # --- sign the image (keyless / sigstore) ------------------------------
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+      - name: Sign the published image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          for tag in $TAGS; do
+            cosign sign --yes "${tag%:*}@${DIGEST}"
+          done
+
+      # --- CycloneDX SBOM ----------------------------------------------------
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+      - name: Attest the SBOM to the image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cosign attest --yes --type cyclonedx \
+            --predicate sbom.cyclonedx.json \
+            "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+
+      # --- GitHub release with the SBOM attached ----------------------------
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: sbom.cyclonedx.json

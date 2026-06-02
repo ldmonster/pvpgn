@@ -22,6 +22,8 @@ versioning and deprecation policy.
 - New docs: `developer/release-process.md`, `developer/benchmarking.md`.
 - `Dockerfile.distroless` scaffold + ADR 0011 (non-root distroless runtime
   image; dynamic-linked, glibc-matched builder) (Plan 15).
+- Release pipeline scaffold `.github/workflows/release.yml` — multi-arch
+  (amd64/arm64) Buildx image, keyless cosign signing, CycloneDX SBOM (Plan 15).
 
 ### Changed
 - SQLite persistence consolidated onto the driver-parameterized
