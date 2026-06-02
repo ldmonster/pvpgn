@@ -22,8 +22,8 @@ namespace pvpgn::v3::infra::crypto {
 // Maximum supported input length (legacy WOL constraint).
 inline constexpr std::size_t kWolHashMaxInputBytes = 8;
 
-// 64-character alphabet used by `wol_hash`. Same as
-// WOL_HASH_CHAR in `common/wolhash.h`.
+// 64-character alphabet used by `wol_hash`. Same as the legacy
+// WOL_HASH_CHAR table from the original pvpgn `wolhash`.
 inline constexpr std::string_view kWolHashAlphabet =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
 

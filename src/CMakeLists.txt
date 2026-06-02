@@ -1396,34 +1396,15 @@ pvpgn_v3_add_library(infra_session
         domain_connection
 )
 
-# ---- infra/legacy_crypto (bnet_hash adapter) ----------------------------
+# ---- infra/legacy_crypto: DELETED (Plan 08, 2026-06-02) -----------------
 #
-# Adapts the legacy `pvpgn::bnet_hash` (broken-SHA-1) implementation
-# to the v3 `IPasswordHasher` port. Linked against the legacy
-# `common` library so we never reimplement the algorithm.
-# R-strangler: PVPGN_BUILD_LEGACY removed; infra_legacy_crypto is now
-# always built when the `common` target exists (legacy tree present).
-
-if(TARGET common)
-    pvpgn_v3_add_library(infra_legacy_crypto
-        STATIC
-        SOURCES
-            infra/legacy_crypto/src/bnet_session_hasher.cpp
-        PUBLIC_INCLUDES
-            ${CMAKE_CURRENT_SOURCE_DIR}/infra/legacy_crypto/include
-        PUBLIC_DEPS
-            core
-            application_ports
-            domain_shared
-        DEPS
-            common
-    )
-    # Legacy `common/setup_before.h` is not warning-clean under /WX.
-    target_compile_options(infra_legacy_crypto PRIVATE -w)
-    target_include_directories(infra_legacy_crypto PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_BINARY_DIR})
-endif()
+# The legacy bnet_hash adapter + the relocated legacy crypto cluster
+# (bnethash/bnetsrp3/bigint/wolhash) were deleted. They were dead: gated on a
+# `common` target that is never created (`add_subdirectory(common)` exists
+# nowhere), and uncompilable since Plan 02 purged their support headers
+# (common/{bn_type,eventlog,introtate,util,xstring}.h). The live v3 auth path
+# uses the src/infra/crypto reimplementations (bnet_hash / bnet_srp3 / wol_hash)
+# instead. The legacy-vs-v3 parity tests went with them.
 
 # ---- integration/legacy_bnetd (DELETED in Phase 3) ----------------------
 # Phase 3 finalization: All remaining link files and coordinators have been

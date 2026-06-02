@@ -482,12 +482,45 @@ Linux).
 > Remaining: `Account.hash_version` wiring, delete `src/common/` crypto
 > (finishes Plan 02). Details: `refactoring-progress-plan08.md`.
 
+> 2026-06-02 (cont.): **`std::rand()` purge (criterion 5) + dead-crypto
+> deletion.** The only `rand()` left in `src/` was `common/bigint.cpp`
+> `BigInt::random()` (the legacy SRP-3 secret generator). Replaced it with a
+> `thread_local std::random_device` (OS entropy — strictly better than `rand()`
+> and self-contained; the live v3 path already uses `core::crypto::SecureRandom`).
+> `grep -rE 'rand\\('  src/` is now **empty**. Note: `src/common` is **not part
+> of the v3 build** (`if(TARGET common)`-gated; only `tests/unit/protocol/common`
+> is added), so bigint.cpp is uncompiled here — the change is C++-verified by an
+> isolated `-Werror` compile of the swapped snippet. Also deleted the genuinely
+> unused **`bnethashconv.{cpp,h}`** (zero src/test consumers) and pruned
+> `common/CMakeLists.txt`. The other legacy modules stay: `bnethash` is live
+> (`infra/legacy_crypto`); `bnetsrp3`/`bigint`/`wolhash` are parity oracles for
+> the `infra/crypto` parity tests — they retire once `bnethash` is relocated out
+> of `common` and the parity oracles are dropped.
+
 **Acceptance Criteria:**
 - [ ] New accounts store argon2id only
 - [ ] Existing accounts transparently upgrade on next login
 - [ ] SRP golden-vector tests pass against captured fixtures from ≥ 2 client builds per supported game
-- [ ] No file in `src/common/` implements crypto
-- [ ] No `std::rand()` call anywhere in `src/`
+- [x] No file in `src/common/` implements crypto — 2026-06-02: **DELETED the
+      entire dead legacy crypto chain** (17 files). Discovery that drove it: the
+      chain was 100% dead — `add_subdirectory(common)` exists nowhere, so the
+      `common` target is never created in any build and every `if(TARGET common)`
+      guard (`infra_legacy_crypto`, the parity/legacy tests) was permanently
+      false; the cluster had also been **uncompilable** since Plan 02 purged its
+      support headers (`common/{bn_type,eventlog,introtate,util,xstring}.h`). The
+      live v3 auth uses the `infra/crypto` reimplementations (`bnet_hash` /
+      `bnet_srp3` / `wol_hash`). Removed: the legacy crypto cluster
+      (`bnethash`/`bnetsrp3`/`bigint`/`wolhash` + the unused `bnethashconv`), the
+      `infra/legacy_crypto/` adapter (`bnet_session_hasher.{hpp,cpp}` +
+      `infra_legacy_crypto` lib), and the 3 dead tests
+      (`parity_test` + legacy_crypto `bigint`/`bnetsrp3`/`bnet_session_hasher`).
+      Pruned all the CMake. `src/common/` now holds only `setup_{before,after}.h`
+      (no crypto). v3 build + suite stay **100% (2560)** — none of the deleted
+      code was in the v3 build.
+- [x] No `std::rand()` call anywhere in `src/` — 2026-06-02: the last one
+      (`common/bigint.cpp` `BigInt::random`) is gone — that file was deleted with
+      the dead legacy crypto chain (see criterion 4). `grep -rE 'rand\(' src/`
+      is empty.
 
 **Steps:**
 - [ ] ADR `0008-crypto-libraries.md` for library choice

@@ -12,21 +12,10 @@ pvpgn_v3_add_test(test_infra_crypto_bnet_srp3_property
     SOURCES bnet_srp3_property_test.cpp
     DEPS    infra_crypto)
 
-# Parity test compares the new infra/crypto implementation against the
-# legacy src/common/ code. Guard on target existence since PVPGN_BUILD_LEGACY
-# has been removed; the `common` target is present when the legacy tree is built.
-if(TARGET common)
-    pvpgn_v3_add_test(test_infra_crypto_parity
-        SOURCES parity_test.cpp
-        DEPS    infra_crypto common)
-    target_include_directories(
-        test_infra_crypto_parity PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_BINARY_DIR})
-    # The legacy headers under common/ are full of comparison and
-    # unused warnings; don't fail this test on them.
-    target_compile_options(test_infra_crypto_parity PRIVATE -w)
-endif()
+# The legacy-vs-v3 parity test was removed with the dead legacy crypto chain
+# (Plan 08): the legacy oracle it compared against was never built and had been
+# uncompilable since Plan 02. The v3 infra/crypto behaviour is covered by
+# bnet_hash_test / bnet_srp3_golden_test / bnet_srp3_property_test above.
 
 # NLS/SRP-6a tests (R281). Only built when OpenSSL is available since
 # the implementation depends on OpenSSL::Crypto.

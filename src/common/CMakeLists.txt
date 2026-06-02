@@ -13,13 +13,12 @@ set(COMMON_SOURCES
 	# infra/legacy_crypto; kept until those callers retire)
 	setup_before.h setup_after.h
 
-	# Crypto files (Plan 08 - deferred to crypto modernization)
-	# These will be moved to src/infra/crypto/ in Plan 08
-	bnethashconv.cpp bnethashconv.h bnethash.cpp bnethash.h
-	bnettime.cpp bnettime.h
-	bnetsrp3.cpp bnetsrp3.h bigint.cpp bigint.h
-	wolhash.cpp wolhash.h
-	
+	# Plan 08 criterion 4 (2026-06-02): src/common no longer implements crypto.
+	# The legacy bnet_hash / SRP-3 / wolhash / bigint cluster (and its dead
+	# infra_legacy_crypto adapter + parity tests) were DELETED; bnettime had
+	# already moved to src/core/time/ in Plan 02. No crypto remains here. NOTE:
+	# the `common` target is added by no build, so this list is vestigial.
+
 	# pugixml vendored copy (moved from src/common/ to vendor/pugixml/)
 	${CMAKE_SOURCE_DIR}/vendor/pugixml/pugixml.cpp
 	${CMAKE_SOURCE_DIR}/vendor/pugixml/pugiconfig.h
