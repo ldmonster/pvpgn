@@ -48,6 +48,49 @@ jobs:
         run: docker build -f Dockerfile.v3 --target v3-test .
 
   # --------------------------------------------------------------------------
+  # Plan 09 — C++23 compiler matrix. The Docker build-test above pins one
+  # toolchain (Alpine GCC); this matrix proves the v3 tree builds and tests
+  # clean under the *supported C++23 floor on multiple frontends*: GCC 14 and
+  # Clang 18 (libstdc++ 14 / libc++ 18). This is the gate that lets newer
+  # C++23 library facilities compile — e.g. `<flat_map>`, which libstdc++ ships
+  # only from 14 (see infra/scripting/plugin/src/capability.cpp, currently a
+  # sorted-constexpr-array flat map pending this floor). Policy: GCC <= 12 and
+  # Clang <= 16 are dropped — older frontends lack complete C++23 and are not
+  # built. MSVC 19.40 (VS 2022 17.10) is the third supported floor by design;
+  # it needs a `windows-latest` runner + a vcpkg toolchain leg and is tracked
+  # as a follow-up (this Linux job cannot exercise it).
+  # --------------------------------------------------------------------------
+  compiler-matrix:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: gcc-14,   cc: gcc-14,   cxx: g++-14,     pkgs: 'gcc-14 g++-14' }
+          - { name: clang-18, cc: clang-18, cxx: clang++-18, pkgs: 'clang-18' }
+    name: c++23 (${{ matrix.name }})
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ${{ matrix.name }} + build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build ${{ matrix.pkgs }} \
+            libboost-all-dev libssl-dev zlib1g-dev libcurl4-openssl-dev \
+            liblua5.4-dev libsqlite3-dev libspdlog-dev
+      - name: Print toolchain version
+        run: ${{ matrix.cxx }} --version
+      - name: Configure (v3-dev, ${{ matrix.name }})
+        run: cmake --preset v3-dev
+      - name: Build (${{ matrix.name }})
+        run: cmake --build --preset v3-dev
+      - name: Test (${{ matrix.name }})
+        run: ctest --preset v3-dev --output-on-failure
+
+  # --------------------------------------------------------------------------
   # Sanitizer matrix — ASan / UBSan / TSan via the existing CMake presets.
   # --------------------------------------------------------------------------
   sanitizers:

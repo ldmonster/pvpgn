@@ -117,8 +117,15 @@
 #include "infra/inmemory/unit_of_work_factory.hpp"
 #include "services/bnetd/bnetd_service.hpp"
 
-// R330: configurable persistence back-end
-#include "infra/sqlite/unit_of_work_factory.hpp"
+// R330: configurable persistence back-end. Each backend is compiled in only
+// when its infra target is linked (which propagates the header's include dir),
+// detected here via __has_include. SQLite is the default backend but is itself
+// optional — it is skipped when the sqlite3 dev headers are absent (see
+// PVPGN_V3_HAVE_SQLITE3 in src/CMakeLists.txt).
+#if __has_include("infra/sqlite/unit_of_work_factory.hpp")
+#  include "infra/sqlite/unit_of_work_factory.hpp"
+#  define PVPGN_V3_BNETD_HAVE_SQLITE_FACTORY 1
+#endif
 #if __has_include("infra/mysql/unit_of_work_factory.hpp")
 #  include "infra/mysql/unit_of_work_factory.hpp"
 #  define PVPGN_V3_BNETD_HAVE_MYSQL_FACTORY 1
@@ -285,11 +292,22 @@ int main(int argc, char* argv[]) {
                 "persistence backend 'postgres' requested but PostgreSQL support was not compiled in");
 #endif
         } else {
-            // Default: sqlite
+            // Default: sqlite (when compiled in).
+#if defined(PVPGN_V3_BNETD_HAVE_SQLITE_FACTORY)
             if (persistence_dsn.empty()) persistence_dsn = "pvpgn.db";
             owned_uow_factory = std::make_unique<infra::sqlite::SQLiteUnitOfWorkFactory>(
                 persistence_dsn);
             LOG_INFO("bnetd", "persistence backend: sqlite dsn={}", persistence_dsn);
+#else
+            // SQLite backend was not compiled in (sqlite3 dev headers absent at
+            // build time). Fall back to the non-durable in-memory factory so the
+            // server still starts on a minimal dev box; warn loudly.
+            owned_uow_factory = std::make_unique<infra::inmemory::InMemoryUnitOfWorkFactory>();
+            LOG_WARN("bnetd",
+                "persistence backend 'sqlite' was not compiled in (sqlite3 dev "
+                "headers absent at build time); falling back to non-durable "
+                "inmemory storage. Rebuild with libsqlite3-dev for durable data.");
+#endif
         }
         application::ports::IUnitOfWorkFactory& uow_factory = *owned_uow_factory;
 

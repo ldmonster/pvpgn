@@ -34,7 +34,10 @@ pvpgn_v3_add_test(test_infra_persistence_sql_ladder_repository
 
 # Plan 07: consolidated driver-parameterized account repository over the
 # SQLite IDbDriver (in-memory). Needs the sqlite backend lib for the driver
-# + connection + migrations.
-pvpgn_v3_add_test(test_infra_persistence_sql_account_repository
-    SOURCES sql_account_repository_test.cpp
-    DEPS    infra_persistence pvpgn_infra_sqlite)
+# + connection + migrations — only when that backend was built (sqlite3 dev
+# headers present; see PVPGN_V3_HAVE_SQLITE3 in src/CMakeLists.txt).
+if(TARGET pvpgn_infra_sqlite)
+    pvpgn_v3_add_test(test_infra_persistence_sql_account_repository
+        SOURCES sql_account_repository_test.cpp
+        DEPS    infra_persistence pvpgn_infra_sqlite)
+endif()

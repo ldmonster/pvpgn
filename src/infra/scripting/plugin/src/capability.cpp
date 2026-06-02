@@ -1,36 +1,61 @@
 #include "infra/scripting/plugin/capability.hpp"
-#include <unordered_map>
+
+#include <algorithm>
+#include <array>
+#include <utility>
 
 namespace pvpgn::infra::scripting {
 
+namespace {
+
+// Token → capability lookup. This is a small (17-entry), fully-static,
+// read-heavy table that is queried once per declared capability at plugin
+// load time. The canonical C++23 spelling is `std::flat_map`, but the GCC13
+// floor lacks `<flat_map>` (libstdc++ ships it from 14); see Plan 09's CI
+// matrix sub-item. A sorted `constexpr std::array` + binary search is the
+// equivalent flat shape and is in fact strictly better here: it is
+// allocation-free (the prior `unordered_map<std::string,...>` heap-allocated
+// a `std::string` on every lookup and built a hash table on first use) and
+// lives entirely in `.rodata`. Swap to `std::flat_map` once GCC14 is the
+// floor without touching call sites.
+//
+// Entries MUST stay sorted by key — the static_assert below pins that.
+constexpr std::array<std::pair<std::string_view, Capability>, 17> kCapTable{{
+    {"admin.reload_config", Capability::ADMIN_RELOAD_CONFIG},
+    {"admin.shutdown",      Capability::ADMIN_SHUTDOWN},
+    {"chat.emote",          Capability::CHAT_EMOTE},
+    {"chat.send",           Capability::CHAT_SEND},
+    {"commands.register",   Capability::COMMANDS_REGISTER},
+    {"db.read",             Capability::DB_READ},
+    {"db.write",            Capability::DB_WRITE},
+    {"events.publish",      Capability::EVENTS_PUBLISH},
+    {"events.subscribe",    Capability::EVENTS_SUBSCRIBE},
+    {"fs.read",             Capability::FS_READ},
+    {"fs.write",            Capability::FS_WRITE},
+    {"moderation.ban",      Capability::MODERATION_BAN},
+    {"moderation.kick",     Capability::MODERATION_KICK},
+    {"net.http",            Capability::NET_HTTP},
+    {"net.socket",          Capability::NET_SOCKET},
+    {"store.read",          Capability::STORE_READ},
+    {"store.write",         Capability::STORE_WRITE},
+}};
+
+static_assert(std::ranges::is_sorted(kCapTable, {},
+                                     &std::pair<std::string_view, Capability>::first),
+              "kCapTable must stay sorted by token for binary search");
+
+}  // namespace
+
 Capability parse_capability(std::string_view str)
 {
-    static const std::unordered_map<std::string, Capability> cap_map = {
-        {"chat.send", Capability::CHAT_SEND},
-        {"chat.emote", Capability::CHAT_EMOTE},
-        {"db.read", Capability::DB_READ},
-        {"db.write", Capability::DB_WRITE},
-        {"events.subscribe", Capability::EVENTS_SUBSCRIBE},
-        {"events.publish", Capability::EVENTS_PUBLISH},
-        {"fs.read", Capability::FS_READ},
-        {"fs.write", Capability::FS_WRITE},
-        {"net.http", Capability::NET_HTTP},
-        {"net.socket", Capability::NET_SOCKET},
-        {"commands.register", Capability::COMMANDS_REGISTER},
-        {"moderation.ban", Capability::MODERATION_BAN},
-        {"moderation.kick", Capability::MODERATION_KICK},
-        {"store.read", Capability::STORE_READ},
-        {"store.write", Capability::STORE_WRITE},
-        {"admin.reload_config", Capability::ADMIN_RELOAD_CONFIG},
-        {"admin.shutdown", Capability::ADMIN_SHUTDOWN},
-    };
-    
-    auto it = cap_map.find(std::string(str));
-    if (it != cap_map.end()) {
+    const auto it = std::ranges::lower_bound(
+        kCapTable, str, {},
+        &std::pair<std::string_view, Capability>::first);
+    if (it != kCapTable.end() && it->first == str) {
         return it->second;
     }
-    
-    // Return a dummy capability if not found
+
+    // Unknown token: an empty capability (no bits granted).
     return static_cast<Capability>(0);
 }
 

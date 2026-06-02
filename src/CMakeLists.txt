@@ -1313,7 +1313,25 @@ endif()
 if(NOT TARGET pvpgn_infra_migrations)
     add_subdirectory(infra/migrations)
 endif()
-if(NOT TARGET pvpgn_infra_sqlite)
+# Plan 09: the SQLite backend needs the sqlite3 dev header + library. When they
+# are absent (e.g. a minimal dev box), skip the backend and everything that
+# hard-links it rather than breaking `make all` with a `sqlite3.h: No such file`
+# compile error. Tests that need it are already guarded by
+# `if(TARGET pvpgn_infra_sqlite)`; the migrate CLI is guarded at its
+# add_subdirectory below. CI (Dockerfile.v3 / the apt deps) always installs
+# libsqlite3-dev, so the backend is built there.
+find_path(PVPGN_V3_SQLITE3_INCLUDE_DIR sqlite3.h)
+find_library(PVPGN_V3_SQLITE3_LIBRARY NAMES sqlite3)
+if(PVPGN_V3_SQLITE3_INCLUDE_DIR AND PVPGN_V3_SQLITE3_LIBRARY)
+    set(PVPGN_V3_HAVE_SQLITE3 ON)
+else()
+    set(PVPGN_V3_HAVE_SQLITE3 OFF)
+    message(STATUS
+        "pvpgn v3: sqlite3 dev header/library not found — skipping "
+        "pvpgn_infra_sqlite + pvpgn-migrate. Install libsqlite3-dev to enable.")
+endif()
+
+if(PVPGN_V3_HAVE_SQLITE3 AND NOT TARGET pvpgn_infra_sqlite)
     add_subdirectory(infra/sqlite)
 endif()
 if(NOT TARGET pvpgn_infra_file)
@@ -1605,11 +1623,34 @@ endif()
 
 # ---- tools (utilities for migration and administration) ----------------------
 
+# Several tools were modernised onto C++23 `std::print`/`std::println`
+# (`#include <print>`). libstdc++ ships `<print>` only from GCC 14 and libc++
+# from 18 — the same C++23-library floor the CI `compiler-matrix` job pins
+# (Plan 09). On an older floor (e.g. GCC 13) those tools cannot compile, which
+# would otherwise break `make all` for everyone on that toolchain. Feature-test
+# `<print>` and skip the print-using tools when it is absent; they build
+# normally on GCC 14+/Clang 18+. `conf_converter` does not use `<print>` and is
+# always built.
+include(CheckCXXSourceCompiles)
+set(_pvpgn_print_check_flags "-std=c++${PVPGN_V3_CXX_STANDARD}")
+set(CMAKE_REQUIRED_FLAGS "${_pvpgn_print_check_flags}")
+check_cxx_source_compiles(
+    "#include <print>\nint main(){ std::println(\"{}\", 1); }"
+    PVPGN_V3_HAVE_STD_PRINT)
+unset(CMAKE_REQUIRED_FLAGS)
+
 add_subdirectory(tools/conf_converter)
-add_subdirectory(tools/bnpass)
-add_subdirectory(tools/bniutils)
-add_subdirectory(tools/bntrackd)
-add_subdirectory(tools/client)
+if(PVPGN_V3_HAVE_STD_PRINT)
+    add_subdirectory(tools/bnpass)
+    add_subdirectory(tools/bniutils)
+    add_subdirectory(tools/bntrackd)
+    add_subdirectory(tools/client)
+else()
+    message(STATUS
+        "pvpgn v3: skipping bnpass/bniutils/bntrackd/client — they use "
+        "<print> (C++23), unavailable on this toolchain (needs GCC>=14 / "
+        "libc++>=18). The CI compiler-matrix builds them.")
+endif()
 
 # ---- services (composition roots — one per server process) ------------------
 #
@@ -1638,9 +1679,15 @@ add_subdirectory(app/d2dbs)
 # ---- app/pvpgn-migrate (R321/R322/R323 — account migration CLI tool) ----
 #
 # Standalone tool for migrating legacy *.plain account files to SQLite or
-# TOML-file storage backends.  No Boost dependency — always built.
+# TOML-file storage backends.  No Boost dependency.  Hard-links the SQLite
+# backend (SQLiteUnitOfWorkFactory / SQLiteConnection), so it is built only
+# when the sqlite3 backend is available (see PVPGN_V3_HAVE_SQLITE3 above).
 
-add_subdirectory(app/pvpgn-migrate)
+if(PVPGN_V3_HAVE_SQLITE3)
+    add_subdirectory(app/pvpgn-migrate)
+else()
+    message(STATUS "pvpgn v3: skipping app/pvpgn-migrate — needs the sqlite3 backend.")
+endif()
 
 # R332: CLI tool for validating and inspecting server configuration files.
 # Supports --validate, --print-effective, --print-schema.  No Boost dependency.
