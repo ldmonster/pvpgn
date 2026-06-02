@@ -44,6 +44,7 @@ nav:
     - Config Reference: developer/config-reference.md
     - Testing: developer/testing.md
     - Benchmarking: developer/benchmarking.md
+    - Release Process: developer/release-process.md
     - Bounded Contexts:
       - Chat: developer/contexts/chat.md
       - Connection: developer/contexts/connection.md

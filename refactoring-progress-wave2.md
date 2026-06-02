@@ -1065,21 +1065,44 @@ can't exercise, and the optional `std::expected` re-backing follow-up.
 ## Phase E — Ship (after Phase D)
 
 ### Plan 15 — Release and Rollout
-**Status:** ⬜ Not Started  
+**Status:** 🔄 In Progress — release docs + CHANGELOG discipline (2026-06-02)
 **Dependencies:** All other plans complete
 
+> 2026-06-02: **release process + changelog discipline.** Wrote
+> `docs/developer/release-process.md` — the SemVer policy (wire/plugin-ABI/TOML
+> breaking ⇒ major; opt-in ⇒ minor; bugfix ⇒ patch, with the contract-pinning
+> gates listed), the deprecation policy (announce in a minor + startup warning,
+> remove no earlier than next major, record under `### Deprecated`/`### Removed`),
+> the CHANGELOG discipline, and the release checklist (the distroless/multi-arch/
+> cosign/SBOM steps captured as pipeline follow-ups). Reworked `CHANGELOG.md` to
+> strict **Keep a Changelog**: added the KaC + SemVer reference header, an
+> `## [Unreleased]` section capturing this session's wave-two work, and
+> normalised the 3.0.0 section's non-canonical headings (`Breaking Changes` →
+> `Changed`/`Removed` with **Breaking:** markers; `Migration Guide` → a
+> `**Migration:**` line). New gate `scripts/dev/check-changelog.sh` enforces it
+> (KaC + SemVer refs, an `[Unreleased]` section, canonical `### ` headings,
+> `## [x.y.z] - date` releases) — wired into `ci.yml` lint; verified pass on the
+> real file + fail on a bogus heading. Linked the doc from index + mkdocs nav.
+> Remaining (infra/CI-gated): distroless image + ADR 0011, multi-arch buildx,
+> cosign signing, SBOM, and a PR-template reference.
+
 **Acceptance Criteria:**
-- [ ] `docs/developer/release-process.md` published; PR template references it
-- [ ] `docs/operator/runbooks/rolling-upgrade.md` walks operators through a no-downtime upgrade
+- [x] `docs/developer/release-process.md` published — SemVer + deprecation
+      policy + release checklist; PR-template reference pending
+- [~] `docs/operator/runbooks/rolling-upgrade.md` walks operators through a
+      no-downtime upgrade — runbook exists (pre-existing); referenced from
+      release-process.md
 - [ ] Distroless image builds and runs the full integration test suite
 - [ ] Multi-arch tags published for the next release
 - [ ] Release artefacts signed; SBOM attached
-- [ ] `CHANGELOG.md` lints in CI
+- [x] `CHANGELOG.md` lints in CI — `check-changelog.sh` (Keep a Changelog) in
+      `ci.yml` lint; CHANGELOG reworked to comply
 
 **Steps:**
-- [ ] SemVer policy in `docs/developer/release-process.md`
-- [ ] Deprecation policy documented in `CHANGELOG.md`
-- [ ] Rolling-upgrade procedure (`docs/operator/runbooks/rolling-upgrade.md`)
+- [x] SemVer policy in `docs/developer/release-process.md`
+- [x] Deprecation policy documented (`release-process.md` + `CHANGELOG.md`)
+- [~] Rolling-upgrade procedure (`docs/operator/runbooks/rolling-upgrade.md`) —
+      pre-existing; linked from the release process
 - [ ] Distroless image (`Dockerfile.distroless`): `gcr.io/distroless/cc-debian12` base; < 80 MB; non-root
 - [ ] Multi-arch build: publish `linux/amd64` and `linux/arm64` via `docker buildx`
 - [ ] Signed artefacts: sign release binaries and container images with sigstore/cosign

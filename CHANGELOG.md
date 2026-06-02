@@ -1,12 +1,41 @@
 # Changelog
 
-## [3.0.0] — 2026-05-29
+All notable changes are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
+adheres to [Semantic Versioning](https://semver.org/); see
+[docs/developer/release-process.md](docs/developer/release-process.md) for the
+versioning and deprecation policy.
 
-### Breaking Changes
-- `PVPGN_V3_BNETD_INTEGRATION` option removed; v3 integration is now mandatory
-- `PVPGN_BUILD_LEGACY` cmake option removed; legacy build guards replaced with
-  `if(TARGET common)` checks
-- `bnetd-v3` binary renamed to `bnetd`
+## [Unreleased]
+
+### Added
+- Native plugin C ABI **purity gate** (`scripts/dev/check-plugin-abi-purity.sh`)
+  proving `pvpgn/plugin/abi.h` exposes only pure C — no `domain/`/`application/`
+  symbol can leak to a plugin (Plan 12).
+- **Microbenchmark harness + regression gate** under `tests/bench/` with
+  `scripts/dev/run-bench.sh` and `scripts/dev/check-bench-regression.py` (Plan 13).
+- **Idle-connection memory-footprint** regression test (Plan 06).
+- Capability-token **flat-map** lookup and a GCC14/Clang18 **CI compiler matrix**
+  (Plan 09).
+- **Mutation-testing pilot** over `domain/identity/` (weekly CI) (Plan 10).
+- `[observability].sample_ratio` wired into the bnetd tracer at startup (Plan 11).
+- New docs: `developer/release-process.md`, `developer/benchmarking.md`.
+
+### Changed
+- SQLite persistence consolidated onto the driver-parameterized
+  `infra/persistence` repositories; all per-backend SQLite repos removed (Plan 07).
+- The CLI tools and the SQLite backend build only when their C++23 `<print>` /
+  `sqlite3` headers are available, skipping cleanly on an older toolchain (Plan 09).
+
+### Removed
+- The dead legacy crypto chain — `common/{bnethash,bnetsrp3,bigint,wolhash}`,
+  the `infra/legacy_crypto` adapter, and its dead parity tests (Plan 08).
+
+### Security
+- Eliminated the last `std::rand()` use in `src/`; randomness in `src/` is now
+  CSPRNG-only (`core::crypto::SecureRandom`) (Plan 08).
+
+## [3.0.0] — 2026-05-29
 
 ### Added
 - Phase A–N: Full DDD + Hexagonal Architecture refactoring
@@ -22,8 +51,15 @@
 - CMakePresets: `v3-dev`, `v3-release`, `v3-asan`, `v3-tsan`, `v3-coverage`, `v3-fuzz`
 - GitHub Actions CI: coverage, sanitizers, layering check, clang-tidy, docs
 
+### Changed
+- **Breaking:** `bnetd-v3` binary renamed to `bnetd`
+
 ### Deprecated
 - Legacy `src/bnetd/`, `src/d2cs/`, `src/d2dbs/` sources (scheduled for removal in 4.0.0)
 
-### Migration Guide
-See `docs/toml-migration.md` and `docs/lua-api-v2.md` for migration instructions.
+### Removed
+- **Breaking:** `PVPGN_V3_BNETD_INTEGRATION` cmake option — v3 integration is now mandatory
+- **Breaking:** `PVPGN_BUILD_LEGACY` cmake option — legacy build guards replaced
+  with `if(TARGET common)` checks
+
+**Migration:** see `docs/toml-migration.md` and `docs/lua-api-v2.md`.

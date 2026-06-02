@@ -63,6 +63,7 @@ Architecture documentation, bounded-context guides, and extension points for con
 - [Config Reference](developer/config-reference.md) — All `bnetd.toml` keys (auto-generated)
 - [Testing](developer/testing.md) — Test pyramid, coverage gates, and how to run the suite
 - [Benchmarking](developer/benchmarking.md) — Microbench harness, baselines, and the regression gate
+- [Release Process](developer/release-process.md) — SemVer policy, deprecation policy, and the release checklist
 
 ### Bounded Contexts
 
