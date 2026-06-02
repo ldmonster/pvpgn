@@ -41,7 +41,12 @@ public:
 
 private:
     std::shared_ptr<pvpgn::infra::sqlite::SQLiteConnection> conn_;
-    bool in_transaction_;
+    // Transactions nest via SAVEPOINTs: the outermost begin/commit/rollback
+    // maps to BEGIN/COMMIT/ROLLBACK, inner ones to SAVEPOINT/RELEASE/
+    // ROLLBACK TO. This lets a Unit-of-Work transaction wrap a repository's own
+    // multi-statement transaction without SQLite's "cannot start a transaction
+    // within a transaction" error.
+    int tx_depth_;  ///< 0 = no transaction; >0 = nesting depth
 };
 
 }  // namespace pvpgn::infra::persistence

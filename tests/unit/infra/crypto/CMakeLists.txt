@@ -7,6 +7,11 @@ pvpgn_v3_add_test(test_infra_crypto_bnet_srp3_golden
     SOURCES bnet_srp3_golden_test.cpp
     DEPS    infra_crypto)
 
+# Plan 10: SRP-3 mathematical-invariant property tests.
+pvpgn_v3_add_test(test_infra_crypto_bnet_srp3_property
+    SOURCES bnet_srp3_property_test.cpp
+    DEPS    infra_crypto)
+
 # Parity test compares the new infra/crypto implementation against the
 # legacy src/common/ code. Guard on target existence since PVPGN_BUILD_LEGACY
 # has been removed; the `common` target is present when the legacy tree is built.

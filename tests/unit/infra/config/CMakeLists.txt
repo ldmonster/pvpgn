@@ -1,6 +1,10 @@
 pvpgn_v3_add_test(test_infra_config_server
     SOURCES server_config_test.cpp
     DEPS    infra_config)
+# Plan 10: TOML parser no-panic property test.
+pvpgn_v3_add_test(test_infra_config_toml_validator_property
+    SOURCES toml_validator_property_test.cpp
+    DEPS    infra_config)
 pvpgn_v3_add_test(test_infra_config_legacy_prefs
     SOURCES legacy_prefs_test.cpp
     DEPS    infra_config)

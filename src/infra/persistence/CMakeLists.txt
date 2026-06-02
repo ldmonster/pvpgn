@@ -11,6 +11,8 @@ add_library(infra_persistence OBJECT
     friend_list_repository.cpp
     clan_repository.cpp
     ip_ban_repository.cpp
+    game_repository.cpp
+    ladder_repository.cpp
 )
 
 target_include_directories(infra_persistence

@@ -6,12 +6,12 @@
 // Plan 05: Ports Consolidation (migrated from application/ports/)
 
 #include <cstdint>
-#include <string_view>
 #include <vector>
 
 #include "core/error.hpp"
 #include "core/result.hpp"
 #include "domain/ladder/ladder.hpp"
+#include "domain/shared/ids.hpp"
 
 namespace pvpgn::domain::ladder {
 
@@ -28,8 +28,11 @@ public:
     ILadderRepository(ILadderRepository&&)                 = delete;
     ILadderRepository& operator=(ILadderRepository&&)      = delete;
 
+    // Rank is 1-based; keyed by account id to match `save_entry` /
+    // `LadderEntry` (Plan 07: the legacy by-name signature could not be
+    // satisfied — entries carry only an id).
     [[nodiscard]] virtual core::Result<std::uint32_t, core::Error>
-    get_rank(std::string_view account_name) = 0;
+    get_rank(domain::AccountId account_id) = 0;
 
     virtual core::Result<void, core::Error>
     save_entry(const LadderEntry& entry) = 0;

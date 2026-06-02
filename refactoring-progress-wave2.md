@@ -401,9 +401,29 @@ Linux).
 > CIDR match replicating the aggregate's prefix logic; transactional
 > save_banlist; load/save round-trip exact entries only — `IpBanList` doesn't
 > expose ranges). `sql_ip_ban_repository_test` (9 cases / 47 assertions green).
-> **7 of ~8 aggregates consolidated.** Only **game** (blocked: `Game` has no
-> `rehydrate`) and **ladder** (port id/name quirk) remain — both need a
-> domain/port decision. Details: `refactoring-progress-plan07.md`.
+>
+> 2026-06-02 (cont.): consolidated the **last two — game + ladder** (all 9
+> aggregates now done). **game**: added `Game::rehydrate` to the domain
+> aggregate, then `SqlGameRepository` (games + ordered game_players; list_active
+> excludes Finalized) — 6 cases / 50 assertions. **ladder**: fixed the
+> `ILadderRepository::get_rank` id/name port quirk **and a latent bug** (caller
+> passed a username while the impl compared `to_string(id)`, so it never
+> matched) — changed the port to `get_rank(AccountId)` + updated inmemory/
+> sqlite/caller/4 test mocks; then `SqlLadderRepository` (rank via
+> `1 + COUNT(rating > r)`) — 5 cases / 28 assertions. **ALL 9 repository
+> aggregates are now consolidated over `IDbDriver`** (7 fake-driver repo tests =
+> 283 assertions / 45 cases, green, no sqlite).
+>
+> 2026-06-02 (cont.): **migrated `SQLiteUnitOfWork` onto the consolidated repos**
+> (it was the *live* persistence path via `bnetd/main.cpp`, not dead). It now
+> builds `persistence::Sql*Repository` over a `SqliteDriver`; made `SqliteDriver`
+> **SAVEPOINT-nesting-aware** and routed the UoW's begin/commit/rollback through
+> it (pre-empts SQLite's "no nested BEGIN" when a repo's own transaction nests
+> inside a UoW transaction). 🔒 **Env-gated/UNVERIFIED** — sqlite doesn't build
+> here; the local non-sqlite build + consolidated tests still pass, but a
+> sqlite build must validate before merge. Deleting the now-unused per-backend
+> repos is **deferred** (a large env-gated cascade incl. a deprecated shim +
+> tests + mysql/pg + CMake) — checklist in `refactoring-progress-plan07.md`.
 
 **Remaining Work:**
 - Consolidate the remaining stub aggregates the same way: realm, ip_ban, clan,
@@ -480,8 +500,31 @@ Linux).
 ---
 
 ### Plan 10 — Testing Pyramid Completion
-**Status:** 🔄 In Progress — sanitizer + lint scaffolding (2026-06-02)
+**Status:** 🔄 In Progress — CI gates wired (2026-06-02)
 **Dependencies:** Plans 02, 03, 04 in flight
+
+> 2026-06-02 (CI gates): wrote **`.github/workflows/ci.yml`** — the first test
+> CI (only `docs.yml` existed). Jobs: `lint` (pairing + legacy-linkage, both
+> verified green here), `layer-check` + `build-test` via the proven
+> `Dockerfile.v3` stages (SQLite-enabled, Catch2 auto-fetched), a **sanitizer
+> matrix** (asan/ubsan/tsan presets), a **coverage gate**, and a **fuzz smoke**
+> (60 s/harness). New **`scripts/dev/check-coverage.sh`** — a gcov-only
+> (no gcovr/lcov) gate aggregating `domain/`+`application/` line coverage with a
+> configurable floor; **verified end-to-end** on a synthetic coverage build
+> (passes floor 50, fails floor 95, correct line counts). Added the missing
+> **`v3-ubsan` *test* preset** (only the configure preset existed, so
+> `ctest --preset v3-ubsan` would have failed). Documented the gate set + the
+> coverage-floor calibration in `docs/developer/testing.md`. ⚠ The Docker/
+> sanitizer/coverage/fuzz jobs are **first-run calibration** (apt dep set +
+> floor) — not runnable locally (no docker; sqlite/sanitizer builds env-gated).
+>
+> 2026-06-02 (property tests): added in-tree property tests (no rapidcheck) —
+> bnet codec (`codec_property_test.cpp`: round-trip identity + decode
+> robustness, 40,001 assertions) and SRP-3 (`bnet_srp3_property_test.cpp`:
+> shared-key + proof-agreement invariants, wrong-password divergence, 401
+> assertions) and the TOML config parser (`toml_validator_property_test.cpp`:
+> no-panic over random/garbage/pathological input, 6023 assertions). All three
+> plan-listed property suites complete; all verified locally.
 
 > 2026-06-02: Added the missing **`v3-ubsan`** preset (`CMakePresets.json`;
 > asan/tsan/coverage/fuzz already existed). **Ran UBSan** over the full unit
@@ -529,8 +572,13 @@ Linux).
       logger on shutdown). **Fixed** `core/src/logging.cpp` to reset to a
       `NullLogger` on null; ASan re-sweep of all 237 built test binaries is now
       **0 issues**. TSan run + CI matrix wiring pending.
-- [ ] Fuzz smoke is a required check; reproducers stored on first finding
-- [ ] Coverage gate enforced; current floor documented in `docs/developer/testing.md`
+- [~] Fuzz smoke is a required check; reproducers stored on first finding —
+      `fuzz-smoke` job added to `ci.yml` (v3-fuzz preset, 60 s/harness on
+      corpus); needs a first CI run to confirm the toolchain
+- [~] Coverage gate enforced; current floor documented in
+      `docs/developer/testing.md` — `check-coverage.sh` gate + `coverage` CI job
+      added (floor=60 calibration); doc updated. Raise the floor after the first
+      green run.
 
 **Steps:**
 - [ ] Script `scripts/dev/check-unit-pairing.sh`: lists every `src/{domain,application}/**/*.cpp` without a matching test
@@ -538,7 +586,23 @@ Linux).
 - [ ] Add `v3-asan`, `v3-ubsan`, `v3-tsan` presets in `CMakePresets.json`
 - [ ] Fuzz gate: 5-minute fuzz smoke per target on PR; harnesses under `tests/fuzz/`
 - [ ] Coverage gate: `llvm-cov` on `v3-coverage`; fail PR if `domain/` or `application/` coverage drops > 1%
-- [ ] Property tests with rapidcheck: bnet codec round-trip, TOML schema validator, SRP session invariants
+- [~] Property tests: **bnet codec done** —
+      `tests/unit/protocol/bnet/codec_property_test.cpp` (in-tree generators, no
+      rapidcheck): round-trip identity for Ping/JoinChannel/ChatCommand
+      (encode→frame→decode == original) + a decode-robustness property over
+      6000 random well-framed packets (decoders never crash / read OOB; doubles
+      as an ASan/UBSan target). 4 cases / **40,001 assertions green**, fixed
+      seed for reproducibility. **SRP session invariants done** —
+      `tests/unit/infra/crypto/bnet_srp3_property_test.cpp`: over randomized
+      credentials + per-session keys/salt, the handshake always converges to a
+      shared key K with agreeing proofs (200 iters), and a wrong password always
+      breaks K (100 iters). 2 cases / 401 assertions green. **TOML validator
+      no-panic property done** —
+      `tests/unit/infra/config/toml_validator_property_test.cpp`: random bytes,
+      near-valid TOML garbage, and pathological inputs through
+      `parse_server_config` + `TomlSchemaValidator::validate` never throw/crash
+      (always return a `Result`); 4 cases / 6023 assertions green.
+      **All three plan-listed property suites are complete.**
 - [ ] Mutation testing pilot: run `mull` over `domain/identity/` weekly
 
 ---
@@ -639,14 +703,48 @@ Linux).
 ## Phase D — External Surface (after Phase C)
 
 ### Plan 11 — Observability: Real OpenTelemetry
-**Status:** ⬜ Not Started  
+**Status:** 🔄 In Progress — ADR + trace sampling/propagation (2026-06-02)
 **Dependencies:** `core::IMetricsRegistry` and `core::log` exist; Plan 06 ideally landed
+
+> 2026-06-02: **ADR 0010** (`docs/adr/0010-otel-exporter.md`, Accepted) — chose
+> an in-tree minimal **OTLP/HTTP JSON** exporter (no opentelemetry-cpp/protobuf/
+> gRPC dep); export is **opt-in** (`[observability].otlp_endpoint` unset ⇒
+> behaviour identical to today). Enhanced the existing `core::trace` primitive
+> with the two Plan-11 step-5 requirements that were missing: a **child-span
+> constructor** `Span(name, parent_ctx)` (parent propagation — shares
+> `trace_id`, links `parent_span_id`, fresh `span_id`; a remote `SpanContext`
+> reconstructs the parent for cross-service traces) and **head sampling**
+> (`set_sample_ratio`, default 1.0; root draws the `sampled` flag, children
+> inherit it; the `SpanSink` fires only for sampled traces). Tests:
+> `tests/unit/core/trace_test.cpp` (6 cases / 23 assertions green; id shapes,
+> parent linkage, sampling 0/1, clamping); `core/trace.hpp` added to the R213
+> header self-containment check.
+>
+> 2026-06-02 (cont.): added the **`[observability]` config** —
+> `ObservabilityConfig` (`service_name`/`otlp_endpoint`/`sample_ratio`) +
+> `parse_observability` (ratio clamped to [0,1]) + the `[observability]` section
+> in `conf/bnetd.toml.in` (endpoint empty ⇒ export off; default behaviour
+> unchanged). Tests: 3 cases in `server_config_test.cpp` (defaults / populated /
+> clamping). Remaining: wire `sample_ratio` → `trace::set_sample_ratio` + the
+> OTLP sinks at the composition root, `infra/observability/` OTLP exporters
+> (collector-gated), the inter-service trace-context header, and
+> `docs/operator/metrics.md`.
+>
+> 2026-06-02 (cont.): wrote **`docs/operator/metrics.md`** — the emitted-metric
+> contract: all 13 metrics from `ServerMetrics::create` (type / labels /
+> rationale) grouped network/application/performance, a **stable 3-metric
+> mandatory contract** (connections_active / logins_total / request_latency_ms)
+> + suggested alerts; linked from `docs/index.md` + mkdocs nav (reachability gate
+> green for the new page). Remaining: wire `sample_ratio` →
+> `trace::set_sample_ratio` + OTLP sinks at the composition root,
+> `infra/observability/` exporters (collector-gated), inter-service trace header.
 
 **Acceptance Criteria:**
 - [ ] With `[observability].otlp_endpoint` set, traces, metrics, and logs land on a local OTel collector
-- [ ] With endpoint unset, default behaviour matches today
+- [~] With endpoint unset, default behaviour matches today — config + trace
+      sampling default to off/1.0 (no behaviour change); composition-root wiring pending
 - [ ] Trace context propagates across `bnetd → d2cs → d2dbs` in an e2e fixture
-- [ ] `docs/operator/metrics.md` lists every emitted metric with type, labels, and rationale
+- [x] `docs/operator/metrics.md` lists every emitted metric with type, labels, and rationale
 
 **Steps:**
 - [ ] ADR `0010-otel-exporter.md`: in-tree minimal OTLP/HTTP exporter for metrics + logs
@@ -736,12 +834,12 @@ Linux).
 | A | 03 | Strangler Finalization (legacy_bnetd) | ✅ | — |
 | A | 04 | d2cs / d2dbs Strangler | ✅ | — |
 | B | 02 | `src/common/` Purge | ⬜ | Plan 03 ≥80% |
-| B | 07 | Infra Adapter Rehab | ⬜ | Plan 05 |
+| B | 07 | Infra Adapter Rehab | 🔄 | all 9 aggregates consolidated; per-backend deletion + CI matrix remain |
 | B | 08 | Crypto Modernization | 🔄 | argon2id adapter env-gated (no libsodium hdrs) |
-| B | 10 | Testing Pyramid Completion | ⬜ | Plans 02,03,04 |
+| B | 10 | Testing Pyramid Completion | 🔄 | CI gates wired (ci.yml); first-run calibration pending |
 | C | 06 | Async I/O Modernization | ⬜ | Plans 02,03 |
 | C | 09 | C++23 Uplift | ⬜ | Plans 02,03,05 |
-| D | 11 | Observability OTel | ⬜ | Phase C |
+| D | 11 | Observability OTel | 🔄 | ADR + trace sampling/propagation; exporters env-gated |
 | D | 12 | Plugin ABI Stabilization | ⬜ | Phase C |
 | D | 13 | Performance Benchmark Baseline | ⬜ | Phase C |
 | E | 15 | Release and Rollout | ⬜ | All plans |

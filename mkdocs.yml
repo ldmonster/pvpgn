@@ -28,6 +28,7 @@ nav:
     - Building: operator/building.md
     - TOML Migration: operator/toml-migration.md
     - TOML Schema Versioning: operator/toml-schema-versioning.md
+    - Metrics Reference: operator/metrics.md
     - Runbooks:
       - Diagnose Slow Login: operator/runbooks/diagnose-slow-login.md
       - Recover from Corrupt DB: operator/runbooks/recover-from-corrupt-db.md

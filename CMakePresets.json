@@ -125,6 +125,11 @@
             "output": { "outputOnFailure": true }
         },
         {
+            "name": "v3-ubsan",
+            "configurePreset": "v3-ubsan",
+            "output": { "outputOnFailure": true }
+        },
+        {
             "name": "v3-tsan",
             "configurePreset": "v3-tsan",
             "output": { "outputOnFailure": true }

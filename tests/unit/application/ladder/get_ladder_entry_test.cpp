@@ -51,7 +51,7 @@ public:
     std::vector<domain::ladder::LadderEntry> entries;
 
     core::Result<uint32_t, core::Error>
-    get_rank(std::string_view /*account_name*/) override {
+    get_rank(domain::AccountId /*account_id*/) override {
         // Return rank 1 if any entries exist (simplified for tests)
         if (entries.empty()) {
             return core::fail(core::Error{core::StatusCode::NotFound, "no entries"});

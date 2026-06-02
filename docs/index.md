@@ -37,6 +37,7 @@ Everything needed to deploy, configure, and maintain a PvPGN server in productio
 - [Building from Source](operator/building.md) — CMake build instructions for Linux, macOS, and Windows
 - [TOML Migration](operator/toml-migration.md) — Migrating from the legacy `bnetd.conf` to `bnetd.toml`
 - [TOML Schema Versioning](operator/toml-schema-versioning.md) — How schema versions work and how to upgrade
+- [Metrics Reference](operator/metrics.md) — Every emitted metric with type, labels, and rationale
 
 ### Runbooks
 

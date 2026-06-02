@@ -7,15 +7,12 @@
 #include <memory>
 
 #include "application/persistence/unit_of_work.hpp"
-#include "infra/sqlite/account_repository.hpp"
-#include "infra/sqlite/account_ban_repository.hpp"
-#include "infra/sqlite/clan_repository.hpp"
 #include "infra/sqlite/connection.hpp"
-#include "infra/sqlite/friend_list_repository.hpp"
-#include "infra/sqlite/ip_ban_repository.hpp"
-#include "infra/sqlite/ladder_repository.hpp"
-#include "infra/sqlite/realm_repository.hpp"
-#include "infra/sqlite/sqlite_channel_repository.hpp"
+// Plan 07: the SQL-backed repositories are now the consolidated,
+// driver-parameterized implementations under infra/persistence/, run over a
+// SqliteDriver built from this UoW's connection. The per-backend
+// infra/sqlite/*_repository.* files were deleted.
+#include "infra/persistence/sql_builder/db_driver.hpp"
 #include "infra/inmemory/game_repository.hpp"
 #include "infra/inmemory/in_memory_team_repository.hpp"
 
@@ -52,22 +49,26 @@ public:
 private:
     std::shared_ptr<SQLiteConnection> conn_;
 
-    // SQLite-backed repository instances
-    std::unique_ptr<SQLiteAccountRepository>    accounts_;
-    std::unique_ptr<SQLiteClanRepository>       clans_;
-    std::unique_ptr<SQLiteLadderRepository>     ladder_;
-    std::unique_ptr<SQLiteIpBanRepository>      ip_bans_;
-    std::unique_ptr<SQLiteAccountBanRepository> account_bans_;
-    std::unique_ptr<SQLiteFriendListRepository> friend_lists_;
-    std::unique_ptr<SQLiteRealmRepository>      realms_;
+    // The consolidated repos run over this driver (a SqliteDriver wrapping
+    // conn_). The UoW's begin/commit/rollback also route through it, so the
+    // driver's SAVEPOINT nesting keeps repo-internal transactions safe inside
+    // a UoW transaction.
+    std::shared_ptr<persistence::IDbDriver> driver_;
 
-    // SQLite-backed channel repository (R320: replaces InMemoryChannelRepository)
-    std::unique_ptr<SqliteChannelRepository> channels_;
+    // SQL-backed repositories (consolidated; held by their domain interface).
+    std::unique_ptr<domain::identity::IAccountRepository>     accounts_;
+    std::unique_ptr<domain::social::IClanRepository>          clans_;
+    std::unique_ptr<domain::ladder::ILadderRepository>        ladder_;
+    std::unique_ptr<domain::moderation::IIpBanRepository>     ip_bans_;
+    std::unique_ptr<domain::moderation::IAccountBanRepository> account_bans_;
+    std::unique_ptr<domain::social::IFriendListRepository>    friend_lists_;
+    std::unique_ptr<domain::realm::IRealmRepository>          realms_;
+    std::unique_ptr<domain::chat::IChannelRepository>         channels_;
 
-    // Per-instance in-memory repos for session-scoped data
+    // Per-instance in-memory repos for session-scoped data (unchanged).
     std::unique_ptr<inmemory::InMemoryGameRepository>  games_;
 
-    // Teams are not yet persisted to SQL — use in-memory backing store
+    // Teams are not yet persisted to SQL — use in-memory backing store.
     std::unique_ptr<inmemory::InMemoryTeamRepository> teams_;
 };
 

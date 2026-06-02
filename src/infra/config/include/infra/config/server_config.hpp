@@ -313,6 +313,15 @@ struct MessagesConfig {
     std::uint32_t quota_dobae    = 7;   // BNETD_QUOTA_DOBAE  (lines)
 };
 
+/// `[observability]` — OpenTelemetry export (Plan 11 / ADR 0010). Export is
+/// opt-in: with `otlp_endpoint` empty, metrics stay in-memory, logs stay on the
+/// local file sink, and tracing stays a no-op (behaviour identical to today).
+struct ObservabilityConfig {
+    std::string service_name  = "bnetd";      ///< resource service.name
+    std::string otlp_endpoint;                ///< empty ⇒ export disabled
+    double      sample_ratio  = 0.05;         ///< head trace sampling in [0,1]
+};
+
 // ── Top-level ServerConfig ────────────────────────────────────────────────────
 
 struct ServerConfig {
@@ -344,6 +353,7 @@ struct ServerConfig {
     ClanConfig            clan;
     CommandLogConfig      command_log;
     MessagesConfig        messages;
+    ObservabilityConfig   observability;
 };
 
 // ── Factory functions ─────────────────────────────────────────────────────────

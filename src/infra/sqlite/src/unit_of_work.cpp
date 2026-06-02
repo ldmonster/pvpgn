@@ -2,41 +2,49 @@
 
 #include "infra/sqlite/unit_of_work.hpp"
 
-#include "domain/chat/ports.hpp"
-#include "domain/gameplay/ports.hpp"
-#include "domain/identity/ports.hpp"
-#include "domain/ladder/ports.hpp"
-#include "domain/moderation/ports.hpp"
-#include "domain/realm/ports.hpp"
-#include "domain/social/ports.hpp"
+#include "infra/persistence/account_ban_repository.hpp"
+#include "infra/persistence/account_repository.hpp"
+#include "infra/persistence/channel_repository.hpp"
+#include "infra/persistence/clan_repository.hpp"
+#include "infra/persistence/friend_list_repository.hpp"
+#include "infra/persistence/ip_ban_repository.hpp"
+#include "infra/persistence/ladder_repository.hpp"
+#include "infra/persistence/realm_repository.hpp"
+#include "infra/persistence/sql_builder/sqlite_driver.hpp"
 
 namespace pvpgn::infra::sqlite {
 
-// R317: games_ and teams_ are per-instance members — no static locals.
-// R320: channels_ is now backed by SqliteChannelRepository.
+// Plan 07: the SQL-backed repositories are the consolidated, driver-
+// parameterized implementations (infra/persistence/), run over a SqliteDriver
+// wrapping this UoW's connection. games_/teams_ stay in-memory (session-scoped).
 SQLiteUnitOfWork::SQLiteUnitOfWork(std::shared_ptr<SQLiteConnection> conn)
     : conn_(std::move(conn)),
-      accounts_(std::make_unique<SQLiteAccountRepository>(conn_)),
-      clans_(std::make_unique<SQLiteClanRepository>(conn_)),
-      ladder_(std::make_unique<SQLiteLadderRepository>(conn_)),
-      ip_bans_(std::make_unique<SQLiteIpBanRepository>(conn_)),
-      account_bans_(std::make_unique<SQLiteAccountBanRepository>(conn_)),
-      friend_lists_(std::make_unique<SQLiteFriendListRepository>(conn_)),
-      realms_(std::make_unique<SQLiteRealmRepository>(conn_)),
-      channels_(std::make_unique<SqliteChannelRepository>(conn_)),
+      driver_(std::make_shared<persistence::SqliteDriver>(conn_)),
+      accounts_(std::make_unique<persistence::SqlAccountRepository>(driver_)),
+      clans_(std::make_unique<persistence::SqlClanRepository>(driver_)),
+      ladder_(std::make_unique<persistence::SqlLadderRepository>(driver_)),
+      ip_bans_(std::make_unique<persistence::SqlIpBanRepository>(driver_)),
+      account_bans_(
+          std::make_unique<persistence::SqlAccountBanRepository>(driver_)),
+      friend_lists_(
+          std::make_unique<persistence::SqlFriendListRepository>(driver_)),
+      realms_(std::make_unique<persistence::SqlRealmRepository>(driver_)),
+      channels_(std::make_unique<persistence::SqlChannelRepository>(driver_)),
       games_(std::make_unique<inmemory::InMemoryGameRepository>()),
       teams_(std::make_unique<inmemory::InMemoryTeamRepository>()) {}
 
 core::Result<void, core::Error> SQLiteUnitOfWork::begin() {
-    return conn_->begin();
+    // Route through the driver so its SAVEPOINT nesting accounts for the outer
+    // UoW transaction (consolidated repos may run their own inner transaction).
+    return driver_->begin_transaction();
 }
 
 core::Result<void, core::Error> SQLiteUnitOfWork::commit() {
-    return conn_->commit();
+    return driver_->commit();
 }
 
 void SQLiteUnitOfWork::rollback() noexcept {
-    conn_->rollback();
+    (void)driver_->rollback();
 }
 
 domain::identity::IAccountRepository& SQLiteUnitOfWork::accounts() {

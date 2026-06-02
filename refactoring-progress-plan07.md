@@ -144,32 +144,89 @@ integration matrix (which stays env-gated here).
       false), bound removes, for_each mapping, load_banlist rehydration, and the
       transactional save_banlist.
 
-## Remaining
+## Done (2026-06-02) — game + ladder consolidated (ALL aggregates done)
 
-- [ ] **game** — blocked on a domain change: `Game` has no `rehydrate` (only the
-      validating `host()` factory), so a stored game can't be cleanly
-      reconstructed. Needs a `Game::rehydrate` added to the aggregate first.
-- [ ] **ladder** — port quirk: `get_rank` is by *name* but `LadderEntry` carries
-      only an account *id*; resolve the id↔name path before consolidating.
-      (account, channel, **account_ban**, **realm**, **friend_list**, **clan**,
-      **ip_ban** done — **7/8**; only game + ladder remain, both blocked on
-      domain/port decisions.)
+- [x] **game** — added a `Game::rehydrate(id, host, client, desc, state,
+      players)` factory to the domain aggregate (reconstructs persisted state
+      without events or `host()` validation; for repositories only). Then
+      `infra/persistence/game_repository.{hpp,cpp}` (`SqlGameRepository`): two
+      tables `games` + ordered `game_players`; `find_by_id`/`find_by_name`
+      (header query → players query → `rehydrate` into `shared_ptr<Game>`),
+      transactional `save`, name-scoped `remove`, and `list_active`
+      (`state <> Finalized`, players loaded per game). Factory wired.
+      Test `sql_game_repository_test` (6 cases / 50 assertions green).
+- [x] **ladder** — fixed the port quirk **and a latent bug**:
+      `ILadderRepository::get_rank` was by *name* (`std::string_view`), but
+      `LadderEntry`/`save_entry` carry only an account *id*, and the real caller
+      (`get_ladder_entry.cpp`) passed the username while the in-memory impl
+      compared it against `std::to_string(id)` — so get_rank could never match.
+      Changed the port to `get_rank(domain::AccountId)`; updated the in-memory
+      impl (compare by id), the sqlite stub, the caller (pass `query.account_id`),
+      and the 4 affected ladder/inmemory test mocks. Then
+      `infra/persistence/ladder_repository.{hpp,cpp}` (`SqlLadderRepository`):
+      `ladder` table; `get_rank` = lookup rating then `1 + COUNT(rating > r)`
+      (ties share a rank; NotFound when off the ladder), bound `save_entry`
+      upsert, ordered+limited `get_top_n`. Factory wired. Test
+      `sql_ladder_repository_test` (5 cases / 28 assertions green); all 33
+      ladder-related ctest tests still pass.
+
+**ALL repository aggregates are now consolidated over `IDbDriver`** (account,
+channel, account_ban, realm, friend_list, clan, ip_ban, game, ladder). 7 new
+fake-driver repo tests total 283 assertions / 45 cases, green with no sqlite.
+
+## Done (2026-06-02) — SQLiteUnitOfWork migrated onto the consolidated repos 🔒
+
+> ⚠ **Env-gated / UNVERIFIED:** sqlite does not build here (no `sqlite3.h`), so
+> the files below could not be compiled. The local non-sqlite build still
+> configures and the consolidated repo tests still pass (the change only touches
+> env-gated TUs). **A sqlite-capable build must validate this before merge.**
+
+Finding: the per-backend `infra/sqlite/*_repository.*` were NOT dead — they were
+the live persistence path (`SQLiteUnitOfWork` ← `bnetd/main.cpp:290` via
+`SQLiteUnitOfWorkFactory`). The consolidated `RepositoryFactory` existed in
+parallel but the app/UoW had never been switched to it.
+
+- [x] **`SQLiteUnitOfWork` now constructs the consolidated repos**
+      (`persistence::Sql{Account,Clan,Ladder,IpBan,AccountBan,FriendList,Realm,
+      Channel}Repository`) over a `persistence::SqliteDriver` built from its
+      connection; members held by their domain interfaces. `games_`/`teams_`
+      stay in-memory (session-scoped, unchanged).
+- [x] **Transaction nesting:** `SqliteDriver` is now SAVEPOINT-aware — the
+      outermost begin/commit/rollback maps to `BEGIN/COMMIT/ROLLBACK`, inner
+      ones to `SAVEPOINT/RELEASE/ROLLBACK TO` (depth counter). `SQLiteUnitOfWork::
+      begin/commit/rollback` route through the driver, so a repo's own
+      multi-statement transaction nested inside a UoW transaction no longer hits
+      SQLite's "cannot start a transaction within a transaction".
+
+## Remaining
+- [ ] 🔒 **Validate the UoW migration on a sqlite build** (the change above) —
+      especially the SAVEPOINT nesting under real BEGIN/COMMIT.
+- [ ] Delete the now-unused per-backend repos — a larger env-gated cascade:
+      `infra/sqlite/{account,account_ban,clan,friend_list,ip_ban,ladder,realm}_repository.*`
+      + `sqlite_channel_repository.*`; the deprecated shim
+      `infra/persistence/sqlite/`; the `infra/{mysql,postgres}/account_repository.*`
+      (dead); and the per-backend account tests
+      (`tests/unit/infra/sqlite/sqlite_account_repository_test.cpp`,
+      `tests/integration/account_repository_integration_test.cpp`) + all the
+      matching CMake entries. Best done on a sqlite-capable build so the link
+      can be verified.
 - [ ] 🔒 Real driver matrix: implement/verify against sqlite (in-memory) +
       mysql/postgres via testcontainers in CI (env-gated locally).
-- [ ] Delete the per-backend `infra/{sqlite,mysql,postgres}/*_repository.cpp`
-      once each aggregate is consolidated; keep only the driver shims.
 - [ ] Migrations: ensure an `account_bans` migration exists under
       `infra/migrations/account_ban/` with `-- dialect:` blocks.
 
 ## Acceptance criteria status
 
-- [~] Exactly one `*_repository.cpp` per aggregate — done for account, channel,
-      **account_ban**; remaining aggregates still have per-backend stubs.
+- [x] Exactly one consolidated `*_repository.cpp` per aggregate — **all 9
+      aggregates done** (account, channel, account_ban, realm, friend_list,
+      clan, ip_ban, game, ladder) over `IDbDriver`.
 - [ ] `infra/{sqlite,mysql,postgres}/` contain only driver adapters — pending
-      deletion of consolidated aggregates' per-backend copies.
-- [ ] CI runs the repository test matrix against all three backends — env-gated.
-- [~] Switching `[storage].backend` needs no recompilation — true for the
-      consolidated aggregates (driver injected at composition time).
+      deletion of the now-superseded per-backend `*_repository.cpp` copies.
+- [ ] CI runs the repository test matrix against all three backends — env-gated
+      (sqlite has no headers here; mysql/postgres need testcontainers).
+- [x] Switching `[storage].backend` needs no recompilation — the consolidated
+      repos take the driver at composition time; switching backend = a different
+      driver, no repo/factory recompile.
 
 ## Log
 - 2026-06-02: consolidated the `account_ban` aggregate onto `IDbDriver`, wired
@@ -188,3 +245,7 @@ integration matrix (which stays env-gated here).
   CIDR matching for is_banned; transactional save_banlist) — 9 cases /
   47 assertions green. 7 of ~8 aggregates consolidated; only game (needs
   Game::rehydrate) and ladder (port id/name quirk) remain.
+- 2026-06-02: consolidated `game` (added `Game::rehydrate`; two-table
+  games+players; list_active) — 6 cases / 50 assertions. Consolidated `ladder`
+  (fixed `get_rank` port id/name quirk + latent bug; rank via COUNT) — 5 cases /
+  28 assertions. **ALL 9 aggregates now consolidated over IDbDriver.**

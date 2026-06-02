@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Plan 10 — testing pyramid gates. Lints + the v3 build/test (via the proven
+# Dockerfile.v3 stages) + the sanitizer matrix, coverage gate, and fuzz smoke
+# (via the existing CMake presets). NOTE: this workflow is new; the apt dep set
+# and the coverage floor below are first-run calibration points.
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Cheap lint gates (no build). These run locally too — see scripts/dev/.
+  # --------------------------------------------------------------------------
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit-test pairing audit
+        run: bash scripts/dev/check-unit-pairing.sh
+      - name: Legacy-linkage ban (tests/unit/)
+        run: bash scripts/dev/check-test-legacy-linkage.sh
+        if: always()
+      # (scripts-orphans + docs reachability are gated separately by docs.yml)
+
+  # --------------------------------------------------------------------------
+  # Layering + the full v3 build & test, via the proven Dockerfile.v3 stages
+  # (Alpine + Boost/Lua/SQLite; Catch2 is fetched by CMake). v3-test builds the
+  # whole v3 tree with SQLite enabled and runs the CTest suite.
+  # --------------------------------------------------------------------------
+  layer-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: v3 hexagonal layering check
+        run: docker build -f Dockerfile.v3 --target v3-layer-check .
+
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build + run the v3 unit suite (SQLite enabled)
+        run: docker build -f Dockerfile.v3 --target v3-test .
+
+  # --------------------------------------------------------------------------
+  # Sanitizer matrix — ASan / UBSan / TSan via the existing CMake presets.
+  # --------------------------------------------------------------------------
+  sanitizers:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [v3-asan, v3-ubsan, v3-tsan]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build build-essential clang \
+            libboost-all-dev libssl-dev zlib1g-dev libcurl4-openssl-dev \
+            liblua5.4-dev libsqlite3-dev libspdlog-dev
+      - name: Configure (${{ matrix.preset }})
+        run: cmake --preset ${{ matrix.preset }}
+      - name: Build (${{ matrix.preset }})
+        run: cmake --build --preset ${{ matrix.preset }}
+      - name: Test (${{ matrix.preset }})
+        run: ctest --preset ${{ matrix.preset }} --output-on-failure
+
+  # --------------------------------------------------------------------------
+  # Coverage gate — fail if domain/ + application/ line coverage drops below
+  # the floor. Floor is a first-run calibration point (see docs/developer/testing.md).
+  # --------------------------------------------------------------------------
+  coverage:
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_FLOOR: '60'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build build-essential \
+            libboost-all-dev libssl-dev zlib1g-dev libcurl4-openssl-dev \
+            liblua5.4-dev libsqlite3-dev libspdlog-dev
+      - name: Configure + build (coverage)
+        run: |
+          cmake --preset v3-coverage
+          cmake --build --preset v3-coverage
+      - name: Run the suite to emit coverage data
+        run: ctest --preset v3-coverage --output-on-failure || true
+      - name: Coverage gate (domain + application)
+        run: bash scripts/dev/check-coverage.sh build/v3-coverage "${COVERAGE_FLOOR}"
+
+  # --------------------------------------------------------------------------
+  # Fuzz smoke — short run of each libFuzzer harness on its committed corpus.
+  # Capped well under the 5-minute budget. Longer runs belong in a nightly job.
+  # --------------------------------------------------------------------------
+  fuzz-smoke:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build clang \
+            libboost-all-dev libssl-dev zlib1g-dev libcurl4-openssl-dev \
+            liblua5.4-dev libsqlite3-dev libspdlog-dev
+      - name: Configure + build fuzz targets
+        run: |
+          cmake --preset v3-fuzz
+          cmake --build --preset v3-fuzz
+      - name: Smoke each fuzz target (60s, on corpus)
+        run: |
+          set -e
+          # Each registered fuzz binary lives under build/v3-fuzz; run a short
+          # time-boxed pass seeded by its committed corpus (if any).
+          find build/v3-fuzz -type f -name '*_fuzz' -perm -u+x | while read -r bin; do
+            name="$(basename "$bin")"
+            corpus="tests/fuzz/corpus/${name%_fuzz}"
+            echo "::group::fuzz smoke: $name"
+            "$bin" -max_total_time=60 -timeout=10 ${corpus:+$corpus} || exit 1
+            echo "::endgroup::"
+          done

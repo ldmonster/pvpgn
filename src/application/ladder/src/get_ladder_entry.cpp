@@ -22,8 +22,8 @@ GetLadderEntry::execute(GetLadderEntryQuery query) const {
     }
     const auto& account = account_result.value();
 
-    // 3. Get the rank for this account on the ladder
-    auto rank_result = ladder_.get_rank(account.name().canonical());
+    // 3. Get the rank for this account on the ladder (keyed by account id)
+    auto rank_result = ladder_.get_rank(query.account_id);
     if (!rank_result) {
         return core::fail(core::Error{
             core::StatusCode::NotFound,

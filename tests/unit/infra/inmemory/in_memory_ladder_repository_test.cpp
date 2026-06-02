@@ -8,7 +8,7 @@ namespace pvpgn::infra::inmemory {
 
 TEST_CASE("InMemoryLadderRepository: GetRankNotFound", "[infra][inmemory]") {
     InMemoryLadderRepository repository;
-    auto result = repository.get_rank("nonexistent");
+    auto result = repository.get_rank(domain::AccountId{999});
     REQUIRE_FALSE(result.has_value());
     REQUIRE(result.error().code() == core::StatusCode::NotFound);
 }

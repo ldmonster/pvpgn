@@ -8,7 +8,7 @@ SQLiteLadderRepository::SQLiteLadderRepository(std::shared_ptr<SQLiteConnection>
     : conn_(std::move(conn)) {}
 
 core::Result<std::uint32_t, core::Error>
-SQLiteLadderRepository::get_rank(std::string_view) {
+SQLiteLadderRepository::get_rank(domain::AccountId) {
     return core::fail(core::Error{core::StatusCode::Unimplemented,
                                   "sqlite ladder: not yet implemented"});
 }

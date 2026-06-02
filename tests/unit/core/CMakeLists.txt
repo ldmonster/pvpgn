@@ -17,6 +17,8 @@ pvpgn_v3_add_test(test_core_contract     SOURCES contract_test.cpp        DEPS c
 pvpgn_v3_add_test(test_core_secret       SOURCES secret_test.cpp          DEPS core)
 # Plan 08: canonical CSPRNG
 pvpgn_v3_add_test(test_core_secure_random SOURCES secure_random_test.cpp  DEPS core)
+# Plan 11: tracing (parent propagation + sampling)
+pvpgn_v3_add_test(test_core_trace       SOURCES trace_test.cpp           DEPS core)
 
 # R213 (plans/01-modern-cpp-baseline.md S3): every public header in
 # src/v3/core/include/core/ must compile in isolation. Adding a new
@@ -43,6 +45,7 @@ pvpgn_v3_add_header_selfcheck(test_core_headers_selfcontained
         core/secret.hpp
         core/string_utils.hpp
         core/strong_typedef.hpp
+        core/trace.hpp
         core/version.hpp
     DEPS core
 )

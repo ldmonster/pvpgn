@@ -48,6 +48,28 @@ std::string random_hex(std::size_t byte_count) {
 std::mutex g_sink_mu;
 SpanSink   g_sink;  // default-constructed = empty std::function = no-op
 
+// Process-wide head sampling ratio in [0, 1]. Default 1.0 = sample everything,
+// so behaviour with a sink installed is unchanged until an operator lowers it.
+std::mutex g_sample_mu;
+double     g_sample_ratio = 1.0;
+
+/// Draw a sampling decision for a root span from the current ratio.
+bool draw_sampled() {
+    double ratio;
+    {
+        std::lock_guard<std::mutex> lk(g_sample_mu);
+        ratio = g_sample_ratio;
+    }
+    if (ratio >= 1.0) return true;
+    if (ratio <= 0.0) return false;
+
+    static std::mutex su_mu;
+    static std::mt19937_64 su_rng{std::random_device{}()};
+    std::lock_guard<std::mutex> lk(su_mu);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    return dist(su_rng) < ratio;
+}
+
 }  // anonymous namespace
 
 // ---------------------------------------------------------------------------
@@ -74,6 +96,18 @@ Span::Span(std::string_view name)
     impl_->ctx.trace_id      = random_hex(16);  // 32-char hex
     impl_->ctx.span_id       = random_hex(8);   // 16-char hex
     impl_->ctx.parent_span_id = {};             // root span
+    impl_->ctx.sampled        = draw_sampled(); // head sampling decision
+    impl_->start_time = std::chrono::system_clock::now();
+}
+
+Span::Span(std::string_view name, const SpanContext& parent)
+    : impl_(std::make_unique<Impl>()) {
+    impl_->name        = std::string(name);
+    // Inherit the trace and the sampling decision; new span id; link to parent.
+    impl_->ctx.trace_id      = parent.trace_id;
+    impl_->ctx.span_id       = random_hex(8);
+    impl_->ctx.parent_span_id = parent.span_id;
+    impl_->ctx.sampled        = parent.sampled;
     impl_->start_time = std::chrono::system_clock::now();
 }
 
@@ -81,6 +115,9 @@ Span::~Span() {
     if (!impl_) return;  // moved-from
 
     impl_->end_time = std::chrono::system_clock::now();
+
+    // Only export spans belonging to a sampled trace.
+    if (!impl_->ctx.sampled) return;
 
     // Call the global sink (if any) with the completed span.
     SpanSink sink;
@@ -152,6 +189,18 @@ void set_global_span_sink(SpanSink sink) {
 SpanSink get_global_span_sink() {
     std::lock_guard<std::mutex> lk(g_sink_mu);
     return g_sink;
+}
+
+void set_sample_ratio(double ratio) {
+    if (ratio < 0.0) ratio = 0.0;
+    if (ratio > 1.0) ratio = 1.0;
+    std::lock_guard<std::mutex> lk(g_sample_mu);
+    g_sample_ratio = ratio;
+}
+
+double get_sample_ratio() {
+    std::lock_guard<std::mutex> lk(g_sample_mu);
+    return g_sample_ratio;
 }
 
 }  // namespace pvpgn::core::trace

@@ -2,9 +2,16 @@
 
 #include "infra/persistence/sql_builder/sqlite_driver.hpp"
 
+#include <string>
+
 #include "infra/sqlite/connection.hpp"
 
 namespace pvpgn::infra::persistence {
+
+namespace {
+/// Savepoint name for nesting depth `d` (d >= 1).
+std::string savepoint(int d) { return "pvpgn_sp_" + std::to_string(d); }
+}  // namespace
 
 namespace {
 
@@ -40,7 +47,7 @@ private:
 }  // namespace
 
 SqliteDriver::SqliteDriver(std::shared_ptr<pvpgn::infra::sqlite::SQLiteConnection> conn)
-    : conn_(std::move(conn)), in_transaction_(false) {}
+    : conn_(std::move(conn)), tx_depth_(0) {}
 
 SqliteDriver::~SqliteDriver() = default;
 
@@ -107,9 +114,12 @@ core::Result<void, core::Error> SqliteDriver::begin_transaction() {
         return core::fail(core::Error{
             core::StatusCode::Internal, "sqlite: connection not available"});
     }
-    auto result = conn_->exec("BEGIN TRANSACTION");
+    // Outermost: real BEGIN. Nested: a SAVEPOINT named for the new depth.
+    auto result = (tx_depth_ == 0)
+                      ? conn_->exec("BEGIN TRANSACTION")
+                      : conn_->exec("SAVEPOINT " + savepoint(tx_depth_));
     if (result.has_value()) {
-        in_transaction_ = true;
+        ++tx_depth_;
     }
     return result;
 }
@@ -119,9 +129,16 @@ core::Result<void, core::Error> SqliteDriver::commit() {
         return core::fail(core::Error{
             core::StatusCode::Internal, "sqlite: connection not available"});
     }
-    auto result = conn_->exec("COMMIT");
+    if (tx_depth_ == 0) {
+        return core::fail(core::Error{core::StatusCode::Internal,
+                                      "sqlite: commit without an open transaction"});
+    }
+    // Innermost real transaction → COMMIT; a nested one → RELEASE its savepoint.
+    auto result = (tx_depth_ == 1)
+                      ? conn_->exec("COMMIT")
+                      : conn_->exec("RELEASE " + savepoint(tx_depth_ - 1));
     if (result.has_value()) {
-        in_transaction_ = false;
+        --tx_depth_;
     }
     return result;
 }
@@ -131,15 +148,30 @@ core::Result<void, core::Error> SqliteDriver::rollback() {
         return core::fail(core::Error{
             core::StatusCode::Internal, "sqlite: connection not available"});
     }
-    auto result = conn_->exec("ROLLBACK");
+    if (tx_depth_ == 0) {
+        return core::fail(core::Error{core::StatusCode::Internal,
+                                      "sqlite: rollback without an open transaction"});
+    }
+    core::Result<void, core::Error> result =
+        core::Result<void, core::Error>{};
+    if (tx_depth_ == 1) {
+        result = conn_->exec("ROLLBACK");
+    } else {
+        // Undo to the savepoint, then release it so the depth stays consistent.
+        const std::string sp = savepoint(tx_depth_ - 1);
+        result = conn_->exec("ROLLBACK TO " + sp);
+        if (result.has_value()) {
+            result = conn_->exec("RELEASE " + sp);
+        }
+    }
     if (result.has_value()) {
-        in_transaction_ = false;
+        --tx_depth_;
     }
     return result;
 }
 
 bool SqliteDriver::in_transaction() const {
-    return in_transaction_;
+    return tx_depth_ > 0;
 }
 
 }  // namespace pvpgn::infra::persistence

@@ -24,6 +24,14 @@ pvpgn_v3_add_test(test_infra_persistence_sql_ip_ban_repository
     SOURCES sql_ip_ban_repository_test.cpp
     DEPS    infra_persistence)
 
+pvpgn_v3_add_test(test_infra_persistence_sql_game_repository
+    SOURCES sql_game_repository_test.cpp
+    DEPS    infra_persistence)
+
+pvpgn_v3_add_test(test_infra_persistence_sql_ladder_repository
+    SOURCES sql_ladder_repository_test.cpp
+    DEPS    infra_persistence)
+
 # Plan 07: consolidated driver-parameterized account repository over the
 # SQLite IDbDriver (in-memory). Needs the sqlite backend lib for the driver
 # + connection + migrations.

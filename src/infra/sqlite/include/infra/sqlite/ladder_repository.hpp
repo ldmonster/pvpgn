@@ -18,7 +18,7 @@ public:
     explicit SQLiteLadderRepository(std::shared_ptr<SQLiteConnection> conn);
 
     core::Result<std::uint32_t, core::Error>
-    get_rank(std::string_view account_name) override;
+    get_rank(domain::AccountId account_id) override;
 
     core::Result<void, core::Error>
     save_entry(const domain::ladder::LadderEntry& entry) override;

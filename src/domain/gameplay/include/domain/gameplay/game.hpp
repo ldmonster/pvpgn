@@ -66,6 +66,17 @@ public:
         return g;
     }
 
+    /// Reconstruct a Game from persisted state without emitting events or
+    /// re-running `host()`'s validation. For repositories only.
+    static Game rehydrate(GameId id, AccountId host, ClientTag client,
+                          GameDescriptor desc, GameState state,
+                          std::vector<AccountId> players) {
+        Game g{id, host, client, std::move(desc)};
+        g.state_   = state;
+        g.players_ = std::move(players);
+        return g;
+    }
+
     // --- Queries --------------------------------------------------------
 
     GameId                          id()           const noexcept { return id_; }

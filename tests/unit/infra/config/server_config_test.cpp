@@ -265,3 +265,40 @@ TEST_CASE("config: loads from disk", "[infra][config]") {
     REQUIRE(r.has_value());
     REQUIRE(r.value().servername == "FromDisk");
 }
+
+// ── [observability] (Plan 11) ─────────────────────────────────────────────────
+
+TEST_CASE("config: [observability] defaults", "[infra][config]") {
+    auto r = infra::config::parse_server_config(""sv);
+    REQUIRE(r.has_value());
+    const auto& o = r.value().observability;
+    REQUIRE(o.service_name  == "bnetd");
+    REQUIRE(o.otlp_endpoint.empty());      // export disabled by default
+    REQUIRE(o.sample_ratio  == 0.05);
+}
+
+TEST_CASE("config: [observability] section parses", "[infra][config]") {
+    auto r = infra::config::parse_server_config(
+        "[observability]\n"
+        "service_name  = \"d2cs\"\n"
+        "otlp_endpoint = \"http://collector:4318\"\n"
+        "sample_ratio  = 0.25\n"sv);
+    REQUIRE(r.has_value());
+    const auto& o = r.value().observability;
+    REQUIRE(o.service_name  == "d2cs");
+    REQUIRE(o.otlp_endpoint == "http://collector:4318");
+    REQUIRE(o.sample_ratio  == 0.25);
+}
+
+TEST_CASE("config: [observability] sample_ratio is clamped to [0,1]",
+          "[infra][config]") {
+    auto hi = infra::config::parse_server_config(
+        "[observability]\nsample_ratio = 5.0\n"sv);
+    REQUIRE(hi.has_value());
+    REQUIRE(hi.value().observability.sample_ratio == 1.0);
+
+    auto lo = infra::config::parse_server_config(
+        "[observability]\nsample_ratio = -1.0\n"sv);
+    REQUIRE(lo.has_value());
+    REQUIRE(lo.value().observability.sample_ratio == 0.0);
+}

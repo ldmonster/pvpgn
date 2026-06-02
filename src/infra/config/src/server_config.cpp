@@ -428,6 +428,22 @@ void parse_messages(const Config& cfg, ServerConfig& sc)
     }
 }
 
+// [observability] — OpenTelemetry export (Plan 11 / ADR 0010). Opt-in via a
+// non-empty otlp_endpoint; sample_ratio is clamped to [0, 1].
+void parse_observability(const Config& cfg, ServerConfig& sc)
+{
+    if (auto sec = cfg.section("observability")) {
+        sc.observability.service_name  =
+            sec->get_or<std::string>("service_name",  sc.observability.service_name);
+        sc.observability.otlp_endpoint =
+            sec->get_or<std::string>("otlp_endpoint", sc.observability.otlp_endpoint);
+        double r = sec->get_or<double>("sample_ratio", sc.observability.sample_ratio);
+        if (r < 0.0) r = 0.0;
+        if (r > 1.0) r = 1.0;
+        sc.observability.sample_ratio = r;
+    }
+}
+
 // ── top-level builder ─────────────────────────────────────────────────────────
 
 ServerConfig from_config(const Config& cfg)
@@ -459,6 +475,7 @@ ServerConfig from_config(const Config& cfg)
     parse_clan(cfg, sc);
     parse_command_log(cfg, sc);
     parse_messages(cfg, sc);
+    parse_observability(cfg, sc);
 
     return sc;
 }

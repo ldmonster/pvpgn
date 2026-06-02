@@ -22,28 +22,28 @@ class InMemoryLadderRepository final
     : public domain::ladder::ILadderRepository {
 public:
     core::Result<uint32_t, core::Error>
-    get_rank(std::string_view account_name) override {
+    get_rank(domain::AccountId account_id) override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
-        
+
         // Collect all entries and sort by rating
         std::vector<domain::ladder::LadderEntry> entries;
         for (const auto& [_account_id, entry] : by_account_) {
             entries.push_back(entry);
         }
-        
+
         // Sort by rating descending (higher rating = better rank)
         std::sort(entries.begin(), entries.end(),
                  [](const auto& a, const auto& b) {
                      return a.rating > b.rating;
                  });
-        
+
         // Find the account and return its rank
         for (std::uint32_t i = 0; i < entries.size(); ++i) {
-            if (std::to_string(entries[i].account.value()) == account_name) {
+            if (entries[i].account == account_id) {
                 return i + 1;  // Rank is 1-based
             }
         }
-        
+
         return core::fail(core::Error{
             core::StatusCode::NotFound,
             "ladder: account not found"});

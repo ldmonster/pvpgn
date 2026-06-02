@@ -31,10 +31,10 @@ public:
     std::vector<domain::ladder::LadderEntry> entries;
 
     core::Result<uint32_t, core::Error>
-    get_rank(std::string_view account_name) override {
+    get_rank(domain::AccountId account_id) override {
         for (uint32_t i = 0; i < entries.size(); ++i) {
             // rank by position (entries assumed sorted)
-            (void)account_name;
+            (void)account_id;
         }
         return core::fail(core::Error{core::StatusCode::NotFound, "not found"});
     }

@@ -435,6 +435,21 @@ quota_maxline            = 200
 quota_dobae              = 7
 
 ##############################################################################
+# [observability]  -- OpenTelemetry export (metrics / logs / traces)        #
+##############################################################################
+
+[observability]
+# Resource service.name reported to the collector.
+service_name  = "bnetd"
+# OTLP/HTTP collector base URL (e.g. "http://localhost:4318"). LEAVE EMPTY to
+# disable all remote export: metrics stay scrapeable at /metrics, logs stay on
+# the local file sink, and tracing is a no-op (default, unchanged behaviour).
+otlp_endpoint = ""
+# Head trace sampling ratio in [0, 1]. 0.05 = sample 5% of traces. Keep low
+# under load so the exporter queue stays bounded.
+sample_ratio  = 0.05
+
+##############################################################################
 # [command_log]  -- User command logging                                    #
 ##############################################################################
 

@@ -32,6 +32,10 @@ struct SpanContext {
     std::string trace_id;       ///< 16-byte hex string (32 chars)
     std::string span_id;        ///< 8-byte hex string (16 chars)
     std::string parent_span_id; ///< empty if this is a root span
+    /// Whether this trace is sampled. Decided once at the root and inherited by
+    /// every child (consistent sampling), so the SpanSink only fires for spans
+    /// belonging to a sampled trace.
+    bool        sampled = true;
 };
 
 // ---------------------------------------------------------------------------
@@ -45,8 +49,15 @@ struct SpanContext {
 /// - Move-only; copying is deleted.
 class Span {
 public:
-    /// Create a new root span with the given operation name.
+    /// Create a new root span with the given operation name. The sampling
+    /// decision is made here from the process-wide sample ratio.
     explicit Span(std::string_view name);
+
+    /// Create a child span of `parent`: it shares the parent's `trace_id` and
+    /// sampling decision, sets `parent_span_id` to the parent's span, and gets
+    /// a fresh `span_id`. Use this to propagate a trace across calls (and, with
+    /// a remote `SpanContext`, across services).
+    Span(std::string_view name, const SpanContext& parent);
 
     /// Records end time and calls the global SpanSink (if set).
     ~Span();
@@ -102,6 +113,19 @@ void set_global_span_sink(SpanSink sink);
 
 /// Retrieve the current process-wide span sink (may be a no-op).
 SpanSink get_global_span_sink();
+
+// ---------------------------------------------------------------------------
+// Sampling
+// ---------------------------------------------------------------------------
+
+/// Set the process-wide head sampling ratio in [0, 1] (values are clamped).
+/// 1.0 = sample every trace (the default; preserves "matches today" behaviour),
+/// 0.0 = sample none. Root spans draw their sampled decision from this ratio;
+/// children inherit it. Thread-safe.
+void set_sample_ratio(double ratio);
+
+/// The current process-wide sample ratio.
+[[nodiscard]] double get_sample_ratio();
 
 }  // namespace pvpgn::core::trace
 

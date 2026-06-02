@@ -10,7 +10,9 @@
 #include "infra/persistence/channel_repository.hpp"
 #include "infra/persistence/clan_repository.hpp"
 #include "infra/persistence/friend_list_repository.hpp"
+#include "infra/persistence/game_repository.hpp"
 #include "infra/persistence/ip_ban_repository.hpp"
+#include "infra/persistence/ladder_repository.hpp"
 #include "infra/persistence/realm_repository.hpp"
 
 namespace pvpgn::infra::persistence {
@@ -68,14 +70,22 @@ RepositoryFactory::create_friend_list_repository() {
 
 std::unique_ptr<domain::gameplay::IGameRepository>
 RepositoryFactory::create_game_repository() {
-    // TODO: Implement based on backend_
-    throw std::runtime_error("Not yet implemented");
+    if (!driver_) {
+        throw std::runtime_error(
+            "RepositoryFactory: game repository needs a driver "
+            "(use the driver-injecting constructor)");
+    }
+    return std::make_unique<SqlGameRepository>(driver_);
 }
 
 std::unique_ptr<domain::ladder::ILadderRepository>
 RepositoryFactory::create_ladder_repository() {
-    // TODO: Implement based on backend_
-    throw std::runtime_error("Not yet implemented");
+    if (!driver_) {
+        throw std::runtime_error(
+            "RepositoryFactory: ladder repository needs a driver "
+            "(use the driver-injecting constructor)");
+    }
+    return std::make_unique<SqlLadderRepository>(driver_);
 }
 
 std::unique_ptr<domain::realm::IRealmRepository>
