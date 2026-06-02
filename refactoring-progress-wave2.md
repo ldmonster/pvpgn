@@ -603,7 +603,36 @@ Linux).
       `parse_server_config` + `TomlSchemaValidator::validate` never throw/crash
       (always return a `Result`); 4 cases / 6023 assertions green.
       **All three plan-listed property suites are complete.**
-- [ ] Mutation testing pilot: run `mull` over `domain/identity/` weekly
+- [x] Mutation testing pilot: run `mull` **or equivalent** over
+      `domain/identity/` weekly. 2026-06-02: `mull` needs a bespoke LLVM/clang
+      IR-plugin toolchain (not installable here), so built the in-tree,
+      dependency-free equivalent the plan allows: `scripts/dev/mutation_pilot.py`
+      — swaps one operator token at a time (`==`↔`!=`, `<=`→`<`, `>=`→`>`,
+      `&&`↔`||`) in code (skips comments/strings), rebuilds the paired test
+      target, and runs it; test fails ⇒ mutant killed, test passes ⇒ **survivor**
+      (a concrete missing-assertion pointer). Pilot, never a gate (always exits
+      0). Weekly CI: `.github/workflows/mutation.yml` (Mon 06:00 UTC +
+      workflow_dispatch) runs it over `build/v3-dev` and uploads the JSON/txt
+      report as an artifact. Documented in `docs/developer/testing.md`.
+      **First run (local, GCC13):** 20 mutants over `account.hpp` +
+      `attribute_map.hpp`; initial score 37.5% on the sampled batch — the pilot
+      found that `CommandGroupMask::grant/revoke/has` boundary guards
+      (`group >= 1 && group <= kBits`) were **untested at the bounds**. Closed
+      that gap with a `CommandGroupMask: boundary validation` test
+      (`account_test.cpp`, groups 0/1/8/9 + the `&&` short-circuit) → all 6
+      boundary mutants now killed, score 75% (15 killed / 5 survived of 20).
+      Then closed the 5 remaining survivors with targeted tests in
+      `account_test.cpp` (admin-tier/value-equality, `verify_password`,
+      `is_login_barred` expired-vs-active-ban, out-of-range `grant_command_group`):
+      **score now 95%** (19 killed / 1 survived of 20). The lone remaining
+      survivor — `account.hpp:160` (`&&`→`||` on the expired-ban-clear branch in
+      `login()`) — is a **UB-dependent / effectively-equivalent mutant**: the only
+      input that distinguishes it is a *no-ban* login, which under the mutant
+      reads an uninitialized `std::optional<Ban>` (UB), so any "killing" test
+      would be flaky. Documented as such rather than chased with a flaky test —
+      a textbook mutation-testing outcome (not every survivor is a real gap).
+      Verified: pilot end-to-end locally (restores cleanly, no residue); 4 new
+      test cases green; full suite 100% (2560).
 
 ---
 

@@ -82,6 +82,7 @@ The `CI` workflow (`.github/workflows/ci.yml`) runs on every PR and enforces:
 | `lint` | unit-test pairing, no legacy/backend linkage in `tests/unit/`, no orphan scripts | `scripts/dev/check-unit-pairing.sh`, `check-test-legacy-linkage.sh`, `check-scripts-orphans.sh` |
 | `layer-check` | hexagonal layering | `Dockerfile.v3 --target v3-layer-check` |
 | `build-test` | full v3 build + unit suite (SQLite enabled) | `Dockerfile.v3 --target v3-test` |
+| `compiler-matrix` | v3 builds + tests clean on the C++23 floor across frontends | GCC 14 + Clang 18 via the `v3-dev` preset (Plan 09) |
 | `sanitizers` | ASan / UBSan / TSan clean | presets `v3-asan` / `v3-ubsan` / `v3-tsan` |
 | `coverage` | `domain/` + `application/` line coverage ≥ floor | `scripts/dev/check-coverage.sh` over `v3-coverage` |
 | `fuzz-smoke` | each libFuzzer harness survives a 60 s run on its corpus | preset `v3-fuzz` |
@@ -107,6 +108,31 @@ layer rule above) so it ratchets and catches regressions.
 > The `ci.yml` apt dependency set and the coverage floor are the two first-run
 > calibration points; everything else reuses the proven `Dockerfile.v3` stages
 > and the existing CMake presets.
+
+### Mutation pilot (weekly, informational)
+
+`.github/workflows/mutation.yml` runs **weekly** (Mondays) and on demand. It is
+a *pilot, not a gate* (Plan 10 step 7): it never fails the build, it publishes a
+report. Rather than `mull` (which needs a bespoke LLVM/clang IR plugin
+toolchain), it uses an in-tree, dependency-free equivalent:
+
+```bash
+# Mutate domain/identity/, rebuild + run the paired tests for each mutant.
+python3 scripts/dev/mutation_pilot.py --build build [--max-mutants N] [--json report.json]
+```
+
+For each operator-swap mutant (`==`↔`!=`, `<=`→`<`, `>=`→`>`, `&&`↔`||`) in a
+target source it rebuilds the paired test and runs it:
+
+- test **fails** → mutant **killed** (the suite caught the change) — good;
+- test **passes** → mutant **survived** — a behaviour change no test detects,
+  i.e. a concrete "add a test here" pointer;
+- doesn't compile → counted as killed-by-compile.
+
+The output is a **mutation score** plus the file:line of every survivor. The
+pilot is scoped to `domain/identity/` and skips operators inside comments and
+string/char literals. Treat surviving mutants as a backlog of missing
+assertions, not as failures.
 
 ## Catch2 Conventions
 

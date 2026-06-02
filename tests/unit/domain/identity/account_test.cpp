@@ -161,6 +161,146 @@ TEST_CASE("Account::change_password updates hash + emits event",
     REQUIRE(outcome == Account::LoginOutcome::Accepted);
 }
 
+TEST_CASE("CommandGroupMask: boundary validation of group numbers",
+          "[domain][identity][permissions]") {
+    using domain::identity::CommandGroupMask;
+    // Valid groups are exactly 1..kBits (8). These cases pin every boundary so
+    // the `group >= 1 && group <= kBits` guards in grant/revoke/has are exact
+    // (mutation pilot: catches >=->>, <=-><, &&->|| on those lines).
+    CommandGroupMask mask;
+
+    // Below the low bound: 0 must be rejected by grant and has.
+    mask.grant(0);
+    CHECK_FALSE(mask.has(0));
+    CHECK_FALSE(mask.any());
+
+    // The low bound itself: 1 is valid.
+    mask.grant(1);
+    CHECK(mask.has(1));
+
+    // The high bound itself: kBits (8) is valid (kills <=-><, which would
+    // reject 8).
+    mask.grant(8);
+    CHECK(mask.has(8));
+
+    // Just past the high bound: 9 must be rejected (kills >=->> only-direction
+    // and any off-by-one that would admit 9).
+    mask.grant(9);
+    CHECK_FALSE(mask.has(9));
+
+    // has() with an out-of-range group returns false even when bits are set —
+    // exercises the && short-circuit (kills &&->||, which would dereference an
+    // out-of-range bit).
+    CHECK_FALSE(mask.has(0));
+    CHECK_FALSE(mask.has(9));
+
+    // revoke() respects the same bounds. Out-of-range revokes are no-ops (and
+    // must not touch an out-of-range bit — kills &&->|| on the revoke line).
+    mask.revoke(0);
+    mask.revoke(9);
+    CHECK(mask.has(1));
+    CHECK(mask.has(8));
+
+    // revoke at the low bound (1) undoes the grant — kills >=->> on revoke.
+    mask.revoke(1);
+    CHECK_FALSE(mask.has(1));
+
+    // revoke at the high bound (8 == kBits) undoes the grant — kills <=-><
+    // on revoke, which would refuse to clear group 8.
+    mask.revoke(8);
+    CHECK_FALSE(mask.has(8));
+    CHECK_FALSE(mask.any());
+}
+
+TEST_CASE("CommandGroupMask: admin tiers and value equality",
+          "[domain][identity][permissions]") {
+    using domain::identity::CommandGroupMask;
+    // is_admin() is groups 7 OR 8 (legacy admin). Each alone must qualify --
+    // kills the ||->&& mutant on `test(6) || test(7)`.
+    CommandGroupMask only7;
+    only7.grant(7);
+    CHECK(only7.is_admin());
+    CommandGroupMask only8;
+    only8.grant(8);
+    CHECK(only8.is_admin());
+    CommandGroupMask only1;
+    only1.grant(1);
+    CHECK_FALSE(only1.is_admin());
+
+    // Value equality must be exact -- exercises the defaulted operator== so a
+    // mutation of it is caught (by behaviour, or by failing to compile).
+    CommandGroupMask a;
+    CommandGroupMask b;
+    a.grant(3);
+    b.grant(3);
+    CHECK(a == b);
+    b.grant(4);
+    CHECK(a != b);
+    CHECK_FALSE(a == b);
+}
+
+TEST_CASE("Account::verify_password matches only the stored hash",
+          "[domain][identity]") {
+    // Kills the ==->!= mutant on `password_ == candidate`.
+    auto a = make_account("Eve", 0x33);
+    auto correct = BNHash::from_bytes(std::string(20, 0x33)).value();
+    auto wrong   = BNHash::from_bytes(std::string(20, 0x44)).value();
+    CHECK(a.verify_password(correct));
+    CHECK_FALSE(a.verify_password(wrong));
+}
+
+TEST_CASE("Account::is_login_barred gates on lock + active ban only",
+          "[domain][identity]") {
+    using domain::Ban;
+    using domain::BanScope;
+    const auto t0 = std::chrono::system_clock::time_point{} + std::chrono::hours{100};
+
+    auto make_with = [](std::optional<Ban> ban, bool locked) {
+        auto u = UserName::parse("Dave").value();
+        auto h = BNHash::from_bytes(std::string(20, 0x42)).value();
+        return Account::rehydrate(AccountId{7}, std::move(u), std::move(h),
+                                  Locale::parse_or_default("enUS"),
+                                  domain::identity::CommandGroupMask{},
+                                  std::move(ban), locked);
+    };
+
+    const Ban expired{BanScope::Account, "old", AccountId{2},
+                      t0 - std::chrono::hours{2}, t0 - std::chrono::hours{1}};
+    const Ban active{BanScope::Account, "cur", AccountId{2},
+                     t0, t0 + std::chrono::hours{1}};
+
+    // An expired ban must NOT bar login -- kills the &&->|| mutant on
+    // `ban_ && ban_->active_at(now)` (which would bar on any ban's presence).
+    CHECK_FALSE(make_with(expired, /*locked=*/false).is_login_barred(t0));
+    // An active ban bars.
+    CHECK(make_with(active, /*locked=*/false).is_login_barred(t0));
+    // A lock bars regardless of ban.
+    CHECK(make_with(std::nullopt, /*locked=*/true).is_login_barred(t0));
+    // Clean account is not barred.
+    CHECK_FALSE(make_with(std::nullopt, /*locked=*/false).is_login_barred(t0));
+}
+
+TEST_CASE("Account::grant_command_group rejects out-of-range groups silently",
+          "[domain][identity][permissions]") {
+    // Kills the ||->&& mutant on the `group < 1 || group > kBits` guard: with
+    // `&&` the guard never fires, so an out-of-range group would emit a
+    // spurious AccountCommandGroupGranted event and leave no bit set.
+    auto a = make_account("Gina", 0x66);
+    (void)a.drain_events();
+    a.grant_command_group(0);
+    a.grant_command_group(9);
+    auto evs = a.drain_events();
+    CHECK(evs.empty());
+    CHECK_FALSE(a.command_groups().has(0));
+    CHECK_FALSE(a.command_groups().has(9));
+    // A valid grant still works (and emits exactly one event).
+    a.grant_command_group(2);
+    auto evs2 = a.drain_events();
+    REQUIRE(evs2.size() == 1);
+    CHECK(std::holds_alternative<domain::events::AccountCommandGroupGranted>(evs2[0]));
+    CHECK(a.command_groups().has(2));
+}
+
 TEST_CASE("Account::rehydrate preserves state without emitting events",
           "[domain][identity][repository]") {
     auto u = UserName::parse("Carol").value();
