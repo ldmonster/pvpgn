@@ -16,6 +16,7 @@ target_sources(pvpgn_application_auth
     src/password_rotation_observer.cpp
     src/lookup_account.cpp
     src/list_sessions.cpp
+    src/password_upgrade.cpp
 )
 
 target_include_directories(pvpgn_application_auth

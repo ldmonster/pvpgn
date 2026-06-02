@@ -2,6 +2,11 @@ pvpgn_v3_add_test(test_infra_crypto_bnet_hash
     SOURCES bnet_hash_test.cpp
     DEPS    infra_crypto)
 
+# Plan 08: SRP-3 golden-vector / round-trip regression test.
+pvpgn_v3_add_test(test_infra_crypto_bnet_srp3_golden
+    SOURCES bnet_srp3_golden_test.cpp
+    DEPS    infra_crypto)
+
 # Parity test compares the new infra/crypto implementation against the
 # legacy src/common/ code. Guard on target existence since PVPGN_BUILD_LEGACY
 # has been removed; the `common` target is present when the legacy tree is built.

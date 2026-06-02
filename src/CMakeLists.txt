@@ -134,9 +134,26 @@ pvpgn_v3_add_library(core
         core/src/error.cpp
         core/src/trace.cpp
         core/src/metrics.cpp
+        core/src/crypto/secure_random.cpp   # Plan 08: canonical CSPRNG
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
+
+# Plan 08 / ADR 0008: when libsodium is available, SecureRandom delegates to
+# randombytes_buf and the argon2id hasher can be built. Header-gated so the
+# portable std::random_device path is used everywhere else.
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SODIUM QUIET libsodium)
+endif()
+if(SODIUM_FOUND)
+    target_compile_definitions(core PRIVATE PVPGN_V3_WITH_SODIUM)
+    target_include_directories(core PRIVATE ${SODIUM_INCLUDE_DIRS})
+    target_link_libraries(core PUBLIC ${SODIUM_LIBRARIES})
+    message(STATUS "pvpgn v3: libsodium found — SecureRandom uses randombytes_buf")
+else()
+    message(STATUS "pvpgn v3: libsodium not found — SecureRandom uses std::random_device")
+endif()
 
 # ---- core/* subdirectories (Plan 02: migrated from src/common/) -----------
 
@@ -269,21 +286,36 @@ endif()
 # peerchat}.cpp. Migration is incremental -- legacy headers stay until
 # every consumer has switched.
 
+# Plan 08 / ADR 0008: the argon2id at-rest hasher is compiled only when
+# libsodium is available (SODIUM_FOUND is probed next to the `core` target
+# above). Without it, infra_crypto builds exactly as before.
+set(_infra_crypto_sources
+    infra/crypto/src/bnet_hash.cpp
+    infra/crypto/src/bnet_hash_conv.cpp
+    infra/crypto/src/big_uint.cpp
+    infra/crypto/src/wol_hash.cpp
+    infra/crypto/src/peerchat.cpp
+    infra/crypto/src/bnet_srp3.cpp
+)
+if(SODIUM_FOUND)
+    list(APPEND _infra_crypto_sources infra/crypto/src/argon2id_password_hasher.cpp)
+endif()
+
 pvpgn_v3_add_library(infra_crypto
     STATIC
     SOURCES
-        infra/crypto/src/bnet_hash.cpp
-        infra/crypto/src/bnet_hash_conv.cpp
-        infra/crypto/src/big_uint.cpp
-        infra/crypto/src/wol_hash.cpp
-        infra/crypto/src/peerchat.cpp
-        infra/crypto/src/bnet_srp3.cpp
+        ${_infra_crypto_sources}
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/infra/crypto/include
     PUBLIC_DEPS
         core
         Boost::headers
 )
+if(SODIUM_FOUND)
+    target_compile_definitions(infra_crypto PRIVATE PVPGN_V3_WITH_SODIUM)
+    target_include_directories(infra_crypto PRIVATE ${SODIUM_INCLUDE_DIRS})
+    target_link_libraries(infra_crypto PRIVATE ${SODIUM_LIBRARIES})
+endif()
 
 # R281: NLS/SRP-6a crypto (WAR3/W3XP 1024-bit prime, OpenSSL BN_*).
 # Only built when OpenSSL is available.
@@ -819,6 +851,7 @@ pvpgn_v3_add_library(application_auth
         application/auth/src/permission_checker.cpp
         application/auth/src/lookup_account.cpp
         application/auth/src/list_sessions.cpp
+        application/auth/src/password_upgrade.cpp   # Plan 08: at-rest upgrade policy
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/auth/include
     PUBLIC_DEPS

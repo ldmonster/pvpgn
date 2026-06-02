@@ -10,6 +10,7 @@
       "platform": "windows"
     },
     "fmt",
+    "libsodium",
     "nlohmann-json",
     "boost-system",
     "boost-asio",

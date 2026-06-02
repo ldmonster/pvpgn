@@ -15,6 +15,8 @@ pvpgn_v3_add_test(test_core_string_utils SOURCES string_utils_test.cpp    DEPS c
 pvpgn_v3_add_test(test_core_contract     SOURCES contract_test.cpp        DEPS core)
 # R331: Secret<T> — prevents accidental logging of sensitive values
 pvpgn_v3_add_test(test_core_secret       SOURCES secret_test.cpp          DEPS core)
+# Plan 08: canonical CSPRNG
+pvpgn_v3_add_test(test_core_secure_random SOURCES secure_random_test.cpp  DEPS core)
 
 # R213 (plans/01-modern-cpp-baseline.md S3): every public header in
 # src/v3/core/include/core/ must compile in isolation. Adding a new
@@ -26,6 +28,8 @@ pvpgn_v3_add_header_selfcheck(test_core_headers_selfcontained
         core/bytes.hpp
         core/clock.hpp
         core/contract.hpp
+        core/crypto/password_hasher.hpp
+        core/crypto/secure_random.hpp
         core/cxx.hpp
         core/endian.hpp
         core/error.hpp

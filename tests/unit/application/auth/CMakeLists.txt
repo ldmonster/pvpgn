@@ -2,6 +2,11 @@ pvpgn_v3_add_test(test_application_auth_login_user
     SOURCES login_user_test.cpp
     DEPS    application_auth infra_inmemory)
 
+# Plan 08: transparent password-at-rest upgrade policy (plaintext-bearing auth)
+pvpgn_v3_add_test(test_application_auth_password_upgrade
+    SOURCES password_upgrade_test.cpp
+    DEPS    application_auth)
+
 pvpgn_v3_add_test(test_application_auth_login_classifier
     SOURCES login_classifier_test.cpp
     DEPS    application_auth)
