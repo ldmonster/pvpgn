@@ -896,14 +896,26 @@ can't exercise, and the optional `std::expected` re-backing follow-up.
 > rationale) grouped network/application/performance, a **stable 3-metric
 > mandatory contract** (connections_active / logins_total / request_latency_ms)
 > + suggested alerts; linked from `docs/index.md` + mkdocs nav (reachability gate
-> green for the new page). Remaining: wire `sample_ratio` →
-> `trace::set_sample_ratio` + OTLP sinks at the composition root,
-> `infra/observability/` exporters (collector-gated), inter-service trace header.
+> green for the new page).
+>
+> 2026-06-02 (cont.): **composition-root sample-ratio wiring done.** `bnetd`
+> `main.cpp` now `#include`s `core/trace.hpp` and, at startup (after logger
+> init, where the loaded `infra::config::ServerConfig` is in scope), applies
+> `core::trace::set_sample_ratio(observability.sample_ratio)` and logs the
+> effective observability config (local-only vs otlp_endpoint set). Default 1.0
+> preserves today's behaviour; production lowers it (default 0.05). Safe with no
+> span sink installed (the sink never fires). Verified: bnetd builds+links
+> clean; full suite 100% (2560); both ends already unit-tested (ratio clamping
+> in `trace_test`, parse in `server_config_test`). Remaining: install the
+> concrete OTLP/HTTP span sink when `otlp_endpoint` is set, `infra/observability/`
+> exporters (collector/libcurl-gated), inter-service trace-context header.
 
 **Acceptance Criteria:**
 - [ ] With `[observability].otlp_endpoint` set, traces, metrics, and logs land on a local OTel collector
 - [~] With endpoint unset, default behaviour matches today — config + trace
-      sampling default to off/1.0 (no behaviour change); composition-root wiring pending
+      sampling default to off/1.0 (no behaviour change); composition-root
+      sample-ratio wiring **done** (bnetd applies `set_sample_ratio` at startup);
+      OTLP span-sink install still pending the exporter
 - [ ] Trace context propagates across `bnetd → d2cs → d2dbs` in an e2e fixture
 - [x] `docs/operator/metrics.md` lists every emitted metric with type, labels, and rationale
 

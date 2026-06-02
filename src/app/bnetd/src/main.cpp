@@ -61,6 +61,7 @@
 // v3 infrastructure
 #include "core/bytes.hpp"
 #include "core/format.hpp"
+#include "core/trace.hpp"
 #include "domain/connection/connection_context.hpp"
 #include "application/connection/connection_fsm.hpp"
 #include "infra/net/io_runtime.hpp"
@@ -200,6 +201,26 @@ int main(int argc, char* argv[]) {
                 }
             }
             infra::log::make_and_install_logger(infra_cfg.log, "bnetd");
+
+            // 2c. Observability (Plan 11 / ADR 0010): apply the head-sampling
+            // ratio from [observability].sample_ratio to the process-wide
+            // tracer. The default 1.0 preserves today's "every span" behaviour;
+            // production lowers it (default 0.05) to bound the exporter queue.
+            // This is safe with no span sink installed — the sink simply never
+            // fires. Installing the concrete OTLP/HTTP span sink when
+            // otlp_endpoint is set is the remaining exporter follow-up.
+            const auto& obs = infra_cfg.observability;
+            core::trace::set_sample_ratio(obs.sample_ratio);
+            if (!obs.otlp_endpoint.empty()) {
+                LOG_INFO("bnetd",
+                    "observability: service={} otlp_endpoint={} sample_ratio={} "
+                    "(traces sampled; OTLP span export pending exporter)",
+                    obs.service_name, obs.otlp_endpoint, obs.sample_ratio);
+            } else {
+                LOG_INFO("bnetd",
+                    "observability: local-only (no otlp_endpoint); sample_ratio={}",
+                    obs.sample_ratio);
+            }
         }
 #endif
         LOG_INFO("bnetd", "pvpgn bnetd starting, config={}",

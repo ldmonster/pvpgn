@@ -81,8 +81,14 @@ Two candidates:
       `parse_observability` (ratio clamped to [0,1]); `[observability]` added to
       `conf/bnetd.toml.in` (endpoint empty ⇒ export off). Tested in
       `server_config_test.cpp` (defaults / populated / clamping).
-- [ ] Wire `observability.sample_ratio` → `core::trace::set_sample_ratio` and
+- [~] Wire `observability.sample_ratio` → `core::trace::set_sample_ratio` and
       install the OTLP sinks at the composition root when `otlp_endpoint` is set.
+      2026-06-02: **sample-ratio wiring done** — `bnetd` `main.cpp` applies
+      `core::trace::set_sample_ratio(observability.sample_ratio)` at startup
+      (after logger init) and logs the effective observability config (local-only
+      vs OTLP-endpoint-set). Safe with no sink installed (the sink never fires).
+      Installing the concrete OTLP/HTTP span sink when `otlp_endpoint` is set
+      remains (depends on the exporter below).
 - [ ] `infra/observability/` OTLP/HTTP JSON exporters (metrics, logs, spans),
       wired only when `otlp_endpoint` is set.
 - [ ] Inter-service trace-context header for `bnetd → d2cs → d2dbs`.
