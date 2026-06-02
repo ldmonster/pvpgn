@@ -1,28 +1,18 @@
 set(COMMON_SOURCES
-	# Wire protocol headers and packet utilities (Plan 02 - kept in src/common/)
-	# These are true wire-protocol constants and packet handling utilities
-	# that are still needed by legacy code and v3 protocol decoders.
-	# Future: Move to src/protocol/<family>/include/ when consumers are updated.
-	
-	# Packet handling (core wire protocol utilities)
-	packet_buffer.cpp packet_writer.cpp packet_reader.cpp
-	packet.cpp packet.h
-	
-	# Wire protocol headers (Battle.net, D2, IRC, UDP, File, WOL)
-	anongame_protocol.h bnet_protocol.h bot_protocol.h init_protocol.h
-	irc_protocol.h udp_protocol.h file_protocol.h wol_gameres_protocol.h
-	
-	# D2 protocol headers
-	d2char_checksum.cpp d2char_checksum.h d2char_file.h
-	d2cs_bnetd_protocol.h d2cs_d2dbs_ladder.h d2cs_d2gs_character.h
-	d2cs_d2gs_protocol.h d2cs_protocol.h d2game_protocol.h
-	
-	# Wire protocol field definitions and utilities
-	field_sizes.h lstr.h tracker.h
-	
-	# Setup headers (compatibility layer - Plan 02 kept in src/common/)
+	# Plan 02 Phase 2 (2026-06-02): the legacy `*_protocol.h` wire-format headers
+	# AND the legacy packet utilities (packet*.cpp/.h, field_sizes.h, lstr.h,
+	# d2char_checksum.*) were DELETED — all dead (uncompilable / zero v3
+	# consumers) and superseded by the native protocol layer:
+	#   wire types   → src/protocol/<family>/include/protocol/<family>/
+	#   packet codec → src/protocol/common/ (the built `protocol_common` lib:
+	#                  packet.hpp / reader.hpp / writer.hpp / replay.hpp / ...)
+	# What remains here is the setup compatibility shim + the Plan-08-deferred
+	# crypto (to migrate to src/infra/crypto/) and the vendored pugixml copy.
+
+	# Setup headers (compatibility layer - still included by win32/* and
+	# infra/legacy_crypto; kept until those callers retire)
 	setup_before.h setup_after.h
-	
+
 	# Crypto files (Plan 08 - deferred to crypto modernization)
 	# These will be moved to src/infra/crypto/ in Plan 08
 	bnethashconv.cpp bnethashconv.h bnethash.cpp bnethash.h

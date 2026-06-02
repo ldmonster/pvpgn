@@ -4,9 +4,12 @@
 #include <cstdint>
 #include <cstring>
 
-#include "common/setup_before.h"
+// `common/bnethash.h` is self-contained (only <cstdint> + the pvpgn::bnet_hash
+// declarations); it needs no legacy `setup_before/after.h` wrap, and this TU
+// uses no compile-time config macros. The bnethash.h include itself is the
+// last `common/` dependency here and retires with Plan 08 (crypto migration to
+// src/infra/crypto/).
 #include "common/bnethash.h"
-#include "common/setup_after.h"
 
 namespace pvpgn::infra::legacy_crypto {
 
