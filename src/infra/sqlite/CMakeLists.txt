@@ -1,24 +1,12 @@
 add_library(pvpgn_infra_sqlite STATIC
     include/infra/sqlite/connection.hpp
-    include/infra/sqlite/account_repository.hpp
-    include/infra/sqlite/clan_repository.hpp
-    include/infra/sqlite/ladder_repository.hpp
-    include/infra/sqlite/ip_ban_repository.hpp
-    include/infra/sqlite/account_ban_repository.hpp
-    include/infra/sqlite/friend_list_repository.hpp
-    include/infra/sqlite/realm_repository.hpp
-    include/infra/sqlite/sqlite_channel_repository.hpp
+    # Plan 07 (2026-06-02): ALL per-backend SQLite aggregate repos were deleted.
+    # They were superseded by the consolidated driver-parameterized repos in
+    # src/infra/persistence/ (SQLiteUnitOfWork builds those over a SqliteDriver).
+    # This lib is now driver/connection/UoW only — no aggregate repo code.
     include/infra/sqlite/unit_of_work.hpp
     include/infra/sqlite/unit_of_work_factory.hpp
     src/connection.cpp
-    src/account_repository.cpp
-    src/clan_repository.cpp
-    src/ladder_repository.cpp
-    src/ip_ban_repository.cpp
-    src/account_ban_repository.cpp
-    src/friend_list_repository.cpp
-    src/realm_repository.cpp
-    src/sqlite_channel_repository.cpp
     src/unit_of_work.cpp
     src/unit_of_work_factory.cpp
     # Plan 07: SQLite IDbDriver adapter (wraps SQLiteConnection as an IDbDriver

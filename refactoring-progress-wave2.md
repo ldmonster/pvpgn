@@ -341,10 +341,33 @@ Linux).
 > add mysql/postgres `IDbDriver`s, delete the per-backend repos, and
 > parameterize the repository tests across all three drivers — needs MySQL/
 > PostgreSQL backends + testcontainers, which are environment-gated here.
+>
+> 2026-06-02: **deleted ALL 8 per-backend SQLite repos.** `SQLiteUnitOfWork`
+> was already migrated to construct the consolidated `persistence::Sql*Repository`
+> over a `SqliteDriver`, so the per-backend `infra/sqlite/*_repository` were dead.
+> Round 1 (zero-consumer): deleted `account_ban`/`clan`/`friend_list`/`ip_ban`/
+> `ladder`/`realm`/`sqlite_channel`. Round 2 (`account`, which had test
+> consumers): **migrated** the on-disk integration test
+> (`tests/integration/account_repository_integration_test.cpp`) from
+> `infra::sqlite::SQLiteAccountRepository repo(conn)` to the consolidated
+> `persistence::SqlAccountRepository` over a `SqliteDriver(conn)` (same path
+> bnetd uses); **deleted** the redundant unit test dir
+> `tests/unit/infra/sqlite/` (its coverage is the consolidated
+> `tests/unit/infra/persistence/sql_account_repository_test.cpp`) and the whole
+> **deprecated `infra/persistence/sqlite/`** shim dir (`#error`-guarded, never
+> built); then deleted `infra/sqlite/{src,include}/account_repository.*` and
+> pruned the CMakeLists (sqlite lib source list + the `add_subdirectory(sqlite)`
+> test guard). `infra/sqlite/` now holds only the driver/connection/UoW — **no
+> aggregate repo code** (criterion 2 met for SQLite). Reference-verified, no
+> dangling includes; SQLite is gated off locally (no `sqlite3.h`), so the
+> migrated/deleted code is not build-verified here — the migration mirrors
+> `unit_of_work.cpp` exactly. v3 build + suite stay 100% (2560).
 
 **Acceptance Criteria:**
 - [ ] Exactly one `*_repository.cpp` per aggregate
-- [ ] `infra/{sqlite,mysql,postgres}/` contain only driver adapters, no aggregate code
+- [~] `infra/{sqlite,mysql,postgres}/` contain only driver adapters, no
+      aggregate code — **SQLite done** (all per-backend repos deleted 2026-06-02;
+      `infra/sqlite/` is driver/connection/UoW only); mysql/postgres pending
 - [ ] CI runs the repository test matrix against all three backends
 - [ ] Switching `[storage].backend` requires no recompilation
 
@@ -353,7 +376,10 @@ Linux).
 - [ ] Move each `infra/<backend>/<aggregate>_repository.cpp` into `infra/persistence/<aggregate>_repository.cpp`
 - [x] `infra/persistence/repository_factory.cpp` builds the chosen driver from `[storage].backend` in `bnetd.toml`
 - [x] Consolidate migrations into `infra/migrations/<aggregate>/Vnnnn__name.sql` with `-- dialect:` headers; ADR `0007-migration-format.md`
-- [ ] Delete per-aggregate repositories from `src/infra/sqlite/`, `src/infra/mysql/`, `src/infra/postgres/`
+- [~] Delete per-aggregate repositories from `src/infra/sqlite/`,
+      `src/infra/mysql/`, `src/infra/postgres/` — 2026-06-02: **all 8 SQLite
+      per-backend repos deleted** (`infra/sqlite/` is now driver/connection/UoW
+      only); mysql/postgres pending backend availability.
 - [ ] Repository tests run against all three drivers via parameterized fixtures
 
 **Completed (2026-06-01):**

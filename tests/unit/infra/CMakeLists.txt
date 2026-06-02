@@ -31,9 +31,9 @@ if(TARGET infra_xml)
     add_subdirectory(xml)
 endif()
 add_subdirectory(webui)
-if(TARGET pvpgn_infra_sqlite)
-    add_subdirectory(sqlite)
-endif()
+# tests/unit/infra/sqlite/ removed (Plan 07): its only test covered the deleted
+# per-backend SQLiteAccountRepository; the consolidated repo is tested by
+# tests/unit/infra/persistence/sql_account_repository_test.cpp.
 if(TARGET pvpgn_infra_file)
     add_subdirectory(file)
 endif()

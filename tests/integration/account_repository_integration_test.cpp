@@ -23,7 +23,12 @@
 #include "domain/shared/user_name.hpp"
 
 #ifdef PVPGN_HAS_INFRA_SQLITE
-#include "infra/sqlite/account_repository.hpp"
+// Plan 07: the per-backend infra/sqlite account repo was retired; these
+// on-disk integration tests now drive the consolidated, driver-parameterized
+// persistence::SqlAccountRepository over a SqliteDriver wrapping a real
+// on-disk SQLiteConnection (the same path bnetd uses via SQLiteUnitOfWork).
+#include "infra/persistence/account_repository.hpp"
+#include "infra/persistence/sql_builder/sqlite_driver.hpp"
 #include "infra/sqlite/connection.hpp"
 #include "infra/migrations/migration_runner.hpp"
 #include "infra/migrations/all_migrations.hpp"
@@ -95,7 +100,7 @@ std::string getenv_str(const char* name) {
 
 #ifdef PVPGN_HAS_INFRA_SQLITE
 
-TEST_CASE("SQLiteAccountRepository: save and find by name (on-disk)",
+TEST_CASE("SqlAccountRepository over SQLite: save and find by name (on-disk)",
           "[integration][sqlite]") {
     // Use a real on-disk SQLite file in a temp directory.
     TempDir tmp;
@@ -121,7 +126,8 @@ TEST_CASE("SQLiteAccountRepository: save and find by name (on-disk)",
     runner.ensure_migration_table();
     runner.migrate_to_latest(infra::migrations::get_all_migrations());
 
-    infra::sqlite::SQLiteAccountRepository repo(conn);
+    auto driver = std::make_shared<infra::persistence::SqliteDriver>(conn);
+    infra::persistence::SqlAccountRepository repo(driver);
 
     auto account = make_account(1, "IntegUser");
     REQUIRE(repo.save(account).has_value());
@@ -132,7 +138,7 @@ TEST_CASE("SQLiteAccountRepository: save and find by name (on-disk)",
     REQUIRE(found->id().value() == 1u);
 }
 
-TEST_CASE("SQLiteAccountRepository: find non-existent returns error (on-disk)",
+TEST_CASE("SqlAccountRepository over SQLite: find non-existent returns error (on-disk)",
           "[integration][sqlite]") {
     TempDir tmp;
     const auto db_path = (tmp.path() / "test2.db").string();
@@ -155,13 +161,14 @@ TEST_CASE("SQLiteAccountRepository: find non-existent returns error (on-disk)",
     runner.ensure_migration_table();
     runner.migrate_to_latest(infra::migrations::get_all_migrations());
 
-    infra::sqlite::SQLiteAccountRepository repo(conn);
+    auto driver = std::make_shared<infra::persistence::SqliteDriver>(conn);
+    infra::persistence::SqlAccountRepository repo(driver);
 
     auto result = repo.find_by_name(domain::UserName::parse("NoSuchUser").value());
     REQUIRE_FALSE(result.has_value());
 }
 
-TEST_CASE("SQLiteAccountRepository: duplicate save returns error (on-disk)",
+TEST_CASE("SqlAccountRepository over SQLite: duplicate save returns error (on-disk)",
           "[integration][sqlite]") {
     TempDir tmp;
     const auto db_path = (tmp.path() / "test3.db").string();
@@ -184,7 +191,8 @@ TEST_CASE("SQLiteAccountRepository: duplicate save returns error (on-disk)",
     runner.ensure_migration_table();
     runner.migrate_to_latest(infra::migrations::get_all_migrations());
 
-    infra::sqlite::SQLiteAccountRepository repo(conn);
+    auto driver = std::make_shared<infra::persistence::SqliteDriver>(conn);
+    infra::persistence::SqlAccountRepository repo(driver);
 
     auto a1 = make_account(1, "DupUser");
     REQUIRE(repo.save(a1).has_value());
