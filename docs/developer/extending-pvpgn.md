@@ -243,6 +243,54 @@ The `plugins/` directory ships several ready-to-use plugins:
 
 ---
 
+## Capabilities
+
+Every plugin runs under an explicit, least-privilege capability grant. A plugin
+declares the capabilities it needs in its `plugin.toml` manifest
+(`requires = [...]`); the host grants exactly those, and enforces each at the
+call boundary (an O(1) bitmask test). A native plugin may additionally export
+`pvpgn_plugin_get_capabilities()` — the host verifies the returned bitmask is a
+**subset** of the manifest grant at load time.
+
+| Token (manifest) | C ABI flag | Allows |
+|------------------|------------|--------|
+| `chat.send`        | `PVPGN_CAP_CHAT_SEND`        | send to channels / whisper |
+| `chat.emote`       | `PVPGN_CAP_CHAT_EMOTE`       | emote |
+| `db.read`          | `PVPGN_CAP_DB_READ`         | read account / store data |
+| `db.write`         | `PVPGN_CAP_DB_WRITE`        | mutate account / store data |
+| `events.subscribe` | `PVPGN_CAP_EVENTS_SUBSCRIBE`| subscribe to server events |
+| `events.publish`   | `PVPGN_CAP_EVENTS_PUBLISH`  | publish events |
+| `fs.read`          | `PVPGN_CAP_FS_READ`        | read files |
+| `fs.write`         | `PVPGN_CAP_FS_WRITE`       | write files |
+| `net.http`         | `PVPGN_CAP_NET_HTTP`       | outbound HTTP |
+| `net.socket`       | `PVPGN_CAP_NET_SOCKET`     | raw sockets |
+| `commands.register`| `PVPGN_CAP_COMMANDS_REGISTER`| register chat commands |
+| `moderation.ban`   | `PVPGN_CAP_MODERATION_BAN`  | ban accounts |
+| `moderation.kick`  | `PVPGN_CAP_MODERATION_KICK` | kick connections |
+| `store.read`       | `PVPGN_CAP_STORE_READ`     | read the plugin KV store |
+| `store.write`      | `PVPGN_CAP_STORE_WRITE`    | write the plugin KV store |
+| `admin.reload_config` | `PVPGN_CAP_ADMIN_RELOAD_CONFIG` | reload server config |
+| `admin.shutdown`   | `PVPGN_CAP_ADMIN_SHUTDOWN`  | shut the server down |
+
+A call into a capability the plugin did not request is denied — request only
+what you use.
+
+## Native (C) Plugin ABI
+
+Native `.so`/`.dll` plugins compile against the single public header
+[`include/pvpgn/plugin/abi.h`](https://github.com/pvpgn) (pure C99, no C++
+symbols). It is the **semver contract** for the plugin boundary:
+
+- `PVPGN_PLUGIN_ABI_VERSION` identifies the contract. Within a version, structs
+  only ever **grow by appending** fields; signatures and capability bit values
+  never change.
+- A breaking change requires a new `pvpgn/plugin/abi_v2.h`, keeping `abi.h`
+  (v1) through a deprecation window. CI enforces this with
+  `scripts/dev/check-plugin-abi.sh` (the header is diffed against a committed
+  golden; an un-versioned change fails the build).
+- Required exports: `pvpgn_plugin_get_info`, `pvpgn_plugin_init`,
+  `pvpgn_plugin_shutdown`. Optional: `pvpgn_plugin_get_capabilities`.
+
 ## Plugin Versioning
 
 Plugins declare a `version` (semver) and an `api_version_req` (semver range).

@@ -23,6 +23,9 @@ jobs:
       - name: Legacy-linkage ban (tests/unit/)
         run: bash scripts/dev/check-test-legacy-linkage.sh
         if: always()
+      - name: Plugin ABI semver gate
+        run: bash scripts/dev/check-plugin-abi.sh
+        if: always()
       # (scripts-orphans + docs reachability are gated separately by docs.yml)
 
   # --------------------------------------------------------------------------
