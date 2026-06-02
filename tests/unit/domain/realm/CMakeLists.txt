@@ -14,3 +14,8 @@ pvpgn_v3_add_test(domain_realm_realm_test
     SOURCES realm_test.cpp
     DEPS domain_realm
 )
+
+pvpgn_v3_add_test(domain_realm_character_list_test
+    SOURCES character_list_test.cpp
+    DEPS domain_realm
+)
