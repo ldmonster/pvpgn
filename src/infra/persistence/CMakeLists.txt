@@ -6,6 +6,11 @@ add_library(infra_persistence OBJECT
     repository_factory.cpp
     account_repository.cpp
     channel_repository.cpp
+    account_ban_repository.cpp
+    realm_repository.cpp
+    friend_list_repository.cpp
+    clan_repository.cpp
+    ip_ban_repository.cpp
 )
 
 target_include_directories(infra_persistence

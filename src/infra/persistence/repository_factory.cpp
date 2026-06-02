@@ -5,8 +5,13 @@
 #include <stdexcept>
 #include <utility>
 
+#include "infra/persistence/account_ban_repository.hpp"
 #include "infra/persistence/account_repository.hpp"
 #include "infra/persistence/channel_repository.hpp"
+#include "infra/persistence/clan_repository.hpp"
+#include "infra/persistence/friend_list_repository.hpp"
+#include "infra/persistence/ip_ban_repository.hpp"
+#include "infra/persistence/realm_repository.hpp"
 
 namespace pvpgn::infra::persistence {
 
@@ -43,14 +48,22 @@ RepositoryFactory::create_account_repository() {
 
 std::unique_ptr<domain::social::IClanRepository>
 RepositoryFactory::create_clan_repository() {
-    // TODO: Implement based on backend_
-    throw std::runtime_error("Not yet implemented");
+    if (!driver_) {
+        throw std::runtime_error(
+            "RepositoryFactory: clan repository needs a driver "
+            "(use the driver-injecting constructor)");
+    }
+    return std::make_unique<SqlClanRepository>(driver_);
 }
 
 std::unique_ptr<domain::social::IFriendListRepository>
 RepositoryFactory::create_friend_list_repository() {
-    // TODO: Implement based on backend_
-    throw std::runtime_error("Not yet implemented");
+    if (!driver_) {
+        throw std::runtime_error(
+            "RepositoryFactory: friend-list repository needs a driver "
+            "(use the driver-injecting constructor)");
+    }
+    return std::make_unique<SqlFriendListRepository>(driver_);
 }
 
 std::unique_ptr<domain::gameplay::IGameRepository>
@@ -67,20 +80,32 @@ RepositoryFactory::create_ladder_repository() {
 
 std::unique_ptr<domain::realm::IRealmRepository>
 RepositoryFactory::create_realm_repository() {
-    // TODO: Implement based on backend_
-    throw std::runtime_error("Not yet implemented");
+    if (!driver_) {
+        throw std::runtime_error(
+            "RepositoryFactory: realm repository needs a driver "
+            "(use the driver-injecting constructor)");
+    }
+    return std::make_unique<SqlRealmRepository>(driver_);
 }
 
 std::unique_ptr<domain::moderation::IAccountBanRepository>
 RepositoryFactory::create_account_ban_repository() {
-    // TODO: Implement based on backend_
-    throw std::runtime_error("Not yet implemented");
+    if (!driver_) {
+        throw std::runtime_error(
+            "RepositoryFactory: account-ban repository needs a driver "
+            "(use the driver-injecting constructor)");
+    }
+    return std::make_unique<SqlAccountBanRepository>(driver_);
 }
 
 std::unique_ptr<domain::moderation::IIpBanRepository>
 RepositoryFactory::create_ip_ban_repository() {
-    // TODO: Implement based on backend_
-    throw std::runtime_error("Not yet implemented");
+    if (!driver_) {
+        throw std::runtime_error(
+            "RepositoryFactory: ip-ban repository needs a driver "
+            "(use the driver-injecting constructor)");
+    }
+    return std::make_unique<SqlIpBanRepository>(driver_);
 }
 
 std::unique_ptr<domain::chat::IChannelRepository>
