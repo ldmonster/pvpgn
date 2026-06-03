@@ -671,6 +671,40 @@ and `core/legacy_compat.hpp`. Note: `protocol/bnet/{messages_legacy.hpp,
 codec/codec_legacy_ols.cpp}` are **not** strangler debt — they implement the
 OLS wire protocol Step 1.5 wired and must stay.
 
+### Step 2.2 — delete the dead `infra/clock` `LegacyClockBridge`
+
+**Date:** 2026-06-03 · DONE, build-verified.
+
+`LegacyClockBridge` adapted the legacy global `extern time_t now;` (from the old
+`src/bnetd/server.h`) to the v3 `IClock` interface. But `src/bnetd/` was deleted
+long ago, so that global has **no definition anywhere** in the tree, and nothing
+in production constructs the bridge — the real clocks (`SystemClock` /
+`ManualClock` / `IClock`) live in `core` and are exercised by `test_core_clock`
+(registered + passing). Decisively, `src/infra/clock/CMakeLists.txt` is **never
+`add_subdirectory`'d** from `src/CMakeLists.txt`, so the `infra_clock` target
+isn't even created — and `tests/unit/infra/clock` is gated behind
+`if(TARGET infra_clock)`, which is always false. The whole subtree was
+unreachable, uncompiled code.
+
+Removed:
+- `src/infra/clock/` (the `CMakeLists.txt` + `legacy_clock_bridge.{hpp,cpp}`).
+- `tests/unit/infra/clock/` (the gtest that only duplicated the core clock tests
+  plus a `LegacyClockBridgeCompiles` case for the dead bridge).
+- The dead `if(TARGET infra_clock) add_subdirectory(clock) endif()` guard in
+  `tests/unit/infra/CMakeLists.txt`.
+
+Proof of no behaviour change: the code was never built, so production is
+byte-identical; reconfigure + rebuild clean, `check-all` **15/0/0** (all three
+e2e journeys included), unit suite green. `legacy_*` in `src/`: 17 → 15.
+
+Remaining `legacy_*` candidates: the `app/{d2cs,d2dbs}/legacy_*_bridges` header
+trees are **not** quick deletions — they're the *live* migrated d2cs/d2dbs
+implementation (56 / 18 `.cpp` includers), so retiring them is a de-bridge/rename
+job, not a strip. The scripting Lua compat shims (`infra/scripting/legacy_shim`,
+`infra/scripting/lua/legacy_compat_shim` → `core/legacy_compat.hpp`) form one
+Lua-gated chain. `infra/config/{legacy_prefs,legacy_ini_notice,*_legacy_prefs}.hpp`
+and `infra/legacy_config` are live config adapters.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
