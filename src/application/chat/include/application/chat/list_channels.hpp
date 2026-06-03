@@ -41,7 +41,7 @@ enum class ListChannelsError : std::uint8_t {
 class ListChannels {
 public:
     explicit ListChannels(
-        std::shared_ptr<domain::chat::IChannelRepository> channels)
+        std::shared_ptr<domain::chat::IChannelReader> channels)
         : channels_(channels) {}
 
     /// Execute: list channels with optional filtering.
@@ -49,7 +49,7 @@ public:
     execute(const ListChannelsRequest& req) const;
 
 private:
-    std::shared_ptr<domain::chat::IChannelRepository> channels_;
+    std::shared_ptr<domain::chat::IChannelReader> channels_;
 };
 
 }  // namespace pvpgn::application::chat

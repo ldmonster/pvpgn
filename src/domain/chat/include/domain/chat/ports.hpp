@@ -24,14 +24,14 @@ namespace pvpgn::domain::chat {
 // IChannelRepository
 // ---------------------------------------------------------------------------
 
-class IChannelRepository {
-public:
-    virtual ~IChannelRepository() = default;
+// Segregated into reader + writer (ADR 0012 / ISP): read-only consumers such as
+// ListChannels depend on IChannelReader only. IChannelRepository = reader +
+// writer remains for callers/implementers that need both.
 
-    IChannelRepository(const IChannelRepository&)            = delete;
-    IChannelRepository& operator=(const IChannelRepository&) = delete;
-    IChannelRepository(IChannelRepository&&)                 = delete;
-    IChannelRepository& operator=(IChannelRepository&&)      = delete;
+/// Read side of the channel repository.
+class IChannelReader {
+public:
+    virtual ~IChannelReader() = default;
 
     [[nodiscard]] virtual core::Result<Channel>
     find_by_id(domain::ChannelId id) const = 0;
@@ -39,14 +39,36 @@ public:
     [[nodiscard]] virtual core::Result<Channel>
     find_by_name(const std::string& name) const = 0;
 
-    virtual core::Status<> save(const Channel& channel) = 0;
-
-    virtual core::Status<> remove(domain::ChannelId id) = 0;
-
     virtual void forEach(
         std::function<bool(const Channel&)> predicate) const = 0;
 
     [[nodiscard]] virtual std::size_t size() const noexcept = 0;
+
+protected:
+    IChannelReader() = default;
+};
+
+/// Write side of the channel repository.
+class IChannelWriter {
+public:
+    virtual ~IChannelWriter() = default;
+
+    virtual core::Status<> save(const Channel& channel) = 0;
+    virtual core::Status<> remove(domain::ChannelId id) = 0;
+
+protected:
+    IChannelWriter() = default;
+};
+
+/// Full channel repository: read + write. Implementers derive from this and
+/// override all six methods exactly as before.
+class IChannelRepository : public IChannelReader, public IChannelWriter {
+public:
+    IChannelRepository(const IChannelRepository&)            = delete;
+    IChannelRepository& operator=(const IChannelRepository&) = delete;
+    IChannelRepository(IChannelRepository&&)                 = delete;
+    IChannelRepository& operator=(IChannelRepository&&)      = delete;
+    ~IChannelRepository() override                           = default;
 
 protected:
     IChannelRepository() = default;

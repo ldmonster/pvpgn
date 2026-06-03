@@ -1376,6 +1376,21 @@ Result: 4 read-only use-cases (incl. the permission checker from 3.3) now depend
 only on the account *read* surface — they cannot perform writes. Full suite
 **2746/2746**, `check-all` **17/0/0**.
 
+### Step 3.5 — IChannelRepository reader/writer split (second context)
+
+**Date:** 2026-06-03 · DONE, build-verified. `check-all` **17/0/0**.
+
+Applied the ADR 0012 split to a second context to show it generalizes:
+`domain/chat/ports.hpp` `IChannelRepository` → `IChannelReader`
+(`find_by_id`/`find_by_name`/`forEach`/`size`) + `IChannelWriter`
+(`save`/`remove`), composite inherits both (implementers unchanged). Narrowed the
+read-only `application::chat::ListChannels` (calls only `forEach`) to
+`std::shared_ptr<IChannelReader>`.
+
+Build-verified: full suite **2746/2746** (one anongame `-j` flake, passes `-j1`),
+`check-all` **17/0/0**. The account + channel repositories now both expose
+segregated read/write ports with their read-only consumers narrowed.
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
