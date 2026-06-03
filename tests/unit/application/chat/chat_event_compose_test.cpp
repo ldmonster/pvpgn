@@ -186,3 +186,63 @@ TEST_CASE("compose FriendWhisperAck: username forced to 'your friends'", "[appli
     CHECK(ev.username == "your friends");
     CHECK(ev.text     == "hi");
 }
+
+// --- previously-uncovered LegacyMessageType arms ---------------------------
+
+TEST_CASE("compose Part: username only, empty text", "[application_chat]") {
+    auto res = ac::compose_chat_event(req_with_me(ac::LegacyMessageType::Part));
+    REQUIRE(res.has_value());
+    CHECK(res.value().event_id == pb::kServerMessageTypePart);
+    CHECK(res.value().username == "Bob");
+    CHECK(res.value().text == "");
+}
+
+TEST_CASE("compose Part rejects me==NULL", "[application_chat]") {
+    auto r = req_with_me(ac::LegacyMessageType::Part);
+    r.me_present = false;
+    auto res = ac::compose_chat_event(r);
+    REQUIRE_FALSE(res.has_value());
+    CHECK(res.error().code() == StatusCode::NotFound);
+}
+
+TEST_CASE("compose Broadcast: full fields", "[application_chat]") {
+    auto res = ac::compose_chat_event(req_with_me(ac::LegacyMessageType::Broadcast));
+    REQUIRE(res.has_value());
+    CHECK(res.value().event_id == pb::kServerMessageTypeBroadcast);
+    CHECK(res.value().username == "Bob");
+    CHECK(res.value().text == "hi");
+}
+
+TEST_CASE("compose Broadcast rejects MF_X", "[application_chat]") {
+    auto r = req_with_me(ac::LegacyMessageType::Broadcast);
+    r.dstflags_mf_x = true;
+    auto res = ac::compose_chat_event(r);
+    REQUIRE_FALSE(res.has_value());
+    CHECK(res.error().code() == StatusCode::NotFound);
+}
+
+TEST_CASE("compose UserFlags: text from playerinfo", "[application_chat]") {
+    auto res = ac::compose_chat_event(req_with_me(ac::LegacyMessageType::UserFlags));
+    REQUIRE(res.has_value());
+    CHECK(res.value().event_id == pb::kServerMessageTypeUserFlags);
+    CHECK(res.value().username == "Bob");
+    CHECK(res.value().text == "1RAW");
+}
+
+TEST_CASE("compose WhisperAck: full fields", "[application_chat]") {
+    auto res = ac::compose_chat_event(req_with_me(ac::LegacyMessageType::WhisperAck));
+    REQUIRE(res.has_value());
+    CHECK(res.value().event_id == pb::kServerMessageTypeWhisperAck);
+    CHECK(res.value().username == "Bob");
+    CHECK(res.value().text == "hi");
+}
+
+TEST_CASE("compose ChannelDoesNotExist: username from chatname",
+          "[application_chat]") {
+    auto res =
+        ac::compose_chat_event(req_with_me(ac::LegacyMessageType::ChannelDoesNotExist));
+    REQUIRE(res.has_value());
+    CHECK(res.value().event_id == pb::kServerMessageTypeChannelDoesNotExist);
+    CHECK(res.value().username == "Bob");
+    CHECK(res.value().text == "hi");
+}

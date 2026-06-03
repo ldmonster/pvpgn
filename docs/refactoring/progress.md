@@ -1255,6 +1255,20 @@ Result: `change_password.cpp` **42.5% → 95.0%**; suite **2734 → 2739**,
 `check-all` **15/0/0**, overall coverage +0.32 → **66.17%**. **Ratcheted the
 no-regress floor 65 → 66.**
 
+### Step 1.25 — cover the remaining chat_event_compose message-type arms
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **66.17% → 66.49%**.
+
+`chat_event_compose.cpp` (65%) is a pure 16-arm switch over `LegacyMessageType`;
+`chat_event_compose_test` covered 11 arms. Extended it with the 5 missing ones
+(7 cases): `Part` (username-only, empty text) + its me==NULL reject; `Broadcast`
+(full fields) + its MF_X reject; `UserFlags` (text from playerinfo); `WhisperAck`
+(full fields); `ChannelDoesNotExist` (username from chatname). Each asserts the
+mapped `event_id`, `username`, and `text`.
+
+Result: `chat_event_compose.cpp` **65.10% → 92.62%**; suite **2739 → 2746**,
+`check-all` **15/0/0**, overall coverage +0.32 → **66.49%** (floor stays 66).
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
