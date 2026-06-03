@@ -1019,6 +1019,38 @@ check-all `--deep` coverage gate label says ">=85%" but currently passes its
 arg-defaulted 70% floor — raising that floor toward the real number (with a
 documented ramp) is a candidate follow-up so the gain can't silently regress.
 
+### Step 1.16 — enforce the coverage gain (ratchet) + fix the bench gate
+
+**Date:** 2026-06-03 · DONE, build-verified. `check-all --deep` **17/0/5**.
+
+Locked in the 1.9–1.15 coverage gains and fixed two `check-all --deep` gate bugs
+the gains exposed:
+
+1. **Coverage gate was mislabeled and unenforced.** The `--deep` gate printed
+   ">=85%" but invoked `check-coverage.sh` with no floor arg → defaulted to 70.
+   Since real coverage is **63.04%**, the gate would actually *fail* at 70 (it
+   had simply never run, ring-3 being opt-in). Set an explicit **no-regress
+   ratchet floor of 62%** (just below current) with the label
+   `coverage (>=62% domain+app, ramp->85)` and a comment: raise toward the 85%
+   M1 exit as net-new tests land, never lower. Verified PASS at 63.04%.
+2. **Bench gate was a guaranteed FAIL.** It called
+   `check-bench-regression.py` with **no args**, but the script requires
+   `<baseline> <current>` → argparse usage error. Wired the committed
+   host baseline (`tests/bench/baselines/local-gcc13.json`) vs the generated
+   `bench-results.json`, and the presence-guard now checks the baseline too.
+   Verified PASS (all benchmarks within the 10% budget).
+
+`check-all --deep` now reports **17 passed / 0 failed / 5 skipped** (honest
+skips: asan/ubsan/tsan/mutation/fuzz — those build dirs/runtimes absent). The
+ring-2 default remains 15/0/0.
+
+**Session close-out (2026-06-03):** this run did M2 Steps 2.1–2.3 (3 dead-
+strangler deletions, `legacy_*` 19→10) and the M1 coverage arc 1.9–1.16
+(measure → repair 24 silently-dropped use-case test files → first net-new tests
+→ ratchet the floor). Domain+app coverage **57.0% → 63.04%**; ~6 latent bugs
+fixed; tree green at every commit. Remaining toward M1 exit: keep ramping the
+coverage floor with net-new tests (target 85%), then M3+.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
