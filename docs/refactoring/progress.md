@@ -743,6 +743,65 @@ codec_legacy_ols.cpp}` (the OLS wire protocol wired in Step 1.5). M2's
 quick-deletion phase is essentially exhausted; what's left is rename/de-bridge
 work, not removal.
 
+## Milestone 1 (revisited) — coverage measurement
+
+### Step 1.9 — measure domain+app coverage: 57%, and *why* (a real wiring bug)
+
+**Date:** 2026-06-03 · DONE (measurement); FINDINGS below.
+
+Built the `v3-coverage` preset (`--coverage`), ran the suite to emit `.gcda`,
+and ran `check-coverage.sh … 85`:
+
+```
+Coverage (domain + application): 57.00% (~6240/10949 lines)
+Floor: 85%  → FAIL
+```
+
+So the M1 exit's "coverage ≥ 85% on domain+app" was **assumed but never
+measured** in prior steps — it is actually **57%**. Two distinct causes, one of
+them a genuine bug, not just thin tests:
+
+**(A) A structural test-wiring bug silently drops 17 application use-case tests.**
+There are *two* parallel definitions of the application libraries:
+- a **modular** tree `src/application/*/CMakeLists.txt` (one lib per package,
+  named `pvpgn_application_social`, `pvpgn_application_ladder`, …), driven by
+  `src/application/CMakeLists.txt` — which is **never `add_subdirectory`'d** from
+  `src/CMakeLists.txt`, so all of it is dead;
+- the **monolith** `src/CMakeLists.txt`, which re-declares most of those libs
+  under different names (`application_social` @1196, `application_moderation`
+  @1175, `application_realm` @999).
+
+The test tree straddles the two naming schemes. `tests/unit/application/CMakeLists.txt`
+guards `if(TARGET pvpgn_application_social)` (line 50) and
+`if(TARGET pvpgn_application_ladder)` (line 53) — **targets that never exist** —
+and the social/ladder test `CMakeLists.txt`s `DEPS` against those same dead
+names. Net effect: **14 social + 3 ladder use-case test files never build or
+run**, in *any* preset (confirmed: `test_application_social_*` absent from both
+`v3-dev` and `v3-coverage` ctest lists; `add_friend.cpp.gcno` exists but has no
+`.gcda`). These map directly onto the worst 0%-covered files
+(`add_friend/create_clan/invite_to_clan/…`).
+
+Worse for **ladder**: the monolith has **no** `application_ladder` target and no
+ladder gcno at all — the ladder use-case sources
+(`get_ladder_entry/get_ladder_page/recompute_ladder.cpp`) are **compiled
+nowhere**; the layer is entirely unbuilt.
+
+*(moderation @1175 and realm @999 use the correct `application_*` names with
+matching guards, so those tests do run — their 0%-covered files are a thinner,
+separate gap, not a drop.)*
+
+**(B) Pre-existing parallel-isolation flakes** (not my changes): under high
+`-j`, 1–4 file-based loader tests in `infra/legacy_config` /
+anongame-maplists / multilocale fail nondeterministically (different set each
+run; **all pass when re-run `-j1`**). They share fixture paths/cwd. Matches the
+known `adopt_native_handle` `-j` quirk noted in memory. `.gcda` is still emitted
+regardless, so coverage numbers are unaffected.
+
+**No source changed in this step** — it is a measurement + root-cause writeup.
+The obvious highest-impact fix (re-point the social/ladder test wiring at the
+real targets, and decide the monolith-vs-modular duplication for ladder) is its
+own step, pending a dialog decision on scope.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
