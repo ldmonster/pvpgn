@@ -1076,6 +1076,32 @@ cluster is the **application connection FSMs** (`connection_fsm_inchannel` 30%,
 `_authenticating` 33%, `_connecting` 47%) — the biggest uncovered-line sink, but
 FSM-driving tests are more involved than pure value-object/use-case tests.
 
+### Step 1.18 — connection-FSM InChannel branch coverage (partial; ROI finding)
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **63.47% → 63.55%**.
+
+Targeted the biggest uncovered-line sink, `connection_fsm_inchannel.cpp` (232
+lines, 30%). Added `connection_fsm_inchannel_branches_test.cpp` (8 cases) over
+the existing `connection_fsm_test_fixtures.hpp`: the `game_type` switch arms for
+both `on_start_game` (STARTADVEX) and `on_join_game` (GETADVLISTEX) — 1→FreeForAll,
+2→OneOnOne, 3→Cooperative, 4→Custom, other→Melee (the existing tests only used
+the default); the empty-channel-name early return in `on_join_channel`; and the
+out-of-order rejection of StartGame/JoinGame.
+
+**ROI finding:** this moved `inchannel.cpp` only **30.2% → 33.19%** (+3 pts,
+~7 lines). The bulk of the file's uncovered code is the **injected chat-use-case
+paths** (`on_join_channel`/`on_chat_command`/`on_leave_channel` each have a big
+`if (use_case_ != nullptr) { … }` block reached only when a real
+`application::chat::JoinChannel`/`PostMessage`/`LeaveChannel` is wired via
+`set_join_channel(...)` etc.). The existing FSM tests — and these — exercise only
+the stub fallbacks. Covering the injected paths needs constructing those chat
+use-cases with in-memory channel/account repos: a meaningful scaffolding
+sub-project, not a quick branch sweep. Logged here so the next session can scope
+it deliberately rather than rediscover it.
+
+Result: suite **2710 → 2715**, `check-all` **15/0/0**, overall coverage +0.08
+pts → **63.55%** (ratchet floor stays 62%).
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

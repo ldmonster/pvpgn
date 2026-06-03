@@ -20,6 +20,16 @@ foreach(_fsm_state IN ITEMS
     endif()
 endforeach()
 
+# Extra branch-coverage cases for the InChannel handlers (game_type switch arms,
+# empty-channel early return, out-of-order rejects) — shares the same fixtures.
+pvpgn_v3_add_test(test_domain_connection_fsm_inchannel_branches
+    SOURCES connection_fsm_inchannel_branches_test.cpp
+    DEPS    domain_connection application_connection)
+if(TARGET test_domain_connection_fsm_inchannel_branches AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_inchannel_branches
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
 pvpgn_v3_add_test(test_domain_connection_route_registry
     SOURCES route_registry_test.cpp
     DEPS    domain_connection application_connection)
