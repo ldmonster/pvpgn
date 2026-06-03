@@ -5,6 +5,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstddef>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -44,38 +46,34 @@ domain::identity::Account make_account(domain::AccountId id,
 // Fakes
 // ---------------------------------------------------------------------------
 
+// Migrated to the current IAccountRepository port (domain::AccountId /
+// domain::UserName, const finders, forEach/size). The `account_exists` toggle
+// drives the not-found paths.
 class FakeAccountRepository final : public domain::identity::IAccountRepository {
 public:
     bool account_exists = true;
 
-    core::Result<domain::identity::Account, core::Error>
-    find_by_name(std::string_view name) override {
+    core::Result<domain::identity::Account>
+    find_by_id(domain::AccountId id) const override {
         if (!account_exists)
             return core::fail(core::Error{core::StatusCode::NotFound, "not found"});
-        return make_account(domain::AccountId{1}, name.empty() ? "target" : name);
+        return make_account(id, "target");
     }
 
-    core::Result<domain::identity::Account, core::Error>
-    find_by_id(uint32_t id) override {
+    core::Result<domain::identity::Account>
+    find_by_name(const domain::UserName& name) const override {
         if (!account_exists)
             return core::fail(core::Error{core::StatusCode::NotFound, "not found"});
-        return make_account(domain::AccountId{id}, "target");
+        return make_account(domain::AccountId{1}, name.display());
     }
 
-    core::Result<void, core::Error>
-    save(const domain::identity::Account&) override { return {}; }
+    core::Status<> save(const domain::identity::Account&) override { return core::ok(); }
 
-    core::Result<void, core::Error>
-    remove(std::string_view) override { return {}; }
+    core::Status<> remove(domain::AccountId) override { return core::ok(); }
 
-    core::Result<bool, core::Error>
-    exists(std::string_view) override { return account_exists; }
+    void forEach(std::function<bool(const domain::identity::Account&)>) const override {}
 
-    core::Result<std::vector<domain::identity::Account>, core::Error>
-    list_online() override { return std::vector<domain::identity::Account>{}; }
-
-    core::Result<uint32_t, core::Error>
-    count() override { return 0u; }
+    std::size_t size() const noexcept override { return account_exists ? 1u : 0u; }
 };
 
 class FakeAccountBanRepository final : public domain::moderation::IAccountBanRepository {

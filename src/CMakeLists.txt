@@ -1181,6 +1181,8 @@ pvpgn_v3_add_library(application_moderation
         application/moderation/src/ban_ip.cpp
         application/moderation/src/kick_connection.cpp
         application/moderation/src/silence_user.cpp
+        application/moderation/src/issue_warning.cpp
+        application/moderation/src/list_bans.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/moderation/include
     PUBLIC_DEPS

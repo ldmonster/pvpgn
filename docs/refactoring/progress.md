@@ -882,6 +882,42 @@ compile — removed `ports` namespace + drifted constructors); (b) net-new tests
 for genuinely thin layers (moderation/realm use-cases near 0%, several
 application FSMs). 60.70% is the honest current number.
 
+### Step 1.12 — re-enable the 5 disabled moderation use-case tests
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **60.70% → 61.18%**.
+
+Of 8 moderation test files, only 3 ran (`check_ip_ban`, `ban_ip`,
+`kick_connection`); the other 5 were commented out in
+`tests/unit/application/moderation/CMakeLists.txt` with TODOs. Two root causes,
+both now fixed:
+
+1. **Stale fakes** — `ban_account`, `silence_user`, `issue_warning` each declared
+   a `FakeAccountRepository` against the *old* `IAccountRepository` port
+   (`find_by_name(std::string_view)`, `find_by_id(uint32_t)`, `exists`,
+   `list_online`, `count`, non-const). Migrated all three to the current port
+   (`find_by_id(domain::AccountId) const`, `find_by_name(const domain::UserName&)
+   const`, `save`/`remove(domain::AccountId)` → `core::Status<>`, `forEach`,
+   `size`), preserving each test's `account_exists`/`save_fails` toggles, and
+   added the `<cstddef>`/`<functional>` includes the migrated bodies need.
+
+2. **Sources compiled nowhere** — the monolith `application_moderation` lib
+   (`src/CMakeLists.txt`) omitted `issue_warning.cpp` and `list_bans.cpp`, so
+   those use-cases linked nowhere (the "static-link ordering" TODO on
+   `list_bans` was really just the missing source). Added both to the lib's
+   SOURCES. `unban_account`/`list_bans` tests use only ban/ip/event fakes (no
+   account-repo drift), so they needed no fake migration.
+
+Re-enabled all five (`ban_account`, `unban_account`, `silence_user`,
+`issue_warning`, `list_bans`). Result: **21 moderation use-case cases now run**
+(was a handful); suite **2648 → 2669**, `check-all` **15/0/0**, coverage
++0.48 pts. (The 2 intermittent coverage-run failures remain the known
+anongame-loader `-j` flakes; pass `-j1`.)
+
+Note: these moderation use-cases are not yet wired into any protocol handler
+(`BanAccount` etc. have 0 protocol/app references) — the tests pin their
+behaviour as real application logic ahead of wiring, the same shape as the
+social use-cases.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
