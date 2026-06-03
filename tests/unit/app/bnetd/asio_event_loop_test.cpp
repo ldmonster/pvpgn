@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file asio_event_loop_test.cpp
-/// Unit tests for `AsioEventLoop` and `LegacyBridge`.
+/// Unit tests for `AsioEventLoop`.
 ///
 /// Test cases
 /// ----------
@@ -12,20 +12,13 @@
 ///  5.  `stop()` causes `run()` to return
 ///  6.  `io_context()` returns a reference to the underlying context
 ///  7.  Multiple `run_for()` calls work correctly (context restarts)
-///  8.  `LegacyBridge::tick()` processes pending callbacks
-///  9.  `LegacyBridge::instance()` throws before `init()`
-/// 10.  `LegacyBridge::init()` + `tick()` + `shutdown()` lifecycle
-/// 11.  `post()` from multiple threads — all callbacks execute
-/// 12.  `run_for()` with zero budget polls without blocking
-
-#define PVPGN_V3_BNETD_INTEGRATION 1
+///  8.  `post()` from multiple threads — all callbacks execute
+///  9.  `run_for()` with zero budget polls without blocking
 
 #include "app/bnetd/asio_event_loop.hpp"
-#include "app/bnetd/legacy_bridge.hpp"
 
 #include <atomic>
 #include <chrono>
-#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -188,52 +181,9 @@ TEST_CASE("AsioEventLoop: run_for with zero budget polls without blocking",
     // but the call must not block.
 }
 
-// ===========================================================================
-// LegacyBridge tests
-// ===========================================================================
-
-TEST_CASE("LegacyBridge: instance() throws before init()", "[legacy_bridge]") {
-    // Ensure no stale singleton from a previous test.
-    LegacyBridge::shutdown();
-
-    REQUIRE_THROWS_AS(LegacyBridge::instance(), std::logic_error);
-}
-
-TEST_CASE("LegacyBridge: tick() processes pending callbacks",
-          "[legacy_bridge]") {
+TEST_CASE("AsioEventLoop: post from multiple threads — all callbacks execute",
+          "[asio_event_loop]") {
     AsioEventLoop loop;
-    LegacyBridge::init(loop);
-
-    std::atomic<bool> executed{false};
-    loop.post([&executed] { executed.store(true, std::memory_order_release); });
-
-    LegacyBridge::instance().tick(200ms);
-
-    REQUIRE(executed.load(std::memory_order_acquire));
-
-    LegacyBridge::shutdown();
-}
-
-TEST_CASE("LegacyBridge: init + tick + shutdown lifecycle", "[legacy_bridge]") {
-    AsioEventLoop loop;
-    LegacyBridge::init(loop);
-
-    int counter = 0;
-    loop.post([&counter] { ++counter; });
-    loop.post([&counter] { ++counter; });
-
-    LegacyBridge::instance().tick(200ms);
-    REQUIRE(counter == 2);
-
-    // After shutdown, instance() should throw again.
-    LegacyBridge::shutdown();
-    REQUIRE_THROWS_AS(LegacyBridge::instance(), std::logic_error);
-}
-
-TEST_CASE("LegacyBridge: post from multiple threads — all callbacks execute",
-          "[legacy_bridge]") {
-    AsioEventLoop loop;
-    LegacyBridge::init(loop);
 
     constexpr int kThreads = 8;
     std::atomic<int> counter{0};
@@ -250,9 +200,7 @@ TEST_CASE("LegacyBridge: post from multiple threads — all callbacks execute",
     for (auto& t : threads) t.join();
 
     // Give the io_context enough time to drain all posted handlers.
-    LegacyBridge::instance().tick(500ms);
+    loop.run_for(500ms);
 
     REQUIRE(counter.load(std::memory_order_relaxed) == kThreads);
-
-    LegacyBridge::shutdown();
 }

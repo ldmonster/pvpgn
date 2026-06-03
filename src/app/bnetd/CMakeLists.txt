@@ -28,34 +28,17 @@ endif()
 
 find_package(Threads REQUIRED)
 
-# ---------------------------------------------------------------------------
-# R194: `app_bnetd_legacy_bridge` -- small static library carrying the
-# `LegacyBridge` singleton + `AsioEventLoop` wrapper. Extracted so the
-# legacy `bnetd` executable (which has `server_v3_hook.cpp` injected
-# by the R193 strangler-fig wiring) can link against the symbols too;
-# previously these TUs were compiled directly into `pvpgn_v3_bnetd`
-# and unreachable from the legacy exe.
-# ---------------------------------------------------------------------------
-pvpgn_v3_add_library(app_bnetd_legacy_bridge STATIC
-    SOURCES
-        src/asio_event_loop.cpp
-        src/legacy_bridge.cpp
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PUBLIC_DEPS
-        Boost::system
-        application_auth
-        application_connection
-        domain_connection
-)
-
-# R194: PVPGN_V3_BNETD_INTEGRATION removed in Phase 3 (strangler finalization)
-# The legacy bridge is no longer needed as all logic has been migrated to v3.
+# R-strangler: the `LegacyBridge` glue (and its `app_bnetd_legacy_bridge`
+# static library) were deleted in Milestone 2 — `PVPGN_V3_BNETD_INTEGRATION`
+# was never defined in the v3 build, so the bridge resolved to no-op stubs and
+# the legacy fdwatch loop it interleaved with no longer exists. `AsioEventLoop`
+# (the one live TU it carried) now compiles directly into the `bnetd` exe.
 
 # R-strangler: PVPGN_BUILD_LEGACY removed; legacy `bnetd` target is gone.
 # Renamed pvpgn_v3_bnetd → bnetd (Plan 06 §7.3 + §7.4).
 add_executable(bnetd
     src/main.cpp
+    src/asio_event_loop.cpp
     src/session_manager.cpp
     src/bnet_connection_adapter.cpp
     src/lua_connection_context.cpp
@@ -90,7 +73,6 @@ target_link_libraries(bnetd
         infra_net
         infra_inmemory
         pvpgn_infra_file
-        app_bnetd_legacy_bridge
         services_bnetd
         Boost::system
         Threads::Threads

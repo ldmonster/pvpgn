@@ -627,6 +627,50 @@ no new bugs, and the path is now regression-guarded. Registered as ctest
 `e2e.hostile_input` and added to `check-all` (now 15/0/0). Under the asan/ubsan
 presets this doubles as a sanitizer target for the inbound pipeline.
 
-## Milestones 2–6
+## Milestone 2 — finish the strangler (in progress)
+
+### Step 2.1 — delete the bnetd `LegacyBridge` glue
+
+**Date:** 2026-06-03 · DONE, build-verified.
+
+First strangler removal under the M1 safety net. The `app_bnetd_legacy_bridge`
+static library carried two TUs: `asio_event_loop.cpp` (**live** — `main.cpp`
+constructs an `AsioEventLoop`) and `legacy_bridge.cpp` (**dead**). `LegacyBridge`
+was the interleaving shim between the old `select()`-based legacy `server_run()`
+loop and the v3 Asio `io_context`; its real implementation compiled only under
+`PVPGN_V3_BNETD_INTEGRATION`, a macro **removed from the production build in
+Phase 3 and never defined since** — so `main.cpp`'s `LegacyBridge::init()` /
+`::shutdown()` calls resolved to inline no-op stubs, and the legacy loop they
+bridged to no longer exists. The only thing keeping the class alive was a unit
+test that *artificially* defined the macro to exercise the dead code.
+
+Removed:
+- `src/app/bnetd/include/app/bnetd/legacy_bridge.hpp` +
+  `src/app/bnetd/src/legacy_bridge.cpp` (`git rm`).
+- The `app_bnetd_legacy_bridge` CMake library target; `asio_event_loop.cpp`
+  now compiles directly into the `bnetd` executable (its deps — Boost::system,
+  application_auth/connection, domain_connection — were already on `bnetd`).
+- The two no-op `LegacyBridge` calls + the include from `main.cpp`.
+- The three dead-singleton test cases (`instance() throws` / `tick()` /
+  `init+tick+shutdown lifecycle`) and the `PVPGN_V3_BNETD_INTEGRATION=1`
+  test-only compile-def. The genuinely-useful multi-thread drain test was
+  **converted** to the live `AsioEventLoop::run_for` API so `AsioEventLoop`
+  coverage is preserved, not lost.
+
+Proof of no behaviour change: the calls deleted were no-ops, so runtime is
+identical by construction; `check-all` is **15 passed / 0 failed / 0 skipped**
+(incl. the three e2e journeys — modern login, account persistence, hostile
+input — driven against the rebuilt `bnetd`), and `ctest -L unit` is **2568/2568**
+(was 2571 in this build config; −3 dead tests). Layering allow-list stays empty.
+
+Remaining `legacy_*` in `src/` after this step: 17 files (was 19) — next
+candidates: `infra/legacy_config` (live config adapter — needs a replacement
+before removal, not pure deletion), the `app/{d2cs,d2dbs}/legacy_*_bridges`
+header dirs, `infra/clock/legacy_clock_bridge`, the scripting Lua compat shims,
+and `core/legacy_compat.hpp`. Note: `protocol/bnet/{messages_legacy.hpp,
+codec/codec_legacy_ols.cpp}` are **not** strangler debt — they implement the
+OLS wire protocol Step 1.5 wired and must stay.
+
+## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

@@ -94,7 +94,6 @@
 #include "app/bnetd/file_session_factory.hpp"
 #include "app/bnetd/irc_session_factory.hpp"
 #include "app/bnetd/irc_tcp_session.hpp"
-#include "app/bnetd/legacy_bridge.hpp"
 #include "app/bnetd/logging_connection_context.hpp"
 #include "app/bnetd/lua_connection_context.hpp"
 #include "app/bnetd/server_config.hpp"
@@ -264,10 +263,6 @@ int main(int argc, char* argv[]) {
 
         // 3. Create AsioEventLoop (wraps io_context + work guard)
         AsioEventLoop event_loop;
-
-        // 3a. Initialise LegacyBridge singleton so that server_tick_v3()
-        //     can call event_loop.run_for() from the legacy main loop.
-        LegacyBridge::init(event_loop);
 
         // 4. Create IoRuntime backed by the same io_context so that all
         //    existing TcpListener / TcpSession / TcpAcceptor code continues
@@ -487,8 +482,6 @@ int main(int argc, char* argv[]) {
         if (bnftp_listener) bnftp_listener->stop();
         wol_listener.stop();
         irc_listener.stop();
-
-        LegacyBridge::shutdown();
 
         LOG_INFO("bnetd", "stopped");
         return EXIT_SUCCESS;

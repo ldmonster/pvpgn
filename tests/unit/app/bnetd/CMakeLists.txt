@@ -28,27 +28,18 @@ if(NOT TARGET infra_net)
 endif()
 
 # ---------------------------------------------------------------------------
-# AsioEventLoop + LegacyBridge tests (Round 138)
+# AsioEventLoop tests (Round 138; LegacyBridge removed in Milestone 2)
 # ---------------------------------------------------------------------------
 
 pvpgn_v3_add_test(test_app_bnetd_asio_event_loop
     SOURCES
         asio_event_loop_test.cpp
         ${CMAKE_SOURCE_DIR}/src/app/bnetd/src/asio_event_loop.cpp
-        ${CMAKE_SOURCE_DIR}/src/app/bnetd/src/legacy_bridge.cpp
     DEPS
         infra_net
         Boost::system
         Threads::Threads
 )
-
-# PVPGN_V3_BNETD_INTEGRATION was removed from the production build in Phase 3
-# (strangler finalization), but this test exercises the real LegacyBridge, so
-# it must be defined for *all* of this target's TUs — including the separately
-# compiled legacy_bridge.cpp, which otherwise #ifdef's out LegacyBridge::shutdown()
-# and leaves an undefined reference at link time.
-target_compile_definitions(test_app_bnetd_asio_event_loop
-    PRIVATE PVPGN_V3_BNETD_INTEGRATION=1)
 
 # Expose the app/bnetd include directory so the test can
 # #include "app/bnetd/asio_event_loop.hpp" etc.
