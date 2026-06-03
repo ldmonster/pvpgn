@@ -991,6 +991,34 @@ missing `application_ladder`/`issue_warning`/`list_bans` lib sources). The
 net-new tests for thin-but-wired areas (e.g. `permission_checker`, application
 FSMs, infra adapters) — a different kind of work.
 
+### Step 1.15 — net-new tests for the application `PermissionChecker`
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **62.29% → 63.04%**.
+
+First *net-new* test step (the dropped/rotted backlog being exhausted at 1.14).
+`application/auth/src/permission_checker.cpp` (the `InMemoryPermissionChecker`
+use-case that maps an account's command groups → moderation `Permission` sets,
+backed by `IAccountRepository`) had **0%** coverage: the existing
+`permission_checker_test.cpp` tests the *infra* `InMemoryPermissionChecker`
+(a flat grant store), a different class — the application use-case had no test.
+
+Added `tests/unit/application/auth/permission_checker_application_test.cpp`
+(8 cases) over a real `infra::inmemory::InMemoryAccountRepository`: admin
+(group 1) gets admin-only perms (ShutdownServer/BanUser); mod (2) gets
+moderation perms but is denied admin ones; operator (3) manages channels only;
+voice (4) gets only SetChannelTopic; no-groups → nothing; unknown account →
+denied (both `has_permission` and `has_command_group`); combined groups (3+4)
+union their permissions; `has_command_group` reflects membership.
+
+Result: `permission_checker.cpp` **0% → 97.44%** (of 78 lines); suite
+**2696 → 2704**, `check-all` **15/0/0**, overall coverage +0.75 pts.
+
+**Coverage now 63.04%.** The remaining climb to the 85% floor is more net-new
+tests across thin-but-wired areas (other application FSMs, infra adapters); the
+check-all `--deep` coverage gate label says ">=85%" but currently passes its
+arg-defaulted 70% floor — raising that floor toward the real number (with a
+documented ramp) is a candidate follow-up so the gain can't silently regress.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
