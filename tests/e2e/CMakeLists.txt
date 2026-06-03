@@ -59,8 +59,21 @@ if(PYTHON3_EXECUTABLE AND TARGET bnetd)
         RUN_SERIAL TRUE
         LABELS "e2e"
     )
+
+    # Accounts created over the wire survive a bnetd restart (file backend).
+    add_test(
+        NAME "e2e.account_persistence"
+        COMMAND "${PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/account_persistence_test.py"
+            --bnetd "$<TARGET_FILE:bnetd>"
+    )
+    set_tests_properties("e2e.account_persistence" PROPERTIES
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+        LABELS "e2e"
+    )
 else()
     message(STATUS
-        "tests/e2e: skipping modern_login_journey "
+        "tests/e2e: skipping modern_login_journey / account_persistence "
         "(need python3 + the bnetd target)")
 endif()

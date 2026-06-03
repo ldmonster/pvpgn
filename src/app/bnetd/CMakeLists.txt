@@ -89,6 +89,7 @@ target_link_libraries(bnetd
         protocol_wol
         infra_net
         infra_inmemory
+        pvpgn_infra_file
         app_bnetd_legacy_bridge
         services_bnetd
         Boost::system

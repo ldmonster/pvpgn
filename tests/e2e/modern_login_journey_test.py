@@ -235,11 +235,12 @@ def find_bnetd(explicit: str | None) -> str:
     raise SystemExit("bnetd binary not found; pass --bnetd or set PVPGN_V3_BNETD")
 
 
-def spawn_bnetd(bnetd: str, port: int, workdir: str):
+def spawn_bnetd(bnetd: str, port: int, workdir: str, backend: str = "inmemory"):
     cfg = os.path.join(workdir, "bnetd.toml")
     with open(cfg, "w") as f:
-        f.write('[persistence]\nbackend = "inmemory"\n')
-    logf = open(os.path.join(workdir, "bnetd.log"), "w+")
+        f.write(f'[persistence]\nbackend = "{backend}"\n')
+    # Append so a restart in the same workdir keeps prior logs for diagnostics.
+    logf = open(os.path.join(workdir, "bnetd.log"), "a+")
     proc = subprocess.Popen(
         [bnetd, "-c", cfg, "-p", str(port), "-d", workdir, "-l", "info"],
         stdout=logf, stderr=subprocess.STDOUT,

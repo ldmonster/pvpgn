@@ -124,6 +124,8 @@
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
 #include "core/clock.hpp"
+// Durable file-backed account store (used when backend="file").
+#include "infra/file/account_repository.hpp"
 
 // R330: configurable persistence back-end. Each backend is compiled in only
 // when its infra target is linked (which propagates the header's include dir),
@@ -340,13 +342,29 @@ int main(int argc, char* argv[]) {
         application::ports::IUnitOfWorkFactory& uow_factory = *owned_uow_factory;
 
         infra::inmemory::InMemoryChannelRepository  channel_repo;
-        infra::inmemory::InMemoryAccountRepository  account_repo;
         infra::inmemory::InMemorySessionRegistry    session_reg;
         infra::inmemory::InMemoryGameRepository     game_repo;
         infra::inmemory::InMemoryEventBus           event_bus;
         infra::inmemory::InMemoryIpBanRepository    ip_ban_repo;
         core::SystemClock                           auth_clock;
         NullNlsCredentialStore                      null_nls_store;
+
+        // Account store: durable file-backed repository when the operator
+        // selects [persistence] backend="file" (accounts persist as
+        // <data-dir>/<name>.plain and survive restart), otherwise the
+        // non-durable in-memory repository. The same instance is shared by
+        // BnetdService and the auth use-cases so create/login/join all see
+        // one consistent store.
+        std::unique_ptr<domain::identity::IAccountRepository> owned_account_repo;
+        if (persistence_backend == "file") {
+            owned_account_repo = std::make_unique<infra::file::FileAccountRepository>(
+                cfg.data_dir.string());
+            LOG_INFO("bnetd", "account store: file ({})", cfg.data_dir.string());
+        } else {
+            owned_account_repo =
+                std::make_unique<infra::inmemory::InMemoryAccountRepository>();
+        }
+        domain::identity::IAccountRepository& account_repo = *owned_account_repo;
 
         services::bnetd::BnetdService bnetd_svc{
             uow_factory,

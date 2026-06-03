@@ -586,6 +586,29 @@ GTest-enabled environment, independent of this work. Added `operator->` /
 `operator*` to `core::Result` (additive, mirrors `std::expected`); both legacy
 suites now build and pass. Full suite **2595/2595**.
 
+### Step 1.7 — durable accounts: file backend + restart e2e
+
+**Date:** 2026-06-03 · DONE.
+
+Accounts lived only in the in-memory repo, so create+login worked but vanished
+on restart. Worse, `main.cpp` wired the auth use-cases to the in-memory
+`account_repo` regardless of the `[persistence]` backend, so even selecting a
+durable backend would not have persisted accounts.
+
+- **main.cpp**: select the account repository by backend — `backend="file"` →
+  `infra::file::FileAccountRepository(<data-dir>)` (accounts stored as
+  `<data-dir>/<name>.plain`), else in-memory. The single instance is shared by
+  `BnetdService` and the auth use-cases so create/login/join see one store.
+  Linked `pvpgn_infra_file` into bnetd.
+- **New e2e** `tests/e2e/account_persistence_test.py`: create over the wire on
+  bnetd #1 → assert the `.plain` file exists on disk → restart bnetd #2 in the
+  same workdir → login authenticates against the reloaded account (0x00), with
+  an unknown-user negative control (0x01). Registered as ctest
+  `e2e.account_persistence` and added to the `check-all` gate.
+
+The wire/harness helpers are now shared (`spawn_bnetd(..., backend=)`), and the
+inmemory journey is unchanged. `check-all` green.
+
 ## Milestones 2–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
