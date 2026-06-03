@@ -42,20 +42,20 @@ domain::BNHash make_hash(std::uint8_t fill) {
 
 TEST_CASE("ListFriends: returns empty list when owner has no friends",
           "[application][social][list_friends]") {
-    infra::inmemory::InMemoryAccountRepository    accounts;
-    infra::inmemory::InMemoryFriendListRepository friend_lists;
-    infra::inmemory::InMemorySessionRegistry      sessions;
+    // Repos are non-copyable (shared_mutex) and must be shared with the
+    // use-case, so seed through shared_ptr instances directly.
+    auto accounts = std::make_shared<infra::inmemory::InMemoryAccountRepository>();
 
     domain::AccountId alice{1};
     auto a = domain::identity::Account::create(
         alice, make_name("Alice"), make_hash(0xAA), domain::Locale{}).value();
     (void)a.drain_events();
-    REQUIRE(accounts.save(a));
+    REQUIRE(accounts->save(a));
 
     ListFriends uc{
         std::make_shared<infra::inmemory::InMemoryFriendListRepository>(),
         std::make_shared<infra::inmemory::InMemorySessionRegistry>(),
-        std::make_shared<infra::inmemory::InMemoryAccountRepository>(accounts)};
+        accounts};
 
     auto r = uc.execute(alice);
 
@@ -65,9 +65,8 @@ TEST_CASE("ListFriends: returns empty list when owner has no friends",
 
 TEST_CASE("ListFriends: returns friend info for each friend in list",
           "[application][social][list_friends]") {
-    infra::inmemory::InMemoryAccountRepository    accounts;
-    infra::inmemory::InMemoryFriendListRepository friend_lists;
-    infra::inmemory::InMemorySessionRegistry      sessions;
+    auto accounts     = std::make_shared<infra::inmemory::InMemoryAccountRepository>();
+    auto friend_lists = std::make_shared<infra::inmemory::InMemoryFriendListRepository>();
 
     domain::AccountId alice{1};
     domain::AccountId bob{2};
@@ -75,23 +74,23 @@ TEST_CASE("ListFriends: returns friend info for each friend in list",
     auto a = domain::identity::Account::create(
         alice, make_name("Alice"), make_hash(0xAA), domain::Locale{}).value();
     (void)a.drain_events();
-    REQUIRE(accounts.save(a));
+    REQUIRE(accounts->save(a));
 
     auto b = domain::identity::Account::create(
         bob, make_name("Bobby"), make_hash(0xBB), domain::Locale{}).value();
     (void)b.drain_events();
-    REQUIRE(accounts.save(b));
+    REQUIRE(accounts->save(b));
 
     // Seed alice's friend list with bob
     domain::social::FriendList list{alice};
     list.add(bob);
     (void)list.drain_events();
-    REQUIRE(friend_lists.save(list));
+    REQUIRE(friend_lists->save(list));
 
     ListFriends uc{
-        std::make_shared<infra::inmemory::InMemoryFriendListRepository>(friend_lists),
+        friend_lists,
         std::make_shared<infra::inmemory::InMemorySessionRegistry>(),
-        std::make_shared<infra::inmemory::InMemoryAccountRepository>(accounts)};
+        accounts};
 
     auto r = uc.execute(alice);
 

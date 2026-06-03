@@ -2,6 +2,8 @@
 //
 // Tests for `application::social::RemoveFriend`.
 
+#include <memory>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "application/social/remove_friend.hpp"
@@ -17,8 +19,12 @@ using application::social::RemoveFriend;
 using application::social::RemoveFriendError;
 
 struct Fixture {
-    infra::inmemory::InMemoryFriendListRepository friend_lists;
-    infra::inmemory::InMemoryEventBus             bus;
+    // The repos are non-copyable (shared_mutex), and the use-case needs to see
+    // the same instance we seed — so hold them as shared_ptr and share that.
+    std::shared_ptr<infra::inmemory::InMemoryFriendListRepository> friend_lists =
+        std::make_shared<infra::inmemory::InMemoryFriendListRepository>();
+    std::shared_ptr<infra::inmemory::InMemoryEventBus> bus =
+        std::make_shared<infra::inmemory::InMemoryEventBus>();
 
     domain::AccountId alice{1};
     domain::AccountId bob{2};
@@ -27,13 +33,11 @@ struct Fixture {
         domain::social::FriendList list{alice};
         list.add(bob);
         (void)list.drain_events();
-        REQUIRE(friend_lists.save(list));
+        REQUIRE(friend_lists->save(list));
     }
 
     RemoveFriend make_uc() {
-        return RemoveFriend{
-            std::make_shared<infra::inmemory::InMemoryFriendListRepository>(friend_lists),
-            std::make_shared<infra::inmemory::InMemoryEventBus>()};
+        return RemoveFriend{friend_lists, bus};
     }
 };
 

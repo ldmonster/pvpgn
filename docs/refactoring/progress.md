@@ -849,6 +849,39 @@ breakage. The honest coverage number is now **59.77%**; closing toward 85% needs
 (a) the friends-test rewrite, (b) the ladder repair, and (c) net-new tests for
 the genuinely thin layers (moderation/realm use-cases still near 0%).
 
+### Step 1.11 — rewrite + re-enable the 3 "friends" tests
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **59.77% → 60.70%**.
+
+Fixed the friends tests deferred in 1.10. Root cause: they constructed the
+use-case repos with `std::make_shared<InMemoryXRepository>(value_repo)` — a
+*copy* of a value repo — which (a) no longer compiles (the repos hold a
+`shared_mutex`, so they're non-copyable) and (b) was already a latent logic bug:
+the use-case got a fresh copy, not the instance the test seeded.
+
+- **`remove_friend_test.cpp`**: fixture now holds `shared_ptr` repos and seeds
+  through them (`friend_lists->save`), passing the same instances to the
+  use-case.
+- **`add_friend_test.cpp`**: the per-test repos were value locals copied into
+  `make_shared`; replaced the dead `Fixture` with two small helpers
+  (`make_accounts({{id,name},…})` building a seeded `shared_ptr` account repo,
+  and `make_uc(accounts)`), and rewrote the 4 cases to use them.
+- **`list_friends_test.cpp`**: both cases now build `shared_ptr` account +
+  friend-list repos and seed through them.
+- Re-enabled all three in `social/CMakeLists.txt` (removed the 1.10 TODO block).
+
+Result: **9 friends test cases now run** (4 add + 3 remove + 2 list); whole
+suite green, `check-all` **15/0/0**, coverage +0.93 pts. All 13 social use-case
+test files are now wired (was 0 before 1.10).
+
+*(The 2 intermittent failures seen in the coverage `-j` run are the same known
+anongame-loader parallel-isolation flakes from 1.9 — both pass on `-j1`.)*
+
+**Still open toward the 85% floor:** (a) the **ladder** repair (use-cases don't
+compile — removed `ports` namespace + drifted constructors); (b) net-new tests
+for genuinely thin layers (moderation/realm use-cases near 0%, several
+application FSMs). 60.70% is the honest current number.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

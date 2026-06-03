@@ -1,20 +1,14 @@
-# TODO(progress 1.11): the three "friends" tests below bit-rotted while the
-# social test suite was silently dropped from the build (wrong target name) —
-# they copy InMemoryAccountRepository / InMemoryFriendListRepository by value,
-# but those repos became non-copyable (shared_mutex member) since the tests were
-# written, and the copies also defeat the seed-then-use shared state they rely
-# on. Re-enable after rewriting their fixtures to share one shared_ptr repo.
-# pvpgn_v3_add_test(test_application_social_add_friend
-#     SOURCES add_friend_test.cpp
-#     DEPS    application_social infra_inmemory)
-#
-# pvpgn_v3_add_test(test_application_social_remove_friend
-#     SOURCES remove_friend_test.cpp
-#     DEPS    application_social infra_inmemory)
-#
-# pvpgn_v3_add_test(test_application_social_list_friends
-#     SOURCES list_friends_test.cpp
-#     DEPS    application_social infra_inmemory)
+pvpgn_v3_add_test(test_application_social_add_friend
+    SOURCES add_friend_test.cpp
+    DEPS    application_social infra_inmemory)
+
+pvpgn_v3_add_test(test_application_social_remove_friend
+    SOURCES remove_friend_test.cpp
+    DEPS    application_social infra_inmemory)
+
+pvpgn_v3_add_test(test_application_social_list_friends
+    SOURCES list_friends_test.cpp
+    DEPS    application_social infra_inmemory)
 
 pvpgn_v3_add_test(test_application_social_create_clan
     SOURCES create_clan_test.cpp

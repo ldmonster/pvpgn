@@ -2,6 +2,11 @@
 //
 // Tests for `application::social::AddFriend`.
 
+#include <initializer_list>
+#include <memory>
+#include <string_view>
+#include <utility>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "application/social/add_friend.hpp"
@@ -32,90 +37,52 @@ domain::BNHash make_hash(std::uint8_t fill) {
     return domain::BNHash{b};
 }
 
-struct Fixture {
-    infra::inmemory::InMemoryAccountRepository    accounts;
-    infra::inmemory::InMemoryFriendListRepository friend_lists;
-    infra::inmemory::InMemoryEventBus             bus;
-
-    domain::AccountId alice_id{1};
-    domain::AccountId bob_id{2};
-
-    void seed_alice() {
+// Helper: a fresh account repo seeded with the named accounts. The repos are
+// non-copyable (shared_mutex), so we build a shared_ptr and save through it
+// rather than copying a value repo into make_shared.
+std::shared_ptr<infra::inmemory::InMemoryAccountRepository>
+make_accounts(std::initializer_list<std::pair<domain::AccountId, std::string_view>> who) {
+    auto accounts = std::make_shared<infra::inmemory::InMemoryAccountRepository>();
+    std::uint8_t fill = 0xA0;
+    for (auto& [id, name] : who) {
         auto a = domain::identity::Account::create(
-            alice_id, make_name("Alice"), make_hash(0xAA),
-            domain::Locale{}).value();
+            id, make_name(name), make_hash(fill++), domain::Locale{}).value();
         (void)a.drain_events();
-        REQUIRE(accounts.save(a));
+        REQUIRE(accounts->save(a));
     }
+    return accounts;
+}
 
-    void seed_bob() {
-        auto b = domain::identity::Account::create(
-            bob_id, make_name("Bobby"), make_hash(0xBB),
-            domain::Locale{}).value();
-        (void)b.drain_events();
-        REQUIRE(accounts.save(b));
-    }
-
-    AddFriend make_uc() {
-        return AddFriend{
-            std::make_shared<infra::inmemory::InMemoryAccountRepository>(accounts),
-            std::make_shared<infra::inmemory::InMemoryFriendListRepository>(),
-            std::make_shared<infra::inmemory::InMemoryEventBus>()};
-    }
-};
+AddFriend make_uc(std::shared_ptr<infra::inmemory::InMemoryAccountRepository> accounts) {
+    return AddFriend{
+        std::move(accounts),
+        std::make_shared<infra::inmemory::InMemoryFriendListRepository>(),
+        std::make_shared<infra::inmemory::InMemoryEventBus>()};
+}
 
 }  // namespace
 
 TEST_CASE("AddFriend: happy path succeeds when both accounts exist",
           "[application][social][add_friend]") {
-    infra::inmemory::InMemoryAccountRepository    accounts;
-    infra::inmemory::InMemoryFriendListRepository friend_lists;
-    infra::inmemory::InMemoryEventBus             bus;
-
     domain::AccountId alice{1};
     domain::AccountId bob{2};
+    auto accounts = make_accounts({{alice, "Alice"}, {bob, "Bobby"}});
 
-    auto a = domain::identity::Account::create(
-        alice, make_name("Alice"), make_hash(0xAA), domain::Locale{}).value();
-    (void)a.drain_events();
-    REQUIRE(accounts.save(a));
-
-    auto b = domain::identity::Account::create(
-        bob, make_name("Bobby"), make_hash(0xBB), domain::Locale{}).value();
-    (void)b.drain_events();
-    REQUIRE(accounts.save(b));
-
-    auto accounts_ptr      = std::make_shared<infra::inmemory::InMemoryAccountRepository>(accounts);
-    auto friend_lists_ptr  = std::make_shared<infra::inmemory::InMemoryFriendListRepository>();
-    auto bus_ptr           = std::make_shared<infra::inmemory::InMemoryEventBus>();
-
-    AddFriend uc{accounts_ptr, friend_lists_ptr, bus_ptr};
-    auto r = uc.execute(alice, bob);
+    auto uc = make_uc(accounts);
+    auto r  = uc.execute(alice, bob);
 
     REQUIRE(r);
 }
 
 TEST_CASE("AddFriend: unknown owner returns OwnerNotFound",
           "[application][social][add_friend]") {
-    infra::inmemory::InMemoryAccountRepository    accounts;
-    infra::inmemory::InMemoryFriendListRepository friend_lists;
-    infra::inmemory::InMemoryEventBus             bus;
-
     domain::AccountId alice{1};
     domain::AccountId bob{2};
-
     // Only bob exists — alice is unknown
-    auto b = domain::identity::Account::create(
-        bob, make_name("Bobby"), make_hash(0xBB), domain::Locale{}).value();
-    (void)b.drain_events();
-    REQUIRE(accounts.save(b));
+    auto accounts = make_accounts({{bob, "Bobby"}});
 
-    AddFriend uc{
-        std::make_shared<infra::inmemory::InMemoryAccountRepository>(accounts),
-        std::make_shared<infra::inmemory::InMemoryFriendListRepository>(),
-        std::make_shared<infra::inmemory::InMemoryEventBus>()};
-
-    auto r = uc.execute(alice, bob);
+    auto uc = make_uc(accounts);
+    auto r  = uc.execute(alice, bob);
 
     REQUIRE_FALSE(r);
     REQUIRE(r.error() == AddFriendError::OwnerNotFound);
@@ -123,25 +90,13 @@ TEST_CASE("AddFriend: unknown owner returns OwnerNotFound",
 
 TEST_CASE("AddFriend: unknown target returns TargetNotFound",
           "[application][social][add_friend]") {
-    infra::inmemory::InMemoryAccountRepository    accounts;
-    infra::inmemory::InMemoryFriendListRepository friend_lists;
-    infra::inmemory::InMemoryEventBus             bus;
-
     domain::AccountId alice{1};
     domain::AccountId bob{2};
-
     // Only alice exists — bob is unknown
-    auto a = domain::identity::Account::create(
-        alice, make_name("Alice"), make_hash(0xAA), domain::Locale{}).value();
-    (void)a.drain_events();
-    REQUIRE(accounts.save(a));
+    auto accounts = make_accounts({{alice, "Alice"}});
 
-    AddFriend uc{
-        std::make_shared<infra::inmemory::InMemoryAccountRepository>(accounts),
-        std::make_shared<infra::inmemory::InMemoryFriendListRepository>(),
-        std::make_shared<infra::inmemory::InMemoryEventBus>()};
-
-    auto r = uc.execute(alice, bob);
+    auto uc = make_uc(accounts);
+    auto r  = uc.execute(alice, bob);
 
     REQUIRE_FALSE(r);
     REQUIRE(r.error() == AddFriendError::TargetNotFound);
@@ -149,23 +104,11 @@ TEST_CASE("AddFriend: unknown target returns TargetNotFound",
 
 TEST_CASE("AddFriend: adding self returns SelfFriend",
           "[application][social][add_friend]") {
-    infra::inmemory::InMemoryAccountRepository    accounts;
-    infra::inmemory::InMemoryFriendListRepository friend_lists;
-    infra::inmemory::InMemoryEventBus             bus;
-
     domain::AccountId alice{1};
+    auto accounts = make_accounts({{alice, "Alice"}});
 
-    auto a = domain::identity::Account::create(
-        alice, make_name("Alice"), make_hash(0xAA), domain::Locale{}).value();
-    (void)a.drain_events();
-    REQUIRE(accounts.save(a));
-
-    AddFriend uc{
-        std::make_shared<infra::inmemory::InMemoryAccountRepository>(accounts),
-        std::make_shared<infra::inmemory::InMemoryFriendListRepository>(),
-        std::make_shared<infra::inmemory::InMemoryEventBus>()};
-
-    auto r = uc.execute(alice, alice);
+    auto uc = make_uc(accounts);
+    auto r  = uc.execute(alice, alice);
 
     REQUIRE_FALSE(r);
     REQUIRE(r.error() == AddFriendError::SelfFriend);
