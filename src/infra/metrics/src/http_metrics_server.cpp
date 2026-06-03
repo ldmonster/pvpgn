@@ -228,8 +228,9 @@ public:
         }
 
         try {
+            // make_address (not address::from_string, removed in Boost 1.87+)
             tcp::endpoint endpoint(
-                boost::asio::ip::address::from_string(std::string(bind_address_)), port_);
+                boost::asio::ip::make_address(std::string(bind_address_)), port_);
             acceptor_.open(endpoint.protocol());
             acceptor_.set_option(boost::asio::socket_base::reuse_address(true));
             acceptor_.bind(endpoint);

@@ -262,6 +262,14 @@ struct ServerList {
 // Server→client only. Tells the official client to display a Windows
 // MessageBox with the supplied caption and text. `style` mirrors the
 // Win32 `MB_*` flag bits (OK / OKCANCEL / YESNO at a minimum).
+//
+// On Windows, <windows.h> (pulled in transitively by Boost.Asio) does
+// `#define MessageBox MessageBoxA`, which would rename this type only in TUs
+// that include windows.h — mangling its symbol and breaking linkage against
+// TUs that don't. Neutralise the macro so the type is consistently `MessageBox`.
+#ifdef MessageBox
+#  undef MessageBox
+#endif
 struct MessageBox {
     std::uint32_t style   = 0;  // SERVER_MESSAGEBOX_OK / _OKCANCEL / _YESNO
     std::string   text;

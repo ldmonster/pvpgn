@@ -99,31 +99,90 @@ if(PVPGN_V3_WITH_BOOST)
     endif()
 
     if(DEFINED VCPKG_TARGET_TRIPLET)
-        # Cross build (MinGW/vcpkg): CONFIG mode against the target-triplet
-        # BoostConfig (CONFIG avoids CMake's FindBoost, which can't model modern
-        # header-only Boost.System). Point at it explicitly (Boost_DIR + prefix)
-        # since the vcpkg find wrapper doesn't add the target triplet for this
-        # chainload setup. KNOWN BLOCKER: BoostConfig's nested
-        # find_package(boost_headers) still doesn't resolve for x64-mingw-static
-        # (version-independent — see Dockerfile.windows / progress.md). The
-        # Windows image therefore does not yet build; native + Linux do.
-        set(_pvpgn_vcpkg_root
-            "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
-        set(Boost_DIR "${_pvpgn_vcpkg_root}/share/boost")
-        list(PREPEND CMAKE_PREFIX_PATH "${_pvpgn_vcpkg_root}")
-    endif()
+        # Cross build (MinGW/vcpkg): vcpkg's modular BoostConfig.cmake does not
+        # resolve for the x64-mingw-static cross-triplet — its nested
+        # find_package(boost_headers) fails regardless of CMake version, find
+        # mode, or Boost version (see Dockerfile.windows / progress.md).
+        #
+        # The Windows build, however, uses ONLY header-only Boost: system
+        # (header-only since 1.69), asio (always header-only), and headers.
+        # The compiled components (fiber/context) are gated behind
+        # PVPGN_V3_WITH_FIBER, which is off for Windows, and the Lua target (the
+        # other fiber consumer) is off too. So bypass find_package entirely and
+        # expose the vcpkg-installed Boost headers as INTERFACE targets.
+        if(PVPGN_V3_WITH_FIBER)
+            message(FATAL_ERROR
+                "MinGW/vcpkg cross build uses a header-only Boost shim and "
+                "cannot provide compiled Boost.Fiber/Context. Build the Windows "
+                "image with PVPGN_V3_WITH_FIBER=OFF.")
+        endif()
 
-    # CONFIG mode loads every installed component config, so header-only targets
-    # (Boost::asio / Boost::headers) are available without listing them in
-    # COMPONENTS (which only marks which are REQUIRED).
-    find_package(Boost 1.75 REQUIRED CONFIG COMPONENTS ${_pvpgn_boost_components})
+        set(_pvpgn_boost_inc
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include")
+        if(NOT EXISTS "${_pvpgn_boost_inc}/boost/version.hpp")
+            set(_pvpgn_boost_inc "${Boost_INCLUDE_DIR}")  # Dockerfile-provided hint
+        endif()
+        if(NOT EXISTS "${_pvpgn_boost_inc}/boost/version.hpp")
+            message(FATAL_ERROR
+                "Boost headers not found for the cross build at ${_pvpgn_boost_inc}")
+        endif()
+
+        add_library(pvpgn_boost_headers INTERFACE)
+        target_include_directories(pvpgn_boost_headers SYSTEM INTERFACE
+            "${_pvpgn_boost_inc}")
+        # Boost.Asio on Windows needs the Winsock libraries linked even though
+        # we use it header-only; the real BoostConfig adds these, our shim must
+        # too (else __imp_WSAStartup/WSASend/etc. are undefined at link).
+        target_link_libraries(pvpgn_boost_headers INTERFACE ws2_32 mswsock)
+        # Aliases for every header-only Boost target the tree links.
+        add_library(Boost::headers ALIAS pvpgn_boost_headers)
+        add_library(Boost::boost   ALIAS pvpgn_boost_headers)
+        add_library(Boost::system  ALIAS pvpgn_boost_headers)
+        add_library(Boost::asio    ALIAS pvpgn_boost_headers)
+        message(STATUS "pvpgn v3: MinGW cross build — using header-only Boost "
+                       "shim at ${_pvpgn_boost_inc}")
+    else()
+        # Native: CONFIG mode loads every installed component config, so
+        # header-only targets (Boost::asio / Boost::headers) are available
+        # without listing them in COMPONENTS (which only marks which are
+        # REQUIRED).
+        find_package(Boost 1.75 REQUIRED CONFIG COMPONENTS ${_pvpgn_boost_components})
+    endif()
 endif()
 
-# Find OpenSSL for runtime peer_link support. Optional -- peer_link is the
-# only consumer, and it is fine to build without it when developers do not
-# have OpenSSL installed (the v3 single-node binary still works).
-find_package(OpenSSL QUIET)
-if(NOT OpenSSL_FOUND)
+# OpenSSL: SRP/NLS login crypto (infra_crypto_nls) + runtime peer_link.
+# On the MinGW/vcpkg cross build the toolchain find-wrapper doesn't locate the
+# target-triplet OpenSSL (same class of breakage as Boost/zlib), so define the
+# imported targets directly from the vcpkg static libs, with the Windows system
+# link deps the static libcrypto/libssl require (crypt32/ws2_32/...).
+if(DEFINED VCPKG_TARGET_TRIPLET AND NOT TARGET OpenSSL::Crypto)
+    set(_pvpgn_ossl "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
+    # Use the known vcpkg static-lib paths directly: find_library() in a cross
+    # build only searches under CMAKE_FIND_ROOT_PATH (the mingw sysroot), so it
+    # would not see these even though they exist.
+    set(PVPGN_OSSL_CRYPTO "${_pvpgn_ossl}/lib/libcrypto.a")
+    set(PVPGN_OSSL_SSL    "${_pvpgn_ossl}/lib/libssl.a")
+    if(EXISTS "${PVPGN_OSSL_CRYPTO}" AND EXISTS "${PVPGN_OSSL_SSL}"
+       AND EXISTS "${_pvpgn_ossl}/include/openssl/ssl.h")
+        add_library(OpenSSL::Crypto STATIC IMPORTED)
+        set_target_properties(OpenSSL::Crypto PROPERTIES
+            IMPORTED_LOCATION "${PVPGN_OSSL_CRYPTO}"
+            INTERFACE_INCLUDE_DIRECTORIES "${_pvpgn_ossl}/include"
+            INTERFACE_LINK_LIBRARIES "crypt32;ws2_32;advapi32;user32")
+        add_library(OpenSSL::SSL STATIC IMPORTED)
+        set_target_properties(OpenSSL::SSL PROPERTIES
+            IMPORTED_LOCATION "${PVPGN_OSSL_SSL}"
+            INTERFACE_INCLUDE_DIRECTORIES "${_pvpgn_ossl}/include"
+            INTERFACE_LINK_LIBRARIES "OpenSSL::Crypto")
+        set(OpenSSL_FOUND TRUE)
+        message(STATUS "pvpgn v3: MinGW cross build — using vcpkg OpenSSL "
+                       "(${PVPGN_OSSL_SSL})")
+    endif()
+endif()
+if(NOT TARGET OpenSSL::Crypto)
+    find_package(OpenSSL QUIET)
+endif()
+if(NOT OpenSSL_FOUND AND NOT TARGET OpenSSL::Crypto)
     message(STATUS "OpenSSL not found -- runtime/peer_link.cpp will be excluded")
 endif()
 
@@ -398,7 +457,12 @@ option(PVPGN_V3_FETCH_ZLIB
        "Fetch & build zlib for the v3 tree if not already available"
        ON)
 
-if(NOT TARGET ZLIB::ZLIB)
+# Skip vcpkg's zlib find on the MinGW cross build: its vcpkg-cmake-wrapper
+# reports "Broken installation" for x64-mingw-static (the same cross-triplet
+# vcpkg wrapper breakage as Boost, and it aborts even under QUIET). Fall
+# through to the FetchContent build below, which cross-compiles zlib from
+# source cleanly with the mingw toolchain.
+if(NOT TARGET ZLIB::ZLIB AND NOT DEFINED VCPKG_TARGET_TRIPLET)
     find_package(ZLIB QUIET)
 endif()
 
@@ -412,6 +476,12 @@ if(NOT TARGET ZLIB::ZLIB AND PVPGN_V3_FETCH_ZLIB)
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(zlib_vendored)
+    # We only consume the static lib (zlibstatic). zlib's CMake also defines a
+    # shared `zlib` DLL target, which fails to link under the mingw-static
+    # cross toolchain — exclude it from the build so it isn't built.
+    if(TARGET zlib)
+        set_target_properties(zlib PROPERTIES EXCLUDE_FROM_ALL TRUE)
+    endif()
     if(TARGET zlibstatic AND NOT TARGET ZLIB::ZLIB)
         # zlibstatic does not auto-propagate its source-dir include path
         # to consumers; do it explicitly.

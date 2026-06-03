@@ -67,8 +67,14 @@ SignalHandler::~SignalHandler() {
 }
 
 void SignalHandler::install() {
-    // Register signal handlers via IoRuntime's asio::signal_set
+    // Register signal handlers via IoRuntime's asio::signal_set.
+    // SIGHUP/SIGUSR1/SIGUSR2 are POSIX-only and absent on Windows; there only
+    // SIGINT/SIGTERM exist (config-reload / flush-on-signal are POSIX-only).
+#if defined(_WIN32)
+    runtime_.install_signal_handlers({SIGINT, SIGTERM});
+#else
     runtime_.install_signal_handlers({SIGHUP, SIGUSR1, SIGUSR2, SIGINT, SIGTERM});
+#endif
 }
 
 void SignalHandler::on_sighup() {

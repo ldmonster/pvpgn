@@ -543,7 +543,10 @@ void apply_env_overrides(ServerConfig& sc)
     // `extern` declaration inside an anonymous namespace creates a
     // namespace-local symbol that the linker can't resolve.
 #if defined(_WIN32)
-    char** env = ::_environ;
+    // On MinGW `_environ` is a function-like macro (expands to a CRT accessor),
+    // so it must NOT be scope-qualified — `::_environ` fails to parse. The CRT
+    // provides it globally, so the anon-namespace concern below doesn't apply.
+    char** env = _environ;
 #else
     char** env = ::environ;
 #endif

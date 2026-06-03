@@ -14,6 +14,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#if defined(_WIN32)
+#  include <io.h>  // _commit (fsync equivalent on Windows)
+#  ifndef O_CLOEXEC
+// Windows has no fork/exec, so close-on-exec is a no-op here.
+#    define O_CLOEXEC 0
+#  endif
+#endif
+
 #include "domain/identity/account.hpp"
 #include "domain/shared/bn_hash.hpp"
 #include "domain/shared/locale.hpp"
@@ -214,7 +222,10 @@ core::Status<> FileAccountRepository::save(
 
     // 4. Write to .tmp file
     {
-        const int fd = ::open(tmp_path.c_str(),
+        // path::c_str() is wchar_t* on Windows; ::open takes char*, so use the
+        // narrow string form (valid on both platforms).
+        const std::string tmp_path_str = tmp_path.string();
+        const int fd = ::open(tmp_path_str.c_str(),
                               O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
                               0600);
         if (fd < 0) {
@@ -237,8 +248,12 @@ core::Status<> FileAccountRepository::save(
             written += static_cast<std::size_t>(n);
         }
 
-        // 5. fsync before rename
+        // 5. fsync before rename (Windows: _commit flushes the fd to disk)
+#if defined(_WIN32)
+        if (::_commit(fd) != 0) {
+#else
         if (::fsync(fd) != 0) {
+#endif
             ::close(fd);
             return core::fail(core::Error{
                 core::StatusCode::Internal,

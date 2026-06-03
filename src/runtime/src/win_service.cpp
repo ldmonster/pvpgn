@@ -5,6 +5,7 @@
 #ifdef _WIN32
 
 #include "runtime/service_host.hpp"
+#include "core/error.hpp"
 #include <windows.h>
 #include <winsvc.h>
 #include <iostream>
@@ -16,14 +17,14 @@ namespace pvpgn::runtime {
 class WindowsService {
 public:
     /// Install service in SCM
-    static Result<void, std::string> install(const std::string& service_name, 
+    static Result<void, core::Error> install(const std::string& service_name, 
                                              const std::string& display_name,
                                              const std::string& exe_path)
     {
         SC_HANDLE scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE);
         if (!scm) {
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to open SCM: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open SCM: ") + get_error_message()})
             );
         }
         
@@ -45,93 +46,93 @@ public:
         
         if (!service) {
             CloseServiceHandle(scm);
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to create service: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to create service: ") + get_error_message()})
             );
         }
         
         CloseServiceHandle(service);
         CloseServiceHandle(scm);
-        return Result<void, std::string>();  // Success
+        return Result<void, core::Error>();  // Success
     }
     
     /// Uninstall service from SCM
-    static Result<void, std::string> uninstall(const std::string& service_name)
+    static Result<void, core::Error> uninstall(const std::string& service_name)
     {
         SC_HANDLE scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
         if (!scm) {
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to open SCM: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open SCM: ") + get_error_message()})
             );
         }
         
         SC_HANDLE service = OpenServiceA(scm, service_name.c_str(), DELETE);
         if (!service) {
             CloseServiceHandle(scm);
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to open service: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open service: ") + get_error_message()})
             );
         }
         
         if (!DeleteService(service)) {
             CloseServiceHandle(service);
             CloseServiceHandle(scm);
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to delete service: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to delete service: ") + get_error_message()})
             );
         }
         
         CloseServiceHandle(service);
         CloseServiceHandle(scm);
-        return Result<void, std::string>();  // Success
+        return Result<void, core::Error>();  // Success
     }
     
     /// Start service
-    static Result<void, std::string> start(const std::string& service_name)
+    static Result<void, core::Error> start(const std::string& service_name)
     {
         SC_HANDLE scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
         if (!scm) {
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to open SCM: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open SCM: ") + get_error_message()})
             );
         }
         
         SC_HANDLE service = OpenServiceA(scm, service_name.c_str(), SERVICE_START);
         if (!service) {
             CloseServiceHandle(scm);
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to open service: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open service: ") + get_error_message()})
             );
         }
         
         if (!StartServiceA(service, 0, nullptr)) {
             CloseServiceHandle(service);
             CloseServiceHandle(scm);
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to start service: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to start service: ") + get_error_message()})
             );
         }
         
         CloseServiceHandle(service);
         CloseServiceHandle(scm);
-        return Result<void, std::string>();  // Success
+        return Result<void, core::Error>();  // Success
     }
     
     /// Stop service
-    static Result<void, std::string> stop(const std::string& service_name)
+    static Result<void, core::Error> stop(const std::string& service_name)
     {
         SC_HANDLE scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
         if (!scm) {
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to open SCM: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open SCM: ") + get_error_message()})
             );
         }
         
         SC_HANDLE service = OpenServiceA(scm, service_name.c_str(), SERVICE_STOP);
         if (!service) {
             CloseServiceHandle(scm);
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to open service: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open service: ") + get_error_message()})
             );
         }
         
@@ -139,31 +140,31 @@ public:
         if (!ControlService(service, SERVICE_CONTROL_STOP, &status)) {
             CloseServiceHandle(service);
             CloseServiceHandle(scm);
-            return Result<void, std::string>(
-                core::fail(std::string("Failed to stop service: ") + get_error_message())
+            return Result<void, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to stop service: ") + get_error_message()})
             );
         }
         
         CloseServiceHandle(service);
         CloseServiceHandle(scm);
-        return Result<void, std::string>();  // Success
+        return Result<void, core::Error>();  // Success
     }
     
     /// Get service status
-    static Result<std::string, std::string> status(const std::string& service_name)
+    static Result<std::string, core::Error> status(const std::string& service_name)
     {
         SC_HANDLE scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
         if (!scm) {
-            return Result<std::string, std::string>(
-                core::fail(std::string("Failed to open SCM: ") + get_error_message())
+            return Result<std::string, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open SCM: ") + get_error_message()})
             );
         }
         
         SC_HANDLE service = OpenServiceA(scm, service_name.c_str(), SERVICE_QUERY_STATUS);
         if (!service) {
             CloseServiceHandle(scm);
-            return Result<std::string, std::string>(
-                core::fail(std::string("Failed to open service: ") + get_error_message())
+            return Result<std::string, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to open service: ") + get_error_message()})
             );
         }
         
@@ -171,8 +172,8 @@ public:
         if (!QueryServiceStatus(service, &status)) {
             CloseServiceHandle(service);
             CloseServiceHandle(scm);
-            return Result<std::string, std::string>(
-                core::fail(std::string("Failed to query service status: ") + get_error_message())
+            return Result<std::string, core::Error>(
+                core::fail(core::Error{core::StatusCode::Internal, std::string("Failed to query service status: ") + get_error_message()})
             );
         }
         
@@ -206,7 +207,7 @@ public:
         
         CloseServiceHandle(service);
         CloseServiceHandle(scm);
-        return Result<std::string, std::string>(status_str);
+        return Result<std::string, core::Error>(status_str);
     }
     
 private:

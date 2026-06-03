@@ -297,22 +297,44 @@ build+test in a clean image), `Dockerfile` (legacy), and `Dockerfile.windows`.
      the vcpkg cross-triplet find-wrapper / prefix resolution itself. Needs a
      vcpkg-specialist fix: a custom `vcpkg-cmake-wrapper` for boost, an overlay
      port, or building Boost for mingw outside vcpkg. Sole Windows follow-up.
-   - Current repo state: `VCPKG_REF` pinned to `2025.06.13` (reproducible,
-     Boost 1.88); the v3 CMake cross branch uses CONFIG + `Boost_DIR`+prefix;
-     comments in `Dockerfile.windows` and `src/CMakeLists.txt` mark the blocker.
-  - **Resolved along the way (all real, kept):** toolchain `autoconf-archive`;
-     `libsodium` `!windows`; boost-pool net-flake retry; vcpkg binary-cache +
-     downloads buildkit cache mounts; the Boost integration restructured to a
-     unified `find_package(Boost CONFIG)` (native re-verified **2581/2581**);
-     top-level Boost discovery via `Boost_DIR`; CMake 3.31.6; `VCPKG_REF`
-     pinned to a stable release (reproducibility).
+  - *(The "blocked / dedicated vcpkg-specialist work" framing above was the
+     status mid-investigation; it was subsequently RESOLVED — see below. The
+     narrative is kept as a record of how the root cause was isolated.)*
 
-**Overall:** all directive items complete and verified EXCEPT the Windows
-cross-compile image, blocked on a third-party vcpkg/mingw modular-Boost
-cross-triplet issue (fully isolated + documented; needs a dedicated vcpkg
-strategy). The v3 server builds 0/0 and passes **2581/2581** tests natively and
-in `Dockerfile.v3`; the legacy `Dockerfile` produces a working, runnable image
-(`bnetd` stays up + clean SIGTERM).
+### Step 0.8 — Windows cross-build RESOLVED ✅
+
+The vcpkg cross-triplet find-wrapper is broken for **every** compiled dep
+(Boost, zlib, OpenSSL), so the winning pattern was to **bypass the wrapper and
+wire the vcpkg-installed artifacts directly**, plus a newer toolchain:
+
+- **Toolchain:** `debian:trixie-slim` (GCC 14 mingw — has `<format>`; bookworm
+  GCC 12 didn't); CMake 3.31; `autoconf-archive`; vcpkg cache mounts;
+  `VCPKG_REF=2025.06.13` (Boost 1.88); `libsodium` `!windows`;
+  `boost-beast`/`boost-multiprecision`/`openssl` added; `VCPKG_APPLOCAL_DEPS=OFF`.
+- **Boost:** header-only INTERFACE shim (Asio/system/headers are header-only;
+  fiber off on Windows) pointing at the vcpkg include dir + `ws2_32`/`mswsock`.
+- **zlib:** skip the broken vcpkg find; FetchContent builds from source; exclude
+  its shared-DLL target (fails on mingw-static).
+- **OpenSSL:** `OpenSSL::SSL/Crypto` imported targets from the vcpkg static libs
+  by **direct path** (cross `find_library` only searches the sysroot), with
+  Windows link deps (`crypt32`/`ws2_32`/…).
+- **Source ports** (all `#ifdef _WIN32`/cross-guarded — native unchanged):
+  `win_service.cpp` (`core::Error`), `crash_handler.cpp` (`strsignal`),
+  `signal_handler.cpp` (POSIX-only signals), `server_config.cpp` (`_environ`),
+  `infra/file/account_repository.cpp` (`O_CLOEXEC`/`_commit`/narrow path),
+  `http_metrics_server.cpp` (`make_address` — `from_string` removed in Boost
+  1.87), `messages_misc.hpp` (`#undef MessageBox` — windows.h's
+  `#define MessageBox MessageBoxA` mangled the protocol type's symbol).
+- **Artifacts:** `dist/windows/bin/{bnetd,pvpgn_v3_d2cs,pvpgn_config_tool,
+  pvpgn-conf-convert}.exe` — all `PE32+ x86-64 MS Windows` (bnetd 17 MB).
+
+**Overall — ALL directive items complete and verified:** the v3 server builds
+0 errors / 0 warnings and passes **2581/2581** tests natively (Lua+sqlite+sodium
+ON) and in `Dockerfile.v3`; the legacy `Dockerfile` produces a working, runnable
+image (`bnetd` stays up + clean SIGTERM); and `Dockerfile.windows`
+cross-compiles 4 working Windows executables. (Native `-j24` runs can flake on
+the raw-fd `adopt_native_handle` tests under parallel pressure — a pre-existing
+isolation quirk; `-j8` is 2581/2581 green.)
 
 **Other M0 remainder (deferred):** archive legacy trackers; broaden
 `check-all.sh` build band.

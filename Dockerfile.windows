@@ -31,7 +31,10 @@
 # Stage: toolchain
 # Debian base + MinGW-w64 cross-toolchain + CMake/Ninja + vcpkg prerequisites.
 # -----------------------------------------------------------------------------
-FROM debian:bookworm-slim AS toolchain
+# Trixie (Debian 13) ships a GCC 14 MinGW-w64 cross-compiler with <format> and
+# fuller C++23 support. Bookworm's GCC 12 lacks <format> (the v3 tree targets
+# C++23), so it cannot cross-compile this codebase.
+FROM debian:trixie-slim AS toolchain
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV VCPKG_ROOT=/opt/vcpkg \
@@ -162,7 +165,8 @@ RUN --mount=type=cache,target=/root/.cache/vcpkg \
         -D PVPGN_V3_BUILD_TESTS=OFF \
         -D PVPGN_V3_PLUGIN_TESTS=OFF \
         -D PVPGN_V3_WITH_LUA=OFF \
-        -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF; do \
+        -D PVPGN_V3_WARNINGS_AS_ERRORS=OFF \
+        -D VCPKG_APPLOCAL_DEPS=OFF; do \
         if [ "${attempt}" -ge "${CONFIGURE_RETRIES}" ]; then \
             exit 1; \
         fi; \

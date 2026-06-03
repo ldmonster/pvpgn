@@ -14,9 +14,15 @@
       "name": "libsodium",
       "platform": "!windows"
     },
+    {
+      "name": "openssl",
+      "platform": "windows"
+    },
     "nlohmann-json",
     "boost-system",
     "boost-asio",
+    "boost-beast",
+    "boost-multiprecision",
     "boost-fiber",
     "boost-context",
     "boost-circular-buffer",

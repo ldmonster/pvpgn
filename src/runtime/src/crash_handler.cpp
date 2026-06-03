@@ -64,7 +64,12 @@ private:
     static void signal_handler(int sig)
     {
         std::cerr << "\n=== CRASH DETECTED ===\n";
+#if defined(_WIN32)
+        // MinGW/Windows has no strsignal(); print the raw signal number.
+        std::cerr << "Signal: " << sig << "\n";
+#else
         std::cerr << "Signal: " << sig << " (" << strsignal(sig) << ")\n";
+#endif
         std::cerr << "\nStack trace:\n";
         print_stack_trace();
         std::cerr << "=== END CRASH REPORT ===\n";
