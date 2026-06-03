@@ -1391,6 +1391,34 @@ Build-verified: full suite **2746/2746** (one anongame `-j` flake, passes `-j1`)
 `check-all` **17/0/0**. The account + channel repositories now both expose
 segregated read/write ports with their read-only consumers narrowed.
 
+### Step 3.6 — domain docs DoD: already met; refresh shared-kernel doc
+
+**Date:** 2026-06-03 · DONE.
+
+Went to create `docs/domain/<ctx>.md` (the domain-layer DoD doc item) and
+discovered it is **already satisfied**: comprehensive per-context guides exist at
+`docs/developer/contexts/*.md` for all 12 contexts, linked from `docs/index.md`'s
+"Bounded Contexts" section. Creating a parallel `docs/domain/` tree would be
+confusing duplication — so the briefly-created copies were removed.
+
+Instead did the real value-add: the existing `shared.md` did not yet document the
+types promoted into the shared kernel by **M3.1**. Updated it to list
+`CharacterClass` (`domain/shared/d2_character_class.hpp`, shared by realm+ladder),
+`Permission` (`domain/shared/permission.hpp`), and a new "Cross-cutting ports"
+subsection for `IPermissionChecker` — with the note that
+`moderation::IPermissionChecker` is a kept alias and that cross-context coupling
+is enforced by `scripts/check_domain_cross_context.sh`.
+
+Result: domain-layer DoD "docs/domain/<ctx>.md per context" is met (at
+`docs/developer/contexts/`); the shared-kernel doc now reflects the M3.1
+decoupling. Ring-1 gates (incl. docs-reachable) green.
+
+**Milestone 3 status:** cross-context coupling removed + gate (3.1); singletons
+audited clean + gate (3.2); ISP audited (ADR 0012) with account+channel
+reader/writer splits and 5 read-only consumers narrowed (3.3–3.5); per-context
+docs confirmed/refreshed (3.6). Remaining M3: the broader ISP splits over
+env-gated backends (tracked in ADR 0012) and a deeper anemic-model pass.
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

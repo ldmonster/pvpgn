@@ -42,6 +42,18 @@ in the DI root (`src/app/bnetd/`).
 | `Timestamp` | `src/domain/shared/` | Alias for `std::chrono::system_clock::time_point` |
 | `IpAddress` | `src/domain/shared/` | IPv4/IPv6 union with CIDR support |
 | `GameTag` | `src/domain/shared/` | Four-byte game product tag (e.g., `STAR`, `W3XP`) |
+| `CharacterClass` | `src/domain/shared/d2_character_class.hpp` | D2 character class enum; shared by `realm` + `ladder` (M3.1) |
+| `Permission` | `src/domain/shared/permission.hpp` | Authorizable-capability enum; shared by `chat` + `moderation` |
+
+### Cross-cutting ports
+
+Authorization is cross-cutting, so its port lives in the kernel rather than
+coupling one context to another's internals (see ADR 0012 context and
+`scripts/check_domain_cross_context.sh`):
+
+| Port | Location | Description |
+|------|----------|-------------|
+| `IPermissionChecker` | `src/domain/shared/permission.hpp` | `has_permission` / `has_command_group`; used by chat's command registry and moderation. `domain::moderation::IPermissionChecker` is a kept alias. |
 
 ## Event Bus Integration
 
