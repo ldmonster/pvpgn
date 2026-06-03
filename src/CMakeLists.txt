@@ -1220,13 +1220,26 @@ pvpgn_v3_add_library(application_social
 )
 
 # ---- application/ladder -------------------------------------------------
-# NOTE: the ladder use-case sources (application/ladder/src/*.cpp) currently
-# DO NOT COMPILE — they were declared only in the orphaned modular
-# src/application/ladder/CMakeLists.txt (never add_subdirectory'd), so they
-# compiled nowhere and bit-rotted: the headers reference a removed `ports`
-# namespace and the constructors have drifted from the tests. Wiring them up
-# is deferred to a dedicated repair step (see docs/refactoring/progress.md
-# Step 1.10); declaring the target here would break the build today.
+# Ladder query/recompute use-cases. These sources were declared only in the
+# orphaned modular src/application/ladder/CMakeLists.txt (never
+# add_subdirectory'd), so they compiled nowhere and the headers bit-rotted
+# (referenced a removed `ports` namespace). Headers repaired in Step 1.13 to
+# the current domain::ladder / domain::identity ports; declared here (monolith)
+# like the other application libs.
+
+pvpgn_v3_add_library(application_ladder
+    STATIC
+    SOURCES
+        application/ladder/src/recompute_ladder.cpp
+        application/ladder/src/get_ladder_entry.cpp
+        application/ladder/src/get_ladder_page.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/ladder/include
+    PUBLIC_DEPS
+        core
+        domain_ladder
+        domain_identity
+)
 
 # ---- application/i18n ---------------------------------------------------
 

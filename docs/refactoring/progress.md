@@ -918,6 +918,42 @@ Note: these moderation use-cases are not yet wired into any protocol handler
 behaviour as real application logic ahead of wiring, the same shape as the
 social use-cases.
 
+### Step 1.13 — repair + wire the ladder use-cases (the 1.10 deferral)
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **61.18% → 61.55%**.
+
+Closed the ladder deferral from 1.10. Three layers of rot, all from the
+use-cases compiling nowhere (the orphaned modular `src/application/ladder` tree):
+
+1. **Header namespace rot** — `recompute_ladder.hpp` / `get_ladder_entry.hpp` /
+   `get_ladder_page.hpp` referenced a removed `ports::` namespace for the repo
+   interfaces. The ports had moved: `ILadderRepository` → `domain::ladder`,
+   `IAccountRepository` → `domain::identity`. Repaired the 3 headers to the
+   real namespaces + added the missing `#include`s. (The `.cpp` bodies already
+   qualified `domain::ladder::`/`domain::identity::`, so they were fine — and
+   the test's `RecomputeLadder uc{repo}` was correct all along; the earlier
+   "too many initializers" was a cascade from the broken `ports::` type.)
+2. **Compiled nowhere** — declared the monolith `application_ladder` lib in
+   `src/CMakeLists.txt` (3 sources, deps `core`/`domain_ladder`/`domain_identity`)
+   and re-enabled the test guard; migrated the two ladder tests' own
+   `FakeAccountRepository` fakes to the current port (same drift as moderation).
+3. **A real test-logic bug** — `RecomputeLadder: happy path` asserted
+   `repo.entries[]` ends up in rank order, but the fake's `save_entry` updated
+   entries *in place* by account, so it never reordered. The use-case sorts a
+   *copy* and re-saves in rank order; fixed the fake's `save_entry` to
+   erase-then-append so stored order reflects save order (= rank). Now the
+   assertion verifies real behaviour.
+
+Result: `application_ladder` compiles + links; **all 3 ladder use-case test
+files run** (recompute/get_entry/get_page); suite **2669 → 2677**, `check-all`
+**15/0/0**, coverage +0.37 pts (ladder sources now counted, 11909 → 12132
+lines). Both 1.10 deferrals (friends + ladder) are now closed.
+
+**Coverage status:** **61.55%** vs the 85% floor. The remaining gap is genuine
+under-testing (the realm use-cases are the next 0% cluster; several application
+FSMs and infra adapters are thin), not more dropped/rotted tests — the
+test-wiring archaeology that started at 1.9 is essentially exhausted.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

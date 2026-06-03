@@ -12,6 +12,7 @@
 
 #include "core/error.hpp"
 #include "core/result.hpp"
+#include "domain/ladder/ports.hpp"
 
 namespace pvpgn::application::ladder {
 
@@ -25,7 +26,7 @@ struct RecomputeLadderResult {
 
 class RecomputeLadder {
 public:
-    explicit RecomputeLadder(ports::ILadderRepository& ladder)
+    explicit RecomputeLadder(domain::ladder::ILadderRepository& ladder)
         : ladder_(ladder) {}
 
     /// Returns InvalidArgument if ladder_id is empty.
@@ -34,7 +35,7 @@ public:
     execute(RecomputeLadderCommand cmd) const;
 
 private:
-    ports::ILadderRepository& ladder_;
+    domain::ladder::ILadderRepository& ladder_;
 };
 
 }  // namespace pvpgn::application::ladder

@@ -5,6 +5,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstddef>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -85,28 +87,28 @@ public:
         accounts_.emplace(std::string{acct.name().display()}, std::move(acct));
     }
 
-    core::Result<domain::identity::Account, core::Error>
-    find_by_name(std::string_view name) override {
-        auto it = accounts_.find(std::string{name});
+    // Current IAccountRepository port (domain::AccountId / UserName, const).
+    core::Result<domain::identity::Account>
+    find_by_name(const domain::UserName& name) const override {
+        auto it = accounts_.find(std::string{name.display()});
         if (it == accounts_.end()) {
             return core::fail(core::Error{core::StatusCode::NotFound, "not found"});
         }
         return it->second;
     }
 
-    core::Result<domain::identity::Account, core::Error>
-    find_by_id(uint32_t id) override {
-        for (auto& [_, a] : accounts_) {
-            if (a.id().value() == id) return a;
+    core::Result<domain::identity::Account>
+    find_by_id(domain::AccountId id) const override {
+        for (const auto& [_, a] : accounts_) {
+            if (a.id().value() == id.value()) return a;
         }
         return core::fail(core::Error{core::StatusCode::NotFound, "not found"});
     }
 
-    core::Result<void, core::Error> save(const domain::identity::Account&) override { return {}; }
-    core::Result<void, core::Error> remove(std::string_view) override { return {}; }
-    core::Result<bool, core::Error> exists(std::string_view) override { return false; }
-    core::Result<std::vector<domain::identity::Account>, core::Error> list_online() override { return std::vector<domain::identity::Account>{}; }
-    core::Result<uint32_t, core::Error> count() override { return 0u; }
+    core::Status<> save(const domain::identity::Account&) override { return core::ok(); }
+    core::Status<> remove(domain::AccountId) override { return core::ok(); }
+    void forEach(std::function<bool(const domain::identity::Account&)>) const override {}
+    std::size_t size() const noexcept override { return accounts_.size(); }
 
 private:
     std::unordered_map<std::string, domain::identity::Account> accounts_;

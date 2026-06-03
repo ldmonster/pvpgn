@@ -41,13 +41,13 @@ public:
 
     core::Result<void, core::Error>
     save_entry(const domain::ladder::LadderEntry& entry) override {
-        // Update existing or append
-        for (auto& e : entries) {
-            if (e.account == entry.account) {
-                e = entry;
-                return core::ok();
-            }
-        }
+        // Remove any existing entry for this account, then append — so the
+        // stored order reflects the order entries were saved in. RecomputeLadder
+        // re-saves entries in rank order, so the final vector ends up ranked,
+        // which is what the happy-path test asserts.
+        std::erase_if(entries, [&](const domain::ladder::LadderEntry& e) {
+            return e.account == entry.account;
+        });
         entries.push_back(entry);
         return core::ok();
     }

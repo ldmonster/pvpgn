@@ -29,8 +29,8 @@ struct LadderPage {
 
 class GetLadderPage {
 public:
-    explicit GetLadderPage(ports::ILadderRepository& ladder,
-                           ports::IAccountRepository& accounts)
+    explicit GetLadderPage(domain::ladder::ILadderRepository& ladder,
+                           domain::identity::IAccountRepository& accounts)
         : ladder_(ladder), accounts_(accounts) {}
 
     /// Returns InvalidArgument if page < 1, page_size < 1, or page_size > 100.
@@ -38,8 +38,8 @@ public:
     execute(GetLadderPageQuery query) const;
 
 private:
-    ports::ILadderRepository&  ladder_;
-    ports::IAccountRepository& accounts_;
+    domain::ladder::ILadderRepository&    ladder_;
+    domain::identity::IAccountRepository& accounts_;
 };
 
 }  // namespace pvpgn::application::ladder

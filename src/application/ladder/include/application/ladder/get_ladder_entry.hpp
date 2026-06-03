@@ -9,6 +9,8 @@
 
 #include "core/error.hpp"
 #include "core/result.hpp"
+#include "domain/identity/ports.hpp"
+#include "domain/ladder/ports.hpp"
 #include "domain/shared/ids.hpp"
 
 namespace pvpgn::application::ladder {
@@ -30,8 +32,8 @@ struct LadderEntryResult {
 
 class GetLadderEntry {
 public:
-    explicit GetLadderEntry(ports::ILadderRepository& ladder,
-                            ports::IAccountRepository& accounts)
+    explicit GetLadderEntry(domain::ladder::ILadderRepository& ladder,
+                            domain::identity::IAccountRepository& accounts)
         : ladder_(ladder), accounts_(accounts) {}
 
     /// Returns InvalidArgument if ladder_id is empty.
@@ -40,8 +42,8 @@ public:
     execute(GetLadderEntryQuery query) const;
 
 private:
-    ports::ILadderRepository&  ladder_;
-    ports::IAccountRepository& accounts_;
+    domain::ladder::ILadderRepository&    ladder_;
+    domain::identity::IAccountRepository& accounts_;
 };
 
 }  // namespace pvpgn::application::ladder

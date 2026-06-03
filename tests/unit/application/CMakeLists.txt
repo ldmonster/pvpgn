@@ -50,8 +50,6 @@ add_subdirectory(ports)
 if(TARGET application_social)
     add_subdirectory(social)
 endif()
-# ladder tests gated on application_ladder, which is intentionally not yet
-# declared (the ladder use-case sources don't compile — see progress 1.10).
 if(TARGET application_ladder)
     add_subdirectory(ladder)
 endif()
