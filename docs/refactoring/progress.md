@@ -1162,6 +1162,36 @@ Result: `connection_fsm_authenticating.cpp` **33.33% → 83.33%** (+50 pts); sui
 **2719 → 2722**, `check-all` **15/0/0**, overall coverage +0.42 → **64.86%**
 (floor stays 64).
 
+### Step 1.21 — connection-FSM injected LoginUser (OLS) path
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **64.86% → 65.22%**.
+
+Third FSM via the injection recipe: `connection_fsm_connecting.cpp` (47%), whose
+`on_logon_request` (legacy single-step OLS `SID_LOGON_REQUEST` 0x29) has an
+injected `application::auth::LoginUser` block. Added
+`connection_fsm_connecting_usecase_test.cpp` (3 cases) building a real `LoginUser`
+over in-memory account/session/event-bus repos + `SystemClock` (and a stub
+`LoginUserNls`, since the FSM's OLS path is only reachable through the
+OLS+NLS ctor):
+
+- **valid login** — seed account "bob" with a default (all-zero) `BNHash`, which
+  matches the all-zero hash `make_logon_request` sends → `LoginUser::execute`
+  succeeds → LoggedIn, and `account_id() == 7` (the real id, proving the
+  use-case ran rather than the placeholder).
+- **wrong password** — seed a non-zero stored hash → mismatch → 0x01 reply, not
+  authenticated.
+- **unknown account** — no seed → lookup fails → not authenticated.
+
+Key gotcha (fixed): `on_logon_request` only runs in the **Connecting** state
+(legacy OLS skips AUTH_INFO), so the test dispatches from the fresh FSM, *not*
+after `reach_authenticating`.
+
+Result: `connection_fsm_connecting.cpp` **47.06% → 81.18%** (+34 pts); suite
+**2722 → 2725**, `check-all` **15/0/0**, overall coverage +0.36 → **65.22%**.
+**Ratcheted the no-regress floor 64 → 65.** Three FSMs now done via injection
+(inchannel 50%, authenticating 83%, connecting 81%); `loggedin`/`ingame` and the
+rest of `inchannel` remain.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

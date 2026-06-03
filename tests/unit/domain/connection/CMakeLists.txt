@@ -50,6 +50,16 @@ if(TARGET test_domain_connection_fsm_authenticating_usecase AND NOT MSVC)
         PRIVATE -Wno-error=null-dereference)
 endif()
 
+# Injected LoginUser (OLS) path of the Connecting handler (on_logon_request).
+pvpgn_v3_add_test(test_domain_connection_fsm_connecting_usecase
+    SOURCES connection_fsm_connecting_usecase_test.cpp
+    DEPS    domain_connection application_connection application_auth
+            infra_inmemory infra_crypto_nls infra_crypto_nls_adapter)
+if(TARGET test_domain_connection_fsm_connecting_usecase AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_connecting_usecase
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
 pvpgn_v3_add_test(test_domain_connection_route_registry
     SOURCES route_registry_test.cpp
     DEPS    domain_connection application_connection)

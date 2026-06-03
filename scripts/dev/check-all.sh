@@ -159,7 +159,7 @@ if [ "$DEEP" -eq 1 ]; then
     # wiring repair + net-new arc); the floor is pinned just below that so the
     # gains can't silently regress. Ramp this toward the 85% M1 exit as net-new
     # tests land — raise the number here, never lower it. See progress 1.9/1.15.
-    COVERAGE_RAMP_FLOOR=64
+    COVERAGE_RAMP_FLOOR=65
     if command -v ctest >/dev/null 2>&1 && [ -d build/v3-coverage ]; then
         gate "coverage (>=${COVERAGE_RAMP_FLOOR}% domain+app, ramp->85)" \
             bash scripts/dev/check-coverage.sh build/v3-coverage "$COVERAGE_RAMP_FLOOR"
