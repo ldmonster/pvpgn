@@ -1239,6 +1239,22 @@ Result: `login_user.cpp` **40.24% → 76.83%** (+37 pts); suite **2730 → 2734*
 (Residual: the second overload's Banned / PersistenceFailed branches, which need
 a banned-account or failing-repo fixture.)
 
+### Step 1.24 — net-new tests for the ChangePassword session-hash overload
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **65.85% → 66.17%**.
+
+Same shape as 1.23: `change_password.cpp` (42.5%) — the existing
+`change_password_test` covers `execute(ChangePasswordRequest)` but not the
+session-hash overload `execute(ChangePasswordWithSessionHashRequest)`. Added
+`change_password_session_hash_test.cpp` (5 cases) with the deterministic
+`FakeHasher`: missing hasher → `Internal`, unknown user, wrong proof →
+`InvalidCurrentPassword`, no-op rotation (new == current) → `PasswordUnchanged`,
+and the happy path (proof computed via the hasher) → rotates and returns the id.
+
+Result: `change_password.cpp` **42.5% → 95.0%**; suite **2734 → 2739**,
+`check-all` **15/0/0**, overall coverage +0.32 → **66.17%**. **Ratcheted the
+no-regress floor 65 → 66.**
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

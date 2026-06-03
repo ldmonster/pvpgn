@@ -155,11 +155,12 @@ fi
 if [ "$DEEP" -eq 1 ]; then
     echo "${C_BOLD}=== Ring 3: deep gates (--deep) ===${C_RST}"
     # Coverage floor is a *no-regress* ratchet, not the M1 target. Measured
-    # domain+app line coverage is ~63% (2026-06-03, after the 1.9–1.15 test-
-    # wiring repair + net-new arc); the floor is pinned just below that so the
-    # gains can't silently regress. Ramp this toward the 85% M1 exit as net-new
-    # tests land — raise the number here, never lower it. See progress 1.9/1.15.
-    COVERAGE_RAMP_FLOOR=65
+    # domain+app line coverage is ~66% (2026-06-03, after the 1.9–1.24 test-
+    # wiring repair + net-new + FSM-injection arc); the floor is pinned just
+    # below that so the gains can't silently regress. Ramp this toward the 85%
+    # M1 exit as net-new tests land — raise the number here, never lower it.
+    # See progress 1.9 (root cause) / 1.16 (ratchet) / 1.19+ (FSM injection).
+    COVERAGE_RAMP_FLOOR=66
     if command -v ctest >/dev/null 2>&1 && [ -d build/v3-coverage ]; then
         gate "coverage (>=${COVERAGE_RAMP_FLOOR}% domain+app, ramp->85)" \
             bash scripts/dev/check-coverage.sh build/v3-coverage "$COVERAGE_RAMP_FLOOR"
