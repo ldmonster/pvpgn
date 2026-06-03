@@ -1216,6 +1216,29 @@ Connection-FSM file tally now: `loggedin` 100%, `ingame` 100%, `authenticating`
 biggest remaining FSM gaps are `inchannel`'s residual error/event-drain branches
 and the core dispatch file.
 
+### Step 1.23 — net-new tests for the LoginUser session-hash overload
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **65.52% → 65.85%**.
+
+`login_user.cpp` was 40% — the existing `login_user_test` covers
+`execute(LoginRequest)` (the OLS path) well, but `execute(LoginWithSessionHashRequest)`
+(the ~75-line W3 session-hash path) had **no test**. Added
+`login_user_session_hash_test.cpp` (4 cases) with a deterministic `FakeHasher`
+(implements the one-method `IPasswordHasher`, derives the session hash from
+ticks+sessionkey so the test can reproduce the expected proof):
+
+- **missing hasher** → `Internal` (the 4-arg `LoginUser` ctor leaves `hasher_`
+  null);
+- **unknown user** → `UnknownUser`;
+- **wrong proof** → `InvalidCredentials`;
+- **correct proof** (computed via the same hasher) → authenticates, returns the
+  account id.
+
+Result: `login_user.cpp` **40.24% → 76.83%** (+37 pts); suite **2730 → 2734**,
+`check-all` **15/0/0**, overall coverage +0.33 → **65.85%** (floor stays 65).
+(Residual: the second overload's Banned / PersistenceFailed branches, which need
+a banned-account or failing-repo fixture.)
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
