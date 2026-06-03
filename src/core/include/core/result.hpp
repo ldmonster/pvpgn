@@ -63,6 +63,13 @@ public:
         return std::get<0>(std::move(data_));
     }
 
+    // Member / dereference access to the contained value, mirroring
+    // std::expected / std::optional. Precondition: has_value().
+    T*       operator->() noexcept { assert(has_value()); return &std::get<0>(data_); }
+    const T* operator->() const noexcept { assert(has_value()); return &std::get<0>(data_); }
+    T&       operator*() & noexcept { assert(has_value()); return std::get<0>(data_); }
+    const T& operator*() const& noexcept { assert(has_value()); return std::get<0>(data_); }
+
     const E& error() const& {
         assert(!has_value());
         return std::get<1>(data_);
