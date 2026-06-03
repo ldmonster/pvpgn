@@ -705,6 +705,44 @@ job, not a strip. The scripting Lua compat shims (`infra/scripting/legacy_shim`,
 Lua-gated chain. `infra/config/{legacy_prefs,legacy_ini_notice,*_legacy_prefs}.hpp`
 and `infra/legacy_config` are live config adapters.
 
+### Step 2.3 — delete three unused legacy compat shims (YAGNI sweep)
+
+**Date:** 2026-06-03 · DONE, build-verified **with Lua ON**.
+
+Static analysis found three "legacy compat" surfaces with **zero consumers**
+anywhere in the tree — deleted per the plan's "delete speculative code on sight"
+rule (README operating rule 4 / [01-principles.md](01-principles.md) YAGNI):
+
+| Removed | Symbol | Why dead |
+|---------|--------|----------|
+| `core/legacy_compat.hpp` | `core::compat::xalloc`/`xstrdup`/… | internal xalloc→STL **migration aid**; 0 `#include`s, 0 `core::compat::` users — the migration it assisted is finished |
+| `infra/scripting/legacy_shim.{hpp,cpp}` | `install_legacy_shim` (bnetd_*→pvpgn.* Lua globals) | defined, **never called** — never installed into any `sol::state` |
+| `lua/legacy_compat_shim.{hpp,cpp}` | `LegacyCompatShim::setup_legacy_api` (legacy t_account/t_connection Lua API) | defined, **never called** — no runtime wiring |
+
+User chose the full sweep over keeping the two Lua shims as a dormant
+backward-compat feature (they had no install site, so they protected nothing).
+
+Also removed the now-dangling build references:
+- `src/legacy_shim.cpp` from `infra/scripting/CMakeLists.txt` SOURCES.
+- `src/legacy_compat_shim.cpp` from `infra/scripting/lua/CMakeLists.txt` SOURCES.
+- `core/legacy_compat.hpp` from the `test_core_headers_selfcontained` HEADERS
+  list in `tests/unit/core/CMakeLists.txt` (the per-header self-contained
+  compile-check is an explicit list, not a glob — it tried to `#include` the
+  deleted header and was the one build break this step produced; fixed).
+
+Build-verified on the **Lua-ON** `v3-dev` configure (where both scripting TUs
+actually compile): reconfigure + rebuild clean, `check-all` **15/0/0** (3 e2e
+journeys included), `ctest -L unit` **2568/2568** (unchanged — the shims had no
+tests). `legacy_*` in `src/`: 15 → **10**.
+
+The remaining 10 are all **live**, not strangler debt: the d2cs/d2dbs
+`legacy_*_bridges` trees (migrated implementation, a de-bridge/rename job), the
+`infra/config` legacy-prefs/ini adapters + `infra/legacy_config` loaders (parse
+real legacy `.conf` dialects), and `protocol/bnet/{messages_legacy.hpp,
+codec_legacy_ols.cpp}` (the OLS wire protocol wired in Step 1.5). M2's
+quick-deletion phase is essentially exhausted; what's left is rename/de-bridge
+work, not removal.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

@@ -7,7 +7,6 @@ if(LUA_FOUND)
     add_library(pvpgn_v3_lua STATIC
         src/lua_host.cpp
         src/sandbox.cpp
-        src/legacy_compat_shim.cpp
         src/plugin_store.cpp
         src/lua_event_bus.cpp
         src/lua_command_registry.cpp

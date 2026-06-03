@@ -38,7 +38,6 @@ pvpgn_v3_add_header_selfcheck(test_core_headers_selfcontained
         core/event_bus.hpp
         core/format.hpp
         core/hexdump.hpp
-        core/legacy_compat.hpp
         core/logging.hpp
         core/result.hpp
         core/scheduler.hpp

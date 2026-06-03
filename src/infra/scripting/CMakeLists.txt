@@ -44,7 +44,6 @@ pvpgn_v3_add_library(pvpgn_infra_scripting STATIC
     SOURCES
         src/sol2_script_host.cpp   # R348 — IScriptHost implementation
         src/lua_api_v2.cpp         # R349 — pvpgn.* Lua API surface
-        src/legacy_shim.cpp        # R349 — bnetd_* → pvpgn.* compatibility shim
 )
 
 target_include_directories(pvpgn_infra_scripting
