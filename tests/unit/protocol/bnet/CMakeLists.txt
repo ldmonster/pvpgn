@@ -83,6 +83,12 @@ pvpgn_v3_add_test(test_protocol_bnet_fsm_golden
     SOURCES fsm_golden_test.cpp capturing_session_context.cpp
     DEPS    protocol_bnet)
 
+# M1: FSM-level coverage for the real OLS auth path (CREATEACCTREQ1 + login),
+# driven with the genuine LoginUser/CreateAccount use-cases over in-memory repos.
+pvpgn_v3_add_test(test_protocol_bnet_fsm_auth_create_login
+    SOURCES fsm_auth_create_login_test.cpp capturing_session_context.cpp
+    DEPS    protocol_bnet application_auth infra_inmemory)
+
 pvpgn_v3_add_test(test_protocol_bnet_anongame
     SOURCES anongame_test.cpp
     DEPS    protocol_bnet)

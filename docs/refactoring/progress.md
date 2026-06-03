@@ -565,6 +565,27 @@ success** (real `account_id` flows into the chat use-case) — plus genuine
 credential rejections: wrong password → **0x02**, unknown account → **0x01**.
 6/6 stable; full suite 2587/2587; `check-all` green.
 
+### Step 1.6 — FSM-level unit tests for the real auth path (+ a build fix)
+
+**Date:** 2026-06-03 · DONE.
+
+Added `tests/unit/protocol/bnet/fsm_auth_create_login_test.cpp` (6 cases): drives
+`BnetFsm` with the genuine `LoginUser`/`CreateAccount` use-cases over in-memory
+repos (no sockets) to lock the Step 1.5 behaviour as fast unit tests —
+CREATEACCTREQ1 creates an account; create→login succeeds (proving the 20-byte
+hash1 packing round-trips); wrong password → 0x02; unknown account → 0x01;
+create without the use-case refuses (no false ACK); duplicate create refused.
+The success case also asserts the context is *not* closed and the session is
+attached exactly once (guards the no-double-attach fix).
+
+**Incidental build fix:** reconfiguring flipped on the system GTest (config
+mode), which surfaced that the legacy GTest plugin tests (`semver_test.cpp`,
+`dependency_resolver_test.cpp`) no longer compiled — they use `result->member`,
+but `core::Result` had no `operator->`. That is a real build break on *any*
+GTest-enabled environment, independent of this work. Added `operator->` /
+`operator*` to `core::Result` (additive, mirrors `std::expected`); both legacy
+suites now build and pass. Full suite **2595/2595**.
+
 ## Milestones 2–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
