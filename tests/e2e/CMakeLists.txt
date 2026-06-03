@@ -72,6 +72,20 @@ if(PYTHON3_EXECUTABLE AND TARGET bnetd)
         RUN_SERIAL TRUE
         LABELS "e2e"
     )
+
+    # Robustness: real bnetd must survive a barrage of malformed/hostile input
+    # and keep serving (guards the framing/dispatch/decode pipeline).
+    add_test(
+        NAME "e2e.hostile_input"
+        COMMAND "${PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/hostile_input_test.py"
+            --bnetd "$<TARGET_FILE:bnetd>"
+    )
+    set_tests_properties("e2e.hostile_input" PROPERTIES
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+        LABELS "e2e"
+    )
 else()
     message(STATUS
         "tests/e2e: skipping modern_login_journey / account_persistence "

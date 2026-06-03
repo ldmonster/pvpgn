@@ -33,6 +33,7 @@ ctest --preset v3-dev -L e2e
 | `scripts/v3-e2e-bnstat-smoke.sh` | Stats query |
 | `modern_login_journey_test.py` | Modern SID login (accept + reject) vs real bnetd |
 | `account_persistence_test.py` | Account created over the wire survives a bnetd restart (file backend) |
+| `hostile_input_test.py` | Real bnetd survives malformed/hostile input and keeps serving |
 
 The journey test needs no running server — it spawns its own `bnetd`. The
 `*-smoke.sh` tests assume a server is already up (see Running, above).

@@ -130,18 +130,23 @@ fi
 BNETD_BIN="$BUILD_DIR/src/app/bnetd/bnetd"
 E2E_JOURNEY="tests/e2e/modern_login_journey_test.py"
 E2E_PERSIST="tests/e2e/account_persistence_test.py"
+E2E_HOSTILE="tests/e2e/hostile_input_test.py"
 if [ "$RUN_BUILD" -eq 0 ]; then
     skip "e2e modern login journey" "--no-build requested"
     skip "e2e account persistence"  "--no-build requested"
+    skip "e2e hostile input"        "--no-build requested"
 elif ! command -v python3 >/dev/null 2>&1; then
     skip "e2e modern login journey" "python3 not found"
     skip "e2e account persistence"  "python3 not found"
+    skip "e2e hostile input"        "python3 not found"
 elif [ ! -x "$BNETD_BIN" ]; then
     skip "e2e modern login journey" "bnetd not built ($BNETD_BIN; cmake --build --preset v3-dev --target bnetd)"
     skip "e2e account persistence"  "bnetd not built ($BNETD_BIN)"
+    skip "e2e hostile input"        "bnetd not built ($BNETD_BIN)"
 else
     gate "e2e modern login journey" python3 "$E2E_JOURNEY" --bnetd "$BNETD_BIN"
     gate "e2e account persistence"  python3 "$E2E_PERSIST" --bnetd "$BNETD_BIN"
+    gate "e2e hostile input"        python3 "$E2E_HOSTILE" --bnetd "$BNETD_BIN"
 fi
 
 # =============================================================================

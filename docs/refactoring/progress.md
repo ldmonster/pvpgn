@@ -609,6 +609,24 @@ durable backend would not have persisted accounts.
 The wire/harness helpers are now shared (`spawn_bnetd(..., backend=)`), and the
 inmemory journey is unchanged. `check-all` green.
 
+### Step 1.8 — hostile-input robustness e2e
+
+**Date:** 2026-06-03 · DONE.
+
+The three crashes found earlier all came from *well-formed* traffic, so
+malformed input deserved its own guard. `tests/e2e/hostile_input_test.py` fires
+15 hostile byte sequences at a real bnetd — each on a fresh connection —
+truncated/zero/oversize headers, unknown SIDs, bodies too short for their
+fields, a PING with no payload, out-of-order LOGONRESPONSE2, a non-0xFF first
+byte, an unknown-SID flood, trailing garbage — and asserts bnetd never crashes
+and still serves a clean AUTH_INFO handshake afterward. It asserts only "stays
+up" and "still serves" (a reply, a clean close, or a silent drop are all fine).
+
+Result: bnetd survives all 15 (the framing/dispatch/decode pipeline is robust);
+no new bugs, and the path is now regression-guarded. Registered as ctest
+`e2e.hostile_input` and added to `check-all` (now 15/0/0). Under the asan/ubsan
+presets this doubles as a sanitizer target for the inbound pipeline.
+
 ## Milestones 2–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
