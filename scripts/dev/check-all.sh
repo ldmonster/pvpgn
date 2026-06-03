@@ -119,6 +119,26 @@ else
     gate "functional tests" ctest --test-dir "$BUILD_DIR" -L functional --output-on-failure
 fi
 
+# ----- e2e: modern login journey vs a real bnetd ----------------------------
+# Self-contained (spawns its own bnetd, stdlib-only Python client); the only
+# gate that drives bnetd's real wire dispatch / session-send / teardown paths,
+# so it guards the dispatch UAF, the un-sent-reply bug, and the on_close crash
+# fixed under M1 Step 1.1. Run the script directly rather than toggling
+# PVPGN_V3_E2E_TESTS (that would also register the *-smoke.sh tests, which need
+# client binaries this toolchain does not build). Env-gated: skip honestly when
+# bnetd / python3 is unavailable.
+BNETD_BIN="$BUILD_DIR/src/app/bnetd/bnetd"
+E2E_JOURNEY="tests/e2e/modern_login_journey_test.py"
+if [ "$RUN_BUILD" -eq 0 ]; then
+    skip "e2e modern login journey" "--no-build requested"
+elif ! command -v python3 >/dev/null 2>&1; then
+    skip "e2e modern login journey" "python3 not found"
+elif [ ! -x "$BNETD_BIN" ]; then
+    skip "e2e modern login journey" "bnetd not built ($BNETD_BIN; cmake --build --preset v3-dev --target bnetd)"
+else
+    gate "e2e modern login journey" python3 "$E2E_JOURNEY" --bnetd "$BNETD_BIN"
+fi
+
 # =============================================================================
 # RING 3 — deep gates (opt-in)
 # =============================================================================

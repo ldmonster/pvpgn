@@ -521,6 +521,19 @@ permissive-login finding (login_user unwired). The test pins this and accepts
 the future `EID_CHANNEL` success once login_user is wired, so the flip is a
 deliberate, reviewed change. Still 5/5 stable; suite 2587/2587.
 
+### Step 1.4 — wire the e2e journey into the local dev gate
+
+**Date:** 2026-06-03 · DONE.
+
+Added an `e2e modern login journey` gate to `scripts/dev/check-all.sh` (Ring 2,
+after the unit/functional bands). It runs the self-contained Python journey
+directly against `build/v3-dev/.../bnetd` — not via `PVPGN_V3_E2E_TESTS=ON`,
+which would also register the `*-smoke.sh` tests that need client binaries this
+toolchain can't build. Env-gated per the script's honesty rule: SKIP (not FAIL)
+when `bnetd`/`python3` is absent or under `--no-build`. With bnetd built it is a
+HARD gate, so the three Step 1.1 crashes can no longer regress unnoticed
+locally. Verified: `check-all` reports **13 passed, 0 failed, 0 skipped**.
+
 ## Milestones 2–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
