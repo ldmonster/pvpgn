@@ -79,7 +79,8 @@ private:
 
 } // namespace pvpgn::application::realm
 
-namespace pa = pvpgn::application::realm;
+namespace pa   = pvpgn::application::realm;
+namespace core = pvpgn::core;  // the TEST_CASEs below are at global scope
 
 TEST_CASE("RegisterRealm happy path: realm is registered and ID returned",
           "[application][realm][register_realm]") {

@@ -954,6 +954,43 @@ under-testing (the realm use-cases are the next 0% cluster; several application
 FSMs and infra adapters are thin), not more dropped/rotted tests — the
 test-wiring archaeology that started at 1.9 is essentially exhausted.
 
+### Step 1.14 — re-enable the 3 disabled realm use-case tests
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **61.55% → 62.29%**.
+
+Realm had 14 sources (all compiled) and 14 tests, but 3 were commented out:
+
+1. **`character_lock_test`** — constructed `domain::realm::Character(id, stats)`
+   with the old 2-arg ctor; current ctor is `(id, stats, core::SystemTime)`.
+   Added the `core::SystemTime{}` arg (2 sites) + `core/clock.hpp`.
+2. **`register_realm_test`** — the TEST_CASEs (at global scope, after the
+   `namespace pvpgn::application::realm` fake) used bare `core::StatusCode`,
+   which doesn't resolve there. Added a `namespace core = pvpgn::core;` alias
+   beside the existing `pa` alias. (The "needs a not-yet-present
+   realm_repository port" TODO was stale — `domain::realm::IRealmRepository`
+   already exists and the fake implements it correctly.)
+3. **`character_persistence_test`** — the use-case validates save data through
+   `D2SaveCodec::parse` (signature `0xAA55AA55` + version + `MIN_FILE_SIZE`
+   335 bytes), but the 3 asserting tests fed 100 zero bytes, so `save()`
+   rejected them. Added a `make_valid_save()` helper (335-byte parse-valid blob)
+   and used it in `SaveCharacter`/`SaveAndLoadCharacter`/`CharacterExists`;
+   tightened `CharacterExists` to actually `REQUIRE` the save succeeds.
+   (`load()` takes `char_name` from the command and the codec extractors only
+   read bytes, so one parse-valid blob satisfies all three.)
+
+Result: **all 14 realm use-case test files run** (+~27 cases); suite
+**2677 → 2696**, `check-all` **15/0/0**, coverage +0.74 pts.
+
+**Coverage tally for the M1 test-wiring repair arc (1.9–1.14):** 57.00% →
+**62.29%** (+5.3 pts) by un-dropping/repairing **social (13) + ladder (3) +
+moderation (5) + realm (3) = 24 use-case test files** that the build silently
+skipped, plus fixing ~5 latent bugs (the `friend_list_repository` `<mutex>`,
+the `RecomputeLadder` fake ordering, the ladder header `ports::` rot, the
+missing `application_ladder`/`issue_warning`/`list_bans` lib sources). The
+"dropped/rotted tests" backlog is now exhausted; further climb to 85% is
+net-new tests for thin-but-wired areas (e.g. `permission_checker`, application
+FSMs, infra adapters) — a different kind of work.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

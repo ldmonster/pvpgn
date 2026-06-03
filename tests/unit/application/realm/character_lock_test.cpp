@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "application/realm/character_lock.hpp"
 #include "domain/realm/character.hpp"
+#include "core/clock.hpp"
 #include "core/result.hpp"
 #include <memory>
 #include <map>
@@ -58,7 +59,7 @@ TEST_CASE("CharacterLockUseCase - lock character", "[application][realm]") {
     domain::realm::CharacterId id{"player1", "Barbarian"};
     domain::realm::CharacterStats stats;
     stats.char_class = domain::realm::CharacterClass::barbarian;
-    domain::realm::Character character(id, stats);
+    domain::realm::Character character(id, stats, core::SystemTime{});
     
     std::string key = "player1:Barbarian";
     repo.storage.insert_or_assign(key, character);
@@ -86,7 +87,7 @@ TEST_CASE("CharacterLockUseCase - unlock character", "[application][realm]") {
     domain::realm::CharacterId id{"player1", "Sorceress"};
     domain::realm::CharacterStats stats;
     stats.char_class = domain::realm::CharacterClass::sorceress;
-    domain::realm::Character character(id, stats);
+    domain::realm::Character character(id, stats, core::SystemTime{});
     auto lock_result = character.lock("gs1.example.com");
     REQUIRE(lock_result);
     
@@ -115,7 +116,7 @@ TEST_CASE("CharacterLockUseCase - is_locked returns true for locked character", 
     domain::realm::CharacterId id{"player1", "Paladin"};
     domain::realm::CharacterStats stats;
     stats.char_class = domain::realm::CharacterClass::paladin;
-    domain::realm::Character character(id, stats);
+    domain::realm::Character character(id, stats, core::SystemTime{});
     auto lock_result = character.lock("gs2.example.com");
     REQUIRE(lock_result);
     
@@ -138,7 +139,7 @@ TEST_CASE("CharacterLockUseCase - is_locked returns false for unlocked character
     domain::realm::CharacterId id{"player1", "Amazon"};
     domain::realm::CharacterStats stats;
     stats.char_class = domain::realm::CharacterClass::amazon;
-    domain::realm::Character character(id, stats);
+    domain::realm::Character character(id, stats, core::SystemTime{});
     
     std::string key = "player1:Amazon";
     repo.storage.insert_or_assign(key, character);
@@ -181,7 +182,7 @@ TEST_CASE("CharacterLockUseCase - unlock with wrong GS fails", "[application][re
     domain::realm::CharacterId id{"player1", "Druid"};
     domain::realm::CharacterStats stats;
     stats.char_class = domain::realm::CharacterClass::druid;
-    domain::realm::Character character(id, stats);
+    domain::realm::Character character(id, stats, core::SystemTime{});
     auto lock_result = character.lock("gs1.example.com");
     REQUIRE(lock_result);
     

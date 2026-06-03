@@ -46,16 +46,27 @@ public:
     }
 };
 
+// A minimal D2 save blob that satisfies D2SaveCodec::parse: valid signature
+// (0xAA55AA55) + version (110) padded to MIN_FILE_SIZE. The use-case validates
+// save data through the codec, so tests expecting save()/load() to succeed need
+// a real blob rather than zero-filled bytes.
+inline std::vector<uint8_t> make_valid_save() {
+    std::vector<uint8_t> data(335, 0);
+    data[0] = 0x55; data[1] = 0xAA; data[2] = 0x55; data[3] = 0xAA;  // signature
+    data[4] = 96;                                                    // version 110
+    return data;
+}
+
 TEST_CASE("CharacterPersistence: SaveCharacter") {
     MockSaveFileStore store;
     CharacterPersistenceUseCase use_case(store);
-    
+
     SaveCharacterCommand cmd;
     cmd.account_name = "TestAccount";
     cmd.char_name = "TestChar";
-    cmd.save_data = std::vector<uint8_t>(100, 0);
+    cmd.save_data = make_valid_save();
     cmd.check_dupes = false;
-    
+
     auto result = use_case.save(cmd);
     REQUIRE(result.has_value());
 }
@@ -93,9 +104,9 @@ TEST_CASE("CharacterPersistence: SaveAndLoadCharacter") {
     SaveCharacterCommand save_cmd;
     save_cmd.account_name = "TestAccount";
     save_cmd.char_name = "TestChar";
-    save_cmd.save_data = std::vector<uint8_t>(100, 0);
+    save_cmd.save_data = make_valid_save();
     save_cmd.check_dupes = false;
-    
+
     auto save_result = use_case.save(save_cmd);
     REQUIRE(save_result.has_value());
     
@@ -117,11 +128,12 @@ TEST_CASE("CharacterPersistence: CharacterExists") {
     SaveCharacterCommand cmd;
     cmd.account_name = "TestAccount";
     cmd.char_name = "TestChar";
-    cmd.save_data = std::vector<uint8_t>(100, 0);
+    cmd.save_data = make_valid_save();
     cmd.check_dupes = false;
-    
-    [[maybe_unused]] auto save_result = use_case.save(cmd);
-    
+
+    auto save_result = use_case.save(cmd);
+    REQUIRE(save_result.has_value());
+
     auto exists_result = use_case.exists("TestAccount", "TestChar");
     REQUIRE(exists_result.has_value());
     CHECK(exists_result.value());
