@@ -60,6 +60,15 @@ if(TARGET test_domain_connection_fsm_connecting_usecase AND NOT MSVC)
         PRIVATE -Wno-error=null-dereference)
 endif()
 
+# Dispatch paths of the InGame handlers (D2 char-select, WAR3 route token).
+pvpgn_v3_add_test(test_domain_connection_fsm_ingame_dispatch
+    SOURCES connection_fsm_ingame_dispatch_test.cpp
+    DEPS    domain_connection application_connection)
+if(TARGET test_domain_connection_fsm_ingame_dispatch AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_ingame_dispatch
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
 pvpgn_v3_add_test(test_domain_connection_route_registry
     SOURCES route_registry_test.cpp
     DEPS    domain_connection application_connection)

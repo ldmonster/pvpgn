@@ -1192,6 +1192,30 @@ Result: `connection_fsm_connecting.cpp` **47.06% → 81.18%** (+34 pts); suite
 (inchannel 50%, authenticating 83%, connecting 81%); `loggedin`/`ingame` and the
 rest of `inchannel` remain.
 
+### Step 1.22 — connection-FSM InGame dispatch paths (→ 100%)
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **65.22% → 65.52%**.
+
+`connection_fsm_ingame.cpp` (29.6%) has no injected use-cases — pure state logic.
+The existing ingame test drove `on_leave_game` and called `bind_d2_character()`
+*directly*, but never dispatched the two SID handlers that parse a packet:
+`on_d2_char_select` (SID_D2GAMELISTEX 0x68) and `on_warcraft_general`
+(SID_WARCRAFTGENERAL 0x44, WAR3 route token). Added
+`connection_fsm_ingame_dispatch_test.cpp` (5 cases):
+
+- D2 char-select binds class/level/name (asserted via `d2_char_*()` accessors);
+  short payload (<3 bytes) is ignored; the packet is ignored while Connecting.
+- WAR3 general stores the route token (`war3_route_token()`); short payload
+  (<5 bytes) sets none.
+
+Result: `connection_fsm_ingame.cpp` **29.63% → 100%**; suite **2725 → 2730**,
+`check-all` **15/0/0**, overall coverage +0.30 → **65.52%** (floor stays 65).
+
+Connection-FSM file tally now: `loggedin` 100%, `ingame` 100%, `authenticating`
+83%, `connecting` 81%, `inchannel` 50%, core `connection_fsm.cpp` ~52%. The
+biggest remaining FSM gaps are `inchannel`'s residual error/event-drain branches
+and the core dispatch file.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
