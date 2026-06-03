@@ -30,6 +30,16 @@ if(TARGET test_domain_connection_fsm_inchannel_branches AND NOT MSVC)
         PRIVATE -Wno-error=null-dereference)
 endif()
 
+# Injected chat-use-case paths of the InChannel handlers (real JoinChannel /
+# PostMessage / LeaveChannel over in-memory repos).
+pvpgn_v3_add_test(test_domain_connection_fsm_inchannel_usecase
+    SOURCES connection_fsm_inchannel_usecase_test.cpp
+    DEPS    domain_connection application_connection application_chat infra_inmemory)
+if(TARGET test_domain_connection_fsm_inchannel_usecase AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_inchannel_usecase
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
 pvpgn_v3_add_test(test_domain_connection_route_registry
     SOURCES route_registry_test.cpp
     DEPS    domain_connection application_connection)

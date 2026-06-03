@@ -1102,6 +1102,39 @@ it deliberately rather than rediscover it.
 Result: suite **2710 → 2715**, `check-all` **15/0/0**, overall coverage +0.08
 pts → **63.55%** (ratchet floor stays 62%).
 
+### Step 1.19 — connection-FSM injected chat-use-case paths (the scaffolding)
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **63.55% → 64.44%**.
+
+Built the scaffolding flagged at 1.18 and it delivered the FSM gain the branch
+sweep couldn't. Added `connection_fsm_inchannel_usecase_test.cpp` (4 cases) that
+wires **real** `application::chat::{JoinChannel,PostMessage,LeaveChannel}` over
+in-memory channel/account/session repos, injects them via
+`set_join_channel(...)`/`set_post_message(...)`/`set_leave_channel(...)`, and
+drives the InChannel handlers through their real (non-stub) blocks:
+
+- **JoinChannel success** — seed the stub-login placeholder account (`account_id_
+  == 1`), dispatch SID_JOINCHANNEL → the use-case creates + persists the channel,
+  admits the member, and the FSM emits EID_CHANNEL + EID_SHOWUSER + EID_JOIN
+  (asserted via ≥2 chat-event packets + the channel now resolving by name).
+- **JoinChannel failure** — *don't* seed the account → `AccountNotFound` → the
+  FSM's `if (!result)` EID_ERROR branch (exactly one chat-event packet).
+- **PostMessage** — join, then SID_CHATCOMMAND → the real PostMessage path echoes
+  EID_TALK.
+- **LeaveChannel** — join, then SID_LEAVECHAT → real LeaveChannel path,
+  InChannel→LoggedIn.
+
+Result: `connection_fsm_inchannel.cpp` **33.19% → 50.43%** (+17 pts — vs the
++3 the 1.18 branch sweep got); suite **2715 → 2719**, `check-all` **15/0/0**,
+overall coverage +0.89 pts → **64.44%** (the biggest single-step gain since the
+1.9–1.14 repair arc). **Ratcheted the no-regress floor 62 → 64.**
+
+This validates the injection pattern as the high-ROI lever for the remaining FSM
+gap: the same scaffolding (in-memory repos + real use-cases injected) applies to
+the still-thin `connection_fsm_authenticating` (33%), `_connecting` (47%),
+`_loggedin`, and `_ingame` handlers, and to the rest of `inchannel`'s error/
+event-drain branches.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
