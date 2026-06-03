@@ -3,132 +3,60 @@
 #
 # check-config-reference-sync.sh
 #
-# Verifies that docs/developer/config-reference.md is in sync with the
-# TOML schema defined in conf/bnetd.toml.in.
+# Verifies that docs/developer/config-reference.md is the up-to-date generation
+# of the v3 configuration *schema* — i.e. it matches `gen-config-docs.sh`
+# (which wraps `pvpgn_config_tool --print-schema`). Per plans/13, the reference
+# doc is generated from the config schema in core/config, NOT hand-maintained
+# and NOT compared against the operator template conf/bnetd.toml.in (that
+# template is a richer superset: it also carries example / optional / D2 / icon
+# sections that the typed bnetd schema does not expose).
 #
-# Strategy
-# --------
-# 1. Extract all top-level TOML section headers ([section]) from bnetd.toml.in.
-# 2. Extract all documented section headers from config-reference.md
-#    (lines starting with "## " or "### " that match a TOML section name).
-# 3. Report any sections present in the schema but absent from the docs,
-#    and any sections documented but absent from the schema.
+# Strategy: regenerate to a temp file and diff against the committed doc.
 #
 # Exit codes
-#   0  — in sync (no missing or extra sections)
-#   1  — out of sync (missing or extra sections detected)
-#   2  — usage error or required file not found
+#   0  — in sync (committed doc == freshly generated)
+#   1  — stale (regenerate with scripts/dev/gen-config-docs.sh)
+#   2  — cannot verify (pvpgn_config_tool not built); pass its path or build it.
 #
 # Usage
-#   scripts/dev/check-config-reference-sync.sh [REPO_ROOT]
-#
-# If REPO_ROOT is omitted, the script uses the directory two levels above
-# its own location (i.e., the repository root when invoked from any CWD).
+#   scripts/dev/check-config-reference-sync.sh [TOOL_PATH]
 
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# Resolve paths
-# ---------------------------------------------------------------------------
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="${1:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+DOC="${REPO_ROOT}/docs/developer/config-reference.md"
+GEN="${REPO_ROOT}/scripts/dev/gen-config-docs.sh"
 
-SCHEMA_FILE="${REPO_ROOT}/conf/bnetd.toml.in"
-DOCS_FILE="${REPO_ROOT}/docs/developer/config-reference.md"
+# Locate the built config tool: explicit arg, else any build/ tree.
+TOOL="${1:-}"
+if [[ -z "${TOOL}" ]]; then
+    TOOL="$(find "${REPO_ROOT}/build" -name 'pvpgn_config_tool' -type f 2>/dev/null | head -1)"
+fi
 
-if [[ ! -f "${SCHEMA_FILE}" ]]; then
-    echo "error: schema file not found: ${SCHEMA_FILE}" >&2
+if [[ -z "${TOOL}" || ! -x "${TOOL}" ]]; then
+    echo "config-reference-sync: pvpgn_config_tool not built — cannot verify."
+    echo "  Build it (cmake --build <preset> --target pvpgn_config_tool) or pass its path."
     exit 2
 fi
 
-if [[ ! -f "${DOCS_FILE}" ]]; then
-    echo "error: config-reference doc not found: ${DOCS_FILE}" >&2
-    exit 2
+if [[ ! -f "${DOC}" ]]; then
+    echo "config-reference-sync: ${DOC} not found" >&2
+    exit 1
 fi
 
-# ---------------------------------------------------------------------------
-# Extract section names from schema (lines like [section] or [section.sub])
-# ---------------------------------------------------------------------------
+TMP="$(mktemp)"
+trap 'rm -f "${TMP}"' EXIT
 
-schema_sections=()
-while IFS= read -r line; do
-    # Match lines of the form [identifier] or [identifier.sub] (not [[arrays]])
-    if [[ "${line}" =~ ^\[([a-zA-Z_][a-zA-Z0-9_.]*)\] ]]; then
-        schema_sections+=("${BASH_REMATCH[1]}")
-    fi
-done < "${SCHEMA_FILE}"
+bash "${GEN}" --tool "${TOOL}" --out "${TMP}" >/dev/null
 
-# ---------------------------------------------------------------------------
-# Extract section names from docs (## or ### headings that look like TOML keys)
-# ---------------------------------------------------------------------------
-
-doc_sections=()
-while IFS= read -r line; do
-    # Match headings like "## [server]" or "### server" or "## server.network"
-    if [[ "${line}" =~ ^#{2,3}[[:space:]]+\[?([a-zA-Z_][a-zA-Z0-9_.]*)\]? ]]; then
-        doc_sections+=("${BASH_REMATCH[1]}")
-    fi
-done < "${DOCS_FILE}"
-
-# ---------------------------------------------------------------------------
-# Compare
-# ---------------------------------------------------------------------------
-
-missing_from_docs=()
-for section in "${schema_sections[@]}"; do
-    found=0
-    for doc_section in "${doc_sections[@]}"; do
-        if [[ "${section}" == "${doc_section}" ]]; then
-            found=1
-            break
-        fi
-    done
-    if [[ "${found}" -eq 0 ]]; then
-        missing_from_docs+=("${section}")
-    fi
-done
-
-extra_in_docs=()
-for doc_section in "${doc_sections[@]}"; do
-    found=0
-    for section in "${schema_sections[@]}"; do
-        if [[ "${section}" == "${doc_section}" ]]; then
-            found=1
-            break
-        fi
-    done
-    if [[ "${found}" -eq 0 ]]; then
-        extra_in_docs+=("${doc_section}")
-    fi
-done
-
-# ---------------------------------------------------------------------------
-# Report
-# ---------------------------------------------------------------------------
-
-exit_code=0
-
-if [[ "${#missing_from_docs[@]}" -gt 0 ]]; then
-    echo "FAIL: The following TOML sections are in the schema but missing from config-reference.md:"
-    for s in "${missing_from_docs[@]}"; do
-        echo "  - ${s}"
-    done
-    exit_code=1
+if diff -q "${DOC}" "${TMP}" >/dev/null 2>&1; then
+    echo "config-reference-sync: ${DOC} is up to date with --print-schema — OK"
+    exit 0
 fi
 
-if [[ "${#extra_in_docs[@]}" -gt 0 ]]; then
-    echo "WARN: The following sections are documented but not found in bnetd.toml.in:"
-    for s in "${extra_in_docs[@]}"; do
-        echo "  - ${s}"
-    done
-    # Extra docs sections are a warning, not a hard failure
-fi
-
-if [[ "${exit_code}" -eq 0 ]]; then
-    echo "OK: config-reference.md is in sync with bnetd.toml.in"
-    echo "  Schema sections: ${#schema_sections[@]}"
-    echo "  Documented sections: ${#doc_sections[@]}"
-fi
-
-exit "${exit_code}"
+echo "config-reference-sync: ${DOC} is STALE relative to the config schema."
+echo "  Regenerate it:  scripts/dev/gen-config-docs.sh --tool ${TOOL}"
+echo "  ---- diff (committed vs generated) ----"
+diff "${DOC}" "${TMP}" | head -40
+exit 1

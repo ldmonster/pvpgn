@@ -4,6 +4,12 @@ site_url: https://pvpgn.github.io/pvpgn/
 repo_url: https://github.com/pvpgn/pvpgn
 repo_name: pvpgn/pvpgn
 
+# Internal refactoring trackers/archive live under docs/ for convenience but are
+# not part of the published site; exclude them so `mkdocs build --strict` does
+# not flag them as pages missing from the nav.
+exclude_docs: |
+  refactoring/
+
 theme:
   name: material
   palette:
