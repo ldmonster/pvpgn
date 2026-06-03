@@ -1269,6 +1269,45 @@ mapped `event_id`, `username`, and `text`.
 Result: `chat_event_compose.cpp` **65.10% → 92.62%**; suite **2739 → 2746**,
 `check-all` **15/0/0**, overall coverage +0.32 → **66.49%** (floor stays 66).
 
-## Milestones 3–6
+## Milestone 3 — Domain & application hardening (in progress)
+
+### Step 3.1 — remove cross-context coupling + add the enforcing gate
+
+**Date:** 2026-06-03 · DONE, build-verified. New gate; `check-all` **16/0/0**.
+
+M3 ([04-domain-layer.md](04-domain-layer.md) §3 / DoD) requires *no* domain
+context to include another context's internals — cross-context links must go
+through the shared kernel or events. An audit found **2 violations** and no
+enforcing check:
+
+- `domain/ladder/d2_ladder.hpp` → `domain/realm/character.hpp` (for
+  `CharacterClass`). (`d2cs` already defines its *own* `CharacterClass`, so the
+  coupling was realm↔ladder only.)
+- `domain/chat/ports/command_registry.hpp` → `domain/moderation/ports.hpp` (for
+  `IPermissionChecker` / `Permission`).
+
+Both fixed by promoting the shared concept into the **published kernel**
+(`domain/shared`, namespace `pvpgn::domain`):
+
+- New `domain/shared/d2_character_class.hpp` — `CharacterClass`. `realm` and
+  `ladder` now both source it from shared; `realm::CharacterClass` kept as a
+  `using` alias so existing realm code is untouched.
+- New `domain/shared/permission.hpp` — `Permission` + `IPermissionChecker`.
+  `moderation::Permission`/`::IPermissionChecker` kept as `using` aliases (so the
+  many existing callers compile unchanged); `chat` now includes only
+  `domain/shared/permission.hpp`. Fixed the one *forward declaration* of
+  `moderation::IPermissionChecker` (in `protocol/telnet/admin_fsm.hpp`) — a
+  forward-decl can't alias, so it was repointed to `domain::IPermissionChecker`.
+
+New gate **`scripts/check_domain_cross_context.sh`** (empty allow-list, may only
+shrink) wired into `check-all` Ring 2 next to domain-purity. Both new shared
+headers added to the `test_domain_shared_headers_selfcontained` list.
+
+Result: cross-context scan **clean**; `check-all` now **16 passed / 0 / 0** (the
+new gate included); full suite **2746/2746**. Layering + purity allow-lists stay
+empty. This ticks the M3 DoD item "no `domain/<a>` includes `domain/<b>`
+internals … a grep-based check confirms it."
+
+## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

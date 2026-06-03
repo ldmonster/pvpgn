@@ -4,12 +4,13 @@
 #include <optional>
 #include "core/clock.hpp"
 #include "core/result.hpp"
+#include "domain/shared/d2_character_class.hpp"
 
 namespace pvpgn::domain::realm {
 
-enum class CharacterClass : uint8_t {
-    amazon = 0, necromancer, paladin, barbarian, sorceress, druid, assassin
-};
+// CharacterClass is a published-kernel value shared with the `ladder` context;
+// it lives in domain/shared. Aliased here so realm::CharacterClass still works.
+using CharacterClass = pvpgn::domain::CharacterClass;
 
 enum class CharacterExpansion : uint8_t { classic = 0, lod = 1 };
 

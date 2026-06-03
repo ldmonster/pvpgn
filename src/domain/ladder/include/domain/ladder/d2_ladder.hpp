@@ -30,12 +30,13 @@
 #include <vector>
 
 #include "core/result.hpp"
-#include "domain/realm/character.hpp"  // CharacterClass
+#include "domain/shared/d2_character_class.hpp"  // CharacterClass (shared kernel)
 
 namespace pvpgn::domain::ladder {
 
-// Re-use the character class enum from the realm domain.
-using CharacterClass = pvpgn::domain::realm::CharacterClass;
+// CharacterClass is a published-kernel value (domain/shared); the ladder context
+// must not depend on realm internals, so it is sourced from shared here.
+using CharacterClass = pvpgn::domain::CharacterClass;
 
 // ---------------------------------------------------------------------------
 // Constants

@@ -37,11 +37,13 @@ pvpgn_v3_add_header_selfcheck(test_domain_shared_headers_selfcontained
         domain/shared/bn_hash.hpp
         domain/shared/chat_message.hpp
         domain/shared/client_tag.hpp
+        domain/shared/d2_character_class.hpp
         domain/shared/events.hpp
         domain/shared/ids.hpp
         domain/shared/ip_address.hpp
         domain/shared/locale.hpp
         domain/shared/match_report.hpp
+        domain/shared/permission.hpp
         domain/shared/user_name.hpp
         domain/shared/ports/config_subscriber.hpp
         domain/shared/ports/event_loop.hpp

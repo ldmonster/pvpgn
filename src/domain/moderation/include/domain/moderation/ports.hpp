@@ -20,6 +20,7 @@
 #include "domain/moderation/ip_ban_list.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/ip_address.hpp"
+#include "domain/shared/permission.hpp"
 
 namespace pvpgn::domain::moderation {
 
@@ -181,54 +182,11 @@ protected:
 
 /// Fine-grained permissions used by the command dispatch layer.
 ///
-/// Values are stable — do not reorder or remove entries; only append.
-enum class Permission : std::uint16_t {
-    // Channel management
-    CreateChannel    = 0,
-    DeleteChannel    = 1,
-    SetChannelTopic  = 2,
-    KickFromChannel  = 3,
-    BanFromChannel   = 4,
-    UnbanFromChannel = 5,
-
-    // User moderation
-    KickUser         = 6,
-    BanUser          = 7,
-    UnbanUser        = 8,
-    BanIp            = 9,
-    UnbanIp          = 10,
-    SilenceUser      = 11,
-    UnsilenceUser    = 12,
-
-    // Clan management
-    CreateClan       = 13,
-    DisbandClan      = 14,
-
-    // Admin views
-    ViewAdminPanel   = 15,
-    ViewBanList      = 16,
-    ViewUserList     = 17,
-    ViewGameList     = 18,
-
-    // Server operations
-    ShutdownServer   = 19,
-    ReloadConfig     = 20,
-    ViewLogs         = 21,
-};
-
-/// Port: check whether an account holds a given permission or command group.
-class IPermissionChecker {
-public:
-    virtual ~IPermissionChecker() = default;
-
-    /// Returns true if `account` has been granted `perm`.
-    [[nodiscard]] virtual bool
-    has_permission(domain::AccountId account, Permission perm) const = 0;
-
-    /// Returns true if `account` belongs to the named command group.
-    [[nodiscard]] virtual bool
-    has_command_group(domain::AccountId account,
-                      std::string_view group) const = 0;
-};
+/// `Permission` and `IPermissionChecker` are published-kernel authorization
+/// vocabulary (cross-cutting: also used by the `chat` command registry), so they
+/// live in domain/shared. Aliased here so domain::moderation::Permission /
+/// ::IPermissionChecker keep working for existing callers.
+using Permission        = pvpgn::domain::Permission;
+using IPermissionChecker = pvpgn::domain::IPermissionChecker;
 
 } // namespace pvpgn::domain::moderation
