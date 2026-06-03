@@ -99,22 +99,23 @@ if(PVPGN_V3_WITH_BOOST)
     endif()
 
     if(DEFINED VCPKG_TARGET_TRIPLET)
-        # Cross build (MinGW/vcpkg): the vcpkg find-package wrapper does not put
-        # the target-triplet Boost on the search path for this chainload setup,
-        # so point at it explicitly (Boost_DIR + prefix) and use CONFIG mode —
-        # vcpkg ships modular BoostConfig, and CMake's bundled FindBoost module
-        # is too old to understand modern Boost (treats header-only `system` as
-        # a missing lib). Requires a CMake new enough for the Boost version (see
-        # the toolchain stage in Dockerfile.windows).
+        # Cross build (MinGW/vcpkg): CONFIG mode against the target-triplet
+        # BoostConfig (CONFIG avoids CMake's FindBoost, which can't model modern
+        # header-only Boost.System). Point at it explicitly (Boost_DIR + prefix)
+        # since the vcpkg find wrapper doesn't add the target triplet for this
+        # chainload setup. KNOWN BLOCKER: BoostConfig's nested
+        # find_package(boost_headers) still doesn't resolve for x64-mingw-static
+        # (version-independent — see Dockerfile.windows / progress.md). The
+        # Windows image therefore does not yet build; native + Linux do.
         set(_pvpgn_vcpkg_root
             "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
         set(Boost_DIR "${_pvpgn_vcpkg_root}/share/boost")
         list(PREPEND CMAKE_PREFIX_PATH "${_pvpgn_vcpkg_root}")
     endif()
 
-    # CONFIG mode for both: loads every installed component config, so
-    # header-only targets (Boost::asio / Boost::headers) are available without
-    # listing them in COMPONENTS (which only marks which are REQUIRED).
+    # CONFIG mode loads every installed component config, so header-only targets
+    # (Boost::asio / Boost::headers) are available without listing them in
+    # COMPONENTS (which only marks which are REQUIRED).
     find_package(Boost 1.75 REQUIRED CONFIG COMPONENTS ${_pvpgn_boost_components})
 endif()
 

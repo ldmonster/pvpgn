@@ -285,14 +285,21 @@ build+test in a clean image), `Dockerfile` (legacy), and `Dockerfile.windows`.
      transient-master issue. Confirmed via a `share/` layout diagnostic that the
      modular `boost_headers` CMake config the meta `BoostConfig.cmake` requires
      is not resolvable for `x64-mingw-static` in this vcpkg layout.
-  - **Final root cause (definitive, after 12 builds):** vcpkg's modular Boost
-     (1.91) `BoostConfig.cmake` does `find_package(boost_headers)`, which the
-     vcpkg cross-triplet (`x64-mingw-static`, host `x64-linux`) find wrapper
-     cannot resolve — **independent of CMake version (3.25/3.31), find mode
-     (CONFIG/MODULE), `Boost_DIR`/prefix, and vcpkg master-vs-release.** Needs a
-     vcpkg-specialist fix: an overlay port for boost, an older pinned Boost
-     whose config is cross-friendly, or dropping vcpkg Boost on Windows for a
-     system/prebuilt mingw Boost. Tracked as the sole Windows follow-up.
+  - **Final root cause (definitive, after 15 builds):** vcpkg's modular Boost
+     `BoostConfig.cmake` does `find_package(boost_headers)`, which the vcpkg
+     cross-triplet (`x64-mingw-static`, host `x64-linux`) find wrapper cannot
+     resolve — **fully version-INDEPENDENT.** Confirmed across: CMake 3.25 and
+     3.31; CONFIG and MODULE/plain find modes; with/without `Boost_DIR`+prefix;
+     vcpkg master (Boost 1.91) AND tagged releases (Boost 1.88 @ 2025.06.13,
+     also 1.86/1.87 available). MODULE mode fails differently but as fatally
+     (CMake FindBoost can't model header-only Boost.System → "missing system").
+     So it is NOT a Boost-version, CMake-version, or find-mode problem — it is
+     the vcpkg cross-triplet find-wrapper / prefix resolution itself. Needs a
+     vcpkg-specialist fix: a custom `vcpkg-cmake-wrapper` for boost, an overlay
+     port, or building Boost for mingw outside vcpkg. Sole Windows follow-up.
+   - Current repo state: `VCPKG_REF` pinned to `2025.06.13` (reproducible,
+     Boost 1.88); the v3 CMake cross branch uses CONFIG + `Boost_DIR`+prefix;
+     comments in `Dockerfile.windows` and `src/CMakeLists.txt` mark the blocker.
   - **Resolved along the way (all real, kept):** toolchain `autoconf-archive`;
      `libsodium` `!windows`; boost-pool net-flake retry; vcpkg binary-cache +
      downloads buildkit cache mounts; the Boost integration restructured to a

@@ -89,14 +89,15 @@ RUN curl -fsSL "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERS
 # -----------------------------------------------------------------------------
 FROM toolchain AS vcpkg
 
-# Pin to a tagged vcpkg release rather than `master` for reproducible builds.
-# NOTE: this does NOT by itself fix the known x64-mingw-static cross-configure
-# failure where vcpkg's modular BoostConfig.cmake find_package()s a
-# `boost_headers` package the cross-triplet wrapper cannot resolve — that
-# reproduces on both master and tagged releases (Boost 1.91) and needs a
-# dedicated vcpkg fix (overlay port / older pinned Boost / non-vcpkg Boost).
-# See docs/refactoring/progress.md.
-ARG VCPKG_REF=2026.05.25
+# Pinned to a tagged vcpkg release (Boost 1.88) for reproducibility.
+# KNOWN BLOCKER (does NOT fix it): the x64-mingw-static cross configure fails on
+# vcpkg's modular BoostConfig.cmake nested find_package(boost_headers). Verified
+# version-INDEPENDENT — reproduces with Boost 1.88 (this tag) and 1.91 (master),
+# CMake 3.25 and 3.31, and both CONFIG and module find modes. Root cause is the
+# vcpkg cross-triplet find wrapper / prefix resolution, not Boost/CMake version.
+# Needs dedicated vcpkg work (custom vcpkg-cmake-wrapper or overlay, or building
+# Boost outside vcpkg for mingw). See docs/refactoring/progress.md.
+ARG VCPKG_REF=2025.06.13
 
 RUN mkdir -p ${VCPKG_DOWNLOADS} \
     && git clone --branch ${VCPKG_REF} https://github.com/microsoft/vcpkg.git ${VCPKG_ROOT} \
