@@ -19,10 +19,26 @@ void BnetBnftpDispatchFactory::operator()(
     auto peek_buf = std::make_shared<std::vector<std::byte>>();
 
     tcp->set_on_bytes([this, tcp, peek_buf](core::ByteView bv) mutable {
-        peek_buf->insert(peek_buf->end(), bv.begin(), bv.end());
-        if (peek_buf->empty()) return;
+        // Reentrancy guard: the protocol-selection logic below calls
+        // `tcp->set_on_bytes(...)` to rewire future reads. That reassigns
+        // `on_bytes_` — *this very std::function* — which destroys the
+        // currently-executing lambda and frees its captures (`tcp`,
+        // `peek_buf`). Any subsequent use of those captures (e.g.
+        // `tcp->set_on_close`, `peek_buf->clear()`) would then be a
+        // use-after-free → SIGSEGV. Hold stack-local owning copies so the
+        // session and peek buffer outlive the rewire for the rest of this
+        // call. NOTE this includes the implicit `this` capture: any lambda
+        // we build *after* the rewire (e.g. the on_close handler below)
+        // would otherwise capture `this` by re-reading it from the freed
+        // peek-lambda closure → a dangling factory pointer. Snapshot it too.
+        auto  session = tcp;
+        auto  pbuf    = peek_buf;
+        auto* self    = this;
 
-        const std::byte first = (*peek_buf)[0];
+        pbuf->insert(pbuf->end(), bv.begin(), bv.end());
+        if (pbuf->empty()) return;
+
+        const std::byte first = (*pbuf)[0];
 
         if (first == static_cast<std::byte>(0xFF)) {
             // BNet protocol — rewire callbacks and replay buffered bytes.
@@ -41,7 +57,7 @@ void BnetBnftpDispatchFactory::operator()(
             // domain state (Connecting → Authenticating → LoggedIn → …).
             // The composition root feeds each decoded packet to both FSMs.
 
-            auto egress = std::make_shared<TcpSessionEgress>(tcp);
+            auto egress = std::make_shared<TcpSessionEgress>(session);
             const domain::SessionId sid = next_session_id();
             const std::uint32_t     sid32 =
                 static_cast<std::uint32_t>(sid.value());
@@ -74,7 +90,7 @@ void BnetBnftpDispatchFactory::operator()(
 
             // Replay buffered bytes through both FSMs
             framer->feed(
-                core::ByteView{peek_buf->data(), peek_buf->size()},
+                core::ByteView{pbuf->data(), pbuf->size()},
                 [&fsm, &adapter](protocol::bnet::ClientMessage msg) {
                     // Feed to BnetFsm (wire-level)
                     (void)fsm->handle(msg);
@@ -88,7 +104,7 @@ void BnetBnftpDispatchFactory::operator()(
                 });
 
             // Rewire for future bytes
-            tcp->set_on_bytes(
+            session->set_on_bytes(
                 [fsm, framer, adapter](core::ByteView bv2) {
                     framer->feed(bv2,
                         [&fsm](protocol::bnet::ClientMessage m) {
@@ -101,20 +117,22 @@ void BnetBnftpDispatchFactory::operator()(
             // alongside the adapter (which holds non-owning refs to all).
             // R305: bnetd_svc_ is a member of BnetBnftpDispatchFactory;
             // captured via `this` for LogoutUser cleanup on disconnect.
-            tcp->set_on_close(
-                [this, sid, adapter, tcp_conn_ctx, lua_ctx, logging_ctx](
+            session->set_on_close(
+                [self, sid, adapter, tcp_conn_ctx, lua_ctx, logging_ctx](
                     const boost::system::error_code&) {
                     // R305: call LogoutUser to clean up channel membership
-                    // before unregistering the session.
+                    // before unregistering the session. Use `self` (the
+                    // snapshotted factory) rather than `this`: see the
+                    // reentrancy note at the top of the handler.
                     const auto& conn_fsm = adapter->connection_fsm();
                     const std::uint32_t acct_id = conn_fsm.account_id();
                     if (acct_id != 0) {
                         application::auth::LogoutRequest req{
                             domain::SessionId{sid},
                             domain::AccountId{acct_id}};
-                        (void)bnetd_svc_.logout_user().execute(req);
+                        (void)self->bnetd_svc_.logout_user().execute(req);
                     }
-                    session_mgr_.unregister_session(sid);
+                    self->session_mgr_.unregister_session(sid);
                     adapter->connection_fsm().close();
                     (void)tcp_conn_ctx;
                     (void)lua_ctx;
@@ -123,28 +141,29 @@ void BnetBnftpDispatchFactory::operator()(
 
         } else {
             // BNFTP protocol (or unknown — let BnftpFsm reject it)
-            auto egress = std::make_shared<TcpSessionEgress>(tcp);
+            auto egress = std::make_shared<TcpSessionEgress>(session);
             auto ctx    = std::make_shared<BnftpEgressContext>(egress);
             auto fsm    = std::make_shared<protocol::file::BnftpFsm>(
                 ctx, cfg_.data_dir.string());
 
             // Replay buffered bytes
-            auto sp = std::span<const std::byte>(peek_buf->data(),
-                                                  peek_buf->size());
+            auto sp = std::span<const std::byte>(pbuf->data(),
+                                                  pbuf->size());
             (void)fsm->on_bytes(sp);
 
             // Rewire for future bytes
-            tcp->set_on_bytes([fsm](core::ByteView bv2) {
+            session->set_on_bytes([fsm](core::ByteView bv2) {
                 auto sp2 = std::span<const std::byte>(bv2.data(), bv2.size());
                 (void)fsm->on_bytes(sp2);
             });
-            tcp->set_on_close([fsm](const boost::system::error_code&) {
+            session->set_on_close([fsm](const boost::system::error_code&) {
                 fsm->on_close();
             });
         }
 
-        // Clear peek buffer — it has been replayed
-        peek_buf->clear();
+        // Clear peek buffer — it has been replayed. (Use the stack-local
+        // owning copy: the capture may have been freed by the rewire above.)
+        pbuf->clear();
     });
 
     tcp->start();

@@ -403,7 +403,7 @@ components' own schemas, not the bnetd server config reference.
 
 ## Milestone 1 — raise the test floor (in progress)
 
-### Step 1.1 — e2e fake-client harness: groundwork + findings (in progress)
+### Step 1.1 — e2e fake-client harness: groundwork + findings
 
 **Date:** 2026-06-03 · approach chosen: build the real client tools + drive a
 spawned bnetd.
@@ -427,15 +427,57 @@ Done / verified:
   `BNet/BNFTP listening on 0.0.0.0:<port>` (readiness signal), and tears down
   cleanly. `bnchat` connects and completes the init-class handshake.
 
-**Blocker found (real server-side gap, not the harness):** bnetd's v3 bnet FSM
+Earlier finding (re the stock client tools): the v3 bnet FSM
 (`src/protocol/bnet/src/fsm/fsm_auth.cpp`) implements the **modern** auth flow
 (`AuthInfo → AuthCheckReply → LogonResponse2 → LogonResponse2Reply`) but the
-**legacy** `on(LoginReq1)` (and `CreateAcctReq1`) are no-op stubs
-(`return core::ok();`). The client tools (`bnchat -c CHAT`) drive the *legacy*
-`CLIENT_LOGINREQ1` flow → bnetd never replies → "server closed before AUTH
-challenge / LOGINREPLY1". So a login journey via the stock client tools needs
-either (a) the legacy LOGINREQ1/CREATEACCTREQ1 flow implemented in the FSM, or
-(b) a client that speaks the modern LogonResponse2/NLS flow bnetd implements.
+**legacy** `on(LoginReq1)`/`on(CreateAccount1Request)` are no-op stubs. The
+stock tools (`bnchat -c CHAT`) speak the *legacy* flow, so they cannot drive a
+login against this bnetd. Decision: write a **modern-flow Python client** that
+speaks the flow bnetd actually implements, and drive a *real* spawned bnetd.
+
+### Step 1.1 — RESULT: green modern-flow login journey + 3 server crash fixes
+
+**Date:** 2026-06-03 · DONE.
+
+New test `tests/e2e/modern_login_journey_test.py` (stdlib only, no docker):
+spawns a real gcc13 `bnetd` (inmemory backend, ephemeral bnet port), then a
+Python client drives the modern SID handshake over the wire and asserts:
+- accept: `AUTH_INFO → AUTH_CHECK{0} → LOGONRESPONSE2(e2euser) → reply 0x00`;
+- reject: empty username → `LOGONRESPONSE2 reply 0x01`.
+Registered as ctest `e2e.modern_login_journey` (label `e2e`, `RUN_SERIAL`,
+gated by `-DPVPGN_V3_E2E_TESTS=ON`). 5/5 stable; full unit suite still 2581/2581.
+
+This is the **first** test to drive real bnetd's wire dispatch / session-context
+send / connection-teardown paths end to end (the existing `*-smoke.sh` tests
+drive real client tools against a Python *mock* server, so these paths were
+never exercised). It immediately surfaced **three latent SIGSEGV/contract bugs**,
+all now fixed:
+
+1. **Dispatch use-after-free** (`main/bnet_bnftp_dispatch.cpp`): the connection
+   handler *is* `TcpSession::on_bytes_`; it called `tcp->set_on_bytes(...)` to
+   rewire future reads, which move-assigns the very `std::function` being
+   executed → destroys the running lambda and frees its captures (`tcp`,
+   `peek_buf`). Subsequent use of those captures crashed. Fixed by snapshotting
+   `tcp`/`peek_buf`/`this` into stack locals (`session`/`pbuf`/`self`) before the
+   rewire. **Every bnet connection crashed bnetd on the first packet.**
+
+2. **Replies never sent** (`protocol/bnet/session_context_impl.hpp`):
+   `BnetSessionContextImpl::send()` called `finalize_bnet_packet()` a second
+   time, but each `encode()` already finalizes its own packet → the redundant
+   call returned `FailedPrecondition` and `send()` bailed *before*
+   `egress_->send()`. **No `ServerMessage` ever reached the wire.** Fixed by
+   dropping the redundant finalize.
+
+3. **`on_close` dangling-`this`** (same file as #1): the close handler was built
+   *after* the `set_on_bytes` rewire, so its `[this, …]` capture re-read `this`
+   from the just-freed peek-lambda closure → crash on disconnect in
+   `session_mgr_.unregister_session`. Fixed by the `self` snapshot from #1.
+
+All three were invisible to the existing tests; the e2e harness is exactly the
+"raise the floor" instrument M1 calls for. Login is still a permissive stub
+(`login_user` use-case is left null in `app/bnetd/main.cpp`, so any non-empty
+username is accepted with `0x00`); the test pins that observable contract so the
+future wiring of real credential checks shows up as a deliberate change.
 
 ## Milestones 2–6
 

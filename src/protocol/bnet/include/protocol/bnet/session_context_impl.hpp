@@ -31,18 +31,17 @@ public:
                                                 "egress not available"));
         }
 
-        // Encode the message using a Writer
+        // Encode the message using a Writer. Each `encode()` overload opens
+        // *and* finalizes its own BNet packet (begin_bnet_packet → write →
+        // finalize_bnet_packet), so the buffer is already a complete framed
+        // packet here. Do NOT call finalize_bnet_packet() again: there is no
+        // open packet, so it would return FailedPrecondition and silently
+        // suppress the send (the bug that left BnetFsm replies un-sent).
         Writer w;
         auto result = std::visit(
             [&w](const auto& m) { return encode(w, m); }, msg);
         if (!result) {
             return result;  // Propagate encode error
-        }
-
-        // Finalize and send
-        auto result2 = w.finalize_bnet_packet();
-        if (!result2) {
-            return result2;
         }
 
         // Send via egress (non-blocking queue)
