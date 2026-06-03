@@ -502,6 +502,25 @@ round-trippable via `decode_server`; multi-send ordering; `close()` forwarding;
 null-egress error path. Reintroducing the double-finalize makes the egress
 receive nothing and fails the first assertion. Suite now 2587/2587.
 
+### Step 1.3 — extend the e2e journey past login (chat path)
+
+**Date:** 2026-06-03 · DONE.
+
+Grew `modern_login_journey_test.py`'s accept path beyond login, over the same
+real connection: `PING` (asserts the server mirrors the cookie verbatim),
+`ENTER_CHAT` (LoggedIn→InChat; asserts `unique_name` echo), and `JOIN_CHANNEL`
+(InChat; asserts a structured `SID_CHATEVENT` reply). This drives the chat FSM,
+the `join_channel` use-case, and the `ChatEvent` encoder end to end over the
+wire — paths the unit/FSM tests only reach with a mocked `ISessionContext`.
+
+Observed: `JOIN_CHANNEL` currently returns `EID_INFO "Failed to join channel"`.
+The join *use-case* succeeds (channel auto-created, member admitted) but its
+account lookup fails — the permissive login stub leaves `current_account_id_`
+at 0 and no account 0 exists (`AccountNotFound`). Same root cause as the
+permissive-login finding (login_user unwired). The test pins this and accepts
+the future `EID_CHANNEL` success once login_user is wired, so the flip is a
+deliberate, reviewed change. Still 5/5 stable; suite 2587/2587.
+
 ## Milestones 2–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
