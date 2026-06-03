@@ -479,6 +479,29 @@ All three were invisible to the existing tests; the e2e harness is exactly the
 username is accepted with `0x00`); the test pins that observable contract so the
 future wiring of real credential checks shows up as a deliberate change.
 
+### Step 1.2 — codec coverage audit + session-context regression unit test
+
+**Date:** 2026-06-03 · DONE.
+
+Audited the protocol test floor before adding more: the bnet **codec** is
+already deeply covered — `codec_test.cpp` alone has **213** cases (round-trips,
+golden wire-byte parity vs legacy, oversize/short/malformed rejection across
+auth/chat/clan/game/friends/userdata), plus `codec_property_test.cpp`
+(round-trip identity + arbitrary-packet decode-fuzz) and `golden_replay_test.cpp`.
+So "golden vectors + round-trip + fuzz" for the codec is effectively complete;
+adding more there would be low-value duplication.
+
+The real hole was one layer up: the production `BnetSessionContextImpl`
+(encode → finalize → egress) had **zero** tests — every FSM test uses
+`CapturingSessionContext`, which mocks `ISessionContext` and records
+`ServerMessage`s *before* encoding, so the actual send path (where the
+double-finalize bug lived, Step 1.1 #2) was never exercised. Added
+`tests/unit/protocol/bnet/session_context_impl_test.cpp` (6 cases): one send →
+exactly one well-framed packet on a capturing `IConnectionEgress`, byte-for-byte
+round-trippable via `decode_server`; multi-send ordering; `close()` forwarding;
+null-egress error path. Reintroducing the double-finalize makes the egress
+receive nothing and fails the first assertion. Suite now 2587/2587.
+
 ## Milestones 2–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

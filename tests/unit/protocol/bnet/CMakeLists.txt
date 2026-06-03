@@ -7,6 +7,12 @@ pvpgn_v3_add_test(test_protocol_bnet_codec_property
     SOURCES codec_property_test.cpp
     DEPS    protocol_bnet)
 
+# M1: the production ISessionContext (encode -> finalize -> egress). Guards the
+# double-finalize regression that left every BnetFsm reply un-sent.
+pvpgn_v3_add_test(test_protocol_bnet_session_context_impl
+    SOURCES session_context_impl_test.cpp
+    DEPS    protocol_bnet)
+
 pvpgn_v3_add_test(test_protocol_bnet_init_wire_types
     SOURCES init_wire_types_test.cpp
     DEPS    protocol_bnet)
