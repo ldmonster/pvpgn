@@ -1361,6 +1361,21 @@ Build-verified: full suite **2746/2746**, `check-all` **17/0/0** (the split is
 ABI/source-compatible, so nothing else changed). M3 DoD "ports audited for ISP"
 is met; the remaining splits are tracked in ADR 0012 as scoped follow-ups.
 
+### Step 3.4 — extend the IAccountReader narrowing to more read-only consumers
+
+**Date:** 2026-06-03 · DONE, build-verified. `check-all` **17/0/0**.
+
+Applied the ADR 0012 reader/writer split to the remaining read-only account
+consumers (all call only `find_by_id`): `application::social::ListFriends` and
+`application::ladder::{GetLadderEntry,GetLadderPage}` now take
+`IAccountReader` (`shared_ptr` / `&`) instead of `IAccountRepository`. Their
+constructions are unchanged (an `InMemoryAccountRepository` upcasts to
+`IAccountReader`), so all call sites and tests compile untouched.
+
+Result: 4 read-only use-cases (incl. the permission checker from 3.3) now depend
+only on the account *read* surface — they cannot perform writes. Full suite
+**2746/2746**, `check-all` **17/0/0**.
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

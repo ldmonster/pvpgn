@@ -34,7 +34,7 @@ class ListFriends {
 public:
     ListFriends(std::shared_ptr<domain::social::IFriendListRepository> friend_lists,
                 std::shared_ptr<domain::identity::ISessionRegistry> registry,
-                std::shared_ptr<domain::identity::IAccountRepository> accounts)
+                std::shared_ptr<domain::identity::IAccountReader> accounts)
         : friend_lists_(friend_lists), registry_(registry), accounts_(accounts) {}
 
     core::Result<std::vector<FriendInfo>, ListFriendsError>
@@ -43,7 +43,7 @@ public:
 private:
     std::shared_ptr<domain::social::IFriendListRepository> friend_lists_;
     std::shared_ptr<domain::identity::ISessionRegistry> registry_;
-    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::identity::IAccountReader> accounts_;
 };
 
 }  // namespace pvpgn::application::social

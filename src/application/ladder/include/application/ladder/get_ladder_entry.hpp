@@ -33,7 +33,7 @@ struct LadderEntryResult {
 class GetLadderEntry {
 public:
     explicit GetLadderEntry(domain::ladder::ILadderRepository& ladder,
-                            domain::identity::IAccountRepository& accounts)
+                            domain::identity::IAccountReader& accounts)
         : ladder_(ladder), accounts_(accounts) {}
 
     /// Returns InvalidArgument if ladder_id is empty.
@@ -43,7 +43,7 @@ public:
 
 private:
     domain::ladder::ILadderRepository&    ladder_;
-    domain::identity::IAccountRepository& accounts_;
+    domain::identity::IAccountReader& accounts_;
 };
 
 }  // namespace pvpgn::application::ladder
