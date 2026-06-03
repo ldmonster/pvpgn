@@ -40,6 +40,16 @@ if(TARGET test_domain_connection_fsm_inchannel_usecase AND NOT MSVC)
         PRIVATE -Wno-error=null-dereference)
 endif()
 
+# Injected LoginUserNls (SRP) paths of the Authenticating handlers.
+pvpgn_v3_add_test(test_domain_connection_fsm_authenticating_usecase
+    SOURCES connection_fsm_authenticating_usecase_test.cpp
+    DEPS    domain_connection application_connection application_auth
+            infra_crypto_nls infra_crypto_nls_adapter)
+if(TARGET test_domain_connection_fsm_authenticating_usecase AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_authenticating_usecase
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
 pvpgn_v3_add_test(test_domain_connection_route_registry
     SOURCES route_registry_test.cpp
     DEPS    domain_connection application_connection)

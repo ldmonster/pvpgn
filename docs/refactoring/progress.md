@@ -1135,6 +1135,33 @@ the still-thin `connection_fsm_authenticating` (33%), `_connecting` (47%),
 `_loggedin`, and `_ingame` handlers, and to the rest of `inchannel`'s error/
 event-drain branches.
 
+### Step 1.20 — connection-FSM injected LoginUserNls (SRP) paths
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **64.44% → 64.86%**.
+
+Applied the 1.19 injection recipe to the next-thinnest FSM,
+`connection_fsm_authenticating.cpp` (33%). Added
+`connection_fsm_authenticating_usecase_test.cpp` (3 cases) wiring a real
+`application::auth::LoginUserNls` over an in-memory `INlsCredentialStore` (seeded
+with a genuine SRP salt+verifier via `infra::crypto::NlsVerifier::create_verifier`)
+and the production `NlsCryptoAdapter`, constructed through the FSM's NLS ctor
+(`ConnectionFsm{ctx, nls}`):
+
+- **challenge path** — SID_AUTH_ACCOUNTLOGON for the known account → the FSM
+  calls `LoginUserNls::challenge()` and replies with salt + server public key.
+- **unknown account** — logon for an unseeded name → lookup failure handled, not
+  authenticated.
+- **verify failure** — challenge, then SID_AUTH_ACCOUNTLOGONPROOF with a canned
+  (incorrect) proof → `verify()` rejects, FSM stays out of LoggedIn.
+
+(The verify *success* path needs a real client-side SRP M1 — the same limitation
+the standalone `login_user_nls_test` documents — so it stays uncovered; the
+challenge + reject paths are the bulk.)
+
+Result: `connection_fsm_authenticating.cpp` **33.33% → 83.33%** (+50 pts); suite
+**2719 → 2722**, `check-all` **15/0/0**, overall coverage +0.42 → **64.86%**
+(floor stays 64).
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
