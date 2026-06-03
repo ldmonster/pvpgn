@@ -20,14 +20,38 @@
 
 #include "protocol/bnet/fsm.hpp"
 
+#include <array>
+#include <cstdint>
 #include <string>
 
+#include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
 #include "application/moderation/check_ip_ban.hpp"
 #include "domain/identity/ports.hpp"
 #include "core/error.hpp"
 
 namespace pvpgn::protocol::bnet {
+
+namespace {
+
+/// Pack the 5×u32 OLS "hash1" words into their 20-byte little-endian wire
+/// representation — exactly the form `domain::BNHash::from_bytes` expects
+/// (it requires precisely 20 bytes). The same packing is used by the login
+/// (SID_LOGONRESPONSE2) and create-account (SID_CREATEACCTREQ1) paths so a
+/// password created on one round-trips to a successful login on the other.
+std::string pack_hash1_le(const std::array<std::uint32_t, 5>& words) {
+    std::string out(20, '\0');
+    for (std::size_t i = 0; i < words.size(); ++i) {
+        const std::uint32_t w = words[i];
+        out[i * 4 + 0] = static_cast<char>(w & 0xFFu);
+        out[i * 4 + 1] = static_cast<char>((w >> 8) & 0xFFu);
+        out[i * 4 + 2] = static_cast<char>((w >> 16) & 0xFFu);
+        out[i * 4 + 3] = static_cast<char>((w >> 24) & 0xFFu);
+    }
+    return out;
+}
+
+}  // namespace
 
 core::Status<> BnetFsm::on(const AuthInfo& m) {
     if (state_ != BnetState::Init) {
@@ -68,11 +92,8 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
         return ctx_->send(ServerMessage{LogonResponse2Reply{0x00u, ""}});
     }
 
-    // Construct password hash from the 5×u32 array
-    std::string password_hash;
-    for (const auto& hash_word : m.password_hash) {
-        password_hash += std::to_string(hash_word) + ":";
-    }
+    // Pack the 5×u32 hash1 words into their 20-byte LE wire form for BNHash.
+    std::string password_hash = pack_hash1_le(m.password_hash);
 
     // Create login request with parsed credentials
     auto username_result = domain::UserName::parse(m.username);
@@ -88,9 +109,12 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
     application::auth::LoginRequest login_req{
         .name               = username_result.value(),
         .password_candidate = password_hash_result.value(),
-        .tag                = domain::ClientTag{},
+        .tag                = client_tag_,
         .ip                 = domain::IpAddress{},
-        .session            = domain::SessionId{}
+        // LoginUser enforces the single-session policy by attaching this
+        // session itself — pass the real id (not a default 0) so the right
+        // session is registered and we do NOT attach again below.
+        .session            = session_id_
     };
 
     auto login_result = use_cases_.login_user->execute(login_req);
@@ -126,16 +150,12 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
         return ctx_->send(ServerMessage{LogonResponse2Reply{error_code, reason}});
     }
 
-    // Login succeeded - store account ID and username, attach session
+    // Login succeeded — store account ID and username. The session was
+    // already attached by LoginUser (single-session policy); attaching again
+    // here would fail with "account already has a session" and wrongly close
+    // a valid login.
     current_account_id_ = login_result.value().id;
     current_username_   = std::string{m.username};
-
-    if (use_cases_.session_registry) {
-        auto reg_status = use_cases_.session_registry->attach(session_id_, current_account_id_);
-        if (!reg_status) {
-            return reject("bnet fsm: failed to attach session");
-        }
-    }
 
     state_ = BnetState::LoggedIn;
     return ctx_->send(ServerMessage{LogonResponse2Reply{0x00u, ""}});
@@ -194,7 +214,41 @@ core::Status<> BnetFsm::on(const AuthReq1&)              { return core::ok(); }
 core::Status<> BnetFsm::on(const CountryInfo1&)          { return core::ok(); }
 core::Status<> BnetFsm::on(const CompInfo2&)             { return core::ok(); }
 core::Status<> BnetFsm::on(const LoginReq1&)             { return core::ok(); }
-core::Status<> BnetFsm::on(const CreateAccount1Request&) { return core::ok(); }
+core::Status<> BnetFsm::on(const CreateAccount1Request& m) {
+    // Legacy OLS account creation (SID_CREATEACCTREQ1). Permitted after the
+    // version-check handshake, mirroring the LOGONRESPONSE2 ordering.
+    if (state_ != BnetState::AuthInfoReceived) {
+        return reject("bnet fsm: CREATEACCTREQ1 out of order");
+    }
+    // No create-account use-case wired → cannot persist; refuse honestly
+    // rather than ACK a creation that did not happen.
+    if (!use_cases_.create_account) {
+        return ctx_->send(ServerMessage{CreateAccount1Reply{kCreateAccount1ResultNo}});
+    }
+
+    auto username = domain::UserName::parse(m.player_name);
+    if (!username) {
+        return ctx_->send(ServerMessage{CreateAccount1Reply{kCreateAccount1ResultNo}});
+    }
+    // Same 20-byte LE packing as login, so a created password logs in cleanly.
+    auto password = domain::BNHash::from_bytes(pack_hash1_le(m.password_hash1));
+    if (!password) {
+        return ctx_->send(ServerMessage{CreateAccount1Reply{kCreateAccount1ResultNo}});
+    }
+
+    application::auth::CreateAccountRequest req{
+        .username      = username.value(),
+        .password_hash = password.value(),
+        .email         = "",
+        .locale        = domain::Locale{},
+        .client_tag    = client_tag_,
+        .peer_ip       = domain::IpAddress{},
+    };
+    auto result = use_cases_.create_account->execute(req);
+    const std::uint32_t code =
+        result ? kCreateAccount1ResultOk : kCreateAccount1ResultNo;
+    return ctx_->send(ServerMessage{CreateAccount1Reply{code}});
+}
 core::Status<> BnetFsm::on(const Unknown2B&)             { return core::ok(); }
 core::Status<> BnetFsm::on(const CdKeyLegacyRequest&)    { return core::ok(); }
 core::Status<> BnetFsm::on(const ChangePasswordRequest&) { return core::ok(); }

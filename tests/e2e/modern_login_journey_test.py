@@ -29,13 +29,11 @@ selects the BNet codec when the FIRST byte of the stream is the packet marker
 consume a separate 1-byte init-class selector here, so the client sends its
 first SID packet (0xFF ...) directly.
 
-NOTE (behaviour documented by this test, see docs/refactoring/progress.md):
-bnetd's composition root (app/bnetd/main.cpp) does NOT wire the `login_user`
-use-case, so `BnetFsm::on(LogonResponse2)` takes its null branch and accepts
-any non-empty username with 0x00 — authentication is currently a permissive
-stub. This test pins that observable contract so the future wiring of
-`login_user` (which will turn 0x00 into 0x01/0x02 for bad credentials) shows
-up as a deliberate, reviewed change here rather than a silent drift.
+Authentication is real: bnetd's composition root wires the `login_user` and
+`create_account` use-cases over a shared in-memory account repository, so the
+account created via SID_CREATEACCTREQ1 is what the subsequent LOGONRESPONSE2
+authenticates against. The test asserts both the accept path and the genuine
+credential-rejection paths (wrong password → 0x02, unknown account → 0x01).
 
 Self-contained: stdlib only, no docker, no network beyond loopback.
 
@@ -64,9 +62,19 @@ SID_PING            = 0x25   # ECHOREQ / ECHOREPLY (server mirrors cookie)
 SID_ENTER_CHAT      = 0x0A   # both directions
 SID_JOIN_CHANNEL    = 0x0C   # client->server
 SID_CHAT_EVENT      = 0x0F   # server->client
+SID_CREATE_ACCT1    = 0x2A   # CLIENT_CREATEACCTREQ1 / SERVER_CREATEACCTREPLY1 (OLS)
+
+CREATE_ACCT1_NO = 0          # creation refused
+CREATE_ACCT1_OK = 1          # creation accepted
 
 EID_CHANNEL = 3              # ChatEvent.event_id for a channel name
 EID_INFO    = 4              # ChatEvent.event_id for an info/error line
+
+# OLS "hash1" — 5 u32 words. The same words are used to create the account and
+# to log in, so the 20-byte BNHash matches end to end. (No real crypto here:
+# the client controls the words and the server stores/compares them verbatim.)
+PASSWORD_WORDS = (0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555)
+WRONG_WORDS    = (0x66666666, 0x66666666, 0x66666666, 0x66666666, 0x66666666)
 
 # AuthInfo product/platform tags (arbitrary but well-formed; the FSM only
 # stores the product tag, it does not gate on these in the stub).
@@ -127,10 +135,14 @@ def build_auth_info() -> bytes:
     return fields + cstring("USA") + cstring("United States")
 
 
-def build_logon_response2(username: str) -> bytes:
+def build_logon_response2(username: str, words=PASSWORD_WORDS) -> bytes:
     # client_token, server_token, 5x u32 password hash words, username cstr.
-    return struct.pack("<2I5I", 0xDEADBEEF, 0, *(0x11111111,) * 5) \
-        + cstring(username)
+    return struct.pack("<2I5I", 0xDEADBEEF, 0, *words) + cstring(username)
+
+
+def build_create_account1(username: str, words=PASSWORD_WORDS) -> bytes:
+    # 5x u32 password hash1 words, then the account name cstr.
+    return struct.pack("<5I", *words) + cstring(username)
 
 
 def parse_u32_result(body: bytes) -> int:
@@ -160,12 +172,21 @@ def do_auth_handshake(sock: socket.socket) -> None:
     print(f"  [client] <- AUTH_CHECK result=0 (version check passed)")
 
 
-def logon(sock: socket.socket, username: str) -> int:
-    send_packet(sock, SID_LOGONRESPONSE2, build_logon_response2(username))
+def logon(sock: socket.socket, username: str, words=PASSWORD_WORDS) -> int:
+    send_packet(sock, SID_LOGONRESPONSE2, build_logon_response2(username, words))
     code, body = recv_packet(sock)
     if code != SID_LOGONRESPONSE2:
         raise AssertionError(
             f"expected LOGONRESPONSE2 (0x{SID_LOGONRESPONSE2:02x}), got 0x{code:02x}")
+    return parse_u32_result(body)
+
+
+def create_account(sock: socket.socket, username: str, words=PASSWORD_WORDS) -> int:
+    send_packet(sock, SID_CREATE_ACCT1, build_create_account1(username, words))
+    code, body = recv_packet(sock)
+    if code != SID_CREATE_ACCT1:
+        raise AssertionError(
+            f"expected CREATEACCT1 reply (0x{SID_CREATE_ACCT1:02x}), got 0x{code:02x}")
     return parse_u32_result(body)
 
 
@@ -266,12 +287,23 @@ def main() -> int:
         wait_ready(proc, logf, port)
         print(f"[harness] bnetd ready on 127.0.0.1:{port} (pid={proc.pid})")
 
-        # --- Journey 1: successful modern login + post-login chat path ------
-        print("[journey] accept: AUTH_INFO -> AUTH_CHECK -> LOGONRESPONSE2(e2euser)"
-              " -> PING -> ENTER_CHAT -> JOIN_CHANNEL")
+        user = "e2euser"
+
+        # --- Journey 1: create account -> login -> full chat path -----------
+        print("[journey] accept: CREATEACCT1 -> LOGONRESPONSE2 -> PING -> "
+              "ENTER_CHAT -> JOIN_CHANNEL")
         with connect("127.0.0.1", port) as sock:
             do_auth_handshake(sock)
-            result = logon(sock, "e2euser")
+
+            # CREATEACCTREQ1: provision the OLS account the login will use.
+            rc = create_account(sock, user, PASSWORD_WORDS)
+            if rc != CREATE_ACCT1_OK:
+                raise AssertionError(
+                    f"expected CREATEACCT1 OK ({CREATE_ACCT1_OK}), got {rc}")
+            print(f"  [client] <- CREATEACCT1 reply OK (account {user!r} created)")
+
+            # LOGONRESPONSE2 with the matching password -> accepted (0x00).
+            result = logon(sock, user, PASSWORD_WORDS)
             if result != 0x00:
                 raise AssertionError(
                     f"expected login accept 0x00, got 0x{result:02x}")
@@ -280,62 +312,54 @@ def main() -> int:
             # PING: the server mirrors the cookie verbatim (ECHOREPLY).
             cookie = 0x12345678
             send_packet(sock, SID_PING, struct.pack("<I", cookie))
-            body = expect(sock, SID_PING, "PING echo")
-            echoed = struct.unpack_from("<I", body, 0)[0]
+            echoed = struct.unpack_from("<I", expect(sock, SID_PING, "PING echo"), 0)[0]
             if echoed != cookie:
                 raise AssertionError(
                     f"PING echo mismatch: sent 0x{cookie:08x}, got 0x{echoed:08x}")
             print(f"  [client] <- PING echo 0x{echoed:08x} OK")
 
             # ENTER_CHAT: LoggedIn -> InChat; server echoes a chat identity.
-            send_packet(sock, SID_ENTER_CHAT, cstring("e2euser") + cstring(""))
+            send_packet(sock, SID_ENTER_CHAT, cstring(user) + cstring(""))
             uniq, _stat, _acct = read_cstrings(
                 expect(sock, SID_ENTER_CHAT, "ENTER_CHAT reply"), 3)
-            if uniq != "e2euser":
+            if uniq != user:
                 raise AssertionError(
-                    f"ENTER_CHAT unique_name: expected 'e2euser', got {uniq!r}")
+                    f"ENTER_CHAT unique_name: expected {user!r}, got {uniq!r}")
             print(f"  [client] <- ENTER_CHAT reply unique_name={uniq!r} OK")
 
-            # JOIN_CHANNEL: InChat; server replies with a SID_CHATEVENT.
-            #
-            # Observed contract today: the join reaches the join_channel
-            # use-case, which auto-creates the channel and admits the member,
-            # but then fails its account lookup because the permissive login
-            # stub leaves current_account_id_ == 0 (no real account exists —
-            # login_user is unwired in app/bnetd/main.cpp). The FSM maps that
-            # AccountNotFound to EID_INFO(4) "Failed to join channel".
-            #
-            # This still exercises the full wire path (chat FSM ->
-            # join_channel use-case -> ChatEvent encoder -> wire). When
-            # login_user is wired (so a real account_id flows through), this
-            # assertion is expected to flip to EID_CHANNEL(3) carrying the
-            # channel name — at which point this test should be updated
-            # deliberately. Pin the current behavior so that flip is reviewed.
+            # JOIN_CHANNEL: InChat. With a real account_id flowing from login,
+            # the join_channel use-case succeeds and the server emits
+            # EID_CHANNEL(3) carrying the channel name.
             channel = "PvPGN E2E"
             send_packet(sock, SID_JOIN_CHANNEL,
                         struct.pack("<I", 0) + cstring(channel))
             event_id, _user, text = parse_chat_event(
                 expect(sock, SID_CHAT_EVENT, "JOIN_CHANNEL CHATEVENT"))
-            if event_id == EID_CHANNEL and text == channel:
-                # login_user got wired — the journey now fully succeeds.
-                print(f"  [client] <- CHATEVENT EID_CHANNEL text={text!r} OK (join succeeded)")
-            elif event_id == EID_INFO and text == "Failed to join channel":
-                print(f"  [client] <- CHATEVENT EID_INFO text={text!r} OK "
-                      "(expected: stub login => account_id 0 => AccountNotFound)")
-            else:
+            if event_id != EID_CHANNEL or text != channel:
                 raise AssertionError(
-                    f"JOIN_CHANNEL: unexpected ChatEvent event_id={event_id} text={text!r} "
-                    f"(wanted EID_CHANNEL/{channel!r} or EID_INFO/'Failed to join channel')")
+                    f"JOIN_CHANNEL: expected EID_CHANNEL({EID_CHANNEL}) text={channel!r}, "
+                    f"got event_id={event_id} text={text!r}")
+            print(f"  [client] <- CHATEVENT EID_CHANNEL text={text!r} OK (join succeeded)")
 
-        # --- Journey 2: empty-username reject -------------------------------
-        print("[journey] reject: empty username -> LOGONRESPONSE2 result=0x01")
+        # --- Journey 2: wrong password on an existing account -> 0x02 -------
+        print("[journey] reject: existing account, wrong password -> 0x02")
         with connect("127.0.0.1", port) as sock:
             do_auth_handshake(sock)
-            result = logon(sock, "")
+            result = logon(sock, user, WRONG_WORDS)
+            if result != 0x02:
+                raise AssertionError(
+                    f"expected reject 0x02 (bad password), got 0x{result:02x}")
+            print(f"  [client] <- LOGONRESPONSE2 result=0x02 (bad password) OK")
+
+        # --- Journey 3: unknown account -> 0x01 -----------------------------
+        print("[journey] reject: unknown account -> 0x01")
+        with connect("127.0.0.1", port) as sock:
+            do_auth_handshake(sock)
+            result = logon(sock, "ghostuser", PASSWORD_WORDS)
             if result != 0x01:
                 raise AssertionError(
-                    f"expected reject 0x01 for empty username, got 0x{result:02x}")
-            print(f"  [client] <- LOGONRESPONSE2 result=0x01 (rejected) OK")
+                    f"expected reject 0x01 (unknown user), got 0x{result:02x}")
+            print(f"  [client] <- LOGONRESPONSE2 result=0x01 (unknown user) OK")
 
         print("[harness] modern login journey PASSED")
         return 0

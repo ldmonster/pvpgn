@@ -114,9 +114,16 @@
 #include "infra/inmemory/channel_repository.hpp"
 #include "infra/inmemory/event_bus.hpp"
 #include "infra/inmemory/game_repository.hpp"
+#include "infra/inmemory/ip_ban_repository.hpp"
 #include "infra/inmemory/session_registry.hpp"
 #include "infra/inmemory/unit_of_work_factory.hpp"
 #include "services/bnetd/bnetd_service.hpp"
+
+// M1: wire the real auth use-cases (login + OLS account creation) so login
+// enforces credentials and a real account_id flows into the chat path.
+#include "application/auth/create_account.hpp"
+#include "application/auth/login_user.hpp"
+#include "core/clock.hpp"
 
 // R330: configurable persistence back-end. Each backend is compiled in only
 // when its infra target is linked (which propagates the header's include dir),
@@ -337,6 +344,8 @@ int main(int argc, char* argv[]) {
         infra::inmemory::InMemorySessionRegistry    session_reg;
         infra::inmemory::InMemoryGameRepository     game_repo;
         infra::inmemory::InMemoryEventBus           event_bus;
+        infra::inmemory::InMemoryIpBanRepository    ip_ban_repo;
+        core::SystemClock                           auth_clock;
         NullNlsCredentialStore                      null_nls_store;
 
         services::bnetd::BnetdService bnetd_svc{
@@ -350,6 +359,25 @@ int main(int argc, char* argv[]) {
             event_bus};
 
         auto use_cases = build_use_cases(bnetd_svc);
+
+        // M1: wire the real auth use-cases. The use-cases hold references to
+        // the repositories / clock above, all of which live for the duration
+        // of this scope (the server run loop), so the no-op-deleter shared_ptrs
+        // and the make_shared use-cases never outlive their dependencies.
+        {
+            auto no_delete_accounts = std::shared_ptr<domain::identity::IAccountRepository>(
+                &account_repo, [](domain::identity::IAccountRepository*) noexcept {});
+            auto no_delete_sessions = std::shared_ptr<domain::identity::ISessionRegistry>(
+                &session_reg, [](domain::identity::ISessionRegistry*) noexcept {});
+
+            use_cases.account_repo     = no_delete_accounts;
+            use_cases.session_registry = no_delete_sessions;
+            use_cases.login_user = std::make_shared<application::auth::LoginUser>(
+                account_repo, session_reg, event_bus, auth_clock);
+            use_cases.create_account = std::make_shared<application::auth::CreateAccount>(
+                account_repo, ip_ban_repo, event_bus, auth_clock);
+        }
+        LOG_INFO("bnetd", "auth use-cases wired: login + OLS account creation");
 
         // 7. Create listeners
         //

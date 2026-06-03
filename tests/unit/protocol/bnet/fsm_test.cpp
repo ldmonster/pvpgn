@@ -32,6 +32,7 @@ public:
 BnetUseCaseContext make_test_context() {
     return BnetUseCaseContext{
         .login_user        = nullptr,
+        .create_account    = nullptr,
         .change_password   = nullptr,
         .join_channel      = nullptr,
         .post_message      = nullptr,

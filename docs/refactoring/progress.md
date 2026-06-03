@@ -534,6 +534,37 @@ when `bnetd`/`python3` is absent or under `--no-build`. With bnetd built it is a
 HARD gate, so the three Step 1.1 crashes can no longer regress unnoticed
 locally. Verified: `check-all` reports **13 passed, 0 failed, 0 skipped**.
 
+### Step 1.5 — make login real: wire login_user + OLS account creation
+
+**Date:** 2026-06-03 · DONE.
+
+Closed the root gap behind the permissive-login / `account_id 0` findings.
+
+- **Wired the auth use-cases** in `app/bnetd/main.cpp`: `login_user` and a new
+  `create_account` over the shared in-memory account repo (+ ip-ban repo, event
+  bus, `SystemClock`), plus `account_repo`/`session_registry` into the
+  `BnetUseCaseContext` (added a `create_account` field).
+- **Implemented `on(CreateAccount1Request)`** (SID_CREATEACCTREQ1, the OLS
+  create flow) — was a no-op stub. Packs the 5×u32 hash1 to a 20-byte BNHash
+  and calls the `create_account` use-case; replies OK/No.
+- **Fixed a 20-byte-packing bug** in `on(LogonResponse2)`: it built the password
+  BNHash from a *decimal colon string* (`"286331153:…"`), which is never the
+  20 bytes `BNHash::from_bytes` requires, so a wired `login_user` would have
+  rejected every login with 0x02. Now packs the 5 words as 20 LE bytes via a
+  shared `pack_hash1_le` helper used by both create and login (so a created
+  password round-trips to a successful login).
+- **Fixed a double-attach bug**: `LoginUser::execute` already attaches the
+  session (single-session policy), but the FSM passed `session = 0` to the
+  use-case and then attached `session_id_` again → "account already has a
+  session" → `reject()` closed a *valid* login. Now passes the real
+  `session_id_` into the request and drops the redundant FSM attach.
+
+Result: the e2e journey's accept path is now a full real login — CREATEACCT1 →
+LOGONRESPONSE2 **0x00** → PING → ENTER_CHAT → **JOIN_CHANNEL EID_CHANNEL
+success** (real `account_id` flows into the chat use-case) — plus genuine
+credential rejections: wrong password → **0x02**, unknown account → **0x01**.
+6/6 stable; full suite 2587/2587; `check-all` green.
+
 ## Milestones 2–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

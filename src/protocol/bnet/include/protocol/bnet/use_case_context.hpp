@@ -15,6 +15,7 @@
 // Forward declarations
 namespace pvpgn::application::auth {
 class LoginUser;
+class CreateAccount;
 class ChangePassword;
 }  // namespace pvpgn::application::auth
 
@@ -41,6 +42,7 @@ namespace pvpgn::protocol::bnet {
 /// All pointers are non-null; check in factory before passing.
 struct BnetUseCaseContext {
     std::shared_ptr<application::auth::LoginUser> login_user;
+    std::shared_ptr<application::auth::CreateAccount> create_account;
     std::shared_ptr<application::auth::ChangePassword> change_password;
     std::shared_ptr<application::chat::JoinChannel> join_channel;
     std::shared_ptr<application::chat::PostMessage> post_message;
