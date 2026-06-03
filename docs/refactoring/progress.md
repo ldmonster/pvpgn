@@ -1308,6 +1308,28 @@ new gate included); full suite **2746/2746**. Layering + purity allow-lists stay
 empty. This ticks the M3 DoD item "no `domain/<a>` includes `domain/<b>`
 internals … a grep-based check confirms it."
 
+### Step 3.2 — globals/singletons audit (clean) + regression gate
+
+**Date:** 2026-06-03 · DONE, build-verified. New gate; `check-all` **17/0/0**.
+
+Audited `src/domain` + `src/application` for the M3 exit item "no global/singleton
+access in domain/app". **Result: already clean** — no singleton accessors
+(`instance()`/`getInstance`), no Meyers singletons, no namespace-scope mutable
+globals. The only `extern`/`prefs_get_servername` matches are *comments*; the
+servername is injected via `ComposeRequest`. The composition-root smoke test
+(`tests/unit/services/combined/combined_composition_test.cpp`) already exists.
+
+So there was nothing to *replace* — but the property was unguarded for the
+**application** layer (`check_domain_purity.sh` runs on `src/domain` only, and
+doesn't check the singleton-accessor pattern at all). Added
+**`scripts/check_no_singletons.sh`** — forbids singleton accessors, singleton
+call-sites, and `g_`/`s_` mutable namespace globals across `domain` +
+`application` — and wired it into `check-all` Ring 2. Verified clean (no false
+positives) and added as a hard gate, so the now-met M3 property can't regress.
+
+Result: `check-all` **17 passed / 0 / 0**. M3 exit item "no global/singleton
+access in domain/app" is met **and** mechanically enforced.
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
