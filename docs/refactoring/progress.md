@@ -401,6 +401,42 @@ components' own schemas, not the bnetd server config reference.
 
 ---
 
-## Milestones 1–6
+## Milestone 1 — raise the test floor (in progress)
+
+### Step 1.1 — e2e fake-client harness: groundwork + findings (in progress)
+
+**Date:** 2026-06-03 · approach chosen: build the real client tools + drive a
+spawned bnetd.
+
+Done / verified:
+- **Fixed a real CMake bug** (`src/CMakeLists.txt`): the `<print>` feature probe
+  compiled with `-std=c++23 -std=c++20` (the global `CMAKE_CXX_STANDARD=20` was
+  appended after the required flag, so the *last* `-std` won), making
+  `PVPGN_V3_HAVE_STD_PRINT` **always false even on GCC 14** — i.e. the
+  print-using client tools (`bnchat`/`bnbot`/`bnstat`/`bnpass`/…) were NEVER
+  built, on any toolchain, contradicting the "CI compiler-matrix builds them"
+  note. Now drives the standard via `CMAKE_CXX_STANDARD` for the probe. On GCC
+  13 it still (correctly) fails (no `<print>`); on GCC 14+ it now succeeds.
+- **Installed GCC 14 locally without sudo** (`apt-get download g++-14 +
+  *-x86-64-linux-gnu` → `.localdeps/prefix`; system libstdc++ already has
+  GLIBCXX_3.4.33 so gcc14 `std::print` binaries run). Configured
+  `build/v3-gcc14`; `PVPGN_V3_HAVE_STD_PRINT` now **Success** → built
+  `bnchat`/`bnbot`/`bnstat` (0/0).
+- **Harness mechanics proven**: a spawned gcc13 `bnetd` with
+  `[persistence] backend="inmemory"` on an ephemeral port boots, logs
+  `BNet/BNFTP listening on 0.0.0.0:<port>` (readiness signal), and tears down
+  cleanly. `bnchat` connects and completes the init-class handshake.
+
+**Blocker found (real server-side gap, not the harness):** bnetd's v3 bnet FSM
+(`src/protocol/bnet/src/fsm/fsm_auth.cpp`) implements the **modern** auth flow
+(`AuthInfo → AuthCheckReply → LogonResponse2 → LogonResponse2Reply`) but the
+**legacy** `on(LoginReq1)` (and `CreateAcctReq1`) are no-op stubs
+(`return core::ok();`). The client tools (`bnchat -c CHAT`) drive the *legacy*
+`CLIENT_LOGINREQ1` flow → bnetd never replies → "server closed before AUTH
+challenge / LOGINREPLY1". So a login journey via the stock client tools needs
+either (a) the legacy LOGINREQ1/CREATEACCTREQ1 flow implemented in the FSM, or
+(b) a client that speaks the modern LogonResponse2/NLS flow bnetd implements.
+
+## Milestones 2–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

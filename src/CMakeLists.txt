@@ -1697,12 +1697,20 @@ endif()
 # normally on GCC 14+/Clang 18+. `conf_converter` does not use `<print>` and is
 # always built.
 include(CheckCXXSourceCompiles)
-set(_pvpgn_print_check_flags "-std=c++${PVPGN_V3_CXX_STANDARD}")
-set(CMAKE_REQUIRED_FLAGS "${_pvpgn_print_check_flags}")
+# Drive the standard via CMAKE_CXX_STANDARD, not CMAKE_REQUIRED_FLAGS: the
+# try_compile appends `-std=c++<CMAKE_CXX_STANDARD>` AFTER required flags, so a
+# global default of c++20 would override a `-std=c++23` in the flags (the last
+# -std wins) and the check would fail even on a <print>-capable GCC 14+. Setting
+# the standard makes the probe genuinely test C++23.
+set(_pvpgn_saved_cxx_standard "${CMAKE_CXX_STANDARD}")
+set(_pvpgn_saved_cxx_required "${CMAKE_CXX_STANDARD_REQUIRED}")
+set(CMAKE_CXX_STANDARD "${PVPGN_V3_CXX_STANDARD}")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 check_cxx_source_compiles(
     "#include <print>\nint main(){ std::println(\"{}\", 1); }"
     PVPGN_V3_HAVE_STD_PRINT)
-unset(CMAKE_REQUIRED_FLAGS)
+set(CMAKE_CXX_STANDARD "${_pvpgn_saved_cxx_standard}")
+set(CMAKE_CXX_STANDARD_REQUIRED "${_pvpgn_saved_cxx_required}")
 
 add_subdirectory(tools/conf_converter)
 if(PVPGN_V3_HAVE_STD_PRINT)
