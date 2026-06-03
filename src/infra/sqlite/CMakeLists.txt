@@ -20,11 +20,24 @@ target_include_directories(pvpgn_infra_sqlite
         ${CMAKE_SOURCE_DIR}/src
 )
 
+# Consume the sqlite3 header/library discovered (or overridden) in
+# src/CMakeLists.txt via find_path/find_library. Using the resolved paths
+# rather than a bare `sqlite3` makes the backend build correctly whether
+# sqlite lives on the default system paths or in a non-standard prefix.
+target_include_directories(pvpgn_infra_sqlite SYSTEM PRIVATE
+    ${PVPGN_V3_SQLITE3_INCLUDE_DIR}
+)
+
 target_link_libraries(pvpgn_infra_sqlite
     PUBLIC
         pvpgn_core
         pvpgn_application
         pvpgn_infra_inmemory
         pvpgn_infra_migrations
-        sqlite3
+        # unit_of_work.cpp builds the consolidated Sql*Repository classes over a
+        # SqliteDriver; their vtables/definitions live in infra_persistence, so
+        # the backend must link it (no cycle — infra_persistence links only
+        # core + domain port libs).
+        infra_persistence
+        ${PVPGN_V3_SQLITE3_LIBRARY}
 )

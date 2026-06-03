@@ -247,6 +247,10 @@ int main(int argc, char* argv[]) {
 
         LOG_INFO("d2cs", "starting {} worker thread(s)", n_threads);
         rt.run(n_threads);
+        // run() only spawns the workers; block here until a SIGINT/SIGTERM
+        // (or rt.request_stop()) unblocks the io_context, then fall through to
+        // graceful shutdown. Without this the daemon would exit immediately.
+        rt.wait();
 
         // 7. Graceful shutdown
         LOG_INFO("d2cs", "shutting down");

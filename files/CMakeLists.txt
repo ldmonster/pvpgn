@@ -15,11 +15,19 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/var/bak/charsave")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/var/ladders")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/var/status")
 
-if(LOCALSTATEDIR)
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/var/ DESTINATION ${LOCALSTATEDIR})
+# Prefer the canonical LOCALSTATE_INSTALL_DIR (set by the build / Dockerfile);
+# fall back to the legacy LOCALSTATEDIR spelling. Without this the runtime
+# image's /var/pvpgn tree and seed files were never installed, so the image
+# assembly `cp -a /var/pvpgn` failed.
+set(_pvpgn_localstatedir "${LOCALSTATE_INSTALL_DIR}")
+if(NOT _pvpgn_localstatedir)
+  set(_pvpgn_localstatedir "${LOCALSTATEDIR}")
 endif()
 
-install(FILES	ad000001.png
+if(_pvpgn_localstatedir)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/var/ DESTINATION ${_pvpgn_localstatedir})
+
+  install(FILES	ad000001.png
 				ad000001.smk
 				ad000002.mng
 				ad000002.smk
@@ -36,4 +44,5 @@ install(FILES	ad000001.png
 				PMACver1.mpq
 				ver-IX86-1.mpq
 				XMACver1.mpq
-		DESTINATION ${LOCALSTATEDIR}/files) 
+		DESTINATION ${_pvpgn_localstatedir}/files)
+endif()

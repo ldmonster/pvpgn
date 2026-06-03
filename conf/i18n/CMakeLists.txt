@@ -12,6 +12,10 @@ foreach(ITEM ${DEPLOY_FILES_AND_DIRS})
    ENDIF()
 endforeach()
 
-INSTALL( FILES ${FILES_TO_DEPLOY} DESTINATION ${SYSCONFDIR}/i18n )
-INSTALL( DIRECTORY ${DIRS_TO_DEPLOY} DESTINATION ${SYSCONFDIR}/i18n )
+# _pvpgn_sysconfdir is resolved in the parent conf/CMakeLists.txt (canonical
+# SYSCONF_INSTALL_DIR with a legacy SYSCONFDIR fallback) and inherited here.
+if(_pvpgn_sysconfdir)
+  INSTALL( FILES ${FILES_TO_DEPLOY} DESTINATION ${_pvpgn_sysconfdir}/i18n )
+  INSTALL( DIRECTORY ${DIRS_TO_DEPLOY} DESTINATION ${_pvpgn_sysconfdir}/i18n )
+endif()
 

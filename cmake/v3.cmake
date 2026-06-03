@@ -126,7 +126,7 @@ endfunction()
 
 
 function(pvpgn_v3_add_test name)
-    set(svals)
+    set(svals LABEL)
     set(mvals SOURCES DEPS)
     cmake_parse_arguments(P "" "${svals}" "${mvals}" ${ARGN})
 
@@ -139,8 +139,19 @@ function(pvpgn_v3_add_test name)
         target_compile_options(${name} PRIVATE -Wno-non-virtual-dtor)
     endif()
 
+    # CTest band label. Explicit LABEL wins; otherwise derive it from the test's
+    # location so `ctest -L unit` / `-L functional` select the right band
+    # (integration and e2e label themselves and do not use this helper).
+    if(NOT P_LABEL)
+        if(CMAKE_CURRENT_SOURCE_DIR MATCHES "/tests/functional")
+            set(P_LABEL functional)
+        else()
+            set(P_LABEL unit)
+        endif()
+    endif()
+
     include(Catch)
-    catch_discover_tests(${name})
+    catch_discover_tests(${name} PROPERTIES LABELS "${P_LABEL}")
 endfunction()
 
 

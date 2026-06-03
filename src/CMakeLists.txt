@@ -93,28 +93,29 @@ if(PVPGN_V3_WITH_PUGIXML)
 endif()
 
 if(PVPGN_V3_WITH_BOOST)
-    if(MINGW AND DEFINED VCPKG_TARGET_TRIPLET)
-        # Include vcpkg's generated BoostConfig.cmake directly so Boost can
-        # resolve its own component graph without going through the vcpkg
-        # find_package wrapper, which falls back into FindBoost.cmake for this
-        # MinGW cross-build.
-        set(_pvpgn_vcpkg_boost_share_dir
-            "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/share")
-        set(Boost_FIND_COMPONENTS system)
-        if(PVPGN_V3_WITH_FIBER)
-            list(APPEND Boost_FIND_COMPONENTS fiber context)
-        endif()
-        set(Boost_FIND_REQUIRED TRUE)
-
-        include("${_pvpgn_vcpkg_boost_share_dir}/boost/BoostConfig.cmake")
-    else()
-        set(_pvpgn_boost_components system)
-        if(PVPGN_V3_WITH_FIBER)
-            list(APPEND _pvpgn_boost_components fiber context)
-        endif()
-
-        find_package(Boost 1.75 REQUIRED COMPONENTS ${_pvpgn_boost_components})
+    set(_pvpgn_boost_components system)
+    if(PVPGN_V3_WITH_FIBER)
+        list(APPEND _pvpgn_boost_components fiber context)
     endif()
+
+    if(DEFINED VCPKG_TARGET_TRIPLET)
+        # Cross build (MinGW/vcpkg): the vcpkg find-package wrapper does not put
+        # the target-triplet Boost on the search path for this chainload setup,
+        # so point at it explicitly (Boost_DIR + prefix) and use CONFIG mode —
+        # vcpkg ships modular BoostConfig, and CMake's bundled FindBoost module
+        # is too old to understand modern Boost (treats header-only `system` as
+        # a missing lib). Requires a CMake new enough for the Boost version (see
+        # the toolchain stage in Dockerfile.windows).
+        set(_pvpgn_vcpkg_root
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
+        set(Boost_DIR "${_pvpgn_vcpkg_root}/share/boost")
+        list(PREPEND CMAKE_PREFIX_PATH "${_pvpgn_vcpkg_root}")
+    endif()
+
+    # CONFIG mode for both: loads every installed component config, so
+    # header-only targets (Boost::asio / Boost::headers) are available without
+    # listing them in COMPONENTS (which only marks which are REQUIRED).
+    find_package(Boost 1.75 REQUIRED CONFIG COMPONENTS ${_pvpgn_boost_components})
 endif()
 
 # Find OpenSSL for runtime peer_link support. Optional -- peer_link is the
@@ -144,12 +145,16 @@ pvpgn_v3_add_library(core
 # portable std::random_device path is used everywhere else.
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
-    pkg_check_modules(SODIUM QUIET libsodium)
+    # IMPORTED_TARGET so PkgConfig::SODIUM carries the library search dirs
+    # (-L) as well as the name. The bare ${SODIUM_LIBRARIES} ("sodium") only
+    # links when libsodium sits on the default linker path; the imported
+    # target also works for a non-standard prefix.
+    pkg_check_modules(SODIUM QUIET IMPORTED_TARGET libsodium)
 endif()
 if(SODIUM_FOUND)
     target_compile_definitions(core PRIVATE PVPGN_V3_WITH_SODIUM)
     target_include_directories(core PRIVATE ${SODIUM_INCLUDE_DIRS})
-    target_link_libraries(core PUBLIC ${SODIUM_LIBRARIES})
+    target_link_libraries(core PUBLIC PkgConfig::SODIUM)
     message(STATUS "pvpgn v3: libsodium found — SecureRandom uses randombytes_buf")
 else()
     message(STATUS "pvpgn v3: libsodium not found — SecureRandom uses std::random_device")
@@ -314,7 +319,7 @@ pvpgn_v3_add_library(infra_crypto
 if(SODIUM_FOUND)
     target_compile_definitions(infra_crypto PRIVATE PVPGN_V3_WITH_SODIUM)
     target_include_directories(infra_crypto PRIVATE ${SODIUM_INCLUDE_DIRS})
-    target_link_libraries(infra_crypto PRIVATE ${SODIUM_LIBRARIES})
+    target_link_libraries(infra_crypto PRIVATE PkgConfig::SODIUM)
 endif()
 
 # R281: NLS/SRP-6a crypto (WAR3/W3XP 1024-bit prime, OpenSSL BN_*).
@@ -372,6 +377,14 @@ if(PVPGN_V3_WITH_TOMLPP)
             tomlplusplus::tomlplusplus
         DEPS
     )
+    # Neutralise toml++'s internal assert(). In Debug it defaults to C assert(),
+    # which ABORTS on some malformed input (e.g. a bad bare key trips
+    # parser.inl parse_key) instead of returning a parse error; parsing
+    # untrusted/hand-edited config must never crash. Make Debug behave like
+    # Release/NDEBUG. Passed as a raw -D via compile *options* because CMake
+    # filters function-like macros out of target_compile_definitions. PUBLIC so
+    # consumers that inline toml++ calls through our headers get it too.
+    target_compile_options(infra_config PUBLIC "-DTOML_ASSERT(expr)=")
 endif()
 
 # ---- infra/compression --------------------------------------------------

@@ -27,7 +27,16 @@ RUN apk --quiet --no-cache add \
       curl-dev \
       openssl-dev \
       zlib-dev \
+      lua5.4-dev \
     && rm -rf /var/cache/apk/*
+
+# The repo root build always includes the mandatory v3 sub-tree, whose Lua
+# scripting adapter does find_package(Lua 5.4 REQUIRED). Alpine ships Lua 5.4
+# headers/libs under /usr/include/lua5.4 and /usr/lib/lua5.4, which CMake's
+# FindLua does not probe by default; expose them through the CMake search-path
+# environment variables so every build-<MODE> stage resolves Lua.
+ENV CMAKE_INCLUDE_PATH=/usr/include/lua5.4
+ENV CMAKE_LIBRARY_PATH=/usr/lib/lua5.4
 
 # ---------------------------------------------------------------------------
 # Copy local source tree into the image and prepare build directories
@@ -75,7 +84,7 @@ RUN cmake -S ./ -B ./build \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
       -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
       -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
-    && cd build && make
+    && cd build && make -j"$(nproc)"
 
 
 # =============================================================================
@@ -99,7 +108,7 @@ RUN cmake -S ./ -B ./build \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
       -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
       -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
-    && cd build && make
+    && cd build && make -j"$(nproc)"
 
 
 # =============================================================================
@@ -122,7 +131,7 @@ RUN cmake -S ./ -B ./build \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
       -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
       -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
-    && cd build && make
+    && cd build && make -j"$(nproc)"
 
 
 # =============================================================================
@@ -145,7 +154,7 @@ RUN cmake -S ./ -B ./build \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
       -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
       -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
-    && cd build && make
+    && cd build && make -j"$(nproc)"
 
 
 # =============================================================================
@@ -168,7 +177,7 @@ RUN cmake -S ./ -B ./build \
       -D CMAKE_INSTALL_PREFIX=/usr/local/pvpgn \
       -D SYSCONF_INSTALL_DIR=${PVPGN_SYSCONFDIR} \
       -D LOCALSTATE_INSTALL_DIR=${PVPGN_LOCALSTATEDIR} \
-    && cd build && make
+    && cd build && make -j"$(nproc)"
 
 
 # =============================================================================
@@ -204,6 +213,7 @@ RUN apk --quiet --no-cache add \
       libstdc++ \
       openssl \
       su-exec \
+      lua5.4-libs \
     && rm -rf /var/cache/apk/*
 
 
@@ -307,4 +317,6 @@ EXPOSE 4000
 # `docker logs` actually show server output.
 # ---------------------------------------------------------------------------
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["/usr/local/pvpgn/sbin/bnetd", "-f", "-c", "/etc/pvpgn/bnetd.conf"]
+# v3 bnetd installs to bin/ (not sbin/), reads a TOML config via -c, and runs
+# in the foreground by default (there is no legacy -f flag).
+CMD ["/usr/local/pvpgn/bin/bnetd", "-c", "/etc/pvpgn/bnetd.toml"]

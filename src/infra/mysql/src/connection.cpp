@@ -9,6 +9,8 @@
 
 #include "infra/mysql/connection.hpp"
 
+#include <cstring>  // std::strlen (Row::get_text fallback length)
+
 #ifdef PVPGN_V3_WITH_MYSQL
 
 #include <mysql/mysql.h>

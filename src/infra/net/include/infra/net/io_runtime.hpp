@@ -67,8 +67,20 @@ public:
     void run(std::size_t threads = 1,
              bool        install_fiber_scheduler = false);
 
-    /// Cooperatively stop workers and join them. Idempotent.
+    /// Cooperatively stop workers and join them. Idempotent. Call only from
+    /// the owner thread (never a worker) — it joins, which would self-join.
     void stop();
+
+    /// Request a cooperative stop WITHOUT joining. Signal-safe: may be called
+    /// from a worker thread (e.g. the asio signal handler). Unblocks every
+    /// worker's `io_context::run()`; pair with wait() on the owner thread.
+    void request_stop();
+
+    /// Block the calling (owner) thread until all workers have finished
+    /// (i.e. until request_stop()/stop() has unblocked the io_context). This
+    /// is what keeps a daemon's main thread alive after run() spawns the
+    /// workers. Must not be called from a worker thread.
+    void wait();
 
     /// Schedule @p fn for execution on a worker thread.
     template <class F>

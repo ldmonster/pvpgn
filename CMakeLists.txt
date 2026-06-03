@@ -88,6 +88,13 @@ add_subdirectory(src)
 add_subdirectory(scripts/lua)
 add_subdirectory(plugins)
 
+# Starter configs (conf/) and runtime data tree (files/). Their install rules
+# are guarded on SYSCONF_INSTALL_DIR / LOCALSTATE_INSTALL_DIR, so they are
+# no-ops for a plain dev build that does not set those, and populate
+# /etc/pvpgn + /var/pvpgn for packaging/`make install` (e.g. the Dockerfile).
+add_subdirectory(conf)
+add_subdirectory(files)
+
 enable_testing()
 
 add_subdirectory(tests)

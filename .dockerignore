@@ -12,3 +12,6 @@ Thumbs.db
 # Git
 .git/
 .gitignore
+
+# Local non-root dep prefix (downloaded debs) — never ship into images
+.localdeps/

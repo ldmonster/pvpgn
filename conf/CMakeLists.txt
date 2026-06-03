@@ -22,20 +22,27 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bnetd.toml.in ${CMAKE_CURRENT_BINARY_
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/d2cs.toml.in  ${CMAKE_CURRENT_BINARY_DIR}/d2cs.toml  @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/d2dbs.toml.in ${CMAKE_CURRENT_BINARY_DIR}/d2dbs.toml @ONLY)
 
-if(WITH_BNETD)
-  set(BNETD_CONFS ad.json autoupdate.conf bnban.conf
-  bnetd_default_user.plain bnissue.txt channel.conf
-  versioncheck.json bnetd.toml)
-endif(WITH_BNETD)
+# The v3 servers (bnetd / d2cs / d2dbs) are always built, so always ship their
+# starter configs. The old WITH_BNETD / WITH_D2CS / SYSCONFDIR gating referred
+# to legacy build variables that no longer exist post-v3-migration, which left
+# `make install` shipping no configs at all (so the runtime image's
+# /etc/pvpgn was never created). Install to the canonical SYSCONF_INSTALL_DIR
+# (set by the build / Dockerfile), falling back to the legacy SYSCONFDIR.
+set(_pvpgn_sysconfdir "${SYSCONF_INSTALL_DIR}")
+if(NOT _pvpgn_sysconfdir)
+  set(_pvpgn_sysconfdir "${SYSCONFDIR}")
+endif()
 
-if(WITH_D2CS)
-  set(D2CS_CONFS d2cs.toml)
-endif(WITH_D2CS)
+set(PVPGN_STARTER_CONFS
+  ad.json autoupdate.conf bnban.conf bnetd_default_user.plain
+  bnissue.txt channel.conf versioncheck.json
+  bnetd.toml d2cs.toml d2dbs.toml)
 
-foreach(CONF_FILE ${BNETD_CONFS} ${D2CS_CONFS})
-  if(SYSCONFDIR)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${CONF_FILE} DESTINATION ${SYSCONFDIR})
-  endif()
-endforeach(CONF_FILE)
+if(_pvpgn_sysconfdir)
+  foreach(CONF_FILE ${PVPGN_STARTER_CONFS})
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${CONF_FILE}
+            DESTINATION ${_pvpgn_sysconfdir})
+  endforeach()
+endif()
 
 add_subdirectory(i18n)

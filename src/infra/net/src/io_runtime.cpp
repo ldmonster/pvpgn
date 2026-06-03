@@ -54,21 +54,37 @@ void IoRuntime::run(std::size_t threads, bool install_fiber_scheduler) {
     }
 }
 
-void IoRuntime::stop() {
+void IoRuntime::request_stop() {
     bool expected = true;
     if (!running_.compare_exchange_strong(expected, false)) return;
-    // Drop the work guard so run() can return once outstanding handlers
-    // complete; signal_set cancellation is needed before ctx_.stop()
-    // to avoid leaving the queued async_wait in a stuck state.
+    // Signal-safe: this may run on a worker thread (the asio signal handler is
+    // dispatched on whichever worker is idle), so it MUST NOT join the workers
+    // — that would be a self-join. It only unblocks them: cancel the queued
+    // async_wait, drop the work guard, and stop the context so every
+    // ctx_.run() returns. Joining happens in wait()/stop() on the owner thread.
     signals_.cancel();
     work_guard_.reset();
     ctx_.stop();
+}
+
+void IoRuntime::wait() {
+    // Block the calling (owner) thread until the workers finish, which happens
+    // once request_stop() has unblocked the io_context. Must not be called from
+    // a worker thread. Idempotent: a second call finds no joinable workers.
     for (auto& t : workers_) {
         if (t.joinable()) t.join();
     }
     workers_.clear();
     // Note: IoRuntime is not designed to be restarted after stop().
     // Construct a fresh instance for a new lifecycle.
+}
+
+void IoRuntime::stop() {
+    // Convenience for owner-thread callers (e.g. the destructor): request the
+    // stop, then join. Never call this from a worker thread — use
+    // request_stop() there.
+    request_stop();
+    wait();
 }
 
 void IoRuntime::install_signal_handlers(std::initializer_list<int> sigs) {
@@ -79,7 +95,9 @@ void IoRuntime::install_signal_handlers(std::initializer_list<int> sigs) {
     }
     signals_.async_wait([this](const boost::system::error_code& ec, int /*signo*/) {
         if (ec) return;  // cancelled
-        this->stop();
+        // Runs on a worker thread → request only; the owner thread blocked in
+        // wait() then returns and performs the join + graceful shutdown.
+        this->request_stop();
     });
 }
 

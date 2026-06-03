@@ -64,6 +64,7 @@ Architecture documentation, bounded-context guides, and extension points for con
 - [Testing](developer/testing.md) — Test pyramid, coverage gates, and how to run the suite
 - [Benchmarking](developer/benchmarking.md) — Microbench harness, baselines, and the regression gate
 - [Release Process](developer/release-process.md) — SemVer policy, deprecation policy, and the release checklist
+- [Scripts & Tooling](developer/scripts-and-tooling.md) — Catalog of shipped helper scripts and local quality gates
 
 ### Bounded Contexts
 
@@ -102,6 +103,13 @@ Records of significant design decisions and the reasoning behind them:
 - [0003 — Lua Plugin API v2](adr/0003-lua-plugin-api-v2.md)
 - [0004 — Strangler Fig Pattern](adr/0004-strangler-fig-pattern.md)
 - [0005 — Catch2 Test Framework](adr/0005-catch2-test-framework.md)
+- [0006 — Async Runtime](adr/0006-async-runtime.md)
+- [0007 — Migration Format](adr/0007-migration-format.md)
+- [0008 — Crypto Libraries](adr/0008-crypto-libraries.md)
+- [0009 — Modules Pilot](adr/0009-modules-pilot.md)
+- [0010 — OTel Exporter](adr/0010-otel-exporter.md)
+- [0011 — Runtime Image](adr/0011-runtime-image.md)
+- [ADR template](adr/NNNN-template.md)
 
 ---
 

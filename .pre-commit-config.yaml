@@ -29,3 +29,28 @@ repos:
         args: ['--config-file=.cmake-format.yaml']
       - id: cmake-lint
         args: ['--config-file=.cmake-format.yaml']
+
+  # Local architectural gates (Ring 1). These run the same scripts the local
+  # aggregator scripts/dev/check-all.sh uses, so the dependency rule, domain
+  # purity, and changelog discipline are enforced on every commit. They are
+  # fast and require no build.
+  - repo: local
+    hooks:
+      - id: v3-layering
+        name: layer dependency rule (empty allow-list)
+        entry: scripts/v3_layering_check.sh src
+        language: script
+        pass_filenames: false
+        files: '^src/.*\.(cpp|hpp|h)$'
+      - id: domain-purity
+        name: domain layer purity
+        entry: scripts/check_domain_purity.sh src/domain
+        language: script
+        pass_filenames: false
+        files: '^src/domain/.*\.(cpp|hpp|h)$'
+      - id: changelog-discipline
+        name: CHANGELOG follows Keep a Changelog
+        entry: scripts/dev/check-changelog.sh
+        language: script
+        pass_filenames: false
+        files: '^CHANGELOG\.md$'

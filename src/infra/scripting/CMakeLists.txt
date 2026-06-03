@@ -70,11 +70,18 @@ target_link_libraries(pvpgn_infra_scripting
 # sol2 v3.3.0 hits gcc 14's new -Wtemplate-body diagnostic in
 # `sol/optional_implementation.hpp`. SYSTEM include suppresses most
 # warnings but not template-body, so silence it explicitly.
+#
+# NB: probe the *positive* -Wtemplate-body, not -Wno-template-body. GCC
+# silently accepts unknown -Wno-* options until a diagnostic actually fires,
+# so check_cxx_compiler_flag(-Wno-template-body) reports success even on
+# GCC 13 (which has no such warning) — and then -Wno-error=template-body
+# hard-errors at compile time ("no option '-Wtemplate-body'"). The positive
+# form fails the check correctly on compilers older than GCC 14.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     include(CheckCXXCompilerFlag)
-    check_cxx_compiler_flag(-Wno-template-body
-        PVPGN_HAVE_WNO_TEMPLATE_BODY)
-    if(PVPGN_HAVE_WNO_TEMPLATE_BODY)
+    check_cxx_compiler_flag(-Wtemplate-body
+        PVPGN_HAVE_WTEMPLATE_BODY)
+    if(PVPGN_HAVE_WTEMPLATE_BODY)
         target_compile_options(pvpgn_infra_scripting PRIVATE
             -Wno-template-body -Wno-error=template-body)
     endif()

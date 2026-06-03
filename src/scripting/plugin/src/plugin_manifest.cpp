@@ -10,7 +10,12 @@ namespace pvpgn::scripting::plugin {
 namespace {
 
 /// Trim whitespace from both ends of a string
-std::string trim(std::string_view str) {
+std::string_view trim(std::string_view str) {
+    // Returns a view that narrows the *input* range — it must NOT allocate a
+    // std::string. Returning std::string and then doing `sv = trim(sv)` (as
+    // unquote did) leaves the view dangling into a destroyed temporary
+    // (heap-use-after-free). A view into the caller's still-live buffer is
+    // both correct and allocation-free.
     size_t start = 0;
     while (start < str.size() && std::isspace(static_cast<unsigned char>(str[start]))) {
         ++start;
@@ -19,7 +24,7 @@ std::string trim(std::string_view str) {
     while (end > start && std::isspace(static_cast<unsigned char>(str[end - 1]))) {
         --end;
     }
-    return std::string(str.substr(start, end - start));
+    return str.substr(start, end - start);
 }
 
 /// Remove quotes from a string value
@@ -81,7 +86,7 @@ core::Result<PluginManifest, core::Error> PluginManifest::parse_toml(std::string
             newline = content.size();
         }
         
-        std::string line = trim(content.substr(pos, newline - pos));
+        std::string line{trim(content.substr(pos, newline - pos))};
         pos = newline + 1;
 
         // Skip empty lines and comments
@@ -112,8 +117,8 @@ core::Result<PluginManifest, core::Error> PluginManifest::parse_toml(std::string
             continue;
         }
 
-        std::string key = trim(line.substr(0, eq_pos));
-        std::string value = trim(line.substr(eq_pos + 1));
+        std::string key{trim(line.substr(0, eq_pos))};
+        std::string value{trim(line.substr(eq_pos + 1))};
 
         if (in_plugin_section) {
             if (key == "id") {

@@ -21,8 +21,7 @@ PRISTINE_VAR=/usr/local/share/pvpgn/var
 RUNTIME_ETC=/etc/pvpgn
 RUNTIME_VAR=/var/pvpgn
 
-CONF_FILE="${RUNTIME_ETC}/bnetd.conf"
-LOG_FILE="${RUNTIME_VAR}/bnetd.log"
+CONF_FILE="${RUNTIME_ETC}/bnetd.toml"
 
 log() { printf '[entrypoint] %s\n' "$*" >&2; }
 
@@ -57,29 +56,21 @@ if [ ! -f "$CONF_FILE" ]; then
     exit 1
 fi
 
-# Point bnetd's logfile at a real on-disk file we can tail to stdout.
-if grep -qE '^[[:space:]]*logfile[[:space:]]*=' "$CONF_FILE"; then
-    sed -i "s|^[[:space:]]*logfile[[:space:]]*=.*|logfile = \"${LOG_FILE}\"|" "$CONF_FILE"
-else
-    printf '\nlogfile = "%s"\n' "$LOG_FILE" >> "$CONF_FILE"
-fi
+# Resolve the ${SYSCONFDIR} / ${LOCALSTATEDIR} placeholders that
+# configure_file(@ONLY) in conf/CMakeLists.txt leaves literal, pointing them at
+# the runtime locations. Idempotent: a re-run finds no placeholders left.
+# Mirrors scripts/dev/v3-daemon-entry.sh.
+for f in "$RUNTIME_ETC"/bnetd.toml "$RUNTIME_ETC"/d2cs.toml "$RUNTIME_ETC"/d2dbs.toml; do
+    [ -f "$f" ] && sed -i \
+        -e 's#${SYSCONFDIR}#'"$RUNTIME_ETC"'#g' \
+        -e 's#${LOCALSTATEDIR}#'"$RUNTIME_VAR"'#g' \
+        "$f"
+done
 
-if ! grep -qE '^[[:space:]]*loglevels[[:space:]]*=' "$CONF_FILE"; then
-    printf 'loglevels = fatal,error,warn,info\n' >> "$CONF_FILE"
-fi
-
-# Pre-create the log file with the right owner so bnetd can append to it.
-: > "$LOG_FILE"
-
+# v3 bnetd logs to stdout/stderr (spdlog console sink), so `docker logs` works
+# directly — no legacy .conf logfile patching or log-file tailing needed.
 if [ "$(id -u)" = "0" ]; then
     chown -R "${PVPGN_UID}:${PVPGN_GID}" "$RUNTIME_ETC" "$RUNTIME_VAR" || true
-fi
-
-# Stream the log file to the container's stdout. -F follows across
-# truncate/rotate. Runs as a background child of this entrypoint.
-tail -n 0 -F "$LOG_FILE" 2>/dev/null &
-
-if [ "$(id -u)" = "0" ]; then
     exec su-exec "${PVPGN_UID}:${PVPGN_GID}" "$@"
 fi
 

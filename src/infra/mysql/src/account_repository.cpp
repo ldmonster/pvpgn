@@ -98,7 +98,7 @@ domain::identity::Account account_from_row(const Row& row) {
 
 /// Escape a string for safe embedding in SQL (single-quote doubling).
 /// For production use, prefer parameterised queries via mysql_real_escape_string.
-std::string sql_escape(const std::string& s) {
+std::string sql_escape(std::string_view s) {
     std::string out;
     out.reserve(s.size() + 4);
     for (char c : s) {
@@ -160,7 +160,7 @@ MySQLAccountRepository::find_by_name(const domain::UserName& name) const {
     sql << "SELECT id, name, locale, password_hash, locked, "
            "must_change_password, command_groups, created_at, updated_at "
            "FROM accounts WHERE LOWER(name) = LOWER('"
-        << sql_escape(std::string{name.canonical()})
+        << sql_escape(name.canonical())
         << "') LIMIT 1";
 
     auto qr = conn_->query(sql.str(), [&result](const Row& row) {
@@ -204,7 +204,7 @@ core::Status<> MySQLAccountRepository::save(
            "(id, name, locale, password_hash, locked, must_change_password, "
            "command_groups, created_at, updated_at) VALUES ("
         << account.id().value() << ", '"
-        << sql_escape(std::string{account.name().display()}) << "', '"
+        << sql_escape(account.name().display()) << "', '"
         << sql_escape(account.locale().text()) << "', '"
         << bn_hash_to_hex(account.password_hash1()) << "', "
         << (account.is_locked() ? 1 : 0) << ", "
@@ -233,7 +233,8 @@ void MySQLAccountRepository::forEach(
     std::function<bool(const domain::identity::Account&)> predicate) const {
     if (!conn_) return;
 
-    conn_->query(
+    // forEach has a void contract; a query error simply yields no iterations.
+    (void)conn_->query(
         "SELECT id, name, locale, password_hash, locked, "
         "must_change_password, command_groups, created_at, updated_at "
         "FROM accounts",
@@ -250,7 +251,8 @@ void MySQLAccountRepository::forEach(
 std::size_t MySQLAccountRepository::size() const noexcept {
     if (!conn_) return 0;
     std::size_t count = 0;
-    conn_->query("SELECT COUNT(*) FROM accounts",
+    // On query failure count stays 0, matching the noexcept/size() contract.
+    (void)conn_->query("SELECT COUNT(*) FROM accounts",
                  [&count](const Row& row) {
                      count = static_cast<std::size_t>(row.get_int(0));
                      return false;
