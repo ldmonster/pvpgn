@@ -9,3 +9,7 @@ pvpgn_v3_add_test(test_domain_identity_attribute_map
 pvpgn_v3_add_test(test_domain_identity_attribute_map_typed
     SOURCES attribute_map_typed_test.cpp
     DEPS    domain_identity)
+
+pvpgn_v3_add_test(test_domain_identity_attribute_map_timestamps
+    SOURCES attribute_map_timestamps_test.cpp
+    DEPS    domain_identity)

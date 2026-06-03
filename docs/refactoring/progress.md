@@ -1051,6 +1051,31 @@ strangler deletions, `legacy_*` 19→10) and the M1 coverage arc 1.9–1.16
 fixed; tree green at every commit. Remaining toward M1 exit: keep ramping the
 coverage floor with net-new tests (target 85%), then M3+.
 
+### Step 1.17 — net-new tests for AttributeMap timestamps + parse fallbacks
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **63.04% → 63.47%**.
+
+`domain/identity/src/attribute_map.cpp` was 49% — the existing
+`attribute_map_typed_test` covers the email/sex/location/description accessors
+and the win/loss/disconnect increments, but **not** `username()`,
+`last_login()`/`created_at()` (parse + round-trip + the malformed-value `catch`
+paths), nor the stat getters' non-numeric fallbacks. Added
+`attribute_map_timestamps_test.cpp` (7 cases): `username()` raw-key read;
+`last_login`/`created_at` round-trip through their setters; malformed timestamps
+→ `nullopt` (catch); all five stat getters → 0 on non-numeric values (catch);
+ladder increments accumulate independently of the win/loss counters.
+
+Result: `attribute_map.cpp` **49.1% → 86.21%** (of 116 lines); suite
+**2704 → 2710**, `check-all` **15/0/0**, overall coverage +0.43 pts → **63.47%**.
+
+**Targeting note:** verified the per-file picks are *real* (computed the
+max-coverage-per-file aggregate across all `.gcno` to rule out the multi-link
+first-occurrence artifact that makes value-object *headers* like `ip_address.hpp`
+read as 0% despite being tested). The genuine remaining low-coverage `.cpp`
+cluster is the **application connection FSMs** (`connection_fsm_inchannel` 30%,
+`_authenticating` 33%, `_connecting` 47%) — the biggest uncovered-line sink, but
+FSM-driving tests are more involved than pure value-object/use-case tests.
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
