@@ -87,6 +87,36 @@ TEST_CASE("Clan: join / remove / set_rank semantics",
     REQUIRE_FALSE(c.contains(AccountId{2}));
 }
 
+TEST_CASE("Clan::promote_member enforces the Chieftain-only invariant",
+          "[domain][social][clan]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    // Founder (AccountId{1}) is Chieftain; add a peon member.
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});
+    (void)c.drain_events();
+
+    using PO = Clan::PromoteOutcome;
+
+    // A Chieftain may promote a member.
+    REQUIRE(c.promote_member(AccountId{1}, AccountId{2}, ClanRank::Grunt) ==
+            PO::Promoted);
+    REQUIRE(c.members().back().rank == ClanRank::Grunt);
+
+    // A non-Chieftain (the freshly-promoted Grunt) may NOT promote — the
+    // authority invariant lives in the aggregate, not the use-case.
+    REQUIRE(c.promote_member(AccountId{2}, AccountId{2}, ClanRank::Shaman) ==
+            PO::NotAuthorized);
+    REQUIRE(c.members().back().rank == ClanRank::Grunt);  // unchanged
+
+    // An unknown target is reported as not-a-member.
+    REQUIRE(c.promote_member(AccountId{1}, AccountId{999}, ClanRank::Grunt) ==
+            PO::TargetNotMember);
+
+    // A non-member promoter is also unauthorized.
+    REQUIRE(c.promote_member(AccountId{42}, AccountId{2}, ClanRank::Peon) ==
+            PO::NotAuthorized);
+}
+
 #include "domain/social/team.hpp"
 
 using domain::TeamId;

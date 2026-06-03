@@ -108,6 +108,29 @@ public:
         return true;
     }
 
+    /// Outcome of an authorization-checked rank change.
+    enum class PromoteOutcome : std::uint8_t {
+        Promoted,
+        NotAuthorized,    ///< the promoter is not a Chieftain
+        TargetNotMember,  ///< the target is not in this clan
+    };
+
+    /// Change `target`'s rank to `new_rank` on behalf of `promoter`, enforcing
+    /// the clan invariant that **only a Chieftain may change ranks**. This rule
+    /// lives in the aggregate, not in the application use-case (DDD: invariants
+    /// belong where the data lives).
+    PromoteOutcome promote_member(AccountId promoter, AccountId target,
+                                  ClanRank new_rank) {
+        auto pit = find_const_(promoter);
+        if (pit == members_.end() || pit->rank != ClanRank::Chieftain) {
+            return PromoteOutcome::NotAuthorized;
+        }
+        if (!set_rank(target, new_rank)) {
+            return PromoteOutcome::TargetNotMember;
+        }
+        return PromoteOutcome::Promoted;
+    }
+
     std::vector<events::DomainEvent> drain_events() {
         return std::exchange(events_, {});
     }

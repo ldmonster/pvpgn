@@ -1419,6 +1419,34 @@ reader/writer splits and 5 read-only consumers narrowed (3.3–3.5); per-context
 docs confirmed/refreshed (3.6). Remaining M3: the broader ISP splits over
 env-gated backends (tracked in ADR 0012) and a deeper anemic-model pass.
 
+### Step 3.7 — de-anemic: move the clan promote-authority invariant inward
+
+**Date:** 2026-06-03 · DONE, build-verified.
+
+Anemic-model audit ([04-domain-layer.md](04-domain-layer.md) §3/§5.1) found a
+leaked invariant: `application::social::PromoteClanMember::execute` manually
+iterated `clan.members()` to enforce "**only a Chieftain may promote**" — a clan
+rule that belongs in the aggregate, not the use-case (the aggregate's `set_rank`
+only checked target membership, so the authority rule lived application-side).
+
+- **`domain/social/clan.hpp`**: added `Clan::promote_member(promoter, target,
+  new_rank)` returning a `PromoteOutcome` (`Promoted`/`NotAuthorized`/
+  `TargetNotMember`); the Chieftain-authority + membership checks now live in
+  the aggregate.
+- **`promote_clan_member.cpp`**: dropped the manual member iteration + the
+  separate membership check; it now parses the wire rank string (a protocol
+  concern that stays in the use-case) and delegates to `clan.promote_member`,
+  mapping the outcome to the existing errors. Behaviour is preserved — the 5
+  existing use-case tests still pass.
+- **`tests/unit/domain/social/social_test.cpp`**: new domain test asserting the
+  invariant directly — a Chieftain promotes; a non-Chieftain (and a non-member)
+  promoter is `NotAuthorized` with the rank unchanged; an unknown target is
+  `TargetNotMember`.
+
+Result: the invariant is enforced where the data lives and unit-tested at the
+domain level; the use-case is thinner. Full suite **2747/2747**, `check-all`
+**17/0/0**, domain purity + cross-context + singleton gates green.
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

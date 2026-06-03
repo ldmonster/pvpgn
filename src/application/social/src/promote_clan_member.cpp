@@ -21,24 +21,7 @@ PromoteClanMember::execute(domain::ClanId clan_id, domain::AccountId promoter,
 
     auto& clan = *clan_result.value();
 
-    // 2. Verify promoter is chieftain
-    const auto& members = clan.members();
-    auto promoter_it = std::find_if(
-        members.begin(), members.end(),
-        [promoter](const domain::social::ClanMember& m) {
-            return m.account.value() == promoter.value() && m.rank == domain::social::ClanRank::Chieftain;
-        });
-
-    if (promoter_it == members.end()) {
-        return core::fail(PromoteClanMemberError::InsufficientRank);
-    }
-
-    // 3. Check if target is member
-    if (!clan.contains(target)) {
-        return core::fail(PromoteClanMemberError::TargetNotMember);
-    }
-
-    // 4. Parse new rank
+    // 2. Parse the wire rank name (a protocol concern, so it stays here).
     domain::social::ClanRank rank;
     if (new_rank == "peon") {
         rank = domain::social::ClanRank::Peon;
@@ -52,12 +35,18 @@ PromoteClanMember::execute(domain::ClanId clan_id, domain::AccountId promoter,
         return core::fail(PromoteClanMemberError::InvalidRank);
     }
 
-    // 5. Update rank
-    if (!clan.set_rank(target, rank)) {
-        return core::fail(PromoteClanMemberError::TargetNotMember);
+    // 3. Delegate authorization + the rank change to the aggregate — the
+    //    "only a Chieftain may promote" invariant lives in Clan, not here.
+    switch (clan.promote_member(promoter, target, rank)) {
+        case domain::social::Clan::PromoteOutcome::NotAuthorized:
+            return core::fail(PromoteClanMemberError::InsufficientRank);
+        case domain::social::Clan::PromoteOutcome::TargetNotMember:
+            return core::fail(PromoteClanMemberError::TargetNotMember);
+        case domain::social::Clan::PromoteOutcome::Promoted:
+            break;
     }
 
-    // 6. Save updated clan
+    // 4. Save updated clan
     auto save_result = clans_->save(clan);
     if (!save_result) {
         return core::fail(PromoteClanMemberError::PersistenceFailed);
