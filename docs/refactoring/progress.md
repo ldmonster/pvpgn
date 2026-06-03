@@ -802,6 +802,53 @@ The obvious highest-impact fix (re-point the social/ladder test wiring at the
 real targets, and decide the monolith-vs-modular duplication for ladder) is its
 own step, pending a dialog decision on scope.
 
+### Step 1.10 — un-drop the social use-case tests (wiring fix) + one real bug
+
+**Date:** 2026-06-03 · DONE, build-verified. Coverage **57.00% → 59.77%**.
+
+Acted on the Step 1.9 finding. Re-pointed the mis-wired application tests at the
+real monolith targets and fixed the fallout:
+
+- **`tests/unit/application/CMakeLists.txt`**: guards `pvpgn_application_social`
+  → `application_social`, `pvpgn_application_ladder` → `application_ladder`.
+- **`tests/unit/application/social/CMakeLists.txt`**: 14 test `DEPS`
+  `pvpgn_application_social` → `application_social`.
+- **`tests/unit/application/ladder/CMakeLists.txt`**: `DEPS` → the real
+  `application_ladder`/`domain_ladder`/`domain_identity` names.
+- **`src/CMakeLists.txt`**: completed the monolith `application_social` lib with
+  its 4 sources that compiled nowhere (`join_clan`, `leave_clan`, `create_team`,
+  `disband_team`).
+- **Real bug fixed** — `infra/inmemory/friend_list_repository.hpp` used
+  `std::unique_lock` but included only `<shared_mutex>` (which declares
+  `shared_lock`/`shared_mutex`, *not* `unique_lock` — that's in `<mutex>`).
+  Added `#include <mutex>`. This header compiled nowhere before (only the
+  dropped friends tests reached it), so the error was latent.
+
+Result: **10 clan/team social use-case test files (~71 new test cases) now build
+and run**; suite **2568 → 2639**, 100% green; `check-all` **15/0/0**; coverage
++2.77 pts (the 4 newly-compiled social sources also enlarge the denominator,
+10949 → 11443 lines).
+
+**Two things turned out rotted and were deferred (build-green via exclusion):**
+
+1. **The 3 "friends" tests** (`add_friend`/`remove_friend`/`list_friends`) copy
+   `InMemoryAccountRepository`/`InMemoryFriendListRepository` *by value*, but
+   those repos became non-copyable (`shared_mutex` member) since the tests were
+   written; the copies also defeat the seed-then-use shared state the tests
+   rely on. Needs a fixture rewrite to share one `shared_ptr` repo — commented
+   out in `social/CMakeLists.txt` with a TODO until then.
+
+2. **The ladder use-cases don't compile at all** — the headers reference a
+   removed `ports` namespace and the constructors have drifted from the tests
+   (`too many initializers`). Bit-rot from compiling nowhere. The monolith
+   `application_ladder` target is intentionally *not* declared (it would break
+   the build); deferred to a repair step.
+
+Both are classic "dead/uncompiled code rots" — the Step 1.9 wiring bug hid the
+breakage. The honest coverage number is now **59.77%**; closing toward 85% needs
+(a) the friends-test rewrite, (b) the ladder repair, and (c) net-new tests for
+the genuinely thin layers (moderation/realm use-cases still near 0%).
+
 ## Milestones 3–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

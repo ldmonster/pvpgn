@@ -47,9 +47,11 @@ if(TARGET application_bnet_packet_pump)
     add_subdirectory(bnet_packet_pump)
 endif()
 add_subdirectory(ports)
-if(TARGET pvpgn_application_social)
+if(TARGET application_social)
     add_subdirectory(social)
 endif()
-if(TARGET pvpgn_application_ladder)
+# ladder tests gated on application_ladder, which is intentionally not yet
+# declared (the ladder use-case sources don't compile — see progress 1.10).
+if(TARGET application_ladder)
     add_subdirectory(ladder)
 endif()

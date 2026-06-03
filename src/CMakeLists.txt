@@ -1205,6 +1205,10 @@ pvpgn_v3_add_library(application_social
         application/social/src/kick_from_clan.cpp
         application/social/src/promote_clan_member.cpp
         application/social/src/set_clan_motd.cpp
+        application/social/src/join_clan.cpp
+        application/social/src/leave_clan.cpp
+        application/social/src/create_team.cpp
+        application/social/src/disband_team.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/application/social/include
     PUBLIC_DEPS
@@ -1212,6 +1216,15 @@ pvpgn_v3_add_library(application_social
         application_ports
         domain_social
 )
+
+# ---- application/ladder -------------------------------------------------
+# NOTE: the ladder use-case sources (application/ladder/src/*.cpp) currently
+# DO NOT COMPILE — they were declared only in the orphaned modular
+# src/application/ladder/CMakeLists.txt (never add_subdirectory'd), so they
+# compiled nowhere and bit-rotted: the headers reference a removed `ports`
+# namespace and the constructors have drifted from the tests. Wiring them up
+# is deferred to a dedicated repair step (see docs/refactoring/progress.md
+# Step 1.10); declaring the target here would break the build today.
 
 # ---- application/i18n ---------------------------------------------------
 
