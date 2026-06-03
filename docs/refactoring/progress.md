@@ -1330,6 +1330,37 @@ positives) and added as a hard gate, so the now-met M3 property can't regress.
 Result: `check-all` **17 passed / 0 / 0**. M3 exit item "no global/singleton
 access in domain/app" is met **and** mechanically enforced.
 
+### Step 3.3 — ISP port audit (ADR 0012) + first reader/writer split
+
+**Date:** 2026-06-03 · DONE, build-verified. `check-all` **17/0/0**.
+
+Audited every `I*` port in `src/domain` + `src/application` by method count.
+Findings (the fat ports): `IUnitOfWork` (13 — 3 txn + **10 repo accessors**, a
+god-port), `IIpBanRepository` (8), `IConnectionContext` (7, I/O + game callbacks),
+and the read+write repositories (`IAccountRepository`/`IChannelRepository`/… at
+5–6). Captured the audit, the target shape, and the sequencing in
+**[ADR 0012 — Port Interface Segregation](../adr/0012-port-interface-segregation.md)**
+(added to `docs/index.md` for the docs-reachable gate). Key constraint recorded:
+the repo ports are implemented by **env-gated backends** (mysql/postgres/sqlite/
+shadow), so the splits are backend-by-backend follow-ups, not one blind sweep.
+
+Then **landed the first split as a concrete, build-verified example** using the
+backward-compatible inherit-from-both idiom:
+
+- `domain/identity/ports.hpp`: `IAccountRepository` → `IAccountReader`
+  (`find_by_id`/`find_by_name`/`forEach`/`size`) + `IAccountWriter`
+  (`save`/`remove`), with `class IAccountRepository : public IAccountReader,
+  public IAccountWriter`. Every implementer (`InMemory`, file, sqlite, mysql,
+  postgres, shadow, all the test fakes) keeps deriving from `IAccountRepository`
+  and overriding all six methods — **unchanged**.
+- Narrowed the read-only `application::auth::InMemoryPermissionChecker` to depend
+  on `std::shared_ptr<IAccountReader>` (it only calls `find_by_id`) — now it is
+  *impossible* to misuse it for writes.
+
+Build-verified: full suite **2746/2746**, `check-all` **17/0/0** (the split is
+ABI/source-compatible, so nothing else changed). M3 DoD "ports audited for ISP"
+is met; the remaining splits are tracked in ADR 0012 as scoped follow-ups.
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

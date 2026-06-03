@@ -4,7 +4,7 @@
 /// @file permission_checker.hpp
 /// In-memory implementation of IPermissionChecker.
 ///
-/// Backed by IAccountRepository; looks up command_groups from
+/// Backed by IAccountReader (read-only; ADR 0012 ISP); looks up command_groups from
 /// Account aggregate and maps known group names to Permission sets.
 
 #include <memory>
@@ -21,7 +21,7 @@ namespace pvpgn::application::auth {
 class InMemoryPermissionChecker : public domain::moderation::IPermissionChecker {
 public:
     explicit InMemoryPermissionChecker(
-        std::shared_ptr<domain::identity::IAccountRepository> accounts)
+        std::shared_ptr<domain::identity::IAccountReader> accounts)
         : accounts_(accounts) {
         init_group_mappings();
     }
@@ -33,7 +33,7 @@ public:
                            std::string_view group) const override;
 
 private:
-    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::identity::IAccountReader> accounts_;
 
     // Maps command groups to their associated Permission sets
     std::unordered_map<std::string, std::unordered_set<std::uint16_t>>

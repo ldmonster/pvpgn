@@ -23,17 +23,16 @@
 namespace pvpgn::domain::identity {
 
 // ---------------------------------------------------------------------------
-// IAccountRepository
+// IAccountRepository — segregated into reader + writer ports (ADR 0012 / ISP).
+// Read-only consumers (e.g. the permission checker) depend on IAccountReader
+// only; IAccountRepository = IAccountReader + IAccountWriter remains for
+// callers and implementers that need both, so existing code is unaffected.
 // ---------------------------------------------------------------------------
 
-class IAccountRepository {
+/// Read side of the account repository.
+class IAccountReader {
 public:
-    virtual ~IAccountRepository() = default;
-
-    IAccountRepository(const IAccountRepository&)            = delete;
-    IAccountRepository& operator=(const IAccountRepository&) = delete;
-    IAccountRepository(IAccountRepository&&)                 = delete;
-    IAccountRepository& operator=(IAccountRepository&&)      = delete;
+    virtual ~IAccountReader() = default;
 
     [[nodiscard]] virtual core::Result<Account>
     find_by_id(domain::AccountId id) const = 0;
@@ -41,16 +40,36 @@ public:
     [[nodiscard]] virtual core::Result<Account>
     find_by_name(const domain::UserName& name) const = 0;
 
-    virtual core::Status<>
-    save(const Account& account) = 0;
-
-    virtual core::Status<>
-    remove(domain::AccountId id) = 0;
-
     virtual void forEach(
         std::function<bool(const Account&)> predicate) const = 0;
 
     [[nodiscard]] virtual std::size_t size() const noexcept = 0;
+
+protected:
+    IAccountReader() = default;
+};
+
+/// Write side of the account repository.
+class IAccountWriter {
+public:
+    virtual ~IAccountWriter() = default;
+
+    virtual core::Status<> save(const Account& account) = 0;
+    virtual core::Status<> remove(domain::AccountId id) = 0;
+
+protected:
+    IAccountWriter() = default;
+};
+
+/// Full account repository: read + write. Implementers derive from this and
+/// override all six methods exactly as before.
+class IAccountRepository : public IAccountReader, public IAccountWriter {
+public:
+    IAccountRepository(const IAccountRepository&)            = delete;
+    IAccountRepository& operator=(const IAccountRepository&) = delete;
+    IAccountRepository(IAccountRepository&&)                 = delete;
+    IAccountRepository& operator=(IAccountRepository&&)      = delete;
+    ~IAccountRepository() override                           = default;
 
 protected:
     IAccountRepository() = default;

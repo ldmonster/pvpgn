@@ -109,6 +109,7 @@ Records of significant design decisions and the reasoning behind them:
 - [0009 — Modules Pilot](adr/0009-modules-pilot.md)
 - [0010 — OTel Exporter](adr/0010-otel-exporter.md)
 - [0011 — Runtime Image](adr/0011-runtime-image.md)
+- [0012 — Port Interface Segregation](adr/0012-port-interface-segregation.md)
 - [ADR template](adr/NNNN-template.md)
 
 ---
