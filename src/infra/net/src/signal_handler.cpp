@@ -94,14 +94,18 @@ void SignalHandler::on_sigusr1_save_all() {
     if (uow_factory_) {
         try {
             auto uow = uow_factory_->create();
-            auto result = uow->begin();
+            // The flush only needs transaction control — depend on the
+            // segregated ITransaction sub-interface (ADR 0012), not the full
+            // repository-bundle IUnitOfWork.
+            application::ports::ITransaction& txn = *uow;
+            auto result = txn.begin();
             if (!result.has_value()) {
                 std::cerr << "Failed to begin unit of work: " << result.error().message() << "\n";
                 return;
             }
 
             // Commit to flush all repositories
-            result = uow->commit();
+            result = txn.commit();
             if (result.has_value()) {
                 std::cerr << "All repositories flushed successfully\n";
             } else {

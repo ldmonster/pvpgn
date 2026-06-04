@@ -1588,6 +1588,48 @@ env-gated assumption: `infra/crypto/argon2id_password_hasher` + the pure
 have 5 passing tests; the remaining gap is *wiring* the policy into a
 plaintext-bearing flow (telnet/account-create), a deliberate feature task.
 
+### Step 4.3 — narrow the shutdown-flush consumer to ITransaction
+
+**Date:** 2026-06-04 · DONE, build-verified.
+
+`SignalHandler::on_sigusr1_save_all` (the SIGUSR1 "flush all repositories" path)
+creates a UnitOfWork and uses only `begin()`/`commit()`. Narrowed it to operate
+through an `application::ports::ITransaction&` view (from 4.2), so the flush
+explicitly depends on transaction control, not the repository bundle. Second
+narrowed consumer after `UnitOfWorkGuard`. Full suite **2752/2752**, `check-all`
+**18/0/0**.
+
+---
+
+## Session close-out — 2026-06-04
+
+A long dialog-driven session executed ~35 steps across **M1–M4**, tree green at
+every commit (`check-all --deep` clean, honest env-gated skips):
+
+- **M2 strangler:** 3 dead `legacy_*` clusters deleted (19→10 in `src/`).
+- **M1 safety net:** domain+app coverage **57% → 66.5%**, root-caused a CMake
+  target-name mismatch that silently dropped **24 use-case test files**
+  (social/ladder/moderation/realm), fixed ~7 latent bugs, then added net-new
+  tests (FSM injection recipe; auth/chat session-hash paths). Ratcheted a
+  no-regress coverage floor (62→66) and fixed the bench gate.
+- **M3 hardening:** cross-context coupling removed (CharacterClass + Permission
+  → shared kernel); singletons audited clean; ISP audited (**ADR 0012**) with
+  `IAccountRepository`/`IChannelRepository`/`IUnitOfWork` reader/writer/
+  transaction splits + consumers narrowed; the **clan context fully de-anemic**
+  (all 6 use-cases delegate invariants to `Clan`).
+- **M4 (locally-verifiable parts):** "no C `rand()`" verified + gated; the
+  `IUnitOfWork` god-port `ITransaction` split verified against **sqlite**.
+
+**4 new enforcing gates** wired into `check-all` (now 18/0/0 ring-2):
+`check_domain_cross_context.sh`, `check_no_singletons.sh`,
+`check_no_c_rand.sh`, plus the repaired coverage + bench `--deep` gates. State
+captured in project memory (`refactoring-m1m2m3-state.md`).
+
+**Resume:** broader ISP/repository splits + the `IDbDriver` consolidation
+(sqlite verifiable here, mysql/postgres need those backends); wire `PasswordUpgrade`
+(argon2id-at-rest) into a plaintext flow; `Clan::motd_` into `ClanSnapshot`;
+keep ratcheting coverage toward 85%.
+
 ## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
