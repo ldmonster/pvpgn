@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -131,6 +132,54 @@ public:
         return PromoteOutcome::Promoted;
     }
 
+    /// Outcome of an authorization-checked kick.
+    enum class KickOutcome : std::uint8_t {
+        Kicked,
+        KickerNotMember,      ///< the kicker is not in this clan
+        InsufficientRank,     ///< the kicker is below Shaman
+        TargetNotMember,      ///< the target is not in this clan
+        CannotKickChieftain,  ///< the Chieftain cannot be kicked
+    };
+
+    /// Remove `target` from the clan on behalf of `kicker`, enforcing the clan
+    /// rules that a kicker must be Shaman-or-above and that the Chieftain cannot
+    /// be kicked. These invariants live in the aggregate, not the use-case.
+    KickOutcome kick_member(AccountId kicker, AccountId target) {
+        auto kit = find_const_(kicker);
+        if (kit == members_.end())          return KickOutcome::KickerNotMember;
+        if (kit->rank > ClanRank::Shaman)   return KickOutcome::InsufficientRank;
+        auto tit = find_const_(target);
+        if (tit == members_.end())          return KickOutcome::TargetNotMember;
+        if (tit->rank == ClanRank::Chieftain) return KickOutcome::CannotKickChieftain;
+        remove(target);  // emits ClanMemberLeft
+        return KickOutcome::Kicked;
+    }
+
+    /// Maximum message-of-the-day length (legacy clan MOTD limit).
+    static constexpr std::size_t kMaxMotdLen = 256;
+
+    /// Outcome of an authorization-checked MOTD change.
+    enum class MotdOutcome : std::uint8_t {
+        Set,
+        SetterNotMember,   ///< the setter is not in this clan
+        InsufficientRank,  ///< the setter is below Shaman
+        TooLong,           ///< the MOTD exceeds kMaxMotdLen
+    };
+
+    /// Set the clan message-of-the-day on behalf of `setter`, enforcing the
+    /// clan rules (setter must be Shaman+, MOTD within length). The authority
+    /// and length invariants — and the MOTD state — live in the aggregate.
+    MotdOutcome set_motd(AccountId setter, std::string_view text) {
+        auto sit = find_const_(setter);
+        if (sit == members_.end())        return MotdOutcome::SetterNotMember;
+        if (sit->rank > ClanRank::Shaman) return MotdOutcome::InsufficientRank;
+        if (text.size() > kMaxMotdLen)    return MotdOutcome::TooLong;
+        motd_ = std::string{text};
+        return MotdOutcome::Set;
+    }
+
+    [[nodiscard]] const std::string& motd() const noexcept { return motd_; }
+
     std::vector<events::DomainEvent> drain_events() {
         return std::exchange(events_, {});
     }
@@ -152,6 +201,7 @@ private:
     std::string                         tag_;
     std::string                         name_;
     ClientTag                           client_;
+    std::string                         motd_;
     std::vector<ClanMember>             members_;
     std::vector<events::DomainEvent>    events_;
 };

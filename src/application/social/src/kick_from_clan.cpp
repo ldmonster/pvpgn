@@ -21,40 +21,20 @@ KickFromClan::execute(domain::ClanId clan_id, domain::AccountId kicker,
     auto clan_ptr = clan_result.value();
     auto& clan = *clan_ptr;
 
-    // 2. Verify kicker is in clan and has sufficient rank
-    const auto& members = clan.members();
-    auto kicker_it = std::find_if(members.begin(), members.end(),
-                                  [kicker](const domain::social::ClanMember& m) {
-                                      return m.account.value() == kicker.value();
-                                  });
-
-    if (kicker_it == members.end()) {
-        return core::fail(KickFromClanError::KickerNotInClan);
-    }
-
-    // Only Shaman+ can kick
-    if (kicker_it->rank > domain::social::ClanRank::Shaman) {
-        return core::fail(KickFromClanError::InsufficientRank);
-    }
-
-    // 3. Check if target is member
-    auto target_it = std::find_if(members.begin(), members.end(),
-                                  [target](const domain::social::ClanMember& m) {
-                                      return m.account.value() == target.value();
-                                  });
-
-    if (target_it == members.end()) {
-        return core::fail(KickFromClanError::TargetNotMember);
-    }
-
-    // 4. Cannot kick chieftain
-    if (target_it->rank == domain::social::ClanRank::Chieftain) {
-        return core::fail(KickFromClanError::CannotKickChieftain);
-    }
-
-    // 5. Remove member
-    if (!clan.remove(target)) {
-        return core::fail(KickFromClanError::TargetNotMember);
+    // 2. Delegate the authorization + removal rules to the aggregate — the
+    //    "kicker must be Shaman+" and "the Chieftain cannot be kicked"
+    //    invariants live in Clan, not here.
+    switch (clan.kick_member(kicker, target)) {
+        case domain::social::Clan::KickOutcome::KickerNotMember:
+            return core::fail(KickFromClanError::KickerNotInClan);
+        case domain::social::Clan::KickOutcome::InsufficientRank:
+            return core::fail(KickFromClanError::InsufficientRank);
+        case domain::social::Clan::KickOutcome::TargetNotMember:
+            return core::fail(KickFromClanError::TargetNotMember);
+        case domain::social::Clan::KickOutcome::CannotKickChieftain:
+            return core::fail(KickFromClanError::CannotKickChieftain);
+        case domain::social::Clan::KickOutcome::Kicked:
+            break;
     }
 
     // 6. Save updated clan

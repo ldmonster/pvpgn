@@ -117,6 +117,59 @@ TEST_CASE("Clan::promote_member enforces the Chieftain-only invariant",
             PO::NotAuthorized);
 }
 
+TEST_CASE("Clan::kick_member enforces rank + chieftain-protection invariants",
+          "[domain][social][clan]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});  // peon
+    (void)c.join(AccountId{3});  // peon
+    (void)c.drain_events();
+
+    using KO = Clan::KickOutcome;
+
+    // A peon (rank below Shaman) cannot kick.
+    REQUIRE(c.kick_member(AccountId{2}, AccountId{3}) == KO::InsufficientRank);
+    REQUIRE(c.contains(AccountId{3}));
+
+    // A non-member cannot kick.
+    REQUIRE(c.kick_member(AccountId{99}, AccountId{3}) == KO::KickerNotMember);
+
+    // The Chieftain (rank 1) cannot be kicked.
+    REQUIRE(c.kick_member(AccountId{1}, AccountId{1}) == KO::CannotKickChieftain);
+    REQUIRE(c.contains(AccountId{1}));
+
+    // Unknown target.
+    REQUIRE(c.kick_member(AccountId{1}, AccountId{999}) == KO::TargetNotMember);
+
+    // The Chieftain kicks a peon — succeeds and removes the member.
+    REQUIRE(c.kick_member(AccountId{1}, AccountId{3}) == KO::Kicked);
+    REQUIRE_FALSE(c.contains(AccountId{3}));
+}
+
+TEST_CASE("Clan::set_motd enforces authority + length and stores the MOTD",
+          "[domain][social][clan]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});  // peon
+    (void)c.drain_events();
+
+    using MO = Clan::MotdOutcome;
+
+    // A peon cannot set the MOTD; a non-member cannot either.
+    REQUIRE(c.set_motd(AccountId{2}, "hi") == MO::InsufficientRank);
+    REQUIRE(c.set_motd(AccountId{99}, "hi") == MO::SetterNotMember);
+    REQUIRE(c.motd().empty());
+
+    // Over-length MOTD is rejected.
+    REQUIRE(c.set_motd(AccountId{1}, std::string(Clan::kMaxMotdLen + 1, 'x')) ==
+            MO::TooLong);
+    REQUIRE(c.motd().empty());
+
+    // The Chieftain sets a valid MOTD — stored and readable.
+    REQUIRE(c.set_motd(AccountId{1}, "Welcome to PvPGN") == MO::Set);
+    REQUIRE(c.motd() == "Welcome to PvPGN");
+}
+
 #include "domain/social/team.hpp"
 
 using domain::TeamId;

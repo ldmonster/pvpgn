@@ -20,32 +20,21 @@ SetClanMotd::execute(domain::ClanId clan_id, domain::AccountId setter,
 
     auto& clan = *clan_result.value();
 
-    // 2. Verify setter is in clan and has sufficient rank
-    const auto& members = clan.members();
-    auto setter_it = std::find_if(members.begin(), members.end(),
-                                  [setter](const domain::social::ClanMember& m) {
-                                      return m.account.value() == setter.value();
-                                  });
-
-    if (setter_it == members.end()) {
-        return core::fail(SetClanMotdError::SetterNotInClan);
+    // 2. Delegate authorization, the length rule, and the MOTD state to the
+    //    aggregate — "setter must be Shaman+" and the length limit are clan
+    //    invariants, and the MOTD now lives in Clan (previously a no-op stub).
+    switch (clan.set_motd(setter, motd)) {
+        case domain::social::Clan::MotdOutcome::SetterNotMember:
+            return core::fail(SetClanMotdError::SetterNotInClan);
+        case domain::social::Clan::MotdOutcome::InsufficientRank:
+            return core::fail(SetClanMotdError::InsufficientRank);
+        case domain::social::Clan::MotdOutcome::TooLong:
+            return core::fail(SetClanMotdError::MotdTooLong);
+        case domain::social::Clan::MotdOutcome::Set:
+            break;
     }
 
-    // Only Shaman+ can set MOTD
-    if (setter_it->rank > domain::social::ClanRank::Shaman) {
-        return core::fail(SetClanMotdError::InsufficientRank);
-    }
-
-    // 3. Validate MOTD length (legacy limit ~256 chars)
-    if (motd.size() > 256) {
-        return core::fail(SetClanMotdError::MotdTooLong);
-    }
-
-    // 4. Update MOTD (would need to add to Clan aggregate)
-    // For now, this is a placeholder pending Clan aggregate extension
-    // clan.set_motd(motd);
-
-    // 5. Save updated clan
+    // 3. Save updated clan
     auto save_result = clans_->save(clan);
     if (!save_result) {
         return core::fail(SetClanMotdError::PersistenceFailed);

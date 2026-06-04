@@ -1447,6 +1447,39 @@ Result: the invariant is enforced where the data lives and unit-tested at the
 domain level; the use-case is thinner. Full suite **2747/2747**, `check-all`
 **17/0/0**, domain purity + cross-context + singleton gates green.
 
+### Step 3.8 — de-anemic: clan kick + MOTD invariants into the aggregate
+
+**Date:** 2026-06-04 · DONE, build-verified.
+
+Continued the 3.7 de-anemic pass over the sibling clan use-cases, which leaked
+the same rank-authority rules:
+
+- **`kick_from_clan`** — manually iterated `clan.members()` to check "kicker is
+  Shaman+" and "target is not the Chieftain". Moved into
+  `Clan::kick_member(kicker, target) -> KickOutcome`
+  (`Kicked`/`KickerNotMember`/`InsufficientRank`/`TargetNotMember`/
+  `CannotKickChieftain`); the use-case now just maps the outcome.
+- **`set_clan_motd`** — same leaked authority check **and** the actual MOTD set
+  was a no-op placeholder (`// clan.set_motd(motd)` was commented out). Added
+  `Clan::set_motd(setter, text) -> MotdOutcome` that enforces Shaman+ authority
+  and the `kMaxMotdLen` (256) length rule **and stores the MOTD** (new `motd_`
+  field + `motd()` getter) — so the feature is now actually implemented, not
+  stubbed. The use-case delegates.
+
+Added domain tests for both new aggregate methods
+(`tests/unit/domain/social/social_test.cpp`): kick rank/chieftain-protection
+matrix; MOTD authority/length/storage matrix. Existing use-case tests still pass
+(behaviour preserved for kick; MOTD now genuinely persists in the in-memory repo).
+
+Result: three clan authority invariants now live in the `Clan` aggregate and are
+unit-tested at the domain level; the use-cases are thin mappers. Full suite
+**2749/2749**, `check-all` **17/0/0**.
+
+*Follow-up (noted):* `motd_` is held in the aggregate and persists via the
+in-memory repo, but is not yet carried in `ClanSnapshot`/`rehydrate`, so it
+won't survive a round-trip through the file/SQL backends (env-gated) — a small
+snapshot addition to schedule with those backends.
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
