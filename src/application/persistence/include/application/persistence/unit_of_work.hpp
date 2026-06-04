@@ -16,20 +16,33 @@
 
 namespace pvpgn::application::ports {
 
-/// One unit-of-work bundle. Implementations expose each repository
-/// reference for the duration of a single business transaction.
-class IUnitOfWork {
+/// Transaction-control sub-interface (ISP / ADR 0012). Consumers that only need
+/// to begin/commit/rollback a transaction — e.g. the shutdown flush and the
+/// `UnitOfWorkGuard` — depend on this, not on the full repository-bundle
+/// `IUnitOfWork` (which exposes ten repository accessors they never touch).
+class ITransaction {
 public:
-    virtual ~IUnitOfWork() = default;
-
-    IUnitOfWork(const IUnitOfWork&)            = delete;
-    IUnitOfWork& operator=(const IUnitOfWork&) = delete;
-    IUnitOfWork(IUnitOfWork&&)                 = delete;
-    IUnitOfWork& operator=(IUnitOfWork&&)      = delete;
+    virtual ~ITransaction() = default;
 
     virtual core::Result<void, core::Error> begin()  = 0;
     virtual core::Result<void, core::Error> commit() = 0;
     virtual void rollback() noexcept                 = 0;
+
+protected:
+    ITransaction() = default;
+};
+
+/// One unit-of-work bundle: transaction control (via `ITransaction`) plus a
+/// reference to each repository for the duration of a single business
+/// transaction. Implementers derive from this and override every method as
+/// before; the begin/commit/rollback trio is now inherited from `ITransaction`.
+class IUnitOfWork : public ITransaction {
+public:
+    IUnitOfWork(const IUnitOfWork&)            = delete;
+    IUnitOfWork& operator=(const IUnitOfWork&) = delete;
+    IUnitOfWork(IUnitOfWork&&)                 = delete;
+    IUnitOfWork& operator=(IUnitOfWork&&)      = delete;
+    ~IUnitOfWork() override                    = default;
 
     virtual domain::identity::IAccountRepository&     accounts()      = 0;
     virtual domain::chat::IChannelRepository&     channels()      = 0;
@@ -47,10 +60,11 @@ protected:
 };
 
 /// RAII guard: calls `begin()` on construction; if `commit()` wasn't
-/// invoked before destruction, calls `rollback()`.
+/// invoked before destruction, calls `rollback()`. Depends only on
+/// `ITransaction` (ISP) — it never touches a repository.
 class UnitOfWorkGuard {
 public:
-    explicit UnitOfWorkGuard(IUnitOfWork& uow) noexcept : uow_(&uow) {
+    explicit UnitOfWorkGuard(ITransaction& uow) noexcept : uow_(&uow) {
         (void)uow_->begin();
     }
 
@@ -72,7 +86,7 @@ public:
     }
 
 private:
-    IUnitOfWork* uow_;
+    ITransaction* uow_;
     bool         committed_ = false;
 };
 

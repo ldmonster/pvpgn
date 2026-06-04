@@ -1555,6 +1555,39 @@ bespoke `fdwatch`/`hashtable`/`xstring`, argon2id-at-rest, OTLP export — are
 env-gated on SQL backends / collectors and tracked for backend-available
 sessions; the `IUnitOfWork` god-port split is designed in ADR 0012.)*
 
+### Step 4.2 — split the IUnitOfWork god-port: extract ITransaction (ADR 0012)
+
+**Date:** 2026-06-04 · DONE, build-verified **against sqlite** (not just inmemory).
+
+The `IUnitOfWork` god-port (ADR 0012: 3 transaction methods + 10 repository
+accessors) is the worst ISP offender. Took the first concrete, locally-verifiable
+slice: extracted **`ITransaction`** (`begin`/`commit`/`rollback`) as a base of
+`IUnitOfWork` (`class IUnitOfWork : public ITransaction { …10 accessors… }`),
+the same backward-compatible inherit-from-both idiom as the repo splits — every
+implementer keeps `: public IUnitOfWork` and overrides everything, unchanged.
+
+Narrowed the **`UnitOfWorkGuard`** RAII helper to depend on `ITransaction&`
+(it only `begin`/`commit`/`rollback`s — it never touches a repository), so it no
+longer transitively depends on the ten repository interfaces.
+
+**Local backend reality (corrects the "all M4 is env-gated" assumption):** this
+box's `.localdeps` provides **sodium + sqlite + mysqlclient**, so `build/v3-dev`
+builds the **sqlite** UnitOfWork/factory and the argon2id hasher. The split
+recompiled `infra/sqlite/.../unit_of_work.cpp.o` clean — i.e. it is verified
+against a *real SQL backend*, not only the in-memory fake. (mysql/postgres
+implementers aren't built here, but the inherit-from-both idiom guarantees they
+still satisfy `IUnitOfWork` — reference-verified.)
+
+Result: the transaction-control capability is now a 3-method port any consumer
+can depend on instead of the 13-method bundle; `UnitOfWorkGuard` is the first
+narrowed consumer. Full suite **2752/2752**, `check-all` **18/0/0**.
+
+Also confirmed (4.1 context) that **argon2id-at-rest** is further along than the
+env-gated assumption: `infra/crypto/argon2id_password_hasher` + the pure
+`application::auth::PasswordUpgrade` policy exist, build (sodium present), and
+have 5 passing tests; the remaining gap is *wiring* the policy into a
+plaintext-bearing flow (telnet/account-create), a deliberate feature task.
+
 ## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
