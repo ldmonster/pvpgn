@@ -88,6 +88,7 @@ gate "layering rule (empty allow-list)" sh   scripts/v3_layering_check.sh src
 gate "domain purity"                    bash scripts/check_domain_purity.sh src/domain
 gate "domain cross-context coupling"    bash scripts/check_domain_cross_context.sh src/domain
 gate "no singletons (domain+app)"       bash scripts/check_no_singletons.sh
+gate "no C rand() (RNG port only)"      bash scripts/check_no_c_rand.sh src
 gate "unit pairing"                     bash scripts/dev/check-unit-pairing.sh
 gate "test↔legacy linkage"              bash scripts/dev/check-test-legacy-linkage.sh
 gate "plugin ABI semver"                bash scripts/dev/check-plugin-abi.sh

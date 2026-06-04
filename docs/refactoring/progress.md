@@ -1525,6 +1525,36 @@ rank/authority. Full suite **2752/2752**, `check-all` **17/0/0**.
 to `Character.lock`; chat's channel-kick is only mildly redundant — `Channel.kick`
 already owns the rule — so neither warranted a move.)
 
-## Milestones 4–6
+## Milestone 4 — Infrastructure consolidation (in progress)
+
+### Step 4.1 — "no C `rand()`" verified clean + regression gate
+
+**Date:** 2026-06-04 · DONE, build-verified (script-level). New gate.
+
+M4 ([08-cross-cutting.md](08-cross-cutting.md) / roadmap §M4) requires randomness
+to come from the **RNG port**, never the C `std::rand`/`rand`/`srand`. Scanned
+the v3 tree (`domain`/`application`/`core`/`protocol`/`services`/`app`/`infra`/…,
+excluding the legacy `src/common`): **already clean** — the code uses
+`core::crypto::secure_random`, the `IRandomSource` port
+(`domain/shared/ports/random_source.hpp`), and `InMemoryRandomSource`. The
+`<random>` engines (`random_device`/`mt19937`/`uniform_*`) are the *correct* tool
+and are not forbidden.
+
+The property was unguarded, so — matching the M3 gate pattern — added
+**`scripts/check_no_c_rand.sh`** (forbids `std::rand(`/`srand(`/bare `rand(` in
+the v3 layers; strips `//` comments first to avoid flagging the doc comment in
+`secure_random.hpp` that *mentions* the ban; excludes `random_device`/`RAND_MAX`)
+and wired it into `check-all` Ring 2. Verified clean.
+
+Result: the M4 "no `std::rand`" requirement is met **and** mechanically enforced.
+`check-all` ring-2 is now **18 gates** (4 new structural gates added this run:
+cross-context, singletons, no-C-rand + the wired coverage/bench in `--deep`).
+
+*(The remaining M4 items — single `IDbDriver`, async-runtime replacement of
+bespoke `fdwatch`/`hashtable`/`xstring`, argon2id-at-rest, OTLP export — are
+env-gated on SQL backends / collectors and tracked for backend-available
+sessions; the `IUnitOfWork` god-port split is designed in ADR 0012.)*
+
+## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
