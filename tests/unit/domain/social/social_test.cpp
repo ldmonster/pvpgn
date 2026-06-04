@@ -170,6 +170,39 @@ TEST_CASE("Clan::set_motd enforces authority + length and stores the MOTD",
     REQUIRE(c.motd() == "Welcome to PvPGN");
 }
 
+TEST_CASE("Clan::invite_member enforces inviter authority + capacity",
+          "[domain][social][clan]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});  // peon
+    (void)c.drain_events();
+
+    using IO = Clan::InviteOutcome;
+
+    // A peon cannot invite; a non-member cannot invite.
+    REQUIRE(c.invite_member(AccountId{2}, AccountId{5}) == IO::InsufficientRank);
+    REQUIRE(c.invite_member(AccountId{99}, AccountId{5}) == IO::InviterNotMember);
+    REQUIRE_FALSE(c.contains(AccountId{5}));
+
+    // The Chieftain invites a new peon.
+    REQUIRE(c.invite_member(AccountId{1}, AccountId{5}) == IO::Invited);
+    REQUIRE(c.contains(AccountId{5}));
+
+    // Re-inviting an existing member is reported.
+    REQUIRE(c.invite_member(AccountId{1}, AccountId{5}) == IO::AlreadyMember);
+}
+
+TEST_CASE("Clan::is_chieftain reports the founder's authority",
+          "[domain][social][clan]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});
+
+    CHECK(c.is_chieftain(AccountId{1}));        // founder
+    CHECK_FALSE(c.is_chieftain(AccountId{2}));  // peon
+    CHECK_FALSE(c.is_chieftain(AccountId{99})); // non-member
+}
+
 #include "domain/social/team.hpp"
 
 using domain::TeamId;

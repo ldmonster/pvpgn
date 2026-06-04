@@ -180,6 +180,38 @@ public:
 
     [[nodiscard]] const std::string& motd() const noexcept { return motd_; }
 
+    /// True iff `a` is a member of this clan with Chieftain rank. A domain query
+    /// so callers (e.g. the disband use-case, whose removal is a repository
+    /// concern) need not reach into `members()` to check authority.
+    [[nodiscard]] bool is_chieftain(AccountId a) const noexcept {
+        auto it = find_const_(a);
+        return it != members_.end() && it->rank == ClanRank::Chieftain;
+    }
+
+    /// Outcome of an authorization-checked invitation.
+    enum class InviteOutcome : std::uint8_t {
+        Invited,
+        InviterNotMember,   ///< the inviter is not in this clan
+        InsufficientRank,   ///< the inviter is below Shaman
+        AlreadyMember,      ///< the invitee is already in the clan
+        Full,               ///< the clan is at capacity
+    };
+
+    /// Admit `invitee` (as a Peon) on behalf of `inviter`, enforcing the clan
+    /// rule that an inviter must be Shaman+. Membership/capacity are delegated
+    /// to `join`. The authority invariant lives in the aggregate.
+    InviteOutcome invite_member(AccountId inviter, AccountId invitee) {
+        auto iit = find_const_(inviter);
+        if (iit == members_.end())        return InviteOutcome::InviterNotMember;
+        if (iit->rank > ClanRank::Shaman) return InviteOutcome::InsufficientRank;
+        switch (join(invitee, ClanRank::Peon)) {
+            case JoinOutcome::AlreadyMember: return InviteOutcome::AlreadyMember;
+            case JoinOutcome::Full:          return InviteOutcome::Full;
+            case JoinOutcome::Joined:        return InviteOutcome::Invited;
+        }
+        return InviteOutcome::Invited;  // unreachable: all JoinOutcomes handled
+    }
+
     std::vector<events::DomainEvent> drain_events() {
         return std::exchange(events_, {});
     }

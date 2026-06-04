@@ -1480,6 +1480,30 @@ in-memory repo, but is not yet carried in `ClanSnapshot`/`rehydrate`, so it
 won't survive a round-trip through the file/SQL backends (env-gated) — a small
 snapshot addition to schedule with those backends.
 
+### Step 3.9 — de-anemic: clan invite + disband authority into the aggregate
+
+**Date:** 2026-06-04 · DONE, build-verified.
+
+Finished the clan de-anemic pass over the last two use-cases:
+
+- **`invite_to_clan`** — moved the "inviter must be Shaman+" authority check (and
+  the redundant pre-checks of membership/capacity that `join` already does) into
+  `Clan::invite_member(inviter, invitee) -> InviteOutcome`
+  (`Invited`/`InviterNotMember`/`InsufficientRank`/`AlreadyMember`/`Full`).
+- **`disband_clan`** — the disband *removal* is a repository concern (the
+  aggregate can't delete itself), so the authority check became a domain
+  **query**: `Clan::is_chieftain(account)`. The use-case no longer iterates
+  `members()` to find the chieftain.
+
+Domain tests added for both (`invite_member` authority/capacity/already-member
+matrix; `is_chieftain` founder/peon/non-member). Existing use-case tests pass.
+
+**Clan de-anemic pass complete:** all five clan-management use-cases (`promote`,
+`kick`, `set_motd`, `invite`, `disband`) now delegate their authority invariants
+to the `Clan` aggregate — the rules live where the data lives, each unit-tested
+at the domain level, and the use-cases are thin mappers. Full suite
+**2751/2751**, `check-all` **17/0/0**.
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

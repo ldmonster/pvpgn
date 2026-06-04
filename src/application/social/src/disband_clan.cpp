@@ -18,15 +18,9 @@ DisbandClan::execute(domain::ClanId clan_id, domain::AccountId by_chieftain) {
     auto clan_ptr = clan_result.value();
     auto& clan = *clan_ptr;
 
-    // 2. Verify caller is chieftain
-    const auto& members = clan.members();
-    auto chieftain_it = std::find_if(
-        members.begin(), members.end(),
-        [by_chieftain](const domain::social::ClanMember& m) {
-            return m.account.value() == by_chieftain.value() && m.rank == domain::social::ClanRank::Chieftain;
-        });
-
-    if (chieftain_it == members.end()) {
+    // 2. Verify caller is chieftain — the authority query lives in the
+    //    aggregate; the removal itself is a repository concern below.
+    if (!clan.is_chieftain(by_chieftain)) {
         return core::fail(DisbandClanError::NotChieftain);
     }
 

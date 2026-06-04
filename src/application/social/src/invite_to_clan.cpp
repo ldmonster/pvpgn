@@ -19,39 +19,22 @@ InviteToClan::execute(domain::ClanId clan_id, domain::AccountId inviter,
     auto clan_ptr = clan_result.value();
     auto& clan = *clan_ptr;
 
-    // 2. Verify inviter is in clan and has sufficient rank
-    const auto& members = clan.members();
-    auto inviter_it = std::find_if(members.begin(), members.end(),
-                                   [inviter](const domain::social::ClanMember& m) {
-                                       return m.account.value() == inviter.value();
-                                   });
-
-    if (inviter_it == members.end()) {
-        return core::fail(InviteToClanError::InviterNotInClan);
+    // 2. Delegate authorization + admission to the aggregate — the "inviter
+    //    must be Shaman+" invariant (and membership/capacity) live in Clan.
+    switch (clan.invite_member(inviter, invitee)) {
+        case domain::social::Clan::InviteOutcome::InviterNotMember:
+            return core::fail(InviteToClanError::InviterNotInClan);
+        case domain::social::Clan::InviteOutcome::InsufficientRank:
+            return core::fail(InviteToClanError::InsufficientRank);
+        case domain::social::Clan::InviteOutcome::AlreadyMember:
+            return core::fail(InviteToClanError::TargetAlreadyMember);
+        case domain::social::Clan::InviteOutcome::Full:
+            return core::fail(InviteToClanError::ClanFull);
+        case domain::social::Clan::InviteOutcome::Invited:
+            break;
     }
 
-    // Only Shaman+ can invite
-    if (inviter_it->rank > domain::social::ClanRank::Shaman) {
-        return core::fail(InviteToClanError::InsufficientRank);
-    }
-
-    // 3. Check if target is already member
-    if (clan.contains(invitee)) {
-        return core::fail(InviteToClanError::TargetAlreadyMember);
-    }
-
-    // 4. Check if clan is full
-    if (clan.is_full()) {
-        return core::fail(InviteToClanError::ClanFull);
-    }
-
-    // 5. Add member as Peon (invited/probation)
-    auto join_outcome = clan.join(invitee, domain::social::ClanRank::Peon);
-    if (join_outcome == domain::social::Clan::JoinOutcome::Full) {
-        return core::fail(InviteToClanError::ClanFull);
-    }
-
-    // 6. Save updated clan
+    // 3. Save updated clan
     auto save_result = clans_->save(clan);
     if (!save_result) {
         return core::fail(InviteToClanError::PersistenceFailed);
