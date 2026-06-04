@@ -1504,6 +1504,27 @@ to the `Clan` aggregate — the rules live where the data lives, each unit-teste
 at the domain level, and the use-cases are thin mappers. Full suite
 **2751/2751**, `check-all` **17/0/0**.
 
+### Step 3.10 — de-anemic: clan leave invariant (completes the clan context)
+
+**Date:** 2026-06-04 · DONE, build-verified.
+
+`leave_clan` was the last clan use-case still manually iterating `clan.members()`
+and checking `rank == Chieftain` — it owned the "the Chieftain must disband
+rather than leave" invariant. Moved into `Clan::leave(account) -> LeaveOutcome`
+(`Left`/`NotMember`/`ChieftainMustDisband`); the use-case maps the outcome.
+Added a domain test (non-member, chieftain-blocked, peon-leaves).
+
+**The `social`/clan context is now fully de-anemic:** all six clan-management
+use-cases — `promote`, `kick`, `set_motd`, `invite`, `disband`, `leave` — own
+zero authority logic; every clan invariant lives in the `Clan` aggregate and is
+unit-tested at the domain level. A repo-wide scan confirms no remaining
+application use-case manually iterates an aggregate's member collection to check
+rank/authority. Full suite **2752/2752**, `check-all` **17/0/0**.
+
+(Audited the other contexts in passing: `realm::CharacterLock` already delegates
+to `Character.lock`; chat's channel-kick is only mildly redundant — `Channel.kick`
+already owns the rule — so neither warranted a move.)
+
 ## Milestones 4–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

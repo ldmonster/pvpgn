@@ -203,6 +203,23 @@ TEST_CASE("Clan::is_chieftain reports the founder's authority",
     CHECK_FALSE(c.is_chieftain(AccountId{99})); // non-member
 }
 
+TEST_CASE("Clan::leave: members leave, the Chieftain must disband",
+          "[domain][social][clan]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});  // peon
+    (void)c.drain_events();
+
+    using LO = Clan::LeaveOutcome;
+
+    REQUIRE(c.leave(AccountId{99}) == LO::NotMember);
+    REQUIRE(c.leave(AccountId{1})  == LO::ChieftainMustDisband);  // founder
+    REQUIRE(c.contains(AccountId{1}));
+
+    REQUIRE(c.leave(AccountId{2})  == LO::Left);
+    REQUIRE_FALSE(c.contains(AccountId{2}));
+}
+
 #include "domain/social/team.hpp"
 
 using domain::TeamId;

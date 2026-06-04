@@ -212,6 +212,24 @@ public:
         return InviteOutcome::Invited;  // unreachable: all JoinOutcomes handled
     }
 
+    /// Outcome of a member leaving the clan.
+    enum class LeaveOutcome : std::uint8_t {
+        Left,
+        NotMember,             ///< the account is not in this clan
+        ChieftainMustDisband,  ///< the Chieftain may not just leave
+    };
+
+    /// Remove `account` from the clan on their own behalf, enforcing the clan
+    /// rule that the Chieftain must disband rather than leave. Invariant lives
+    /// in the aggregate.
+    LeaveOutcome leave(AccountId account) {
+        auto it = find_const_(account);
+        if (it == members_.end())            return LeaveOutcome::NotMember;
+        if (it->rank == ClanRank::Chieftain) return LeaveOutcome::ChieftainMustDisband;
+        remove(account);  // emits ClanMemberLeft
+        return LeaveOutcome::Left;
+    }
+
     std::vector<events::DomainEvent> drain_events() {
         return std::exchange(events_, {});
     }

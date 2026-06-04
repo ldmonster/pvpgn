@@ -20,25 +20,15 @@ LeaveClan::execute(domain::ClanId clan_id, domain::AccountId account_id) {
     auto clan_ptr = clan_result.value();
     auto& clan = *clan_ptr;
 
-    // 2. Verify account is a member
-    const auto& members = clan.members();
-    auto member_it = std::find_if(members.begin(), members.end(),
-                                  [account_id](const domain::social::ClanMember& m) {
-                                      return m.account == account_id;
-                                  });
-
-    if (member_it == members.end()) {
-        return core::fail(LeaveClanError::NotAMember);
-    }
-
-    // 3. Chieftain must disband instead of leaving
-    if (member_it->rank == domain::social::ClanRank::Chieftain) {
-        return core::fail(LeaveClanError::LeaderMustDisband);
-    }
-
-    // 4. Remove the member
-    if (!clan.remove(account_id)) {
-        return core::fail(LeaveClanError::NotAMember);
+    // 2. Delegate to the aggregate — "must be a member" and "the Chieftain must
+    //    disband rather than leave" are clan invariants.
+    switch (clan.leave(account_id)) {
+        case domain::social::Clan::LeaveOutcome::NotMember:
+            return core::fail(LeaveClanError::NotAMember);
+        case domain::social::Clan::LeaveOutcome::ChieftainMustDisband:
+            return core::fail(LeaveClanError::LeaderMustDisband);
+        case domain::social::Clan::LeaveOutcome::Left:
+            break;
     }
 
     // 5. Save updated clan
