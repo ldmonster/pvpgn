@@ -163,10 +163,20 @@ core::Status<> SqlAccountRepository::save(
         }
     }
 
-    // Upsert. "INSERT OR REPLACE" is SQLite/MySQL-compatible; the dialect layer
-    // rewrites it to "ON CONFLICT ... DO UPDATE" for PostgreSQL (tracked).
+    // Upsert keyed by the primary key (id). We deliberately do NOT use
+    // "INSERT OR REPLACE": REPLACE resolves *any* UNIQUE conflict — including the
+    // accounts(name) index — by DELETING the conflicting row, so saving a new
+    // account whose name collides with an existing, *different*-id account would
+    // silently destroy the original (and, via account_attributes' ON DELETE
+    // CASCADE, its attributes too). "ON CONFLICT(id) DO UPDATE" targets only the
+    // primary-key conflict, giving an idempotent update-in-place; a name
+    // collision on a different id then trips the UNIQUE(name) constraint and is
+    // surfaced as a save error instead of data loss. Username uniqueness is also
+    // enforced at the application layer before an id is assigned — this is
+    // defence in depth. (SQLite/PostgreSQL syntax; MySQL upsert is tracked
+    // separately, as the previous SQLite-only "INSERT OR REPLACE" already was.)
     std::ostringstream sql;
-    sql << "INSERT OR REPLACE INTO accounts "
+    sql << "INSERT INTO accounts "
         << "(id, name, locale, password_hash, locked, must_change_password, "
         << "command_groups, created_at, updated_at) "
         << "VALUES (" << account.id().value() << ", '"
@@ -176,7 +186,15 @@ core::Status<> SqlAccountRepository::save(
         << (account.is_locked() ? 1 : 0) << ", "
         << (account.must_change_password() ? 1 : 0) << ", '"
         << groups_oss.str() << "', "
-        << "0, 0);";
+        << "0, 0) "
+        << "ON CONFLICT(id) DO UPDATE SET "
+        << "name = excluded.name, "
+        << "locale = excluded.locale, "
+        << "password_hash = excluded.password_hash, "
+        << "locked = excluded.locked, "
+        << "must_change_password = excluded.must_change_password, "
+        << "command_groups = excluded.command_groups, "
+        << "updated_at = excluded.updated_at;";
 
     return driver_->exec(sql.str());
 }
