@@ -13,6 +13,8 @@ endif()
 set(_INTEGRATION_SOURCES
     main.cpp
     account_repository_integration_test.cpp
+    unit_of_work_integration_test.cpp
+    migration_runner_integration_test.cpp
 )
 
 add_executable(test_integration ${_INTEGRATION_SOURCES})
@@ -36,6 +38,24 @@ target_link_libraries(test_integration
         domain_shared
         Catch2::Catch2
 )
+
+# The test sources guard backend-specific cases behind PVPGN_HAS_INFRA_* so
+# they degrade to a SKIP when an adapter isn't compiled in. Those macros must
+# actually be defined when the corresponding target exists, otherwise the
+# SQLite/File cases are silently #ifdef'd out and never run. Define them here,
+# conditioned on the same targets we (optionally) link above.
+if(TARGET pvpgn_infra_sqlite)
+    target_compile_definitions(test_integration PRIVATE PVPGN_HAS_INFRA_SQLITE)
+endif()
+if(TARGET pvpgn_infra_file)
+    target_compile_definitions(test_integration PRIVATE PVPGN_HAS_INFRA_FILE)
+endif()
+if(TARGET pvpgn_infra_mysql)
+    target_compile_definitions(test_integration PRIVATE PVPGN_HAS_INFRA_MYSQL)
+endif()
+if(TARGET pvpgn_infra_postgresql)
+    target_compile_definitions(test_integration PRIVATE PVPGN_HAS_INFRA_POSTGRESQL)
+endif()
 
 include(CTest)
 include(Catch)

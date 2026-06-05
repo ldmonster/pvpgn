@@ -1630,6 +1630,70 @@ captured in project memory (`refactoring-m1m2m3-state.md`).
 (argon2id-at-rest) into a plaintext flow; `Clan::motd_` into `ClanSnapshot`;
 keep ratcheting coverage toward 85%.
 
+## Integration tests — critical persistence boundary (2026-06-05)
+
+Added an integration suite for the **SQLite Unit of Work** — the transactional
+boundary that guards data integrity for every persisted bounded context — in
+`tests/integration/unit_of_work_integration_test.cpp` (8 cases, all driving the
+real `SQLiteUnitOfWorkFactory` against an on-disk SQLite file):
+
+1. factory runs migrations → yields a usable (begin/commit) transaction;
+2. a committed write is visible to a later UoW on the same connection;
+3. a rolled-back write leaves no trace;
+4. account + ban mutated in one transaction **commit atomically**;
+5. account + ban **roll back atomically** (neither persists);
+6. data survives factory teardown + file reopen (migration runner is
+   idempotent on an already-migrated DB);
+7–8. the ADR-0012 / M4 `UnitOfWorkGuard` (`ITransaction` RAII) commits on
+   success and **rolls back on scope exit** when `commit()` is skipped — the
+   first real-DB exercise of the M4 split.
+
+**Latent issues this surfaced** (the gated suite had never actually built, so
+its marquee cases were dead):
+
+- `PVPGN_HAS_INFRA_SQLITE` / `PVPGN_HAS_INFRA_FILE` were referenced by the test
+  `#ifdef`s but **never defined** in CMake → the SQLite/File cases were silently
+  compiled out. Fixed in `tests/integration/CMakeLists.txt`
+  (`target_compile_definitions` conditioned on each `pvpgn_infra_*` target;
+  added MYSQL/POSTGRESQL too).
+- The MySQL/PG placeholders used the legacy `[!hide]` Catch tag, which the
+  bundled Catch2 rejects (`!`-prefixed tags reserved) → discovery failed.
+  Repointed to the modern `[.]` hidden tag.
+- The pre-existing "duplicate save returns error" case asserted insert-only
+  semantics, but `SqlAccountRepository::save` used `INSERT OR REPLACE`. That
+  exposed a real **data-loss bug** (see below), not just a stale test.
+
+**Bug fixed — `SqlAccountRepository::save` silently clobbered accounts.** The
+repo used `INSERT OR REPLACE INTO accounts`. SQLite's REPLACE resolves *any*
+UNIQUE conflict by **deleting** the conflicting row, so saving a new account
+(id=2) whose name collides with an existing, different-id account (id=1)
+silently destroyed id=1 — and, via `account_attributes`' `ON DELETE CASCADE`,
+its attributes. The "dialect layer rewrites this" comment was aspirational: the
+`SqliteDriver::exec` path is a verbatim pass-through, no rewriting exists.
+Fixed by switching to `INSERT ... ON CONFLICT(id) DO UPDATE SET ...` — an
+idempotent upsert on the `id` primary key only; a name collision on a different
+id now trips the `UNIQUE(name)` index and is surfaced as a save **error**
+instead of data loss. (Username uniqueness is also enforced at the application
+layer before an id is assigned — defence in depth.) Regression test added
+(`saving a name owned by another id does not clobber the original`); the
+existing 7-case persistence unit test still passes (59 assertions).
+
+Also added `tests/integration/migration_runner_integration_test.cpp` (4 cases)
+— the migration **runner** had only unit coverage against a *fake* SQL recorder
+(no DDL ever executed). These run the real embedded migrations through a real
+`SQLiteConnection` and assert observable effects: `migrate_to_latest` builds the
+full table set (accounts…channels), the applied version is persisted in
+`_schema_migrations` and read back, re-running is idempotent (no duplicate
+rows), `migrate_to(target=1)` yields a partial schema (no `channels`) that
+`migrate_to_latest` then completes, and version tracking survives a fresh runner
+on the same DB.
+
+Verified: `cmake -DPVPGN_V3_INTEGRATION_TESTS=ON`, `ctest -L integration` →
+**19/19 pass** (8 UoW + 4 account + 3 file + 4 migration; 2 MySQL/PG placeholders
+stay hidden); full `build/v3-dev` build green; unit+functional suite green
+(2741/2741; the 5 anongame/icon loader failures are the known parallel-WD flake,
+green under `-j1`, unrelated to this change).
+
 ## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
