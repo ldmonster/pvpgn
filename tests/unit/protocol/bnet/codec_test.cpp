@@ -502,6 +502,35 @@ TEST_CASE("bnet codec: SID_GETADVLISTEX reply round-trip (2 games)",
     REQUIRE(std::get<GameListReply>(r.value()) == in);
 }
 
+TEST_CASE("bnet codec: SID_GETADVLISTEX reply emits a 4-byte spacer between games",
+          "[protocol][bnet]") {
+    using namespace protocol::bnet;
+    // The original prepends a 4-byte spacer dword before every game record
+    // except the first. Encoding N+1 games must be exactly (record + 4) bytes
+    // larger than encoding N games with the same leading record.
+    GameListEntry e0{0x0002u, 0u, 0x0002u, 6112u, 0x7F000001u, 0u, 0u,
+                     0x00000004u, 0x0000002Bu, "MyGame", "", ",34,Bob"};
+    GameListEntry e1{0x0010u, 0x0004u, 0x0009u, 6113u, 0x0A000001u, 0u, 0u,
+                     0x000000C5u, 0x0000002Bu, "Ladder", "pw", ",,,Ice"};
+
+    auto encoded_size = [](const GameListReply& m) {
+        protocol::Writer w;
+        REQUIRE(protocol::bnet::encode(w, m).has_value());
+        return w.view().size();
+    };
+
+    GameListReply one;  one.sstatus = 0u; one.entries = {e0};
+    GameListReply two;  two.sstatus = 0u; two.entries = {e0, e1};
+
+    // Fixed per-record fields: 2+2+2+2+4+4+4+4+4 = 28 bytes, plus 3 NUL-
+    // terminated strings, plus the 4-byte inter-record spacer.
+    const std::size_t e1_size = 28u
+        + e1.game_name.size() + 1u
+        + e1.password.size()  + 1u
+        + e1.info.size()      + 1u;
+    REQUIRE(encoded_size(two) - encoded_size(one) == e1_size + 4u);
+}
+
 TEST_CASE("bnet codec: SID_GETADVLISTEX reply error (sstatus, no entries)",
           "[protocol][bnet]") {
     using namespace protocol::bnet;

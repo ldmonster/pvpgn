@@ -124,8 +124,9 @@ TEST_CASE("CreateAccount: allows valid characters in username",
     Fixture f;
     auto uc = f.make_use_case();
 
-    // Valid: alphanumeric, dots, dashes, underscores (max 15 chars)
-    auto r = uc.execute(f.make_request("Alice.123-test"));
+    // Valid: alphanumeric plus the original allowed symbol set -_[] (max 15
+    // chars), including a leading bracket (legacy clan-tag style name).
+    auto r = uc.execute(f.make_request("[Cl]Alice_1-2"));
 
     REQUIRE(r);
 }

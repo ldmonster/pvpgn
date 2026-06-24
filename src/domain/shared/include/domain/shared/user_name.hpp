@@ -4,10 +4,17 @@
 /// @file user_name.hpp
 /// `UserName` — validated Battle.net account name.
 ///
-/// Legacy rule (`account_check_name` in `src/bnetd/account_wrap.cpp`):
-///   * 2 .. 15 characters
-///   * ASCII letters, digits, `_`, `-`, `.`
-///   * Must start with a letter
+/// Legacy rule (`account_check_name` in `src/bnetd/account.cpp`):
+///   * 2 .. 15 characters (`MIN_USERNAME_LEN`=2 .. `MAX_USERNAME_LEN`=16
+///     exclusive, i.e. inclusive 2..15)
+///   * ASCII letters, digits, and the symbols in the configurable
+///     `account_allowed_symbols` set. The original default (`PVPGN_DEFAULT_SYMB`
+///     in `src/common/setup_before.h`) is `-_[]`. `.` is NOT in the default.
+///   * `/` and `\` are always rejected.
+///   * No leading-character restriction (names may start with a digit or
+///     symbol, e.g. `[CLAN]Bob`, `_x`, `123name`).
+/// We hard-code the original DEFAULT symbol set here for parity; plumbing the
+/// configurable `account_allowed_symbols` value is a separate scope.
 /// Stored as canonical lower-case for comparison; original casing is
 /// preserved for display.
 
@@ -33,19 +40,21 @@ public:
                 core::StatusCode::InvalidArgument,
                 "UserName length out of range (2..15)"});
         }
-        const auto first = static_cast<unsigned char>(s.front());
-        if (!std::isalpha(first)) {
-            return core::fail(core::Error{
-                core::StatusCode::InvalidArgument,
-                "UserName must start with a letter"});
-        }
+        // Parity with original `account_check_name`: allow ASCII
+        // alphanumerics plus the default `account_allowed_symbols` set
+        // (`PVPGN_DEFAULT_SYMB` = "-_[]"). `/` and `\` are always rejected.
+        // There is no leading-character restriction.
         for (char c : s) {
             const auto u = static_cast<unsigned char>(c);
-            if (!(std::isalnum(u) || c == '_' || c == '-' || c == '.')) {
-                return core::fail(core::Error{
-                    core::StatusCode::InvalidArgument,
-                    "UserName has invalid character"});
+            if (std::isalnum(u)) {
+                continue;
             }
+            if (c == '-' || c == '_' || c == '[' || c == ']') {
+                continue;
+            }
+            return core::fail(core::Error{
+                core::StatusCode::InvalidArgument,
+                "UserName has invalid character"});
         }
         return UserName{std::string{s}};
     }

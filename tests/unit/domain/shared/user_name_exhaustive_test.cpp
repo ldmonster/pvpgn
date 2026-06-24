@@ -50,7 +50,8 @@ TEST_CASE("UserName: parse accepts exactly minimum and maximum length",
 }
 
 // ---------------------------------------------------------------------------
-// First-character branch: must be alpha
+// First-character branch: original `account_check_name` has NO leading-char
+// restriction. Any legal character (alnum or a default symbol "-_[]") may lead.
 // ---------------------------------------------------------------------------
 
 TEST_CASE("UserName: parse accepts lowercase first letter",
@@ -63,23 +64,26 @@ TEST_CASE("UserName: parse accepts uppercase first letter",
     REQUIRE(UserName::parse("Zebra").has_value());
 }
 
-TEST_CASE("UserName: parse rejects dash as first character with InvalidArgument",
+TEST_CASE("UserName: parse accepts dash as first character",
           "[domain][shared][user_name]") {
-    auto r = UserName::parse("-bob");
+    REQUIRE(UserName::parse("-bob").has_value());
+}
+
+TEST_CASE("UserName: parse accepts open-bracket as first character",
+          "[domain][shared][user_name]") {
+    REQUIRE(UserName::parse("[bob").has_value());
+}
+
+TEST_CASE("UserName: parse rejects dot as first character (dot not allowed)",
+          "[domain][shared][user_name]") {
+    auto r = UserName::parse(".bob");
     REQUIRE_FALSE(r.has_value());
     REQUIRE(r.error().code() == StatusCode::InvalidArgument);
 }
 
-TEST_CASE("UserName: parse rejects dot as first character",
+TEST_CASE("UserName: parse accepts digit first character",
           "[domain][shared][user_name]") {
-    REQUIRE_FALSE(UserName::parse(".bob").has_value());
-}
-
-TEST_CASE("UserName: parse rejects digit first character carries InvalidArgument",
-          "[domain][shared][user_name]") {
-    auto r = UserName::parse("9bob");
-    REQUIRE_FALSE(r.has_value());
-    REQUIRE(r.error().code() == StatusCode::InvalidArgument);
+    REQUIRE(UserName::parse("9bob").has_value());
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +102,7 @@ TEST_CASE("UserName: parse rejects trailing space",
     REQUIRE_FALSE(UserName::parse("Bob ").has_value());
 }
 
-TEST_CASE("UserName: parse rejects leading space (also fails first-letter rule)",
+TEST_CASE("UserName: parse rejects leading space (space is not a legal char)",
           "[domain][shared][user_name]") {
     REQUIRE_FALSE(UserName::parse(" Bob").has_value());
 }
@@ -110,7 +114,14 @@ TEST_CASE("UserName: parse rejects high-bit / non-ASCII byte",
 
 TEST_CASE("UserName: parse accepts all legal punctuation in interior",
           "[domain][shared][user_name]") {
-    REQUIRE(UserName::parse("a_-.b").has_value());
+    REQUIRE(UserName::parse("a_-[]b").has_value());
+}
+
+TEST_CASE("UserName: parse rejects dot in interior (dot not in default set)",
+          "[domain][shared][user_name]") {
+    auto r = UserName::parse("a.b");
+    REQUIRE_FALSE(r.has_value());
+    REQUIRE(r.error().code() == StatusCode::InvalidArgument);
 }
 
 // ---------------------------------------------------------------------------
@@ -119,9 +130,9 @@ TEST_CASE("UserName: parse accepts all legal punctuation in interior",
 
 TEST_CASE("UserName: digits and punctuation are unchanged by canonicalisation",
           "[domain][shared][user_name]") {
-    auto u = UserName::parse("Bob_99-X.Y").value();
-    REQUIRE(std::string{u.canonical()} == "bob_99-x.y");
-    REQUIRE(std::string{u.display()}   == "Bob_99-X.Y");
+    auto u = UserName::parse("Bob_99-[X]Y").value();
+    REQUIRE(std::string{u.canonical()} == "bob_99-[x]y");
+    REQUIRE(std::string{u.display()}   == "Bob_99-[X]Y");
 }
 
 TEST_CASE("UserName: already-lowercase name has identical display and canonical",

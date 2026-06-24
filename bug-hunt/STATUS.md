@@ -63,11 +63,20 @@ Discovery wave 1 complete (10 subsystems). Triage below.
 | tournament / gameresult | findings/tournament-gameresult.md | result reporting trusts single reporter; never updates ladder |
 | config defaults | findings/config-defaults.md | TOML key-name mismatches silently drop settings; wrong defaults |
 
-## Wave-2 fix targets (implemented-but-wrong; in progress)
-- BNFTP-1 (CRIT): strip leading 0x02 before replaying into BnftpFsm.
-- CONFIG: align bnetd.toml.in keys to loader + correct wrong compiled defaults + add key-coverage gate.
-- PERM: kick/ban require operator + protect ops/admins (vs membership-only).
-- IPBAN: file loader + domain model must accept wildcard/range/CIDR bans, not drop them.
+## Wave-2 fixes — LANDED (commit 7b31686, 3064/3064 green)
+- [x] BNFTP-1 (CRIT): strip leading 0x02 init byte before BnftpFsm — downloads work again.
+- [x] CONFIG: bnetd.toml.in keys reconciled to loader + wrong compiled defaults corrected + gate test.
+- [x] PERM: kick/ban require operator + protect ops/admins.
+- [x] IPBAN: BanPattern model + loader now accept wildcard/range/netmask bans.
+
+## Discovery wave 3 — done (profile-userdata, realm-serverlist-udp, message-squelch, clienttag-locale)
+Mostly NOT-IMPLEMENTED (FSM handlers stubbed: realm list, userdata r/w, changepassword,
+udptest/NAT plug, squelch, quota). Codecs/constants verified faithful. One live bug:
+- profile-userdata F6: username validation rejects legacy `[CLAN]Bob` names (v3 requires a
+  leading letter + allows `_ - .`; original default symbol set is `-_[]`, no leading-letter rule).
+
+## Wave-3 fix target
+- USERNAME: align allowed-symbol set + leading-char rule to the original (restore `[ ]` clan names).
 
 ## Scope gaps (NOT bugs to auto-fix — features unimplemented in the rewrite)
 friends wiring, mutual-friend flag, watch/notify, news/MOTD delivery, version-check

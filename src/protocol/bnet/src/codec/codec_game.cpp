@@ -6,6 +6,10 @@
 namespace pvpgn::protocol::bnet {
 namespace detail {
 
+// 4-byte spacer dword the GAMELISTREPLY emits between consecutive game records
+// (original handle_bnet.cpp `game_spacer = {1,0,0,0}`).
+inline constexpr std::uint32_t kGameListReplySpacer = 1u;
+
 core::Result<GameListRequest> decode_game_list_req(const Packet& pkt) {
     Reader r{pkt.payload};
     GameListRequest m;
@@ -35,7 +39,15 @@ core::Result<GameListReply> decode_game_list_reply(const Packet& pkt) {
             "bnet codec: GAMELISTREPLY game_count > 1024"));
     }
     m.entries.resize(game_count);
+    bool first = true;
     for (auto& e : m.entries) {
+        // A 4-byte spacer dword precedes every record except the first
+        // (mirrors the original GAMELISTREPLY `game_spacer`).
+        if (!first) {
+            auto sp = r.read_le<std::uint32_t>();
+            if (!sp) return core::fail(sp.error());
+        }
+        first = false;
         auto gt = r.read_le<std::uint16_t>();
         if (!gt) return core::fail(gt.error());
         e.gametype = gt.value();
@@ -340,7 +352,14 @@ core::Status<> encode(Writer& w, const GameListReply& m) {
     w.begin_bnet_packet(kSidGetAdvListEx);
     w.write_le<std::uint32_t>(static_cast<std::uint32_t>(m.entries.size()));
     w.write_le<std::uint32_t>(m.sstatus);
+    bool first = true;
     for (const auto& e : m.entries) {
+        // The original emits a 4-byte spacer dword (value 1) before every game
+        // record except the first (handle_bnet.cpp `game_spacer = {1,0,0,0}`).
+        if (!first) {
+            w.write_le<std::uint32_t>(detail::kGameListReplySpacer);
+        }
+        first = false;
         w.write_le<std::uint16_t>(e.gametype);
         w.write_le<std::uint16_t>(e.unknown1);
         w.write_le<std::uint16_t>(e.unknown3);
