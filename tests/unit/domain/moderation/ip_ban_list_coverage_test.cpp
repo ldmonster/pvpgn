@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new coverage for `domain::moderation::IpBanList`. Targets the
+// Coverage for `domain::moderation::IpBanList`. Targets the
 // branches not exercised by ip_ban_list_test.cpp: rehydrate/entries
 // round-trip, multi-entry iteration, prefix-bit clamping, IPv6 exact +
 // CIDR bans, cross-family range mismatch, remove_range miss/hit,

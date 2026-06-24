@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new error/edge-branch tests for `application::game::JoinGame`.
+// Error/edge-branch tests for `application::game::JoinGame`.
 // Covers branches the happy-path suite misses:
 //   * joining a game one is already in returns AlreadyInGame
 //   * save() failure after a successful join maps to PersistenceFailed

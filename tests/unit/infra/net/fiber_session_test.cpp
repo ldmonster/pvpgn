@@ -202,7 +202,7 @@ TEST_CASE("spawn_session: echoes loopback bytes via round_robin scheduler",
     rt.stop();
 }
 
-// ---- Idle-read timeout (Plan 06 [net.timeouts] acceptance) --------------
+// ---- Idle-read timeout ([net.timeouts] acceptance) --------------
 
 TEST_CASE("SessionChannel: recv times out when no bytes arrive",
           "[infra][net][fiber][timeout]") {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new tests for AttributeMap accessors not reached by the existing
+// Tests for AttributeMap accessors not reached by the existing
 // attribute_map_test / _typed / _timestamps suites: the profile typed
 // getters+setters (email/sex/location/description) round-trips, owner()/
 // values(), and the wins/losses/disconnects stat increments + per-tag

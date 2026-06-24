@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// application/email_management/email_change.hpp -- R169.d skeleton
-//
 // Interface-only header for the email-change handler family. The
 // legacy bnetd `handle_changeemail` / `handle_setemail` /
-// `handle_getpassword` paths are slated to be stranglered through
-// this module in R170+. No implementation is provided in this
-// round -- this header only commits to the request / response /
-// status shapes so that callers (and tests) can be wired ahead of
-// the implementation.
+// `handle_getpassword` paths are routed through this module. This
+// header commits to the request / response / status shapes.
 //
 // Layering: application MUST NOT depend on infra. The dispatcher
 // receives a fully-resolved snapshot of the account state via the
@@ -55,10 +50,6 @@ struct EmailChangeResponse {
 };
 
 /// Pure-function dispatch -- no I/O, no global state.
-///
-/// NOTE: R169.d ships the declaration only. The implementation
-/// lands in R170 alongside the legacy `handle_changeemail` /
-/// `handle_setemail` strangler bridges.
 EmailChangeResponse dispatch_email_change(EmailChangeRequest const& req);
 
 }  // namespace pvpgn::application::email_management

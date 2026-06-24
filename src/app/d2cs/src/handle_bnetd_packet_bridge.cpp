@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R235(3): observation bridge for d2cs bnetd s2s-packet dispatch.
+// Observation bridge for d2cs bnetd s2s-packet dispatch.
 
 #include "app/d2cs/legacy_d2cs_bridges/handle_bnetd_packet_bridge.hpp"
 

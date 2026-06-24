@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file argon2id_password_hasher.hpp
-/// `Argon2idPasswordHasher` — the at-rest password hashing adapter (Plan 08).
+/// `Argon2idPasswordHasher` — the at-rest password hashing adapter.
 ///
 /// Implements `core::crypto::IPasswordHasher` over libsodium's
 /// `crypto_pwhash_str*` family (the ARGON2ID13 algorithm). Output is the
@@ -11,7 +11,7 @@
 ///
 /// **Build gating:** the implementation (`argon2id_password_hasher.cpp`) is
 /// compiled only when the build is configured with libsodium
-/// (`PVPGN_V3_WITH_SODIUM`; see ADR 0008). This header is dependency-free and
+/// (`PVPGN_V3_WITH_SODIUM`). This header is dependency-free and
 /// always declarable; constructing the class in a build without libsodium is a
 /// link error by design — composition roots wire it only on the libsodium
 /// matrix.
@@ -28,12 +28,12 @@
 
 namespace pvpgn::infra::crypto {
 
-/// Argon2id cost parameters. Defaults follow ADR 0008 (`t=2, m=64 MiB`);
+/// Argon2id cost parameters. Defaults: `t=2, m=64 MiB`;
 /// libsodium's `crypto_pwhash_str` fixes parallelism at `p=1`. Exposed so a
 /// composition root can load them from `[auth.argon2id]` in `bnetd.toml`.
 struct Argon2idParams {
     /// Operations limit (argon2 time cost, `t`). libsodium default "moderate"
-    /// is `crypto_pwhash_OPSLIMIT_MODERATE` (3); ADR 0008 picks 2.
+    /// is `crypto_pwhash_OPSLIMIT_MODERATE` (3); we pick 2.
     std::uint64_t ops_limit = 2;
 
     /// Memory limit in bytes (argon2 memory cost, `m`). 64 MiB.

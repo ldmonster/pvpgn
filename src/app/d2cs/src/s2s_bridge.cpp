@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R233(2): observation bridge for d2cs server-to-server bootstrap.
+// Observation bridge for d2cs server-to-server bootstrap.
 
 #include "app/d2cs/legacy_d2cs_bridges/s2s_bridge.hpp"
 

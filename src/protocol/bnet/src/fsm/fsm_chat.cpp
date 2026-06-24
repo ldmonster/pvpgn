@@ -186,7 +186,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
     }
 
     if (!m.text.empty() && m.text[0] == '/') {
-        // --- R298: /cmd dispatch via CommandRegistry ---
+        // --- /cmd dispatch via CommandRegistry ---
         // Strip the leading '/' and split into command name + args.
         std::string_view rest{m.text};
         rest.remove_prefix(1);  // drop '/'
@@ -306,7 +306,7 @@ core::Status<> BnetFsm::on(const GameListRequest& m) {
         return reject("bnet fsm: GETADVLISTEX before login");
     }
 
-    // TODO: Phase 5 will implement game list query via IGameRepository
+    // TODO: implement game list query via IGameRepository
     // For now, send empty game list reply
     GameListReply reply;
     reply.sstatus = 0;  // Success

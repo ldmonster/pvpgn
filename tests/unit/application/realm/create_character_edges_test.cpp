@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new edge-case unit tests for CreateCharacterUseCase (create_character.cpp).
+// Edge-case unit tests for CreateCharacterUseCase (create_character.cpp).
 // Complements create_character_test.cpp by exercising the capacity-exhausted
 // branch and the persistence-failure propagation branches.
 

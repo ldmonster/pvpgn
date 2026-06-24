@@ -3,7 +3,7 @@
 
 /**
  * @file lua_api_v2.hpp
- * @brief Lua API v2 surface registration (R349).
+ * @brief Lua API v2 surface registration.
  *
  * Registers the `pvpgn.*` Lua namespace into a `sol::state`.  The functions
  * delegate to C++ handlers stored in the provided handler map, which is

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Unit tests for the d2dbs dbspacket dispatcher observation bridges (R242).
+// Unit tests for the d2dbs dbspacket dispatcher observation bridges.
 
 #include <catch2/catch_test_macros.hpp>
 

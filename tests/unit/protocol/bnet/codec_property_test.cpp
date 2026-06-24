@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/protocol/bnet/codec_property_test.cpp -- Plan 10 property tests.
+// tests/unit/protocol/bnet/codec_property_test.cpp -- property tests.
 //
 // In-tree property-based tests for the bnet codec (no rapidcheck dependency):
 //   1. Round-trip identity — for a generated message, encode → frame →

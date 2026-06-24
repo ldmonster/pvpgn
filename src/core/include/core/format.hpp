@@ -22,8 +22,7 @@
 
 #include "logging.hpp"
 
-// R211 (plans/01-modern-cpp-baseline.md S2): C++20 is mandatory (see
-// core/cxx.hpp / R210). std::format ships with libstdc++ >= 13 and MSVC
+// C++20 is mandatory. std::format ships with libstdc++ >= 13 and MSVC
 // 19.29+. We require it; the previous "if not available, silently emit
 // unformatted text" fallback was a debugging footgun.
 #include <format>

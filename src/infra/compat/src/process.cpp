@@ -67,7 +67,7 @@ std::optional<SystemInfo> system_info() {
 
     // OSVERSIONINFOEX is deprecated on modern Windows but the values are
     // still informational. We deliberately avoid RtlGetVersion gymnastics
-    // here -- the v3 tree treats this as best-effort.
+    // here -- this is treated as best-effort.
     OSVERSIONINFOEXW vi{};
     vi.dwOSVersionInfoSize = sizeof(vi);
 #  pragma warning(push)

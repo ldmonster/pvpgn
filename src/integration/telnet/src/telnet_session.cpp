@@ -19,7 +19,7 @@ TelnetSession::TelnetSession(std::string session_id, OutputCallback output_cb)
 }
 
 core::Result<void, core::Error> TelnetSession::feed(core::ByteView data) {
-    // R212: iterate as bytes; cast to uint8_t for ASCII/IAC checks.
+    // Iterate as bytes; cast to uint8_t for ASCII/IAC checks.
     for (auto b : data) {
         const uint8_t byte = static_cast<uint8_t>(b);
         // Handle telnet escape sequences

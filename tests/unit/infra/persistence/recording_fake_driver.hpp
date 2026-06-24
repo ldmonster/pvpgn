@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file recording_fake_driver.hpp
-/// Shared test double for the consolidated persistence repositories (Plan 07).
+/// Shared test double for the persistence repositories.
 ///
 /// `RecordingFakeDriver` is an `IDbDriver` that records every statement
 /// (SQL + bound params) and replays a programmable list of rows, so a

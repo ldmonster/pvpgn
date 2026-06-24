@@ -101,10 +101,10 @@
 #include "app/bnetd/tcp_listener.hpp"
 #include "app/bnetd/tcp_session.hpp"
 
-// R304/R305: in-memory repositories + BnetdService composition root
+// In-memory repositories + BnetdService composition root
 #include "infra/inmemory/account_repository.hpp"
 
-// R335: HTTP metrics server with health probes
+// HTTP metrics server with health probes
 #if __has_include("infra/metrics/http_metrics_server.hpp")
 #  include "infra/metrics/http_metrics_server.hpp"
 #  include "infra/metrics/in_memory_metrics_registry.hpp"
@@ -118,7 +118,7 @@
 #include "infra/inmemory/unit_of_work_factory.hpp"
 #include "services/bnetd/bnetd_service.hpp"
 
-// M1: wire the real auth use-cases (login + OLS account creation) so login
+// Wire the real auth use-cases (login + OLS account creation) so login
 // enforces credentials and a real account_id flows into the chat path.
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
@@ -126,7 +126,7 @@
 // Durable file-backed account store (used when backend="file").
 #include "infra/file/account_repository.hpp"
 
-// R330: configurable persistence back-end. Each backend is compiled in only
+// Configurable persistence back-end. Each backend is compiled in only
 // when its infra target is linked (which propagates the header's include dir),
 // detected here via __has_include. SQLite is the default backend but is itself
 // optional — it is skipped when the sqlite3 dev headers are absent (see
@@ -210,7 +210,7 @@ int main(int argc, char* argv[]) {
             }
             infra::log::make_and_install_logger(infra_cfg.log, "bnetd");
 
-            // 2c. Observability (Plan 11 / ADR 0010): apply the head-sampling
+            // 2c. Observability: apply the head-sampling
             // ratio from [observability].sample_ratio to the process-wide
             // tracer. The default 1.0 preserves today's "every span" behaviour;
             // production lowers it (default 0.05) to bound the exporter queue.
@@ -272,9 +272,9 @@ int main(int argc, char* argv[]) {
         // 5. Create SessionManager
         SessionManager session_mgr;
 
-        // 6. Build use-case context (R304/R305: real chat use-cases via BnetdService)
+        // 6. Build use-case context (real chat use-cases via BnetdService)
         //
-        // R330: Select the IUnitOfWorkFactory implementation based on the
+        // Select the IUnitOfWorkFactory implementation based on the
         // [persistence] section in bnetd.toml (backend + dsn).
         // Defaults to "sqlite" when no config file is provided.
 
@@ -373,7 +373,7 @@ int main(int argc, char* argv[]) {
 
         auto use_cases = build_use_cases(bnetd_svc);
 
-        // M1: wire the real auth use-cases. The use-cases hold references to
+        // Wire the real auth use-cases. The use-cases hold references to
         // the repositories / clock above, all of which live for the duration
         // of this scope (the server run loop), so the no-op-deleter shared_ptrs
         // and the make_shared use-cases never outlive their dependencies.
@@ -394,7 +394,7 @@ int main(int argc, char* argv[]) {
 
         // 7. Create listeners
         //
-        // Per-protocol idle-read deadlines from [net.timeouts] (Plan 06).
+        // Per-protocol idle-read deadlines from [net.timeouts].
         // Defaults match infra::config::NetTimeoutsConfig; overridden by TOML.
         std::chrono::milliseconds bnet_idle{std::chrono::seconds{300}};
         std::chrono::milliseconds bnftp_idle{std::chrono::seconds{60}};
@@ -446,7 +446,7 @@ int main(int argc, char* argv[]) {
         // 8. Install signal handlers → graceful stop
         rt.install_signal_handlers({SIGINT, SIGTERM});
 
-        // 8a. Start HTTP metrics server with health probes (R335)
+        // 8a. Start HTTP metrics server with health probes
 #if defined(PVPGN_V3_BNETD_HAVE_METRICS_SERVER)
         auto metrics_registry =
             std::make_shared<infra::metrics::InMemoryMetricsRegistry>();
@@ -457,7 +457,7 @@ int main(int argc, char* argv[]) {
                  cfg.listen_address, cfg.admin_port);
 #endif
 
-        // 8b. Signal readiness — all listeners are up (R335)
+        // 8b. Signal readiness — all listeners are up
 #if defined(PVPGN_V3_BNETD_HAVE_METRICS_SERVER)
         metrics_server.set_ready(true);
         LOG_INFO("bnetd", "server ready (GET /readyz → 200)");

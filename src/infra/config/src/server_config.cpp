@@ -428,7 +428,7 @@ void parse_messages(const Config& cfg, ServerConfig& sc)
     }
 }
 
-// [observability] — OpenTelemetry export (Plan 11 / ADR 0010). Opt-in via a
+// [observability] — OpenTelemetry export. Opt-in via a
 // non-empty otlp_endpoint; sample_ratio is clamped to [0, 1].
 void parse_observability(const Config& cfg, ServerConfig& sc)
 {

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// application/email_management/email_change.cpp -- R170.a implementation
-//
 // Pure-function port of the legacy bnetd `_client_setemailreply`
 // (set-when-unset path) and `_client_changeemailreq` (replace path)
 // validation logic. The dispatcher does no I/O -- the caller

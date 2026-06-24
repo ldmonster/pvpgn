@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R234(2): observation bridge for d2cs init-packet dispatch.
+// Observation bridge for d2cs init-packet dispatch.
 
 #include "app/d2cs/legacy_d2cs_bridges/handle_init_bridge.hpp"
 
@@ -50,7 +50,7 @@ extern "C" int pvpgn_v3_d2cs_handle_init_packet(
     return 0;
 }
 
-// R237(1): observation bridge for d2gs initconn classification.
+// Observation bridge for d2gs initconn classification.
 extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn(
     int sd,
     unsigned int addr) noexcept {
@@ -67,7 +67,7 @@ extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn(
     return 0;
 }
 
-// R237(2): observation bridge for d2cs initconn classification.
+// Observation bridge for d2cs initconn classification.
 extern "C" int pvpgn_v3_d2cs_on_d2cs_initconn(
     int sd) noexcept {
     std::array<char, 20> sdbuf{};

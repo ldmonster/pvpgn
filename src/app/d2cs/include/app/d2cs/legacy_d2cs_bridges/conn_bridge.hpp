@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file conn_bridge.hpp
-/// R234(3) -- observation-only strangler-fig bridge for the legacy
+/// Observation-only bridge for the legacy
 /// `d2cs_conn_destroy()` connection teardown in
 /// `src/d2cs/connection.cpp`. Fires once per connection that
 /// transitions out of the live set.

@@ -2,13 +2,11 @@
 //
 // Cross-platform error-number to string conversion.
 //
-// v3 equivalent of src/compat/strerror.h + src/compat/strerror.cpp
-//
 // The legacy code exposed `pstrerror(int errornum)` which:
 //   - On POSIX: was a macro alias for `strerror(e)`
 //   - On Windows: was a hand-written switch over WSA error codes
 //
-// The v3 version uses `std::system_error` / `std::generic_category` for
+// This version uses `std::system_error` / `std::generic_category` for
 // POSIX errors and `std::system_category` for Windows socket errors,
 // returning a `std::string` instead of a raw `const char*`.
 //

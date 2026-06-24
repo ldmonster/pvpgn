@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
-// Plan 11 — §11.3  TOML Schema Versioning
+// TOML Schema Versioning
 //
 // TomlSchemaValidator validates that a loaded TOML configuration string
 // contains a `schema_version` field whose value is within the range

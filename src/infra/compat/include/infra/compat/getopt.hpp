@@ -2,15 +2,13 @@
 //
 // Modern C++20 command-line argument parser.
 //
-// v3 equivalent of src/compat/pgetopt.h + src/compat/pgetopt.cpp
-//
 // The legacy code was a 855-line portable reimplementation of GNU getopt /
 // getopt_long, compiled only when the host system lacked `getopt` (i.e. on
 // Windows or very old POSIX systems).  It exposed the classic C globals
 // `optarg`, `optind`, `opterr`, `optopt` and the `struct option` type inside
 // the `pvpgn` namespace.
 //
-// The v3 version replaces all of that with a self-contained, header-only
+// This replaces all of that with a self-contained, header-only
 // C++20 argument parser.  No external dependencies are required.
 //
 // ## Types

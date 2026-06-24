@@ -14,9 +14,9 @@
 
 namespace pvpgn::infra::sqlite {
 
-// Plan 07: the SQL-backed repositories are the consolidated, driver-
-// parameterized implementations (infra/persistence/), run over a SqliteDriver
-// wrapping this UoW's connection. games_/teams_ stay in-memory (session-scoped).
+// The SQL-backed repositories are the driver-parameterized implementations
+// (infra/persistence/), run over a SqliteDriver wrapping this UoW's connection.
+// games_/teams_ stay in-memory (session-scoped).
 SQLiteUnitOfWork::SQLiteUnitOfWork(std::shared_ptr<SQLiteConnection> conn)
     : conn_(std::move(conn)),
       driver_(std::make_shared<persistence::SqliteDriver>(conn_)),
@@ -35,7 +35,7 @@ SQLiteUnitOfWork::SQLiteUnitOfWork(std::shared_ptr<SQLiteConnection> conn)
 
 core::Result<void, core::Error> SQLiteUnitOfWork::begin() {
     // Route through the driver so its SAVEPOINT nesting accounts for the outer
-    // UoW transaction (consolidated repos may run their own inner transaction).
+    // UoW transaction (repos may run their own inner transaction).
     return driver_->begin_transaction();
 }
 

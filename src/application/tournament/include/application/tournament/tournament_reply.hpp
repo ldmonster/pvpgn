@@ -36,8 +36,7 @@ struct TournamentInputs {
 };
 
 /// Convert a wall-clock time-since-epoch into the magic packed value
-/// the WC3 client expects (extracted verbatim from
-/// `_tournament_time_convert`).
+/// the WC3 client expects (mirrors `_tournament_time_convert`).
 std::uint32_t convert_time(std::uint32_t time);
 
 /// Build the tournament reply from the supplied inputs. Always

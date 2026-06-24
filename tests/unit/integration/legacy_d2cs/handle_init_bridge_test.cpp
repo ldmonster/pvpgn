@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Unit tests for the d2cs init-packet observation bridge (R234).
+// Unit tests for the d2cs init-packet observation bridge.
 
 #include <catch2/catch_test_macros.hpp>
 

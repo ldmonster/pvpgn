@@ -2,15 +2,13 @@
 //
 // Network byte-order constants — cross-platform.
 //
-// v3 equivalent of src/compat/netinet_in.h
-//
 // The legacy header defined INADDR_LOOPBACK and INADDR_ANY as bare macros
-// when the platform did not provide them. The v3 version exposes them as
+// when the platform did not provide them. This version exposes them as
 // typed `inline constexpr` values inside the `pvpgn::v3::infra::compat`
 // namespace so callers get proper type-checking and IDE support.
 //
 // On all modern POSIX systems and on Windows (via <winsock2.h>) these
-// constants are already defined by the system headers. The v3 wrappers
+// constants are already defined by the system headers. These wrappers
 // simply re-export them under a stable, namespaced name.
 
 #pragma once

@@ -3,7 +3,7 @@
 
 /**
  * @file sol2_script_host.hpp
- * @brief sol2 (Lua 5.4) implementation of IScriptHost (R348).
+ * @brief sol2 (Lua 5.4) implementation of IScriptHost.
  *
  * `Sol2ScriptHost` is the concrete infrastructure adapter that backs the
  * `pvpgn::application::ports::IScriptHost` port using the sol2 C++ Lua

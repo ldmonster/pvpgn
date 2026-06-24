@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file metrics_handler.hpp
-/// HTTP handler for the Prometheus scrape endpoint (Plan 10 §5–6).
+/// HTTP handler for the Prometheus scrape endpoint.
 ///
 /// Route:
 ///   GET /metrics  — Prometheus text exposition format (0.0.4).

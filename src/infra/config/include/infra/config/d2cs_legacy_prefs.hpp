@@ -6,9 +6,9 @@
 /// `d2cs_prefs_get_*()` accessor surface on top of the typed
 /// `D2csServerConfig`.
 ///
-/// Mirrors `infra/config/legacy_prefs.hpp` (the bnetd adapter from
-/// R121/R146): the snapshot is **immutable**; hot-reload constructs
-/// a fresh `D2csLegacyPrefs` and subscribers swap atomically.
+/// Mirrors `infra/config/legacy_prefs.hpp` (the bnetd adapter): the
+/// snapshot is **immutable**; hot-reload constructs a fresh
+/// `D2csLegacyPrefs` and subscribers swap atomically.
 ///
 /// Field names match the public migration shim `src/d2cs/prefs_v3_shim.h`
 /// so callers reading from a shared adapter instance get identical

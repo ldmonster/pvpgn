@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Unit tests for the R216 legacy-command router (strangler-fig
-// scaffold). The router itself is pure-v3 and decides whether an
-// incoming legacy command line should be dispatched by the v3 bridge
-// or fall back to legacy `handle_command`.
+// Unit tests for the legacy-command router. The router itself is
+// pure-v3 and decides whether an incoming legacy command line should
+// be dispatched by the v3 bridge or fall back to legacy `handle_command`.
 
 #include <string>
 #include <string_view>

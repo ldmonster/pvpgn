@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // pvpgn v3 port of the legacy `src/bnpass/bnpass.cpp` and
-// `src/bnpass/sha1hash.cpp` CLI tools (see
-// plans/refactoring-plan-legacy-tools.md "Step 2").
+// `src/bnpass/sha1hash.cpp` CLI tools.
 //
 // `pvpgn-bnpass` reads a clear-text password (from argv or stdin),
 // lower-cases it the same way the legacy tool did, and prints the

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new edge/branch tests for `build_tournament_reply` covering arms not
+// Edge/branch tests for `build_tournament_reply` covering arms not
 // reached by tournament_reply_test.cpp:
 //   * the final type-5 fallback (in_finals == true) -- the legacy dead
 //     "types 6/7" path that degrades to type-5 semantics.

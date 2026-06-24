@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Wire tests for R74 simple d2cs->client reply bridges.
+// Wire tests for simple d2cs->client reply bridges.
 
 #include <catch2/catch_test_macros.hpp>
 

@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Part of PvPGN v3 (refactoring plan section 15 — Phase 9).
 //
 // pvpgn-conf-convert: Convert legacy bnetd.conf (INI format) to TOML format.
 //

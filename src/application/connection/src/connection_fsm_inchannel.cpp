@@ -97,7 +97,7 @@ core::Status<> ConnectionFsm::on_join_channel(std::span<const std::byte> payload
     //    its user list before the EID_JOIN for the joining user).
     for (const auto& member_id : join_result.channel.member_ids()) {
         // We only have AccountId here; use account_id as username placeholder
-        // until a full account-name lookup is wired in (Phase 6).
+        // until a full account-name lookup is wired in.
         const std::string member_name = std::to_string(member_id.value());
         const auto body = build_chat_event(kEidShowUser, 0u, 0u,
                                            member_name, "");

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new edge-case unit tests for DupeChecker (dupe_checker.cpp).
+// Edge-case unit tests for DupeChecker (dupe_checker.cpp).
 // Complements dupe_checker_test.cpp by exercising the GUID-based confirmed-dupe
 // path, the identical-save suspected path, and the various early-skip branches.
 

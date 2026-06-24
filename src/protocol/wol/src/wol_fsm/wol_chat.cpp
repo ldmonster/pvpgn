@@ -50,7 +50,7 @@ core::Status<> WolFsm::on_list(std::string_view /*params*/) {
     auto st = send_numeric(321, nick_, "Channel :Users  Name");
     if (!st) return st;
 
-    // R299: relay via ListChannels use-case when available.
+    // Relay via ListChannels use-case when available.
     if (list_channels_) {
         application::chat::ListChannelsRequest req;
         req.max_results   = 100;
@@ -107,7 +107,7 @@ core::Status<> WolFsm::on_join(std::string_view params) {
         chan_name.erase(0, 1);
     }
 
-    // R300: relay via JoinChannel use-case when available.
+    // Relay via JoinChannel use-case when available.
     if (join_channel_) {
         auto join_result = join_channel_->execute(
             account_id_, chan_name, domain::ClientTag{});
@@ -232,7 +232,7 @@ core::Status<> WolFsm::on_privmsg(std::string_view params) {
         return send_numeric(412, nick_, "No text to send");
     }
 
-    // R300: channel message (target starts with '#').
+    // Channel message (target starts with '#').
     if (!target.empty() && target[0] == '#') {
         if (post_message_) {
             // Strip '#' to get the bare channel name for the domain.
@@ -260,7 +260,7 @@ core::Status<> WolFsm::on_privmsg(std::string_view params) {
         return core::ok();
     }
 
-    // R300: private message to a user — Phase H; send 401 ERR_NOSUCHNICK.
+    // Private message to a user; send 401 ERR_NOSUCHNICK.
     std::string tgt{target};
     return send_numeric(401, nick_, tgt + " :No such nick");
 }

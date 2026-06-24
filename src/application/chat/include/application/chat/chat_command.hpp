@@ -2,8 +2,6 @@
 #pragma once
 
 /// @file chat_command.hpp
-/// CHAT vertical scaffold (Batch 17a, partial).
-///
 /// `classify_chat_command` is a pure function that takes the raw text
 /// payload of a `CLIENT_CHATCOMMAND` (SID 0x0E) packet and decides
 /// which logical chat action it represents. Today the legacy

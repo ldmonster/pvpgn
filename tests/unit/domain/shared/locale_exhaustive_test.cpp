@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file locale_exhaustive_test.cpp
-/// Net-new unit tests for domain::Locale. There was no prior locale test file,
+/// Unit tests for domain::Locale. There was no prior locale test file,
 /// so this exercises every branch of Locale::parse_or_default plus the
 /// fallback constant, text() round-trip, is_default(), and the defaulted
 /// spaceship operator.

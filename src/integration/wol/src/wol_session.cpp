@@ -12,7 +12,7 @@ WolSession::WolSession(std::string session_id)
 core::Result<std::vector<uint8_t>, core::Error> WolSession::feed(
     core::ByteView data) {
 
-    // R212: external boundary is core::ByteView; internal buffer is uint8_t.
+    // External boundary is core::ByteView; internal buffer is uint8_t.
     const auto* p = reinterpret_cast<const uint8_t*>(data.data());
     buffer_.insert(buffer_.end(), p, p + data.size());
     

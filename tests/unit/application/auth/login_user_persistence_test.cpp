@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new coverage for `application::auth::LoginUser`'s persistence-failure
+// Coverage for `application::auth::LoginUser`'s persistence-failure
 // branch. The happy/locked/unknown/duplicate-session/must-change paths are
 // already exercised by login_user_test.cpp and login_user_session_hash_test.cpp;
 // this file drives the otherwise-uncovered `LoginError::PersistenceFailed`

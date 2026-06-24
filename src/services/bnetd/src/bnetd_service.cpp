@@ -3,14 +3,14 @@
 /// @file bnetd_service.cpp
 /// Implementation of BnetdService — composition root for the bnetd server.
 ///
-/// R285 wiring
+/// Auth wiring
 /// -----------
 /// The constructor accepts `INlsCredentialStore&` and constructs the
 /// owned `LoginUserNls` use-case from it.  `LoginUserNls` is stateless so
 /// a single instance is shared (by non-owning reference) across all sessions
 /// via `BnetSessionFactory`.
 ///
-/// R304 wiring
+/// Chat wiring
 /// -----------
 /// The constructor now also accepts `IChannelRepository&`, `IAccountRepository&`,
 /// and `ISessionRegistry&` and constructs the owned chat use-cases:
@@ -26,8 +26,7 @@
 ///
 /// The actual wiring of protocol FSMs, TCP listeners, session managers, and
 /// use-case contexts still lives in `app/bnetd/src/main.cpp` (the legacy
-/// composition root).  That code will be migrated here incrementally in
-/// subsequent refactoring steps.
+/// composition root).
 
 #include "services/bnetd/bnetd_service.hpp"
 #include "application/persistence/unit_of_work_factory.hpp"
@@ -118,12 +117,12 @@ BnetdService::BnetdService(
     , list_channels_(std::make_unique<application::chat::ListChannels>(
           std::shared_ptr<domain::chat::IChannelRepository>(
               &channel_repo_, NoDelete{})))
-    // Logout use-case (R305: wired with LeaveChannel for channel cleanup on disconnect)
+    // Logout use-case (wired with LeaveChannel for channel cleanup on disconnect)
     , logout_user_(std::make_unique<application::auth::LogoutUser>(
           session_reg_, channel_repo_, game_repo_, event_bus_,
           leave_channel_.get()))
 {
-    // R304: Seed the channel repository with default permanent channels.
+    // Seed the channel repository with default permanent channels.
     // Only seed if the repository is currently empty to avoid duplicates
     // on restart (e.g. when backed by a persistent SQL store).
     if (channel_repo_.size() == 0) {
@@ -147,7 +146,7 @@ BnetdService::BnetdService(
 BnetdService::~BnetdService() = default;
 
 void BnetdService::run() {
-    // TODO(Phase3): start TCP listeners before entering the event loop.
+    // TODO: start TCP listeners before entering the event loop.
     event_loop_.run();
 }
 

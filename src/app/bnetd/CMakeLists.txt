@@ -1,6 +1,4 @@
-# src/v3/app/bnetd/CMakeLists.txt
-#
-# Defines the `pvpgn_v3_bnetd` executable — the v3 composition root that
+# Defines the `bnetd` executable — the composition root that
 # wires all protocol FSMs together with a Boost.Asio event loop.
 #
 # Dependencies
@@ -15,8 +13,8 @@
 #
 # Optional
 #   infra_config    — TOML config loading (guarded by target existence)
-#   protocol_irc    — IrcFsm + IrcTcpSession + IrcSessionFactory (R128)
-#   infra_lua       — LuaRuntime + LuaConnectionContext (R141)
+#   protocol_irc    — IrcFsm + IrcTcpSession + IrcSessionFactory
+#   infra_lua       — LuaRuntime + LuaConnectionContext
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -28,14 +26,11 @@ endif()
 
 find_package(Threads REQUIRED)
 
-# R-strangler: the `LegacyBridge` glue (and its `app_bnetd_legacy_bridge`
-# static library) were deleted in Milestone 2 — `PVPGN_V3_BNETD_INTEGRATION`
-# was never defined in the v3 build, so the bridge resolved to no-op stubs and
-# the legacy fdwatch loop it interleaved with no longer exists. `AsioEventLoop`
-# (the one live TU it carried) now compiles directly into the `bnetd` exe.
+# The `LegacyBridge` glue (and its `app_bnetd_legacy_bridge` static library)
+# were removed. `AsioEventLoop` (the one live TU it carried) now compiles
+# directly into the `bnetd` exe.
 
-# R-strangler: PVPGN_BUILD_LEGACY removed; legacy `bnetd` target is gone.
-# Renamed pvpgn_v3_bnetd → bnetd (Plan 06 §7.3 + §7.4).
+# Renamed pvpgn_v3_bnetd → bnetd.
 add_executable(bnetd
     src/main.cpp
     src/asio_event_loop.cpp
@@ -49,7 +44,7 @@ add_executable(bnetd
     src/main/wol_session.cpp
 )
 
-# Apply v3 warning flags + C++20 standard
+# Apply warning flags + C++20 standard
 pvpgn_v3_apply_flags(bnetd)
 
 # Public include path for app/bnetd headers
@@ -93,7 +88,7 @@ endif()
 target_compile_definitions(bnetd PRIVATE
     $<$<BOOL:${PVPGN_VERSION}>:PVPGN_VERSION="${PVPGN_VERSION}">)
 
-# R167 smoke tests: --help and --version must succeed and emit output.
+# Smoke tests: --help and --version must succeed and emit output.
 # These catch link-time + startup regressions in CI without needing a
 # functional config or accept()-ing real clients.
 if(BUILD_TESTING)
@@ -105,18 +100,18 @@ if(BUILD_TESTING)
         PASS_REGULAR_EXPRESSION "bnetd ")
 endif()
 
-# Optional: protocol_irc — IrcFsm wired via IrcTcpSession + IrcSessionFactory (R128)
+# Optional: protocol_irc — IrcFsm wired via IrcTcpSession + IrcSessionFactory
 if(TARGET protocol_irc)
     target_link_libraries(bnetd PRIVATE protocol_irc)
     target_compile_definitions(bnetd PRIVATE PVPGN_V3_BNETD_HAVE_IRC=1)
 endif()
 
-# Optional: infra_lua — LuaRuntime + LuaConnectionContext (R141)
+# Optional: infra_lua — LuaRuntime + LuaConnectionContext
 if(TARGET infra_lua)
     target_link_libraries(bnetd PRIVATE infra_lua)
 endif()
 
-# R330: persistence back-end targets (always link; compile-time guards handle availability)
+# Persistence back-end targets (always link; compile-time guards handle availability)
 if(TARGET pvpgn_infra_sqlite)
     target_link_libraries(bnetd PRIVATE pvpgn_infra_sqlite)
 endif()
@@ -131,13 +126,3 @@ endif()
 install(TARGETS bnetd
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-
-# ---------------------------------------------------------------------------
-# server_v3_hook: legacy bnetd hook that calls LegacyBridge::tick()
-# ---------------------------------------------------------------------------
-# MOVED to src/v3/integration/legacy_bnetd/CMakeLists.txt by R193.fix
-# (Strategy B, two-pass `src/v3`). That CMakeLists is added LATE in the
-# top-level configure so that bnetd_legacy already exists. The previous
-# `if(TARGET bnetd_legacy)` placement here was UNREACHABLE because
-# src/v3/app/bnetd/ is processed before src/bnetd/.
-# See plans/r192-checklist.md + plans/r193-audit-checklist.md.

@@ -34,7 +34,7 @@ enum class StatusCode {
     Unavailable        = 14,
     DataLoss           = 15,
     DeadlineExceeded   = 16,
-    // R248: extended codes
+    // extended codes
     Conflict           = 17,  ///< resource conflict (e.g. duplicate account)
     RateLimited        = 18,  ///< request rate exceeded
     Timeout            = 19,  ///< operation timed out (preferred over DeadlineExceeded in new code)
@@ -64,7 +64,7 @@ constexpr std::string_view to_string(StatusCode c) noexcept {
         case StatusCode::Unavailable:        return "Unavailable";
         case StatusCode::DataLoss:           return "DataLoss";
         case StatusCode::DeadlineExceeded:   return "DeadlineExceeded";
-        // R248: extended codes
+        // extended codes
         case StatusCode::Conflict:           return "Conflict";
         case StatusCode::RateLimited:        return "RateLimited";
         case StatusCode::Timeout:            return "Timeout";
@@ -89,7 +89,7 @@ public:
     explicit Error(StatusCode c, std::string msg = {})
         : code_(c), message_(std::move(msg)) {}
 
-    // R214: accessors are query functions; ignoring them is always a bug.
+    // accessors are query functions; ignoring them is always a bug.
     [[nodiscard]] StatusCode         code()    const noexcept { return code_; }
     [[nodiscard]] const std::string& message() const noexcept { return message_; }
     [[nodiscard]] bool               is_ok()   const noexcept { return code_ == StatusCode::Ok; }

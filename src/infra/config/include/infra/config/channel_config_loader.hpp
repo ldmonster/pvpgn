@@ -9,7 +9,7 @@
 ///   "special name"  "short name"  cltag  bots  ops  log  ctry  realm  max  mod
 ///
 /// Only the special name (column 0) and max_users (column 8) are consumed by
-/// the v3 loader; the rest are ignored for now.  Lines starting with `#` and
+/// this loader; the rest are ignored for now.  Lines starting with `#` and
 /// blank lines are skipped.
 ///
 /// Usage

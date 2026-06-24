@@ -2,9 +2,7 @@
 #pragma once
 
 /// @file ladder_repository.hpp
-/// Plan 07: a single, driver-parameterized ladder repository over `IDbDriver`.
-/// Replaces the per-backend `infra/{sqlite,mysql,postgres}/ladder_repository.cpp`
-/// (the SQLite one was an `Unimplemented` stub).
+/// A single, driver-parameterized ladder repository over `IDbDriver`.
 
 #include <cstdint>
 #include <memory>

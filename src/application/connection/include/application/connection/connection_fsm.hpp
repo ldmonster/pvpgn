@@ -20,7 +20,6 @@
 ///   - Uses IConnectionContext for all I/O (send_packet / close)
 ///   - Does NOT own a BnetFsm — it replaces the wire-dance portion for the
 ///     states it implements; the remaining states still delegate to BnetFsm
-///     via the strangler-fig bridge until fully migrated
 ///
 /// ## State chart
 ///
@@ -49,7 +48,7 @@
 /// `close()` from any state → Disconnecting (terminal).
 /// Unknown packets in any non-Disconnecting state → silently ignored.
 ///
-/// ## OLS vs NLS branching (R283)
+/// ## OLS vs NLS branching
 ///
 /// `client_product_tag_` is set from SID_AUTH_INFO (0x50).
 ///
@@ -132,7 +131,7 @@ namespace sid {
 }  // namespace sid
 
 // ---------------------------------------------------------------------------
-// Product tag constants (R283)
+// Product tag constants
 // ---------------------------------------------------------------------------
 
 /// WAR3 product tag: "WAR3" in big-endian ASCII = 0x57415233.
@@ -151,7 +150,7 @@ inline constexpr std::uint32_t kTagW3xp = 0x57335850u;
 ///
 /// Mapping from legacy `t_conn_state` (connection.h):
 ///
-///   Legacy t_conn_state          │ v3 ConnectionState
+///   Legacy t_conn_state          │ ConnectionState
 ///   ─────────────────────────────┼──────────────────────────────────────────
 ///   conn_state_empty             │ (pre-construction; not represented)
 ///   conn_state_initial           │ Connecting
@@ -165,7 +164,7 @@ inline constexpr std::uint32_t kTagW3xp = 0x57335850u;
 ///
 /// Mapping from legacy `t_conn_class`:
 ///
-///   Legacy t_conn_class          │ v3 ConnectionState notes
+///   Legacy t_conn_class          │ ConnectionState notes
 ///   ─────────────────────────────┼──────────────────────────────────────────
 ///   conn_class_init              │ Connecting (class not yet determined)
 ///   conn_class_bnet              │ All states (BNCS protocol)
@@ -235,7 +234,7 @@ public:
           leave_channel_(nullptr) {}
 
     // -----------------------------------------------------------------------
-    // R296 — Chat use-case injection
+    // Chat use-case injection
     // -----------------------------------------------------------------------
 
     /// Inject the JoinChannel use-case (optional; null = stub behaviour).
@@ -289,7 +288,7 @@ public:
     }
 
     // -----------------------------------------------------------------------
-    // R287 — D2 character binding
+    // D2 character binding
     // -----------------------------------------------------------------------
 
     /// Bind a Diablo II character to this connection.
@@ -326,7 +325,7 @@ public:
     }
 
     // -----------------------------------------------------------------------
-    // R288 — WAR3 route connection token
+    // WAR3 route connection token
     // -----------------------------------------------------------------------
 
     /// Store the 4-byte route token received in SID_WARCRAFTGENERAL (0x44).
@@ -436,7 +435,7 @@ public:
     /// Transition: InGame → InChannel
     [[nodiscard]] core::Status<> on_leave_game(std::span<const std::byte> payload);
 
-    // --- D2 character select (R287) ----------------------------------------
+    // --- D2 character select ------------------------------------------------
 
     /// Handle SID_D2GAMELISTEX (0x68): D2 client selects a character.
     /// Valid in: LoggedIn / InChannel / InGame (D2 clients only).
@@ -444,7 +443,7 @@ public:
     /// No state transition.
     [[nodiscard]] core::Status<> on_d2_char_select(std::span<const std::byte> payload);
 
-    // --- WAR3 route token (R288) -------------------------------------------
+    // --- WAR3 route token ---------------------------------------------------
 
     /// Handle SID_WARCRAFTGENERAL (0x44): WAR3 general-purpose packet.
     /// Extracts the route token from WID_GAMESEARCH subcommand and calls
@@ -487,7 +486,7 @@ private:
     std::uint32_t next_game_id_{1};
 
     // -----------------------------------------------------------------------
-    // Channel state (R296)
+    // Channel state
     // -----------------------------------------------------------------------
 
     /// Channel ID of the channel the client is currently in (0 = none).
@@ -509,7 +508,7 @@ private:
     application::auth::LoginUserNls* login_user_nls_;
 
     // -----------------------------------------------------------------------
-    // R296 — Chat use-cases (optional — null when not injected)
+    // Chat use-cases (optional — null when not injected)
     // -----------------------------------------------------------------------
 
     /// Non-owning pointer to the JoinChannel use-case.
@@ -525,7 +524,7 @@ private:
     application::chat::LeaveChannel* leave_channel_;
 
     // -----------------------------------------------------------------------
-    // Per-session NLS state (R283 / R286 / R294)
+    // Per-session NLS state
     //
     // Stored between SID_AUTH_ACCOUNTLOGON (0x53, challenge) and
     // SID_AUTH_ACCOUNTLOGONPROOF (0x54, proof).  All four fields are
@@ -551,7 +550,7 @@ private:
     std::optional<domain::AccountId> pending_nls_account_id_;
 
     // -----------------------------------------------------------------------
-    // R287 — D2 character binding
+    // D2 character binding
     // -----------------------------------------------------------------------
 
     /// Character name bound via bind_d2_character() (empty until set).
@@ -564,7 +563,7 @@ private:
     std::optional<std::uint8_t> d2_char_level_;
 
     // -----------------------------------------------------------------------
-    // R288 — WAR3 route connection token
+    // WAR3 route connection token
     // -----------------------------------------------------------------------
 
     /// 4-byte route token shared between the primary and route connections.

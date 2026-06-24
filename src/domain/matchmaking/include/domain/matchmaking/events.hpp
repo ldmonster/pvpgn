@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // domain/matchmaking/events.hpp — Domain events for the matchmaking bounded context.
-// Plan 07: Bounded Contexts and Layering
 
 namespace pvpgn::domain::matchmaking {
 

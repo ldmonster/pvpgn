@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Plan 11 — §11.1  Plugin C ABI Conformance Tests
+// Plugin C ABI Conformance Tests
 //
 // These tests verify the public plugin infrastructure:
 //   • PluginManifest parsing from plugin.toml content
@@ -69,7 +69,7 @@ static bool is_valid_plugin_id(std::string_view id) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.1.1  PluginManifest parsing
+// PluginManifest parsing
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("PluginManifest: parse example-quiz plugin.toml", "[plugin][manifest]") {
@@ -186,7 +186,7 @@ TEST_CASE("PluginManifest: to_toml round-trip preserves key fields", "[plugin][m
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.1.2  SemVer comparison
+// SemVer comparison
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("SemVer: basic parse and comparison", "[plugin][semver]") {
@@ -283,7 +283,7 @@ TEST_CASE("SemVer: parse rejects invalid strings", "[plugin][semver]") {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.1.3  DependencyResolver
+// DependencyResolver
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("DependencyResolver: single plugin with no deps", "[plugin][resolver]") {
@@ -379,7 +379,7 @@ TEST_CASE("DependencyResolver: registered_plugins returns all IDs", "[plugin][re
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.1.4  Plugin ID format validation
+// Plugin ID format validation
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Plugin ID format: valid IDs match [a-z][a-z0-9.-]*", "[plugin][id-format]") {
@@ -419,7 +419,7 @@ TEST_CASE("Plugin ID format: invalid IDs are rejected", "[plugin][id-format]") {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.1.5  API version compatibility check
+// API version compatibility check
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Simulates the server's current pvpgn API version

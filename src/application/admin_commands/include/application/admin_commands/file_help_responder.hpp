@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file file_help_responder.hpp
-/// Pure-v3 `IHelpResponder` implementation backed by an
+/// Pure `IHelpResponder` implementation backed by an
 /// `IHelpCorpusProvider`, an `IHelpCommandPermissions` policy, and an
 /// `IMessageSink`. Reproduces the behaviour of legacy
 /// `helpfile.cpp::handle_help_command`.
@@ -28,7 +28,7 @@
 ///   message (Error) and return false so the bridge can fall back.
 ///
 /// Permission filter: legacy `list_commands` evaluates the filter
-/// once per alias and uses only the LAST alias's result; this v3
+/// once per alias and uses only the LAST alias's result; this
 /// implementation evaluates it once per entry against the first
 /// (canonical) alias. Practically equivalent for all in-tree help
 /// entries and noted in `plans/r216f-checklist.md`.

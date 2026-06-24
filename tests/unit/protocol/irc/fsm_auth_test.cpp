@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /// @file fsm_auth_test.cpp
-/// Unit tests for IrcFsm R290 PASS/LoginUser auth wiring.
+/// Unit tests for IrcFsm PASS/LoginUser auth wiring.
 ///
-/// Test count: 8 TEST_CASEs.
-///
-/// These tests exercise the R290 auth wiring:
+/// These tests exercise the auth wiring:
 ///   - PASS before NICK/USER → stored, not yet authenticated
 ///   - PASS after registration → silently ignored
 ///   - NICK + USER without PASS (no LoginUser) → skeleton accepts
@@ -127,7 +125,7 @@ struct AuthFixture {
 }  // namespace
 
 // ===========================================================================
-// Phase-F R290: PASS command — skeleton mode (no LoginUser)
+// PASS command — skeleton mode (no LoginUser)
 // ===========================================================================
 
 TEST_CASE("IrcFsm: PASS before NICK/USER is stored, state stays Greeting",
@@ -171,7 +169,7 @@ TEST_CASE("IrcFsm: PASS after registration is silently ignored",
 }
 
 // ===========================================================================
-// Phase-F R290: PASS + LoginUser — auth wiring
+// PASS + LoginUser — auth wiring
 // ===========================================================================
 
 TEST_CASE("IrcFsm: PASS + NICK + USER with correct password → Registered + 001",

@@ -52,7 +52,7 @@ public:
     /// @param idle_timeout Idle-read deadline applied to every accepted
     ///   session *before* the factory runs (so the factory's `start()`
     ///   honours it). Zero (the default) disables the timeout. Sourced
-    ///   from `[net.timeouts]` (Plan 06).
+    ///   from `[net.timeouts]`.
     TcpListener(infra::net::IoRuntime& rt, SessionFactory factory,
                 std::chrono::milliseconds idle_timeout =
                     std::chrono::milliseconds::zero())

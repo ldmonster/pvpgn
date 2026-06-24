@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file console_sink.cpp
-/// Implementation of make_console_logger() (Plan 10 §3).
+/// Implementation of make_console_logger().
 ///
 /// This translation unit is only compiled when PVPGN_V3_WITH_SPDLOG=ON
 /// (it is listed in the infra_log target, which is guarded by that option).

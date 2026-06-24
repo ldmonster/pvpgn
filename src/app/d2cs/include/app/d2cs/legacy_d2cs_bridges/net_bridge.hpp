@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file net_bridge.hpp
-/// R241 -- observation-only strangler-fig bridges for the legacy
+/// Observation-only bridges for the legacy
 /// socket helpers in `src/d2cs/net.cpp`. Three entry points are
 /// covered:
 ///   * `net_socket(type)`            -- low-level non-blocking socket

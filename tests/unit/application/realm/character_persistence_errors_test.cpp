@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new unit tests targeting the parse-failure and store error paths of
+// Unit tests targeting the parse-failure and store error paths of
 // CharacterPersistenceUseCase (character_persistence.cpp). Complements the
 // happy-path coverage in character_persistence_test.cpp.
 

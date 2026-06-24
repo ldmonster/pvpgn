@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Wire tests for d2cs<->bnetd internal bridges (R71):
+// Wire tests for d2cs<->bnetd internal bridges:
 //   pvpgn_v3_d2cs_send_init_bnetd            (1-byte init class 0x65)
 //   pvpgn_v3_d2cs_send_authreply_bnetd       (8B hdr + version + realm\0)
 //   pvpgn_v3_d2cs_send_gameinforeply_bnetd   (8B hdr + name\0 + difficulty)

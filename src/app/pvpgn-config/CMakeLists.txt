@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# src/v3/app/pvpgn-config/CMakeLists.txt
 #
 # Defines the `pvpgn_config_tool` executable — a standalone CLI tool for
 # inspecting and validating PvPGN server configuration files.

@@ -99,7 +99,7 @@ void BnetBnftpDispatchFactory::operator()(
                     // use an empty payload since the BnetFsm already
                     // handled the wire dance. The domain FSM will silently
                     // ignore unknown SIDs.
-                    // TODO(Phase3): extract packet_id from ClientMessage
+                    // TODO: extract packet_id from ClientMessage
                     // variant and pass the original payload bytes.
                 });
 
@@ -115,12 +115,12 @@ void BnetBnftpDispatchFactory::operator()(
             // Keep tcp_conn_ctx, lua_ctx, and logging_ctx alive for the
             // session lifetime by capturing them in the close handler
             // alongside the adapter (which holds non-owning refs to all).
-            // R305: bnetd_svc_ is a member of BnetBnftpDispatchFactory;
+            // bnetd_svc_ is a member of BnetBnftpDispatchFactory;
             // captured via `this` for LogoutUser cleanup on disconnect.
             session->set_on_close(
                 [self, sid, adapter, tcp_conn_ctx, lua_ctx, logging_ctx](
                     const boost::system::error_code&) {
-                    // R305: call LogoutUser to clean up channel membership
+                    // Call LogoutUser to clean up channel membership
                     // before unregistering the session. Use `self` (the
                     // snapshotted factory) rather than `this`: see the
                     // reentrancy note at the top of the handler.

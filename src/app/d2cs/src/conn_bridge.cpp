@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R234(3): observation bridge for d2cs per-connection teardown.
+// Observation bridge for d2cs per-connection teardown.
 
 #include "app/d2cs/legacy_d2cs_bridges/conn_bridge.hpp"
 

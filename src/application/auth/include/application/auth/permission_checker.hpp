@@ -4,7 +4,7 @@
 /// @file permission_checker.hpp
 /// In-memory implementation of IPermissionChecker.
 ///
-/// Backed by IAccountReader (read-only; ADR 0012 ISP); looks up command_groups from
+/// Backed by IAccountReader (read-only); looks up command_groups from
 /// Account aggregate and maps known group names to Permission sets.
 
 #include <memory>

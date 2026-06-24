@@ -37,7 +37,7 @@ public:
         // Build a minimal 4-byte BNCS header + payload and send.
         // Header: 0xFF, packet_id, length (LE uint16)
         //
-        // R169.e: avoid the reserve+push_back+insert pattern that
+        // Avoid the reserve+push_back+insert pattern that
         // gcc 15 mis-diagnoses as `-Werror=free-nonheap-object` on
         // -O2. Pre-size the vector and write through indices.
         const std::size_t total = 4u + payload.size();
@@ -68,16 +68,16 @@ public:
 
     void on_game_created(std::uint32_t /*game_id*/,
                          const domain::connection::GameInfo& /*info*/) override {
-        // TODO(Phase3): wire into game registry
+        // TODO: wire into game registry
     }
 
     void on_game_joined(std::uint32_t /*game_id*/,
                         const domain::connection::GameInfo& /*info*/) override {
-        // TODO(Phase3): wire into game registry
+        // TODO: wire into game registry
     }
 
     void on_game_left(std::uint32_t /*game_id*/) override {
-        // TODO(Phase3): wire into game registry
+        // TODO: wire into game registry
     }
 
 private:

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/persistence/sql_friend_list_repository_test.cpp -- Plan 07.
+// tests/unit/infra/persistence/sql_friend_list_repository_test.cpp
 //
-// Verifies the consolidated SqlFriendListRepository over the recording fake
+// Verifies the SqlFriendListRepository over the recording fake
 // IDbDriver (no sqlite). Pins the ordered SELECT, the transactional full-replace
 // save (DELETE + ordered INSERTs inside begin/commit), and the empty-list case.
 

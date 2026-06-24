@@ -4,12 +4,10 @@
 /// @file d2cs_server_config.hpp
 /// Typed `D2csServerConfig` parsed from a TOML file (`d2cs.toml`).
 ///
-/// R152 skeleton: this is the v3 counterpart to `src/d2cs/prefs.cpp`,
-/// modelled on `server_config.hpp`. Fields mirror the legacy
-/// `prefs_get_*` accessor surface from `src/d2cs/prefs.h` and the
-/// key layout of `conf/d2cs.toml.in`. Caller migration in `src/d2cs/`
-/// is intentionally deferred -- this header just lets the v3 build
-/// produce a `D2csServerConfig` from disk so the bridge in
+/// Counterpart to `src/d2cs/prefs.cpp`, modelled on `server_config.hpp`.
+/// Fields mirror the legacy `prefs_get_*` accessor surface from
+/// `src/d2cs/prefs.h` and the key layout of `conf/d2cs.toml.in`. This
+/// header produces a `D2csServerConfig` from disk so the bridge in
 /// `legacy_d2cs/d2cs_prefs_bridge.hpp` can vend it.
 
 #include <cstdint>

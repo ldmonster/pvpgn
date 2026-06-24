@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Wire tests for d2cs->d2gs bridges (R72):
+// Wire tests for d2cs->d2gs bridges:
 //   AUTHREQ(0x10), AUTHREPLY(0x11), SETGSINFO(0x12),
 //   SETINITINFO(0x15), SETCONFFILE(0x16).
 // All share 8-byte hdr (size LE16 | type LE16 | seqno LE32).

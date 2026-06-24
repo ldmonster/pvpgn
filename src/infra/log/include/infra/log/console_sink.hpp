@@ -2,8 +2,7 @@
 #pragma once
 
 /// @file console_sink.hpp
-/// `core::ILogger` wrapper that writes coloured output to stdout/stderr
-/// (Plan 10 §3 — console_sink wrapper).
+/// `core::ILogger` wrapper that writes coloured output to stdout/stderr.
 ///
 /// Delegates to `SpdlogLogger` with a stdout colour sink when spdlog is
 /// available; falls back to `StreamLogger(std::cout)` otherwise.

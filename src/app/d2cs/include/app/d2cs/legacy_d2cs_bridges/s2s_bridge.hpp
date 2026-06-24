@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file s2s_bridge.hpp
-/// R233(2) -- observation-only strangler-fig bridge for the legacy
+/// Observation-only bridge for the legacy
 /// `s2s_init()` server-to-server bootstrap in `src/d2cs/s2s.cpp`.
 /// `s2s_init` opens the outbound bnetd link used to relay realm
 /// state; this bridge layers structured telemetry so a v3-native

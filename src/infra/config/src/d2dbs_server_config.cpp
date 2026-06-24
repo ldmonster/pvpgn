@@ -4,8 +4,8 @@
 /// @file d2dbs_server_config.cpp
 /// Implementation of `parse_d2dbs_server_config` / `load_d2dbs_server_config`.
 ///
-/// R152 skeleton: section-by-section TOML parser modelled on
-/// `server_config.cpp`. Defaults match `conf/d2dbs.toml.in`.
+/// Section-by-section TOML parser modelled on `server_config.cpp`.
+/// Defaults match `conf/d2dbs.toml.in`.
 
 #include "infra/config/config.hpp"
 

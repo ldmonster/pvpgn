@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new error/edge-branch tests for `application::game::ReportGameResult`.
+// Error/edge-branch tests for `application::game::ReportGameResult`.
 // Covers the uncovered branches the happy-path suite misses:
 //   * begin_report() rejects a game that is not InProgress (still Open)
 //   * save() failure maps to PersistenceFailed

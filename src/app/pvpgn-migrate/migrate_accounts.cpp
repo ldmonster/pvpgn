@@ -13,10 +13,10 @@
 #include <sstream>
 #include <string>
 
-// v3 file-based persistence
+// File-based persistence
 #include "infra/file/flat_db_reader.hpp"
 
-// v3 SQLite persistence
+// SQLite persistence
 #include "infra/sqlite/unit_of_work_factory.hpp"
 
 // Application ports (needed for full IAccountRepository definition)

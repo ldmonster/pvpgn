@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /// @file connection_fsm_inchannel_success_test.cpp
-/// Net-new SUCCESS-path coverage for connection_fsm_inchannel.cpp that the
+/// SUCCESS-path coverage for connection_fsm_inchannel.cpp that the
 /// existing inchannel tests (test / branches / error_branches / usecase) do not
 /// assert. The earlier suites verify the *state transition* and *game_type*
 /// switch arms but never decode the emitted wire bodies; these cases decode the

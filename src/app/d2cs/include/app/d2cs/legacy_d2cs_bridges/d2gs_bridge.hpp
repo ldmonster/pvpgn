@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file d2gs_bridge.hpp
-/// R236(3) -- observation-only strangler-fig bridges for the legacy
+/// Observation-only bridges for the legacy
 /// d2gs-list lifecycle in `src/d2cs/d2gs.cpp`:
 ///
 ///   * `d2gslist_create()`             -- one-shot bootstrap at start.

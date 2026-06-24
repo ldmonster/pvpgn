@@ -3,7 +3,7 @@
 
 /// @file password_upgrade.hpp
 /// `PasswordUpgrade` — pure policy for transparent password-at-rest upgrade
-/// on a plaintext-bearing authentication (Plan 08 / ADR 0008).
+/// on a plaintext-bearing authentication.
 ///
 /// ## Scope: plaintext-bearing logins only
 ///

@@ -222,7 +222,7 @@ int main(int argc, char* argv[]) {
         //    The bnetd TcpListener is reused — it lives in app/bnetd headers
         //    and is a thin wrapper around infra::net::TcpAcceptor.
         //
-        //    Idle-read deadline (Plan 06 [net.timeouts].d2cs). The d2cs binary
+        //    Idle-read deadline ([net.timeouts].d2cs). The d2cs binary
         //    uses D2csServerConfig (no net_timeouts section yet), so apply the
         //    NetTimeoutsConfig default here; a config-driven override is a
         //    tracked follow-up once net_timeouts is added to D2csServerConfig.

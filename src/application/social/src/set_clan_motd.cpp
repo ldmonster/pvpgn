@@ -22,7 +22,7 @@ SetClanMotd::execute(domain::ClanId clan_id, domain::AccountId setter,
 
     // 2. Delegate authorization, the length rule, and the MOTD state to the
     //    aggregate — "setter must be Shaman+" and the length limit are clan
-    //    invariants, and the MOTD now lives in Clan (previously a no-op stub).
+    //    invariants, and the MOTD lives in Clan.
     switch (clan.set_motd(setter, motd)) {
         case domain::social::Clan::MotdOutcome::SetterNotMember:
             return core::fail(SetClanMotdError::SetterNotInClan);

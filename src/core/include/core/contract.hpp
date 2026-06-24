@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Part of PvPGN v3.
+// Part of PvPGN.
 #pragma once
 
 /// @file contract.hpp
-/// @brief PVPGN_VERIFY — contract assertion macro (R249).
+/// @brief PVPGN_VERIFY — contract assertion macro.
 ///
-/// Replaces raw `assert()` in the v3 tree. Both debug and release builds
+/// Replaces raw `assert()`. Both debug and release builds
 /// log a CRITICAL message before terminating; only the termination method
 /// differs:
 ///

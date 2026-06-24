@@ -17,8 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-// Client-tag conversion, validation, and human-readable title lookup (plan 15 §3 / SOLID-S).
-// Split from tag.cpp (Plan 02 full-split: one TU per file).
+// Client-tag conversion, validation, and human-readable title lookup.
 
 #include "tag.h"
 

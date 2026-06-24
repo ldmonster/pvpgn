@@ -2,11 +2,10 @@
 #pragma once
 
 /// @file account_repository.hpp
-/// Plan 07: a single, driver-parameterized account repository. Replaces the
-/// per-backend `infra/{sqlite,mysql,postgres}/account_repository.cpp` copies —
-/// the same SQL/logic runs over any `IDbDriver`. The backend is chosen at
-/// composition time by handing this repository the matching driver, so
-/// switching `[storage].backend` requires no recompilation of this code.
+/// A single, driver-parameterized account repository. The same SQL/logic runs
+/// over any `IDbDriver`. The backend is chosen at composition time by handing
+/// this repository the matching driver, so switching `[storage].backend`
+/// requires no recompilation of this code.
 
 #include <functional>
 #include <memory>

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/domain/ladder/d2_ladder_test.cpp -- Plan 10 backfill.
-//
 // Unit tests for the `D2Ladder` aggregate (src/domain/ladder/d2_ladder.cpp).
 // The aggregate's invariants are:
 //   - entries are always sorted by experience descending,

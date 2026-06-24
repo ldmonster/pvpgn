@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file telnet_session_factory.hpp
-/// SessionFactory for Telnet admin console (Phase 6b).
+/// SessionFactory for Telnet admin console.
 /// Creates TelnetAdminFsm for each accepted connection.
 
 #include <atomic>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new parse/edge-branch tests for CommandRegistry::dispatch.
+// Parse/edge-branch tests for CommandRegistry::dispatch.
 // Targets the command-line parsing arms not reached by the happy-path
 // suite in command_registry_test.cpp: whitespace-only input,
 // leading-whitespace command names, and multi-arg tokenisation that the

@@ -2,12 +2,12 @@
 #pragma once
 
 /// @file send_packet_bridge.hpp
-/// Strangler-fig sink for the legacy d2dbs server: hand a v3-built
+/// Sink for the legacy d2dbs server: hand a freshly built
 /// byte buffer to the legacy `t_d2dbs_connection` write buffer.
 ///
 /// d2dbs differs from bnetd/d2cs: there is no `t_packet`+outqueue
 /// machinery. Each connection carries an inline `WriteBuf[kBufferSize]`
-/// drained by psock_send. The linked half memcpys the v3 bytes
+/// drained by psock_send. The linked half memcpys the bytes
 /// directly into `WriteBuf` at offset `nCharsInWriteBuffer`.
 
 namespace pvpgn::integration::legacy_d2dbs {

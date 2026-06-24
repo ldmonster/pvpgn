@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new coverage for `application::auth::LoginUserNls::verify()`'s error
+// Coverage for `application::auth::LoginUserNls::verify()`'s error
 // mapping. login_user_nls_test.cpp drives challenge() + the InvalidProof
 // path against the *real* crypto adapter, but never reaches the
 // NlsCryptoError::CryptoError or NlsCryptoError::InvalidPublicKey arms of

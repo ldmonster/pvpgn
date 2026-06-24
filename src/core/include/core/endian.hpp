@@ -6,7 +6,7 @@
 ///
 /// No dependency on Boost.Endian yet — we use C++20's `std::endian`
 /// and `if constexpr` byte-swaps. The Boost integration arrives with
-/// the network layer (Phase 2).
+/// the network layer.
 
 #include <bit>
 #include <cstddef>

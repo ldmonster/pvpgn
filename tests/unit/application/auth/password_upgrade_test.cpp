@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/application/auth/password_upgrade_test.cpp -- Plan 08.
-//
 // Unit tests for the pure PasswordUpgrade policy, using a deterministic
 // StubPasswordHasher (no libsodium needed). The stub models a two-version
 // scheme so the transparent-upgrade path is exercised end to end:

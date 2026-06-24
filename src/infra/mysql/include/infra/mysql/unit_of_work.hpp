@@ -6,7 +6,7 @@
 ///
 /// Accounts are persisted to MySQL; all other repositories fall back to
 /// in-memory implementations (channels, games, clans, etc. are session-scoped
-/// or not yet migrated to MySQL).
+/// or not yet backed by MySQL).
 
 #include <memory>
 

@@ -4,18 +4,18 @@
 /// @file help_responder.hpp
 /// Port for replying to a chat `/help` (or `/?`) command.
 ///
-/// This port exists so the R216 strangler-fig bridge does not have to
+/// This port exists so the bridge does not have to
 /// hard-code a call to legacy `handle_help_command` in
 /// `src/bnetd/helpfile.cpp`. The bridge holds an `IHelpResponder&`,
 /// and the wiring layer (`integration_legacy_bnetd_linked`) supplies
 /// a concrete implementation.
 ///
 /// Two implementations are expected:
-///   * `LegacyHelpResponder` (R216d) -- delegates straight to
+///   * `LegacyHelpResponder` -- delegates straight to
 ///     legacy `handle_help_command(t_connection*, char const*)`.
 ///     Lives in `integration_legacy_bnetd_linked` because it needs
 ///     the legacy headers.
-///   * `FileHelpResponder` (future) -- pure v3, parses the help
+///   * `FileHelpResponder` (future) -- pure, parses the help
 ///     corpus (a `.lst` file) directly without legacy dependencies.
 ///
 /// The `connection` parameter is opaque (`void*`) on purpose: the

@@ -3,7 +3,7 @@
 // Portability platform detection.
 //
 // The legacy tree relied on autoconf-generated HAVE_* macros sprinkled
-// through every translation unit via `setup_before.h`. The v3 tree uses
+// through every translation unit via `setup_before.h`. This tree uses
 // a single header of canonical compile-time constants that callers
 // can branch on with `if constexpr`.
 

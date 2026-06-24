@@ -3,7 +3,7 @@
 
 /// @file rotating_file_sink.hpp
 /// `core::ILogger` wrapper that writes to a size-rotating log file
-/// (Plan 10 §4 — "keep current settings: rotate_size, rotate_files").
+/// (settings: rotate_size, rotate_files).
 ///
 /// Delegates to `SpdlogLogger` with a rotating-file spdlog sink.
 /// When `PVPGN_V3_WITH_SPDLOG` is OFF this header is still includable but

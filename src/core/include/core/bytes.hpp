@@ -16,7 +16,7 @@
 
 namespace pvpgn::core {
 
-/// **R212 canonical port-boundary types.**
+/// **Canonical port-boundary types.**
 ///
 /// New code MUST use `ByteView` / `ByteSpan` at port and integration
 /// boundaries (function parameters that accept raw network or file

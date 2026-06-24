@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file event_bus.hpp
-/// In-process publish/subscribe bus. Phase 1 dual-emits legacy side-effects
+/// In-process publish/subscribe bus. Dual-emits legacy side-effects
 /// alongside `EventBus::publish<T>(evt)` so new subscribers (metrics, audit,
 /// WebUI) can attach without touching legacy call sites.
 ///
@@ -10,7 +10,7 @@
 ///   * Header-only, no dependencies beyond the STL.
 ///   * Type-keyed: one channel per event type `T`.
 ///   * Synchronous delivery on the caller's thread. Async fan-out is a
-///     Phase 2 concern (will be done via a dedicated fiber).
+///     future concern (will be done via a dedicated fiber).
 ///   * `Subscription` is an RAII handle; destruction unsubscribes.
 ///   * Subscribers must not block the publisher for long; failures are
 ///     swallowed and logged via `core::log()` so one bad subscriber cannot

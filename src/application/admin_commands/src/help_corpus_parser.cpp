@@ -28,7 +28,7 @@ std::size_t leading_ws_end(std::string_view line) noexcept {
 }
 
 // Expand tabs to three spaces, mirroring the legacy describe_command
-// behaviour. Done at parse time so the v3 model holds presentation-
+// behaviour. Done at parse time so the model holds presentation-
 // ready strings.
 std::string expand_tabs(std::string_view in) {
     std::string out;
@@ -49,7 +49,7 @@ std::string expand_tabs(std::string_view in) {
 // `%` character. Anything after an optional `#` (anywhere on the
 // line) is dropped. Tokens are whitespace-separated; the leading `%`
 // is stripped off the very first token. Each surviving token is
-// prefixed with `/` to match v3 router conventions.
+// prefixed with `/` to match router conventions.
 void parse_header(std::string_view line, std::size_t head_off, HelpEntry& out) {
     // Slice off `#` comment (if any), starting from the % position.
     std::size_t end = line.size();
@@ -133,7 +133,7 @@ parse_help_corpus(std::istream& in) {
         std::string expanded = expand_tabs(body);
         // Drop lines that are empty after trimming -- legacy code
         // checked `line[i] != '\0'` after the leading-space skip; the
-        // simpler v3 check is "nothing but whitespace".
+        // simpler check is "nothing but whitespace".
         const bool all_blank =
             expanded.find_first_not_of(" \t") == std::string::npos;
         if (all_blank) continue;

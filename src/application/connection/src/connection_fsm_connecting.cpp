@@ -92,7 +92,7 @@ core::Status<> ConnectionFsm::on_auth_check(std::span<const std::byte> payload) 
     //   [..]     exe_info      (NUL-terminated)
     //   [..]     key_owner     (NUL-terminated)
 
-    // For now: accept all version checks (Phase 5 will add real policy).
+    // For now: accept all version checks (real policy is a future addition).
     // Reply: SID_AUTH_CHECK (0x51)
     // Body:
     //   [0..3]   result  (0 = passed)
@@ -110,7 +110,7 @@ core::Status<> ConnectionFsm::on_logon_request(std::span<const std::byte> payloa
         return reject("connection_fsm: SID_LOGON_REQUEST out of order");
     }
 
-    // R283: WAR3/W3XP clients must use the NLS path (SID 0x53/0x54).
+    // WAR3/W3XP clients must use the NLS path (SID 0x53/0x54).
     // Reject them here with an "invalid password" result so the client
     // knows the login failed rather than hanging.
     if (is_nls_client()) {

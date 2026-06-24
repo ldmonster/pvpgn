@@ -97,18 +97,18 @@ core::Status<> ConnectionFsm::dispatch(std::uint8_t packet_id,
         case sid::kCloseGame:
             return on_leave_game(payload);
 
-        // --- D2 character select (R287) ---
+        // --- D2 character select ---
         case sid::kD2CharSelect:
             return on_d2_char_select(payload);
 
-        // --- WAR3 route token (R288) ---
+        // --- WAR3 route token ---
         case sid::kWarcraftGeneral:
             return on_warcraft_general(payload);
 
         default:
             // Unknown / unimplemented packet — silently ignore.
-            // This is intentional: the strangler-fig bridge may handle it,
-            // or it may be a future SID not yet migrated.
+            // This is intentional: the bridge may handle it, or it may be
+            // a future SID not yet implemented.
             return core::ok();
     }
 }

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Part of PvPGN v3 (refactoring plan section 05).
+// Part of PvPGN.
 #pragma once
 
 /// @file version.hpp
-/// Compile-time version metadata for the v3 sub-tree.
+/// Compile-time version metadata.
 
 namespace pvpgn::core {
 

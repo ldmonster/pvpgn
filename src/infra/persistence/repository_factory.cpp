@@ -38,8 +38,8 @@ RepositoryFactory::RepositoryFactory(RepositoryFactory&&) noexcept = default;
 
 std::unique_ptr<domain::identity::IAccountRepository>
 RepositoryFactory::create_account_repository() {
-    // Consolidated (Plan 07): one implementation over the injected driver,
-    // identical for sqlite/mysql/postgres.
+    // One implementation over the injected driver, identical for
+    // sqlite/mysql/postgres.
     if (!driver_) {
         throw std::runtime_error(
             "RepositoryFactory: account repository needs a driver "

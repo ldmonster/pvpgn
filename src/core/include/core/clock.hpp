@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file clock.hpp
-/// Abstract clock interface for the v3 tree. **All** code that needs
+/// Abstract clock interface. **All** code that needs
 /// wall-clock or monotonic time outside `core/` must inject an `IClock`.
 /// This eliminates the legacy `extern time_t now;` global and enables
 /// deterministic time in tests.

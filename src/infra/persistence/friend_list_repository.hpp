@@ -2,9 +2,7 @@
 #pragma once
 
 /// @file friend_list_repository.hpp
-/// Plan 07: a single, driver-parameterized friend-list repository over
-/// `IDbDriver`. Replaces the per-backend
-/// `infra/{sqlite,mysql,postgres}/friend_list_repository.cpp`.
+/// A single, driver-parameterized friend-list repository over `IDbDriver`.
 
 #include <memory>
 

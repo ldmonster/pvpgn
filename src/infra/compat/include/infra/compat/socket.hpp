@@ -2,15 +2,12 @@
 //
 // Cross-platform socket header inclusion shim.
 //
-// v3 equivalent of src/compat/socket.h
-//
 // On Windows, <winsock2.h> provides the socket API (equivalent to the
 // POSIX <sys/socket.h> + <netinet/in.h> + <arpa/inet.h> + <netdb.h>
 // cluster). On POSIX systems those headers are included individually.
 //
-// The v3 tree uses Boost.Asio for all networking; this header is provided
-// only as a migration aid for legacy call sites that are temporarily
-// compiled into the v3 build. New v3 code must NOT include this header.
+// The networking layer uses Boost.Asio; this header is provided only for
+// legacy call sites. New code must NOT include this header.
 
 #pragma once
 

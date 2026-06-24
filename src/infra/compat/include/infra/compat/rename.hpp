@@ -2,12 +2,10 @@
 //
 // Cross-platform atomic file rename.
 //
-// v3 equivalent of src/compat/rename.h
-//
 // The legacy header exposed `p_rename(old, new)` as a thin wrapper around
-// `std::filesystem::rename` (already modernised in a prior refactoring
-// round). The v3 version re-exports the same inline function inside the
-// `pvpgn::v3::infra::compat` namespace with C++20 annotations.
+// `std::filesystem::rename`. This version re-exports the same inline
+// function inside the `pvpgn::v3::infra::compat` namespace with C++20
+// annotations.
 //
 // `std::filesystem::rename` is specified to overwrite the destination
 // atomically on all platforms, so the legacy Windows workaround

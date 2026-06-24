@@ -2,8 +2,7 @@
 #pragma once
 
 /// @file channel_repository.hpp
-/// Plan 07: consolidated, driver-parameterized channel repository. Replaces the
-/// per-backend channel repositories — the same SQL/logic runs over any
+/// A driver-parameterized channel repository — the same SQL/logic runs over any
 /// `IDbDriver`.
 
 #include <functional>

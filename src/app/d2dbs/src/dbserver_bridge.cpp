@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R232(2): observation bridges for d2dbs server main + per-connection
+// Observation bridges for d2dbs server main + per-connection
 // shutdown.
 
 #include "app/d2dbs/legacy_d2dbs_bridges/dbserver_bridge.hpp"

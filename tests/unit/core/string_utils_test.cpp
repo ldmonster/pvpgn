@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Catch2 unit tests for core/string_utils.hpp
-// Migrated from src/common/util.{h,cpp} (R103).
 
 #include <ctime>
 #include <optional>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/core/trace_test.cpp -- Plan 11.
+// tests/unit/core/trace_test.cpp
 //
 // Unit tests for core::trace — span id generation, parent propagation (child
 // spans share the trace and link to the parent), and head sampling (the sink

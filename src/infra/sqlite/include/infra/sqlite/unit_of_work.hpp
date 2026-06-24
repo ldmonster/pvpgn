@@ -8,10 +8,9 @@
 
 #include "application/persistence/unit_of_work.hpp"
 #include "infra/sqlite/connection.hpp"
-// Plan 07: the SQL-backed repositories are now the consolidated,
-// driver-parameterized implementations under infra/persistence/, run over a
-// SqliteDriver built from this UoW's connection. The per-backend
-// infra/sqlite/*_repository.* files were deleted.
+// The SQL-backed repositories are the driver-parameterized implementations
+// under infra/persistence/, run over a SqliteDriver built from this UoW's
+// connection.
 #include "infra/persistence/sql_builder/db_driver.hpp"
 #include "infra/inmemory/game_repository.hpp"
 #include "infra/inmemory/in_memory_team_repository.hpp"
@@ -49,13 +48,13 @@ public:
 private:
     std::shared_ptr<SQLiteConnection> conn_;
 
-    // The consolidated repos run over this driver (a SqliteDriver wrapping
+    // The repos run over this driver (a SqliteDriver wrapping
     // conn_). The UoW's begin/commit/rollback also route through it, so the
     // driver's SAVEPOINT nesting keeps repo-internal transactions safe inside
     // a UoW transaction.
     std::shared_ptr<persistence::IDbDriver> driver_;
 
-    // SQL-backed repositories (consolidated; held by their domain interface).
+    // SQL-backed repositories (held by their domain interface).
     std::unique_ptr<domain::identity::IAccountRepository>     accounts_;
     std::unique_ptr<domain::social::IClanRepository>          clans_;
     std::unique_ptr<domain::ladder::ILadderRepository>        ladder_;

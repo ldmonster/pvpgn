@@ -1,6 +1,6 @@
 ﻿// SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Legacy bridge: parse `anongame_infos.conf` into a typed
+// Parse `anongame_infos.conf` into a typed
 // `application::anongame_inforeply::AnonGameInfoSnapshot`.
 //
 // The legacy file format is a custom INI-like dialect:

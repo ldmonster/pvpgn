@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// application/ads/ad_pick.hpp -- R170.b skeleton
-//
 // Interface-only header for the ad-banner pick / ack / click
 // dispatchers. Today these live in `_client_adreq`, `_client_adack`,
 // `_client_adclick`, `_client_adclick2` in `src/bnetd/handle_bnet.cpp`.
-// The legacy code consults `AdBannerList` directly; under v3 the
+// The legacy code consults `AdBannerList` directly; here the
 // dispatcher receives an already-resolved candidate list and the
 // client context, and returns the chosen banner (if any).
-//
-// R170.b ships declarations only. The implementation lands in a
-// later round once the AdBanner data flow is captured behind an
-// application-layer repository interface (see plans/phase3b for the
-// exact sub-round assignment).
 
 #pragma once
 
@@ -68,7 +61,6 @@ struct AdPickResponse {
     std::optional<AdCandidate> chosen;
 };
 
-/// R170.b declares; later round implements.
 AdPickResponse dispatch_ad_pick(AdPickRequest const& req);
 
 /// Input to `dispatch_ad_click`.

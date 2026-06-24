@@ -9,8 +9,8 @@
 /// constructed by `main()` after CLI parsing and infrastructure adapter
 /// creation; `main()` itself becomes a thin bootstrap.
 ///
-/// Dependency injection (R285 / R304)
-/// ------------------------------------
+/// Dependency injection
+/// --------------------
 /// The constructor accepts the primary port interfaces:
 ///   - `IUnitOfWorkFactory&`   — repository factory (in-memory, SQL, …)
 ///   - `IEventLoop&`           — event loop (Asio-backed in production)
@@ -29,7 +29,7 @@
 ///   - `LeaveChannel`   — chat use-case
 ///   - `ListChannels`   — chat use-case
 ///
-/// R304: At construction, `BnetdService` seeds `IChannelRepository` with
+/// At construction, `BnetdService` seeds `IChannelRepository` with
 /// the default permanent channels via `ChannelConfigLoader::defaults()`.
 
 #include <memory>
@@ -164,7 +164,7 @@ private:
     std::unique_ptr<application::chat::LeaveChannel> leave_channel_;
     std::unique_ptr<application::chat::ListChannels> list_channels_;
 
-    /// Owned logout use-case (R305: wired with LeaveChannel for channel cleanup).
+    /// Owned logout use-case (wired with LeaveChannel for channel cleanup).
     std::unique_ptr<application::auth::LogoutUser>   logout_user_;
 };
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file user_name_exhaustive_test.cpp
-/// Net-new branch coverage for domain::UserName beyond user_name_test.cpp.
+/// Branch coverage for domain::UserName beyond user_name_test.cpp.
 /// Targets: error StatusCode/message on each rejection branch, every legal
 /// character class as the *first* character, length boundaries one step
 /// either side, canonical/display interaction with hash and unordered_set,

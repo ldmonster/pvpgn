@@ -3,7 +3,6 @@
 //
 // domain/chat/ports.hpp — Abstract ports (interfaces) for the chat bounded context.
 // Implementations live in src/infra/<tech>/ and src/integration/<binding>/.
-// Plan 05: Ports Consolidation (migrated from application/ports/)
 
 #include <cstddef>
 #include <cstdint>
@@ -24,7 +23,7 @@ namespace pvpgn::domain::chat {
 // IChannelRepository
 // ---------------------------------------------------------------------------
 
-// Segregated into reader + writer (ADR 0012 / ISP): read-only consumers such as
+// Segregated into reader + writer: read-only consumers such as
 // ListChannels depend on IChannelReader only. IChannelRepository = reader +
 // writer remains for callers/implementers that need both.
 

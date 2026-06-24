@@ -8,15 +8,13 @@
 /// bridge to *own* outbound text for the rejection arms
 /// (TargetOffline / TargetDnd / SelfWhisper / IgnoredByTarget /
 /// IgnoredBySender / NoTarget) without depending directly on the
-/// legacy `message_send_text` / `localize` machinery (Batch 24a).
+/// legacy `message_send_text` / `localize` machinery.
 ///
-/// Today the bridge invokes this only when an override sink is
+/// The bridge invokes this only when an override sink is
 /// explicitly installed (tests, ops experiments); the production
-/// bnetd path keeps the legacy reply ownership pending a full i18n
-/// table migration. Once the legacy `localize()` table is reachable
-/// from the application layer, `LegacyChatReplySink` will be wired in
-/// composition root and `decide_whisper` rejection arms will return 1
-/// (handled) instead of 0 (legacy fallback).
+/// bnetd path keeps the legacy reply ownership, which is per-connection
+/// and depends on the legacy `localize()` table not reachable from the
+/// application layer.
 ///
 /// Why a port and not a free function?
 ///   - Reply text is locale-sensitive (the legacy table chooses by

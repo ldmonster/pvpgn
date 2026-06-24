@@ -4,7 +4,7 @@
 /// @file string_utils.hpp
 /// Pure C++20 string / time-string utility helpers.
 ///
-/// Migrated from src/common/util.{h,cpp} (R103).
+/// Migrated from src/common/util.{h,cpp}.
 ///
 /// Functions with FILE* I/O (file_get_line, str_print_term) are intentionally
 /// NOT migrated here — they belong in an I/O layer, not a pure utility header.

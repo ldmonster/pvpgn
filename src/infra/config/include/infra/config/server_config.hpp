@@ -227,7 +227,7 @@ struct NetworkConfig {
 // ── [net.timeouts] ───
 // Per-protocol idle-read deadlines, in seconds. If a connection sends no bytes
 // within its deadline the server closes it. 0 disables the timeout for that
-// protocol. Consumed by the infra/net fiber sessions (Plan 06).
+// protocol. Consumed by the infra/net fiber sessions.
 struct NetTimeoutsConfig {
     std::uint32_t bnet   = 300;  ///< BNCS (Battle.net) clients
     std::uint32_t irc    = 300;  ///< IRC / WOL chat
@@ -313,7 +313,7 @@ struct MessagesConfig {
     std::uint32_t quota_dobae    = 7;   // BNETD_QUOTA_DOBAE  (lines)
 };
 
-/// `[observability]` — OpenTelemetry export (Plan 11 / ADR 0010). Export is
+/// `[observability]` — OpenTelemetry export. Export is
 /// opt-in: with `otlp_endpoint` empty, metrics stay in-memory, logs stay on the
 /// local file sink, and tracing stays a no-op (behaviour identical to today).
 struct ObservabilityConfig {

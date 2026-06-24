@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/config/toml_validator_property_test.cpp -- Plan 10.
+// tests/unit/infra/config/toml_validator_property_test.cpp
 //
 // No-panic property for the TOML config entry points. Parsing untrusted config
 // (operators edit bnetd.toml by hand; a reload can feed half-written files)

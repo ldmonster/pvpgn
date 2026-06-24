@@ -3,11 +3,11 @@
 
 /// @file conn_class.hpp
 /// Pure-C++ enum mirroring the legacy `conn_class_*` family in
-/// `src/bnetd/connection.h`. Used by the v3 bnet packet pump
-/// (R179.a scaffold) so dispatch decisions can be expressed in
-/// terms of the enum rather than the legacy `int` constants.
+/// `src/bnetd/connection.h`. Used by the bnet packet pump so
+/// dispatch decisions can be expressed in terms of the enum rather
+/// than the legacy `int` constants.
 ///
-/// Values match the legacy `t_conn_class` ordering so the v3 pump
+/// Values match the legacy `t_conn_class` ordering so the pump
 /// can interop with `conn_get_class()` without a translation
 /// table when this scaffold is later wired into
 /// `legacy_bnet_frame_router_link.cpp`.

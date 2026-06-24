@@ -23,8 +23,7 @@
 #include "domain/shared/user_name.hpp"
 
 #ifdef PVPGN_HAS_INFRA_SQLITE
-// Plan 07: the per-backend infra/sqlite account repo was retired; these
-// on-disk integration tests now drive the consolidated, driver-parameterized
+// These on-disk integration tests drive the driver-parameterized
 // persistence::SqlAccountRepository over a SqliteDriver wrapping a real
 // on-disk SQLiteConnection (the same path bnetd uses via SQLiteUnitOfWork).
 #include "infra/persistence/account_repository.hpp"
@@ -318,7 +317,7 @@ TEST_CASE("MySQLAccountRepository: save and find by name",
     }
 
 #ifdef PVPGN_HAS_INFRA_MYSQL
-    // TODO(R338): construct MySQLAccountRepository from dsn and run tests.
+    // TODO: construct MySQLAccountRepository from dsn and run tests.
     // Placeholder until pvpgn_infra_mysql is fully implemented.
     WARN("MySQL integration test placeholder — implement when infra_mysql is ready");
 #else
@@ -338,7 +337,7 @@ TEST_CASE("PostgreSQLAccountRepository: save and find by name",
     }
 
 #ifdef PVPGN_HAS_INFRA_POSTGRESQL
-    // TODO(R338): construct PostgreSQLAccountRepository from dsn and run tests.
+    // TODO: construct PostgreSQLAccountRepository from dsn and run tests.
     // Placeholder until pvpgn_infra_postgresql is fully implemented.
     WARN("PostgreSQL integration test placeholder — implement when infra_postgresql is ready");
 #else

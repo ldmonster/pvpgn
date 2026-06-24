@@ -2,8 +2,7 @@
 #pragma once
 
 /// @file clan_repository.hpp
-/// Plan 07: a single, driver-parameterized clan repository over `IDbDriver`.
-/// Replaces the per-backend `infra/{sqlite,mysql,postgres}/clan_repository.cpp`.
+/// A single, driver-parameterized clan repository over `IDbDriver`.
 
 #include <memory>
 #include <optional>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R236(3): observation bridges for d2cs d2gs-list lifecycle.
+// Observation bridges for d2cs d2gs-list lifecycle.
 
 #include "app/d2cs/legacy_d2cs_bridges/d2gs_bridge.hpp"
 

@@ -5,7 +5,7 @@
 /// Helper that bridges `infra::config::LogConfig` → `SpdlogConfig` →
 /// `core::set_default_logger()`.
 ///
-/// R252: wires TOML config loading into the composition roots so that
+/// Wires TOML config loading into the composition roots so that
 /// `core::ILogger` is initialized from config at startup.
 
 #include "core/logging.hpp"

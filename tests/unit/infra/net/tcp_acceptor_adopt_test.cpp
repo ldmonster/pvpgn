@@ -2,7 +2,7 @@
 //
 // Verifies that `TcpAcceptor::adopt_native_handle()` can take over a
 // listening socket opened, bound, and `listen()`-ed externally -- the
-// strangler-fig path used by `integration_legacy_bnetd_linked::TcpBridge`
+// path used by `integration_legacy_bnetd_linked::TcpBridge`
 // to take over the bnetd TCP accept loop without disturbing legacy
 // connection setup.
 

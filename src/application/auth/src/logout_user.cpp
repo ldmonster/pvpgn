@@ -3,7 +3,7 @@
 /// @file logout_user.cpp
 /// Implementation of LogoutUser use-case.
 ///
-/// R305: Channel cleanup on disconnect.
+/// Channel cleanup on disconnect.
 /// When `leave_channel_` is injected, the execute() method iterates
 /// `IChannelRepository` to find any channel the account is currently in
 /// and calls `LeaveChannel::execute()` to remove the membership.
@@ -23,7 +23,7 @@ LogoutUser::Result LogoutUser::execute(const LogoutRequest& req) {
             "Session not found"});
     }
 
-    // 2. R305: Channel cleanup — remove the account from any channel it is in.
+    // 2. Channel cleanup — remove the account from any channel it is in.
     //    Iterate all channels; for each one that contains this account, call
     //    LeaveChannel::execute().  We collect the channel IDs first to avoid
     //    mutating the repository while iterating.

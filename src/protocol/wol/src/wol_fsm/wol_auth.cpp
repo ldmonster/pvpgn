@@ -77,7 +77,7 @@ core::Status<> WolFsm::on_pass(std::string_view params) {
 }
 
 core::Status<> WolFsm::try_authenticate(bool close_on_bad_credentials) {
-    // R289: If a LoginUser use-case is wired in, perform real OLS auth.
+    // If a LoginUser use-case is wired in, perform real OLS auth.
     if (login_user_ != nullptr) {
         // Parse the username — reject malformed names immediately.
         auto name_result = domain::UserName::parse(nick_);
@@ -95,7 +95,7 @@ core::Status<> WolFsm::try_authenticate(bool close_on_bad_credentials) {
         // derive the expected hash from the stored hash1 and compare.
         // (The LoginWithSessionHashRequest path is used for BNCS OLS; for WOL
         // we use the simpler LoginRequest with a zeroed hash as a placeholder
-        // until a WOL-specific hasher is wired in Phase 5.)
+        // until a WOL-specific hasher is wired in.)
         //
         // C++20 designated initializers: UserName has no default ctor so we
         // must supply all fields in declaration order.

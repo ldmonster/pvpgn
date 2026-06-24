@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file trace.hpp
-/// Lightweight distributed-tracing primitives for the v3 tree.
+/// Lightweight distributed-tracing primitives.
 ///
 /// Provides a RAII `Span` type that records start/end times and a set of
 /// string attributes.  A global `SpanSink` function is called in the Span

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/persistence/sql_ladder_repository_test.cpp -- Plan 07.
+// tests/unit/infra/persistence/sql_ladder_repository_test.cpp
 //
 // Verifies SqlLadderRepository over the recording fake IDbDriver (no sqlite).
 // Pins the bound upsert, the two-query rank computation (lookup rating, then

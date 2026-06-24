@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new edge/variant tests for compose_chat_event. Covers arms not
+// Edge/variant tests for compose_chat_event. Covers arms not
 // exercised by chat_event_compose_test.cpp:
 //   * Whisper with me_present == true (the non-fallback username branch)
 //   * Join happy path (event/flags/text wiring)

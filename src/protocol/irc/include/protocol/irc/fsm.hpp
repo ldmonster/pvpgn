@@ -19,7 +19,7 @@
 ///   * PART         — leaves channel; calls LeaveChannel use-case when wired;
 ///                    echoes PART; transitions back to Registered.
 ///   * PRIVMSG      — channel messages call PostMessage use-case when wired;
-///                    private messages return 401 ERR_NOSUCHNICK (Phase H).
+///                    private messages return 401 ERR_NOSUCHNICK.
 ///   * NOTICE       — echoes back.
 ///   * QUIT         — closes session.
 ///   * AWAY         — sets/clears away status; replies 305/306.
@@ -28,7 +28,7 @@
 ///   * MODE         — returns 324 RPL_CHANNELMODEIS (no-op skeleton).
 ///   * TOPIC        — returns 332 RPL_TOPIC or 331 RPL_NOTOPIC.
 ///   * NAMES        — returns 353 RPL_NAMREPLY + 366 RPL_ENDOFNAMES.
-///   * KICK         — returns 482 ERR_CHANOPRIVSNEEDED (Phase H).
+///   * KICK         — returns 482 ERR_CHANOPRIVSNEEDED.
 ///   * MOTD         — returns 375 RPL_MOTDSTART + 376 RPL_ENDOFMOTD.
 ///   * LIST         — calls ListChannels use-case when wired; returns
 ///                    321 RPL_LISTSTART + 322 RPL_LIST + 323 RPL_LISTEND.
@@ -43,9 +43,9 @@
 ///   * 451 ERR_NOTREGISTERED — commands requiring registration.
 ///   * 461 ERR_NEEDMOREPARAMS — commands with too few params.
 ///   * 474 ERR_BANNEDFROMCHAN — JOIN when banned.
-///   * 482 ERR_CHANOPRIVSNEEDED — KICK (Phase H stub).
+///   * 482 ERR_CHANOPRIVSNEEDED — KICK (stub).
 ///
-/// R301 — Chat use-case wiring:
+/// Chat use-case wiring:
 ///   When constructed with use-case pointers, the FSM calls the real
 ///   domain use-cases for JOIN, PART, PRIVMSG, and LIST.
 ///   When use-cases are null (skeleton / test mode), the FSM falls back
@@ -90,7 +90,7 @@ public:
     explicit IrcFsm(ISessionContext& ctx) noexcept
         : ctx_(&ctx), login_user_(nullptr) {}
 
-    /// Construct with a LoginUser use-case (R290 — production mode).
+    /// Construct with a LoginUser use-case (production mode).
     /// Registration requires NICK + USER + PASS; on_pass() calls
     /// login_user_.execute() for credential verification.
     /// @param ctx        Session I/O context. Non-owning ref.
@@ -100,7 +100,7 @@ public:
            application::auth::LoginUser& login_user) noexcept
         : ctx_(&ctx), login_user_(&login_user) {}
 
-    /// Construct with full chat use-cases (R301 — production mode).
+    /// Construct with full chat use-cases (production mode).
     /// @param ctx           Session I/O context. Non-owning ref.
     /// @param login_user    OLS authentication use-case (non-owning, may be null).
     /// @param list_channels ListChannels use-case for LIST command.
@@ -136,7 +136,7 @@ private:
     // ---- registration -------------------------------------------------------
     core::Status<> on_nick(const Message&);
     core::Status<> on_user(const Message&);
-    /// PASS <password> — R290: store pending_password_ for use in
+    /// PASS <password> — store pending_password_ for use in
     /// try_complete_registration(). Silently ignored after registration.
     core::Status<> on_pass(const Message&);
     core::Status<> try_complete_registration();
@@ -177,7 +177,7 @@ private:
     ISessionContext*                   ctx_;
     application::auth::LoginUser*      login_user_       = nullptr;
 
-    /// Chat use-cases (R301). Null when not wired (stub mode).
+    /// Chat use-cases. Null when not wired (stub mode).
     std::shared_ptr<application::chat::ListChannels> list_channels_;
     std::shared_ptr<application::chat::JoinChannel>  join_channel_;
     std::shared_ptr<application::chat::PostMessage>  post_message_;
@@ -186,7 +186,7 @@ private:
     IrcState                           state_            = IrcState::Greeting;
     std::string                        nick_;
     std::string                        user_;
-    std::optional<std::string>         pending_password_;  ///< R290: stored by on_pass()
+    std::optional<std::string>         pending_password_;  ///< stored by on_pass()
     std::string                        channel_;           ///< IRC channel name (with '#')
     std::string                        topic_;
     std::string                        away_msg_;  ///< non-empty ⇒ user is away

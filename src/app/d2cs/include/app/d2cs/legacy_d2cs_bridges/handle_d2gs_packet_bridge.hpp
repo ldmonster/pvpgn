@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file handle_d2gs_packet_bridge.hpp
-/// R235(2) -- observation-only strangler-fig bridge for the legacy
+/// Observation-only bridge for the legacy
 /// `handle_d2gs_packet()` dispatcher in `src/d2cs/handle_d2gs.cpp`.
 /// Fires once per inbound packet from a registered d2gs gameserver.
 ///

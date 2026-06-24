@@ -11,8 +11,8 @@ namespace {
 // Token → capability lookup. This is a small (17-entry), fully-static,
 // read-heavy table that is queried once per declared capability at plugin
 // load time. The canonical C++23 spelling is `std::flat_map`, but the GCC13
-// floor lacks `<flat_map>` (libstdc++ ships it from 14); see Plan 09's CI
-// matrix sub-item. A sorted `constexpr std::array` + binary search is the
+// floor lacks `<flat_map>` (libstdc++ ships it from 14). A sorted
+// `constexpr std::array` + binary search is the
 // equivalent flat shape and is in fact strictly better here: it is
 // allocation-free (the prior `unordered_map<std::string,...>` heap-allocated
 // a `std::string` on every lookup and built a hash table on first use) and

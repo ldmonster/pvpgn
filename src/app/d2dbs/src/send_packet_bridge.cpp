@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Dispatcher half of the v3 -> legacy-d2dbs send-packet strangler
-// bridge. Pattern parity with legacy_bnetd / legacy_d2cs.
+// Dispatcher half of the d2dbs send-packet path.
+// Pattern parity with legacy_bnetd / legacy_d2cs.
 
 #include "app/d2dbs/legacy_d2dbs_bridges/send_packet_bridge.hpp"
 

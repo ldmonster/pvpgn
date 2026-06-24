@@ -22,11 +22,10 @@ namespace pvpgn::infra::persistence {
 /// Reads the storage backend from configuration and constructs appropriate
 /// repository implementations (SQLite, MySQL, or PostgreSQL).
 ///
-/// Plan 07: aggregates that have been consolidated onto the single
-/// `IDbDriver`-parameterized implementation (currently: account) are created
-/// by handing the repository the injected driver — switching backend means
-/// constructing a different driver, with **no recompilation** of the factory
-/// or repositories. Aggregates not yet consolidated still throw.
+/// Aggregates backed by the single `IDbDriver`-parameterized implementation
+/// (currently: account) are created by handing the repository the injected
+/// driver — switching backend means constructing a different driver, with
+/// **no recompilation** of the factory or repositories. Other aggregates throw.
 class RepositoryFactory {
 public:
     /// Create a repository factory for the specified backend.

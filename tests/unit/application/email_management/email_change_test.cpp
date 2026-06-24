@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests for application/email_management dispatchers (R170.a).
+// tests for application/email_management dispatchers.
 
 #include "application/email_management/email_change.hpp"
 #include "application/email_management/password_recovery.hpp"

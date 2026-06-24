@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/bench/micro/micro_main.cpp -- Plan 13 microbenchmark suite.
+// tests/bench/micro/micro_main.cpp -- microbenchmark suite.
 //
 // A standalone benchmark executable (EXCLUDE_FROM_ALL; never run by ctest).
 // Build + run via scripts/dev/run-bench.sh micro. Each case measures one
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
         }
     });
 
-    // 3. tag_table_lookup — the Plan 09 capability flat-map (sorted constexpr
+    // 3. tag_table_lookup — the capability flat-map (sorted constexpr
     //    array + binary search). One "op" resolves all 6 tokens below.
     static constexpr std::array<std::string_view, 6> kToks = {
         "chat.send",    "db.read",      "events.subscribe",

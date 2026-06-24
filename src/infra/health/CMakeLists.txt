@@ -1,5 +1,4 @@
 # infra/health — HTTP handlers for health probes and Prometheus metrics scrape
-# (Plan 10 — Observability and Operations)
 #
 # Provides:
 #   HealthHandler   — /healthz (liveness), /readyz (readiness), /varz (debug)

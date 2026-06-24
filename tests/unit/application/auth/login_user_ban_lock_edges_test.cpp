@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new coverage for `application::auth::LoginUser`. Wave-1 + the base
-// login_user_test cover unknown/bad-password/locked/duplicate-session/
+// Coverage for `application::auth::LoginUser`. The base
+// login_user_test covers unknown/bad-password/locked/duplicate-session/
 // must-change/PersistenceFailed for the password overload, and missing-
 // hasher/unknown/wrong-proof/happy for the session-hash overload.
 //

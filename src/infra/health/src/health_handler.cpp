@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file health_handler.cpp
-/// Implementation of HealthHandler (Plan 10 §12–14).
+/// Implementation of HealthHandler.
 
 #include "infra/health/health_handler.hpp"
 

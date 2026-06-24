@@ -3,7 +3,7 @@
 
 /**
  * @file sandbox.hpp
- * @brief seccomp-BPF sandbox wrapper for native plugin callbacks (R347).
+ * @brief seccomp-BPF sandbox wrapper for native plugin callbacks.
  *
  * On Linux with `PVPGN_V3_WITH_SECCOMP=ON` the sandbox restricts the set of
  * syscalls available to a plugin's `init` and event-handler callbacks to a

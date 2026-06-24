@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file serverqueue_bridge.hpp
-/// R236(2) -- observation-only strangler-fig bridges for the legacy
+/// Observation-only bridges for the legacy
 /// server-queue lifecycle in `src/d2cs/serverqueue.cpp`:
 ///
 ///   * `sqlist_create()`  -- builds the s2s server-queue at startup.

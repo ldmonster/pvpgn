@@ -25,7 +25,7 @@ public:
     explicit IrcSession(std::string session_id, OutputCallback output_cb);
     
     // Feed raw bytes from client.
-    // R212: canonical core::ByteView at the integration boundary.
+    // Canonical core::ByteView at the integration boundary.
     core::Result<void, core::Error> feed(core::ByteView data);
     
     State state() const noexcept { return state_; }

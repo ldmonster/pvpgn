@@ -2,10 +2,8 @@
 #pragma once
 
 /// @file realm_repository.hpp
-/// Plan 07: a single, driver-parameterized realm repository over `IDbDriver`.
-/// Mirrors the account/channel slices — one implementation for
-/// sqlite/mysql/postgres, backend chosen at composition time. Replaces the
-/// per-backend `infra/{sqlite,mysql,postgres}/realm_repository.cpp`.
+/// A single, driver-parameterized realm repository over `IDbDriver`. One
+/// implementation for sqlite/mysql/postgres, backend chosen at composition time.
 
 #include <cstdint>
 #include <functional>

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Plan 11 — §11.3  TOML Schema Versioning — validator implementation
+// TOML Schema Versioning — validator implementation
 
 #include "infra/config/toml_schema_validator.hpp"
 

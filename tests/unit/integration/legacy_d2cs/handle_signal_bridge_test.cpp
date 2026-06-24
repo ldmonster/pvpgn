@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Unit tests for the d2cs signal-handling observation bridges (R233).
+// Unit tests for the d2cs signal-handling observation bridges.
 
 #include <catch2/catch_test_macros.hpp>
 

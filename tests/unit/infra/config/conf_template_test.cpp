@@ -58,7 +58,7 @@ TEST_CASE("conf/d2cs.toml.in parses with v3 parser and matches schema",
     REQUIRE(c.realm.lod_realm         == 2u);
     REQUIRE(c.log.levels.find("info") != std::string::npos);
 
-    // R160 audit additions:
+    // audit additions:
     REQUIRE(c.misc.hide_pass_games        == false);
     REQUIRE(c.internal_.game_maxlevel     == 255u);
     REQUIRE(c.internal_.ladderlist_count  == 0u);
@@ -78,7 +78,7 @@ TEST_CASE("conf/d2dbs.toml.in parses with v3 parser and matches schema",
     REQUIRE(c.log.levels.find("info") != std::string::npos);
     REQUIRE(c.ladder.laddersave_interval == 3600u);
 
-    // R160 audit additions:
+    // audit additions:
     REQUIRE(c.misc.difficulty_hack == 0u);
 }
 

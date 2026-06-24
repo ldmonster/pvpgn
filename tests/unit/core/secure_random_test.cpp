@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/core/secure_random_test.cpp -- Plan 08.
+// tests/unit/core/secure_random_test.cpp
 //
 // Unit tests for core::crypto::SecureRandom. We cannot assert specific values
 // from a CSPRNG, so these tests pin its *contract*: it fills the requested

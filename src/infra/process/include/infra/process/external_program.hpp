@@ -6,7 +6,7 @@
 ///
 /// Replaces the legacy `runprog_open / runprog_close` pair from
 /// `src/bnetd/runprog.cpp`. The legacy variant returned a `FILE*` over
-/// a fork/exec'd subprocess's stdout. The v3 version offers a
+/// a fork/exec'd subprocess's stdout. This version offers a
 /// `run_capture(argv0)` helper that returns the captured stdout as a
 /// string and the child's wait-status.
 ///

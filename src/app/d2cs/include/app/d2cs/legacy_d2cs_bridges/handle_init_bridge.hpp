@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file handle_init_bridge.hpp
-/// R234(2) -- observation-only strangler-fig bridge for the legacy
+/// Observation-only bridge for the legacy
 /// `d2cs_handle_init_packet()` dispatcher in
 /// `src/d2cs/handle_init.cpp`. The init packet decides whether the
 /// new connection becomes a d2cs client or a d2gs gameserver.
@@ -20,7 +20,7 @@ extern "C" int pvpgn_v3_d2cs_handle_init_packet(
     int sd,
     unsigned int cclass) noexcept;
 
-/// R237(1) -- observation bridge for `on_d2gs_initconn()` -- fires when
+/// Observation bridge for `on_d2gs_initconn()` -- fires when
 /// a CLIENT_INITCONN_CLASS_D2GS packet has been classified as a d2gs
 /// gameserver attaching to this d2cs. Parameters:
 ///   * `sd`   -- raw socket descriptor.
@@ -31,7 +31,7 @@ extern "C" int pvpgn_v3_d2cs_on_d2gs_initconn(
     int sd,
     unsigned int addr) noexcept;
 
-/// R237(2) -- observation bridge for `on_d2cs_initconn()` -- fires when
+/// Observation bridge for `on_d2cs_initconn()` -- fires when
 /// a CLIENT_INITCONN_CLASS_D2CS packet has been classified as a d2cs
 /// client attaching to this d2cs. Parameters:
 ///   * `sd` -- raw socket descriptor.

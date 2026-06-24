@@ -9,8 +9,8 @@
 /// The legacy parsing path reads this byte inside
 /// `src/bnetd/handle_init.cpp` via the `bn_byte_get` macro on a
 /// PACKED struct alias. This codec replaces that inline pattern
-/// with a pure-C++ parse / encode pair so the v3 packet pump (when
-/// it lands -- R177.c+) can dispatch off `ClientInitConn{}` values
+/// with a pure-C++ parse / encode pair so the packet pump (when
+/// it lands) can dispatch off `ClientInitConn{}` values
 /// instead of touching `t_client_initconn`.
 
 #include "protocol/bnet/init_wire_types.hpp"

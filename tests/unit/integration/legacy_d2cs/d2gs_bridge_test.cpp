@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Unit tests for the d2cs d2gs-list lifecycle observation bridge (R236).
+// Unit tests for the d2cs d2gs-list lifecycle observation bridge.
 
 #include <catch2/catch_test_macros.hpp>
 

@@ -2,14 +2,14 @@
 #pragma once
 
 /// @file spdlog_logger.hpp
-/// `core::ILogger` implementation backed by spdlog. Phase 1 deliverable:
+/// `core::ILogger` implementation backed by spdlog:
 /// replaces `eventlog()`-style output with a structured, sinkable backend.
 ///
 /// Sinks are wired in `make_spdlog_logger()`:
 ///   * stdout colour sink (always)
 ///   * rotating file sink when a path is provided
 ///
-/// Phase 6 will add JSON-line, syslog and Windows Event Log sinks; this
+/// JSON-line, syslog and Windows Event Log sinks may be added later; this
 /// header keeps the API stable for that.
 
 #include <filesystem>

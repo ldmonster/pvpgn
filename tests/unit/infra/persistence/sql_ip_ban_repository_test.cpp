@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/persistence/sql_ip_ban_repository_test.cpp -- Plan 07.
+// tests/unit/infra/persistence/sql_ip_ban_repository_test.cpp
 //
-// Verifies the consolidated SqlIpBanRepository over the recording fake IDbDriver
+// Verifies the SqlIpBanRepository over the recording fake IDbDriver
 // (no sqlite). Covers the two-table model (exact ip_bans + CIDR ip_ban_ranges):
 // bound writes, is_banned via an exact hit and via in-process CIDR matching,
 // for_each_entry mapping, load_banlist, and the transactional save_banlist.

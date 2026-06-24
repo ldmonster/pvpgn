@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file server_bridge.hpp
-/// R234(1) -- observation-only strangler-fig bridge for the legacy
+/// Observation-only bridge for the legacy
 /// `d2cs_server_process()` event-loop entry in `src/d2cs/server.cpp`.
 /// `d2cs_server_process` is the d2cs main loop bootstrap: once the
 /// process has finished startup it enters this function and runs

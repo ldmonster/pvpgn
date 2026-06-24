@@ -2,8 +2,8 @@
 #pragma once
 
 /// @file router.hpp
-/// Pure-v3 routing decision for legacy bnetd chat commands that have
-/// been migrated to the v3 strangler-fig pipeline.
+/// Pure routing decision for legacy bnetd chat commands that have
+/// been routed through this pipeline.
 ///
 /// The legacy `handle_command()` in `src/bnetd/command.cpp` calls
 /// `pvpgn_v3_command_dispatch()` for each incoming command. The
@@ -13,7 +13,7 @@
 /// permission predicate hand-off. The bridge owns I/O (sending text
 /// back to the client, userlog append).
 ///
-/// Keeping this logic pure-v3 makes it unit-testable without any
+/// Keeping this logic pure makes it unit-testable without any
 /// legacy types and decouples the dispatch decision from the legacy
 /// flood/lua/userlog machinery.
 
@@ -67,14 +67,14 @@ using PermissionPredicate =
 /// @param is_permitted  Predicate invoked once with the canonical
 ///                      command name when a match is found.
 ///
-/// Recognised aliases (R216 first migration set + R216b extension):
+/// Recognised aliases (representative subset):
 ///   /version, /ver   -> canonical "/version"
 ///   /uptime          -> canonical "/uptime"
 ///   /help, /?        -> canonical "/help"
-///   /who             -> canonical "/who"      (R216b)
-///   /whoami          -> canonical "/whoami"   (R216b)
-///   /users           -> canonical "/users"    (R216b, alias of legacy /status)
-///   /finger          -> canonical "/finger"   (R216b)
+///   /who             -> canonical "/who"
+///   /whoami          -> canonical "/whoami"
+///   /users           -> canonical "/users"    (alias of legacy /status)
+///   /finger          -> canonical "/finger"
 [[nodiscard]] RouteDecision
 route(std::string_view command_line, const PermissionPredicate& is_permitted);
 

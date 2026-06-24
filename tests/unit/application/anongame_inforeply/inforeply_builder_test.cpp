@@ -24,7 +24,7 @@ namespace pb = pvpgn::protocol::bnet;
 
 namespace {
 
-// R217 follow-up: the application no longer depends on infra at compile
+// The application no longer depends on infra at compile
 // time; the test constructs the concrete zlib adapter and passes it as
 // the `IAnonGameCompressor` port.
 const infra::compression::ZlibAnonGameCompressor kCompressor{};

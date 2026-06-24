@@ -11,7 +11,7 @@ IrcSession::IrcSession(std::string session_id, OutputCallback output_cb)
     : session_id_(std::move(session_id)), output_cb_(std::move(output_cb)) {}
 
 core::Result<void, core::Error> IrcSession::feed(core::ByteView data) {
-    // R212: iterate as bytes; cast to uint8_t for ASCII checks.
+    // Iterate as bytes; cast to uint8_t for ASCII checks.
     for (auto b : data) {
         const uint8_t byte = static_cast<uint8_t>(b);
         // Handle line endings

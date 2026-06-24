@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/persistence/sql_game_repository_test.cpp -- Plan 07.
+// tests/unit/infra/persistence/sql_game_repository_test.cpp
 //
 // Verifies SqlGameRepository over the recording fake IDbDriver (no sqlite).
 // Game is a parent row + ordered player list, so find_* / list_active issue

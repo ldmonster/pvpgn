@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R238: observation bridges for d2cs game catalogue + per-game lifecycle.
+// Observation bridges for d2cs game catalogue + per-game lifecycle.
 
 #include "app/d2cs/legacy_d2cs_bridges/game_bridge.hpp"
 
@@ -80,7 +80,7 @@ extern "C" int pvpgn_v3_d2cs_game_destroy(
     return 0;
 }
 
-// R239(1): observation bridge for game_set_d2gs_gameid.
+// Observation bridge for game_set_d2gs_gameid.
 extern "C" int pvpgn_v3_d2cs_game_set_d2gs_gameid(
     unsigned int game_id,
     unsigned int d2gs_gameid) noexcept {
@@ -97,7 +97,7 @@ extern "C" int pvpgn_v3_d2cs_game_set_d2gs_gameid(
     return 0;
 }
 
-// R239(2): observation bridge for game_set_d2gs.
+// Observation bridge for game_set_d2gs.
 extern "C" int pvpgn_v3_d2cs_game_set_d2gs(
     unsigned int game_id,
     unsigned int d2gs_id) noexcept {
@@ -114,7 +114,7 @@ extern "C" int pvpgn_v3_d2cs_game_set_d2gs(
     return 0;
 }
 
-// R239(3): observation bridge for game_set_created.
+// Observation bridge for game_set_created.
 extern "C" int pvpgn_v3_d2cs_game_set_created(
     unsigned int game_id,
     unsigned int created) noexcept {
@@ -131,7 +131,7 @@ extern "C" int pvpgn_v3_d2cs_game_set_created(
     return 0;
 }
 
-// R240(1): observation bridge for game_add_character.
+// Observation bridge for game_add_character.
 extern "C" int pvpgn_v3_d2cs_game_add_character(
     unsigned int game_id,
     const char* charname,
@@ -153,7 +153,7 @@ extern "C" int pvpgn_v3_d2cs_game_add_character(
     return 0;
 }
 
-// R240(2): observation bridge for game_del_character.
+// Observation bridge for game_del_character.
 extern "C" int pvpgn_v3_d2cs_game_del_character(
     unsigned int game_id,
     const char* charname) noexcept {

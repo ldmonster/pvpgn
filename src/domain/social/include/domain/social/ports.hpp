@@ -3,7 +3,6 @@
 //
 // domain/social/ports.hpp — Abstract ports (interfaces) for the social bounded context.
 // Implementations live in src/infra/<tech>/ and src/integration/<binding>/.
-// Plan 05: Ports Consolidation (migrated from application/ports/)
 
 #include <cstddef>
 #include <cstdint>

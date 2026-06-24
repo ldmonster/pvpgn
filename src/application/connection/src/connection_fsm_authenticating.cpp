@@ -54,7 +54,7 @@ core::Status<> ConnectionFsm::on_auth_accountlogon(
     const std::size_t key_bytes = std::min(payload.size(), std::size_t{32});
     std::memcpy(client_key_A.data(), payload.data(), key_bytes);
 
-    // R283: If we have a LoginUserNls use-case, call challenge().
+    // If we have a LoginUserNls use-case, call challenge().
     if (login_user_nls_ != nullptr) {
         const core::ByteView key_view{client_key_A.data(), client_key_A.size()};
         auto result = login_user_nls_->challenge(uname, key_view);
@@ -98,7 +98,7 @@ core::Status<> ConnectionFsm::on_auth_accountlogon(
     }
 
     // Fallback: no LoginUserNls injected — store username and send placeholder
-    // zeros (skeleton behaviour, same as before R283 for this code path).
+    // zeros (skeleton behaviour for this code path).
     pending_nls_username_   = uname;
     pending_nls_client_key_ = client_key_A;
 
@@ -120,7 +120,7 @@ core::Status<> ConnectionFsm::on_auth_accountlogonproof(
     // SID_AUTH_ACCOUNTLOGONPROOF (0x54) body:
     //   [0..19]  client_proof  (20 bytes, NLS SRP M1)
 
-    // R283: If we have a LoginUserNls use-case and stored NLS context,
+    // If we have a LoginUserNls use-case and stored NLS context,
     // call verify() to authenticate the client.
     if (login_user_nls_ != nullptr &&
         pending_nls_ctx_.has_value() &&

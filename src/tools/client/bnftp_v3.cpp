@@ -313,40 +313,6 @@ bool recv_buf(net::socket_t sd, void* buf, std::size_t n) {
     return net::recv_all(sd, buf, n);
 }
 
-// Receive a FILE-class packet body of exactly `body_size` bytes
-// preceded by a `{ size, type }` header.  Returns false on
-// short-read or size mismatch.
-[[maybe_unused]] bool recv_file_packet_fixed(net::socket_t sd, void* body, std::size_t body_size,
-                            std::uint16_t& out_type, std::uint16_t& out_size) {
-    FileHeader h{};
-    if (!recv_buf(sd, &h, sizeof(h))) {
-        return false;
-    }
-    out_size = proto::short_get(h.size);
-    out_type = proto::short_get(h.type);
-    if (out_size < sizeof(FileHeader)) {
-        return false;
-    }
-    const std::size_t left = out_size - sizeof(FileHeader);
-    if (left < body_size) {
-        return false;
-    }
-    if (body_size > 0 && !recv_buf(sd, body, body_size)) {
-        return false;
-    }
-    // Drain any extra bytes the server tacked on past `body_size`.
-    std::size_t extra = left - body_size;
-    char scratch[256];
-    while (extra > 0) {
-        const std::size_t chunk = std::min(extra, sizeof(scratch));
-        if (!recv_buf(sd, scratch, chunk)) {
-            return false;
-        }
-        extra -= chunk;
-    }
-    return true;
-}
-
 // Receive header + variable-length body into `out` (cleared first).
 // On success `out` holds bytes WITHOUT the 4-byte header.
 bool recv_file_packet(net::socket_t sd, std::vector<std::uint8_t>& out,

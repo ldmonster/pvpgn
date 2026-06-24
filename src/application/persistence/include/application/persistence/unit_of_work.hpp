@@ -16,7 +16,7 @@
 
 namespace pvpgn::application::ports {
 
-/// Transaction-control sub-interface (ISP / ADR 0012). Consumers that only need
+/// Transaction-control sub-interface. Consumers that only need
 /// to begin/commit/rollback a transaction — e.g. the shutdown flush and the
 /// `UnitOfWorkGuard` — depend on this, not on the full repository-bundle
 /// `IUnitOfWork` (which exposes ten repository accessors they never touch).

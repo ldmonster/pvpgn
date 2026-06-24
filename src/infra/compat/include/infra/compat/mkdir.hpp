@@ -2,13 +2,10 @@
 //
 // Cross-platform directory creation.
 //
-// v3 equivalent of src/compat/mkdir.h
-//
 // The legacy header exposed `p_mkdir(path)` as a thin wrapper around
-// `std::filesystem::create_directory` (already modernised in a prior
-// refactoring round). The v3 version re-exports the same inline function
-// inside the `pvpgn::v3::infra::compat` namespace and adds a C++20
-// `[[nodiscard]]` annotation.
+// `std::filesystem::create_directory`. This version re-exports the same
+// inline function inside the `pvpgn::v3::infra::compat` namespace and
+// adds a C++20 `[[nodiscard]]` annotation.
 //
 // The `mode` overload is retained for source compatibility with legacy
 // call sites that pass a POSIX mode argument; the argument is silently

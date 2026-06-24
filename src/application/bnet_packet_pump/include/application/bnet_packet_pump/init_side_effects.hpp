@@ -2,10 +2,10 @@
 #pragma once
 
 /// @file init_side_effects.hpp
-/// R186.a: port (in the hexagonal sense) for the side effects the
+/// Port (in the hexagonal sense) for the side effects the
 /// init-byte handshake performs on the host connection object.
 ///
-/// The pure-C++ v3 `PacketPumpDriver` (R180.c / R182.a) does not
+/// The pure-C++ `PacketPumpDriver` does not
 /// know about `t_connection`, `conn_set_state`, `conn_set_class`
 /// or `handle_d2cs_init` -- those are legacy-side concerns. To
 /// keep the driver layer-clean while still letting it own the
@@ -37,13 +37,13 @@ namespace pvpgn::application::bnet_packet_pump {
 /// Callback table passed to the policy-aware feed() overload that
 /// performs side effects on the host connection. A NULL field is
 /// treated as "no-op" so callers can plug in partial
-/// implementations during the cutover arc.
+/// implementations.
 struct InitSideEffects {
     /// Mark the connection as `connected` (legacy `conn_set_state(c, conn_state_connected)`).
     void (*set_connected)(void* conn) noexcept = nullptr;
 
     /// Set the legacy connection class for the accepted cclass.
-    /// `cclass` is the v3 `ConnClass` enumerator the driver
+    /// `cclass` is the `ConnClass` enumerator the driver
     /// decided on; the implementation maps it to the legacy
     /// `conn_class_*` value.
     void (*set_class)(void* conn, ConnClass cclass) noexcept = nullptr;

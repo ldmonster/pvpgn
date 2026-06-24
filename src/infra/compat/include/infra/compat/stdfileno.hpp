@@ -2,13 +2,11 @@
 //
 // Standard file-descriptor number constants.
 //
-// v3 equivalent of src/compat/stdfileno.h
-//
 // POSIX defines STDIN_FILENO / STDOUT_FILENO / STDERR_FILENO in <unistd.h>.
 // The legacy header papered over platforms that lacked them by defining
 // STDINFD / STDOUTFD / STDERRFD macros with hard-coded values 0/1/2.
 //
-// The v3 version exposes typed `inline constexpr int` constants in the
+// This version exposes typed `inline constexpr int` constants in the
 // `pvpgn::v3::infra::compat` namespace. The names follow the POSIX
 // convention (no "FD" suffix) so new code reads naturally.
 

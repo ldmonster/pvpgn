@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Batch 24a: unit-level coverage for the `IChatReplySink` port and
+// Unit-level coverage for the `IChatReplySink` port and
 // its verdict-to-reason mapping. The bridge wiring is exercised via
-// the strangler-parity tests when the legacy bnetd library is in
+// the parity tests when the legacy bnetd library is in
 // configure; here we focus on the application-pure surface.
 
 #include <optional>

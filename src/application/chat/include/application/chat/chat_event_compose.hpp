@@ -35,7 +35,7 @@ enum class LegacyMessageType : std::uint32_t {
     Emote                = 15,
 };
 
-// All callers must resolve connection-state up-front so the v3 module
+// All callers must resolve connection-state up-front so this module
 // stays pure. Strings are non-owning views; the caller guarantees they
 // outlive the `compose_chat_event` call.
 //

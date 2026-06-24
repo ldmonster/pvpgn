@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file d2dbs_prefs_bridge.hpp
-/// C-linkage bridge to vend a parsed `D2dbsServerConfig` (R152 skeleton).
+/// C-linkage bridge to vend a parsed `D2dbsServerConfig`.
 /// Mirrors `legacy_d2cs/d2cs_prefs_bridge.hpp`.
 
 #ifdef __cplusplus

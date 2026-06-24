@@ -2,8 +2,8 @@
 #pragma once
 
 /// @file bridge_logger.hpp
-/// Shared logging helper for strangler bridges under
-/// `app/d2dbs/legacy_d2dbs_bridges/src/` (R231).
+/// Shared logging helper for the bridges under
+/// `app/d2dbs/legacy_d2dbs_bridges/src/`.
 ///
 /// Mirrors the `legacy_bnetd::bridge_logger` seam:
 ///   * exposes a process-wide `core::ILogger&` (`bridge_logger()`)

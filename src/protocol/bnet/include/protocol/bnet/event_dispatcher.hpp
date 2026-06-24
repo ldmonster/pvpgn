@@ -30,7 +30,7 @@ public:
         : router_(router) {}
 
     // -----------------------------------------------------------------------
-    // R302 — Channel event dispatch
+    // Channel event dispatch
     // -----------------------------------------------------------------------
 
     /// Encode each domain event in @p events as a SID_CHATEVENT (0x0F) packet
@@ -53,7 +53,7 @@ public:
         const std::vector<domain::SessionId>& target_sessions);
 
     /// Process game-related domain events and route to target sessions.
-    /// TODO: Full implementation in Phase 5 will convert game state changes
+    /// TODO: Full implementation will convert game state changes
     /// to SID_GAMEEVENT packets encoding player count, host info, etc.
     void dispatch_game_events(
         const std::vector<domain::SessionId>& target_sessions);

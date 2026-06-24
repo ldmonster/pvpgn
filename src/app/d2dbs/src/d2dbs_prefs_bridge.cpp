@@ -11,11 +11,11 @@
 
 namespace {
 
-/// Process-global snapshot. R161: now holds a `D2dbsLegacyPrefs`
+/// Process-global snapshot. Holds a `D2dbsLegacyPrefs`
 /// adapter (which owns a `D2dbsServerConfig` + pre-computed
 /// std::string copies of every filesystem::path field). The bridge
 /// no longer keeps its own StringCache.
-// R165: atomic<shared_ptr<...>> for race-free SIGHUP reload.
+// atomic<shared_ptr<...>> for race-free SIGHUP reload.
 std::atomic<std::shared_ptr<pvpgn::infra::config::D2dbsLegacyPrefs>> g_d2dbs_prefs;
 
 }  // namespace
@@ -65,7 +65,7 @@ extern "C" void pvpgn_v3_d2dbs_prefs_dump(void* user, void (*line_cb)(void*, con
 
 // ── [network] ────────────────────────────────────────────────────────────────
 //
-// LIFETIME WARNING (R168): every `extern "C" const char*` accessor
+// LIFETIME WARNING: every `extern "C" const char*` accessor
 // below returns a pointer into the LegacyPrefs snapshot held by
 // `g_d2dbs_prefs`. The accessor's local `shared_ptr` lasts only for
 // the call; the returned pointer must be consumed immediately (e.g.

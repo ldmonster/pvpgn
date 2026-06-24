@@ -2,12 +2,9 @@
 #pragma once
 
 /// @file account_ban_repository.hpp
-/// Plan 07: a single, driver-parameterized account-ban repository. Like the
-/// account/channel slices, the same SQL/logic runs over any `IDbDriver`, so the
-/// storage backend is chosen at composition time and switching
-/// `[storage].backend` needs no recompilation. Replaces the per-backend
-/// `infra/{sqlite,mysql,postgres}/account_ban_repository.cpp` (the SQLite one
-/// was an `Unimplemented` stub).
+/// A single, driver-parameterized account-ban repository. The same SQL/logic
+/// runs over any `IDbDriver`, so the storage backend is chosen at composition
+/// time and switching `[storage].backend` needs no recompilation.
 
 #include <functional>
 #include <memory>

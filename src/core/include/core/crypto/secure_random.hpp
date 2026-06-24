@@ -4,9 +4,8 @@
 /// @file secure_random.hpp
 /// `core::crypto::SecureRandom` — the canonical cryptographically-secure RNG.
 ///
-/// Plan 08 (`plans/08-crypto-modernization.md`) bans `std::rand()` in `src/`
-/// and consolidates randomness on a single source. This wrapper pulls bytes
-/// from the operating-system entropy pool:
+/// `std::rand()` is banned in `src/`; randomness is consolidated on a single
+/// source. This wrapper pulls bytes from the operating-system entropy pool:
 ///   - by default via `std::random_device`, which on the supported platforms
 ///     is backed by the OS CSPRNG (`getrandom(2)` / `/dev/urandom`);
 ///   - when built with libsodium (`PVPGN_V3_WITH_SODIUM`), via

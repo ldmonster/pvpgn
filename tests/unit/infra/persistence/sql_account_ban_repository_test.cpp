@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/persistence/sql_account_ban_repository_test.cpp -- Plan 07.
+// tests/unit/infra/persistence/sql_account_ban_repository_test.cpp
 //
-// Verifies the consolidated, driver-parameterized SqlAccountBanRepository by
+// Verifies the driver-parameterized SqlAccountBanRepository by
 // running it over a RECORDING FAKE IDbDriver. This exercises the repository's
 // SQL generation, parameter binding and row → domain mapping WITHOUT a live
 // database — so it runs in any environment (the SQLite integration test is

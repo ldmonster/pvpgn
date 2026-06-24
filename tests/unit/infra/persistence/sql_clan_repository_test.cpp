@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/persistence/sql_clan_repository_test.cpp -- Plan 07.
+// tests/unit/infra/persistence/sql_clan_repository_test.cpp
 //
-// Verifies the consolidated SqlClanRepository over the recording fake IDbDriver
+// Verifies the SqlClanRepository over the recording fake IDbDriver
 // (no sqlite). Clan is a parent row + ordered member list, so find_* issues two
 // queries (clan header, then members) — exercised via the driver's per-query
 // result-set queue. Also pins the transactional save and the tag-scoped remove.

@@ -4,9 +4,8 @@
 /// @file d2dbs_server_config.hpp
 /// Typed `D2dbsServerConfig` parsed from a TOML file (`d2dbs.toml`).
 ///
-/// R152 skeleton: v3 counterpart to `src/d2dbs/prefs.cpp`. Caller
-/// migration in `src/d2dbs/` is deferred -- this header lets the v3
-/// build produce a `D2dbsServerConfig` so the bridge in
+/// Counterpart to `src/d2dbs/prefs.cpp`. This header produces a
+/// `D2dbsServerConfig` so the bridge in
 /// `legacy_d2dbs/d2dbs_prefs_bridge.hpp` can vend it.
 
 #include <cstdint>

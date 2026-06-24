@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// application/anongame_lobby/lobby.cpp -- R173.a real
-// dispatcher impl (was R170.d placeholder).
-//
 // Stateless decision function: given a single entrant + the
 // current queue snapshot + the bracket size, decides
 // kDuplicate / kRejected / kQueued / kPromoted. The repository

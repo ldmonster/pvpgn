@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new coverage for `application::auth::LogoutUser`. The base
+// Coverage for `application::auth::LogoutUser`. The base
 // logout_user_test.cpp drives success, session-not-found, and the
 // nullptr-`leave_channel_` channel/game seeds (which never enter the
-// cleanup loop). This file covers the otherwise-uncovered R305 branch:
+// cleanup loop). This file covers the otherwise-uncovered branch:
 // a non-null LeaveChannel use-case that actually iterates the channel
 // repository and removes the account's memberships on disconnect.
 // It also pins the double-logout (second logout fails NotFound) path.

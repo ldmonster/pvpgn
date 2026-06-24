@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * @file lua_api_v2.cpp
- * @brief Lua API v2 surface — registers the `pvpgn.*` namespace into a sol::state (R349).
+ * @brief Lua API v2 surface — registers the `pvpgn.*` namespace into a sol::state.
  *
  * Each function in the `pvpgn` table delegates to a C++ handler stored in the
  * provided handler map.  If no handler is registered for a given function, the

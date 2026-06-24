@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file ip_address_exhaustive_test.cpp
-/// Net-new branch coverage for domain::IpAddress beyond ip_address_test.cpp.
+/// Branch coverage for domain::IpAddress beyond ip_address_test.cpp.
 /// Targets: error StatusCode on each rejection branch, IPv6 full-form parse /
 /// family / to_string round-trip, IPv6 group-count and value-range rejection,
 /// octet 255 vs 256 boundary, leading-empty / trailing-dot edge cases,

@@ -2,8 +2,8 @@
 #pragma once
 
 /// @file logging.hpp
-/// Minimal logging facade. Phase 1 will swap the default sink for spdlog;
-/// for now we expose a stable API so the rest of the v3 tree can depend on
+/// Minimal logging facade. The default sink may be swapped for spdlog;
+/// we expose a stable API so the rest of the tree can depend on
 /// `core::log()` without touching `eventlog()` from the legacy tree.
 
 #include <memory>
@@ -117,8 +117,7 @@ private:
 ILogger& default_logger() noexcept;
 void     set_default_logger(std::shared_ptr<ILogger> logger) noexcept;
 
-/// Convenience entry points. Phase 1 adds fmt-style formatting wrappers
-/// once spdlog is integrated.
+/// Convenience entry points.
 inline void log(LogLevel level, std::string_view module,
                 std::string_view message) noexcept {
     default_logger().log(level, module, message);

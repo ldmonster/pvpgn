@@ -14,10 +14,6 @@ KickConnection::execute(domain::SessionId session_id, std::string_view reason) {
 
     // 2. Send disconnect message to session
     // (Would route a disconnect/kick message to the session)
-    // auto route_result = router_->route_to_session(session_id, kick_message);
-    // if (!route_result) {
-    //     return core::fail(KickConnectionError::RoutingFailed);
-    // }
 
     // 3. Unregister the session
     registry_->detach(session_id);

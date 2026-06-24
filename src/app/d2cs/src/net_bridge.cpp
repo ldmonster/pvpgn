@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R241: observation bridges for d2cs net.cpp socket helpers.
+// Observation bridges for d2cs net.cpp socket helpers.
 
 #include "app/d2cs/legacy_d2cs_bridges/net_bridge.hpp"
 

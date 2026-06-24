@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file script_host.hpp
-/// Application-layer port for an embedded scripting host (Lua API v2, R348/R349).
+/// Application-layer port for an embedded scripting host (Lua API v2).
 ///
 /// Defines the `IScriptHost` interface that application use cases and
 /// integration glue depend on without pulling in any scripting-runtime headers

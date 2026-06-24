@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/scripting/plugin/abi_capability_parity_test.cpp -- Plan 12.
+// tests/unit/infra/scripting/plugin/abi_capability_parity_test.cpp
 //
 // The public C ABI (`pvpgn/plugin/abi.h`) and the host's internal capability
 // enforcement enum MUST agree on every capability bit value — otherwise a

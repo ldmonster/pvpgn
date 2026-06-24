@@ -2,8 +2,7 @@
 #pragma once
 
 /// @file ip_ban_repository.hpp
-/// Plan 07: a single, driver-parameterized IP-ban repository over `IDbDriver`.
-/// Replaces the per-backend `infra/{sqlite,mysql,postgres}/ip_ban_repository.cpp`.
+/// A single, driver-parameterized IP-ban repository over `IDbDriver`.
 
 #include <cstdint>
 #include <functional>

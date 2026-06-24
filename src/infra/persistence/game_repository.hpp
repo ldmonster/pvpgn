@@ -2,8 +2,7 @@
 #pragma once
 
 /// @file game_repository.hpp
-/// Plan 07: a single, driver-parameterized game repository over `IDbDriver`.
-/// Replaces the per-backend `infra/{sqlite,mysql,postgres}/game_repository.cpp`.
+/// A single, driver-parameterized game repository over `IDbDriver`.
 
 #include <cstdint>
 #include <memory>

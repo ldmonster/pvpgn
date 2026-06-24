@@ -10,7 +10,7 @@
 ///
 /// The use-case is pure: collaborators are constructor-injected by reference.
 ///
-/// R305: `LogoutUser` now accepts an optional `LeaveChannel*` use-case.
+/// `LogoutUser` accepts an optional `LeaveChannel*` use-case.
 /// When provided, it iterates `IChannelRepository` to find any channel the
 /// account is currently in and calls `LeaveChannel::execute()` to remove
 /// the membership before detaching the session.  This prevents ghost members
@@ -45,7 +45,7 @@ public:
         : sessions_(sessions), channels_(channels), games_(games), bus_(bus)
         , leave_channel_(nullptr) {}
 
-    /// Construct with channel cleanup (R305).
+    /// Construct with channel cleanup.
     ///
     /// @param leave_channel  Non-owning pointer to the LeaveChannel use-case.
     ///                       Must outlive this object.  Pass nullptr to skip

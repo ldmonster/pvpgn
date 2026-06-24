@@ -6,7 +6,7 @@
 ///
 /// Accounts are persisted to PostgreSQL; all other repositories fall back to
 /// in-memory implementations (channels, games, clans, etc. are session-scoped
-/// or not yet migrated to PostgreSQL).
+/// or not yet backed by PostgreSQL).
 
 #include <memory>
 

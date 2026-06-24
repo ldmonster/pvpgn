@@ -5,7 +5,7 @@
 /// Use-case: rotate an account's password after verifying the
 /// caller knows the current one. Mirrors the legacy
 /// `CLIENT_CHANGEPASSWDREQ` flow but with the bnetd-side mutation
-/// expressed purely against the v3 domain aggregate.
+/// expressed purely against the domain aggregate.
 ///
 /// The use-case is pure: no globals, no clocks; collaborators are
 /// reference-injected. Successful rotation:

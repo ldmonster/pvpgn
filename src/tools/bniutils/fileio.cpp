@@ -35,7 +35,7 @@ namespace pvpgn
 		 *
 		 * Byte-order conversion is delegated to `pvpgn::core::read_le` /
 		 * `read_be` / `write_le` / `write_be` so the byte-fiddling lives
-		 * in exactly one place in the v3 tree.
+		 * in exactly one place.
 		 * ----------------------------------------------------------------- */
 
 		namespace

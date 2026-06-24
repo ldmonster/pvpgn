@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // domain/identity/events.hpp — Domain events for the identity bounded context.
-// Plan 07: Bounded Contexts and Layering
 
 namespace pvpgn::domain::identity {
 

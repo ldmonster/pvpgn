@@ -2,9 +2,8 @@
 //
 // Compile-time smoke probe for the v3 client vendored headers.  This
 // translation unit exists only so the build catches header
-// regressions even before any tool is rewritten to consume them.  It
-// produces no runtime code; the tiny exported anchor keeps the
-// object from being dropped by the linker.
+// regressions.  It produces no runtime code; the tiny exported anchor
+// keeps the object from being dropped by the linker.
 
 #include "bnclient_net.hpp"
 #include "bnclient_proto.hpp"

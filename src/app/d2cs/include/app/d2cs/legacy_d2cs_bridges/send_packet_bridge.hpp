@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file send_packet_bridge.hpp
-/// Strangler-fig sink for the legacy d2cs server: hand a v3-built
+/// Sink for the legacy d2cs server: hand a v3-built
 /// byte buffer to the legacy `t_d2cs_connection` out-queue.
 ///
 /// Pattern parity with

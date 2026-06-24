@@ -15,9 +15,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-// Shared internal preamble for the addr.cpp split (Plan 02 full-split:
-// one TU per file). Each addr_*.cpp includes this to get the platform
-// socket headers and internal struct access.
+// Shared internal preamble for the addr_*.cpp files. Each addr_*.cpp
+// includes this to get the platform socket headers and internal struct
+// access.
 #ifndef INCLUDED_ADDR_INTERNAL_H
 #define INCLUDED_ADDR_INTERNAL_H
 

@@ -266,7 +266,7 @@ TEST_CASE("config: loads from disk", "[infra][config]") {
     REQUIRE(r.value().servername == "FromDisk");
 }
 
-// ── [observability] (Plan 11) ─────────────────────────────────────────────────
+// ── [observability] ───────────────────────────────────────────────────────────
 
 TEST_CASE("config: [observability] defaults", "[infra][config]") {
     auto r = infra::config::parse_server_config(""sv);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Legacy bridge: parse `bnmaps.conf` (a.k.a. the legacy "mapsfile") into
-// typed v3 maplists data. The legacy text format is whitespace-delimited:
+// Parse `bnmaps.conf` (a.k.a. the legacy "mapsfile") into typed
+// maplists data. The legacy text format is whitespace-delimited:
 //
 //     <CLIENTTAG>  <queue_type>  <mapname>
 //     # comment

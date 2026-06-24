@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/domain/realm/character_list_test.cpp -- Plan 10 backfill.
-//
 // Unit tests for the `CharacterList` aggregate (src/domain/realm/character_list.cpp).
 // Invariants pinned here:
 //   - count() never exceeds max_capacity(),

@@ -4,9 +4,8 @@
 /// @file scheduler.hpp
 /// Abstract scheduler interface — replaces the legacy `t_timer` linked
 /// list. The production implementation lives in `infrastructure/async/`
-/// (Asio-backed, Phase 2). For Phase 1, a `ManualScheduler` is provided
-/// for tests so domain code can be exercised deterministically without
-/// pulling Asio in.
+/// (Asio-backed). A `ManualScheduler` is provided for tests so domain
+/// code can be exercised deterministically without pulling Asio in.
 
 #include <chrono>
 #include <cstdint>

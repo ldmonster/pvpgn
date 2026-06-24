@@ -16,7 +16,6 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 	*/
-/* setup_before.h dropped: standalone v3 tool */
 #include "tga.h"
 #include <print>
 
@@ -103,9 +102,6 @@ namespace pvpgn
 								std::println(stderr, "RLE_decompress: short RAW packet (expected {} bytes) (EOF)", pixelsize*count);
 							else
 								std::println(stderr, "RLE_decompress: short RAW packet (expected {} bytes) (std::fread: {})", pixelsize*count, std::strerror(errno));
-#if 0
-							return -1;
-#endif
 						}
 						bufp += count*pixelsize;
 						bufi += count*pixelsize;
@@ -116,9 +112,6 @@ namespace pvpgn
 								std::println(stderr, "RLE_decompress: short RLE packet (expected {} bytes) (EOF)", pixelsize);
 							else
 								std::println(stderr, "RLE_decompress: short RLE packet (expected {} bytes) (std::fread: {})", pixelsize, std::strerror(errno));
-#if 0
-							return -1;
-#endif
 						}
 						if (count<2) {
 							std::println(stderr, "RLE_decompress: suspicious RLE repetition count {}", count);

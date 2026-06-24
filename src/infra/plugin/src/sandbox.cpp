@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * @file sandbox.cpp
- * @brief seccomp-BPF sandbox implementation (R347).
+ * @brief seccomp-BPF sandbox implementation.
  *
  * Two compilation paths:
  *

@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file lifecycle.hpp
-/// V3 packet-pump lifecycle FSM (R179.a scaffold).
+/// Packet-pump lifecycle FSM.
 ///
 /// The legacy bnet listener accepts a TCP connection in
 /// `conn_class_init`, reads exactly one byte
@@ -14,8 +14,8 @@
 /// This header captures that exact state machine as a pure
 /// function. No I/O, no legacy types: feed it `(current_state,
 /// cclass_byte)` and get back the next state. The packet pump
-/// (future R179.c+) will drive this FSM directly off the bytes
-/// returned by `protocol/bnet/init_codec.hpp`.
+/// drives this FSM directly off the bytes returned by
+/// `protocol/bnet/init_codec.hpp`.
 
 #include "application/bnet_packet_pump/conn_class.hpp"
 
@@ -27,7 +27,7 @@
 
 namespace pvpgn::application::bnet_packet_pump {
 
-/// FSM states for a single v3 bnet connection.
+/// FSM states for a single bnet connection.
 enum class Lifecycle : std::uint8_t {
     kAwaitingInit = 0,  ///< Just-accepted; expects one cclass byte.
     kDispatching  = 1,  ///< Init byte received; per-class handler owns the connection.

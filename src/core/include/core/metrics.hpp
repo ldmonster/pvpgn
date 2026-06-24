@@ -2,8 +2,7 @@
 #pragma once
 
 /// @file metrics.hpp
-/// Core metrics interfaces and process-wide default registry facade
-/// (Plan 10 — Observability and Operations).
+/// Core metrics interfaces and process-wide default registry facade.
 ///
 /// This header lives in `core/` (the lowest layer) and defines lightweight
 /// metric primitive interfaces that have no external dependencies.
@@ -16,7 +15,7 @@
 /// Metric naming convention (Prometheus):
 ///   pvpgn_<context>_<noun>_<unit>
 ///
-/// Mandatory per-use-case metrics (Plan 10 §7):
+/// Mandatory per-use-case metrics:
 ///   pvpgn_<ctx>_requests_total{op,result}   — ICounter
 ///   pvpgn_<ctx>_request_seconds{op}         — IHistogram
 ///   pvpgn_<ctx>_inflight{op}                — IGauge

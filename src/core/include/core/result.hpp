@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file result.hpp
-/// A minimal `Result<T, E>` ("either" / "expected") used across the v3 tree.
+/// A minimal `Result<T, E>` ("either" / "expected").
 ///
 /// We do not yet require C++23's `std::expected`. This implementation is
 /// intentionally small and dependency-free: ~100 LOC, value semantics,
@@ -152,7 +152,7 @@ private:
 template <class T = void>
 using Status = Result<T, Error>;
 
-/// R214 nodiscard convention
+/// nodiscard convention
 /// ------------------------
 /// `Result<T,E>` is `[[nodiscard]]` at the class level (see above), so every
 /// function that returns a `Result` or `Status` already triggers a warning

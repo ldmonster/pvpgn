@@ -2,7 +2,7 @@
 //
 // tests/unit/protocol/bnet/fsm_auth_create_login_test.cpp
 //
-// Fast FSM-level coverage for the real OLS auth path wired in M1 Step 1.5:
+// Fast FSM-level coverage for the real OLS auth path:
 // SID_CREATEACCTREQ1 account creation and SID_LOGONRESPONSE2 credential login,
 // driven through BnetFsm with the genuine LoginUser / CreateAccount use-cases
 // over in-memory repositories (no sockets, no bnetd process).

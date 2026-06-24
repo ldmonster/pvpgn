@@ -19,10 +19,10 @@
 /// `src/bnetd/prefs.h`, matching every field in the expanded
 /// `ServerConfig` struct.
 ///
-/// Round 331: Secret fields (`storage_dsn`, `wol_autoupdate_password`)
-/// now call `.reveal()` to extract the underlying string.
+/// Secret fields (`storage_dsn`, `wol_autoupdate_password`) call
+/// `.reveal()` to extract the underlying string.
 ///
-/// TODO(R333): retire this shim once all three consumers are ported to
+/// TODO: retire this shim once all three consumers are ported to
 /// use `ServerConfig` directly:
 ///   - src/v3/integration/legacy_bnetd/src/prefs_bridge.cpp
 ///   - src/v3/infra/config/include/infra/config/prefs_dump.hpp

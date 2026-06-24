@@ -36,9 +36,6 @@ core::Result<void, core::Error> CharacterPersistenceUseCase::save(const SaveChar
     }
 
     // TODO: Implement dupe checking if enabled
-    // if (cmd.check_dupes) {
-    //     // Load other characters and check for dupes
-    // }
 
     // Store the save file
     return store_.store(cmd.account_name, cmd.char_name, cmd.save_data);

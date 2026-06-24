@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R234(1): observation bridge for d2cs main event-loop entry.
+// Observation bridge for d2cs main event-loop entry.
 
 #include "app/d2cs/legacy_d2cs_bridges/server_bridge.hpp"
 

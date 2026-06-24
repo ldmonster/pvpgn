@@ -8,7 +8,7 @@
 // non-canonical mode but does NOT echo (legacy behavior: the server
 // echoes back, the user types blind).
 //
-// This is the v3 deep-modernization rewrite.  Self-contained C++20:
+// Self-contained C++20:
 // no legacy `common/*` or `compat/*` headers.  Only depends on
 // `core` (for logging macros) and the vendored
 // `bnclient_net.hpp` / `bnclient_proto.hpp` headers in this

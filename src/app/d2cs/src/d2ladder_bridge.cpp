@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R233(1): observation bridge for d2cs ladder load/destroy lifecycle.
+// Observation bridge for d2cs ladder load/destroy lifecycle.
 
 #include "app/d2cs/legacy_d2cs_bridges/d2ladder_bridge.hpp"
 

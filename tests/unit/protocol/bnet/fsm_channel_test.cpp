@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R306 — BnetFsm Channel Operation Tests
+// BnetFsm Channel Operation Tests
 //
 // Covers:
 //   - SID_CHANNELLIST (0x0B): client sends channel list request, server
@@ -110,7 +110,7 @@ const ChatEvent* last_chat_event_with_id(const std::vector<ServerMessage>& sent,
 }  // namespace
 
 // ===========================================================================
-// R306-1: SID_CHANNELLIST (0x0B) — channel list request/response
+// SID_CHANNELLIST (0x0B) — channel list request/response
 // ===========================================================================
 
 TEST_CASE("BnetFsm R306: ChannelListRequest in InChat returns ChannelListReply",
@@ -172,7 +172,7 @@ TEST_CASE("BnetFsm R306: ChannelListRequest before InChat is accepted as no-op",
 }
 
 // ===========================================================================
-// R306-2: SID_JOINCHANNEL (0x0C) — join channel, EID_CHANNEL reply
+// SID_JOINCHANNEL (0x0C) — join channel, EID_CHANNEL reply
 // ===========================================================================
 
 TEST_CASE("BnetFsm R306: JOINCHANNEL sends EID_CHANNEL (event_id=3)",
@@ -244,7 +244,7 @@ TEST_CASE("BnetFsm R306: second JOINCHANNEL replaces first channel",
 }
 
 // ===========================================================================
-// R306-3: SID_CHATCOMMAND (0x0E) — chat message echoes EID_TALK
+// SID_CHATCOMMAND (0x0E) — chat message echoes EID_TALK
 // ===========================================================================
 
 TEST_CASE("BnetFsm R306: CHATCOMMAND echoes EID_TALK (event_id=5)",
@@ -294,7 +294,7 @@ TEST_CASE("BnetFsm R306: CHATCOMMAND empty message is accepted",
 }
 
 // ===========================================================================
-// R306-4: SID_CHATCOMMAND with /help — server responds with EID_INFO
+// SID_CHATCOMMAND with /help — server responds with EID_INFO
 // ===========================================================================
 
 TEST_CASE("BnetFsm R306: CHATCOMMAND /help returns EID_INFO (event_id=4)",
@@ -343,7 +343,7 @@ TEST_CASE("BnetFsm R306: CHATCOMMAND /unknown_cmd returns EID_INFO (event_id=4)"
 }
 
 // ===========================================================================
-// R306-5: EID_SHOWUSER roster — joining a channel with existing members
+// EID_SHOWUSER roster — joining a channel with existing members
 // ===========================================================================
 
 TEST_CASE("BnetFsm R306: JOINCHANNEL sends at least one ChatEvent",
@@ -379,7 +379,7 @@ TEST_CASE("BnetFsm R306: JOINCHANNEL EID_CHANNEL is the last ChatEvent sent",
 }
 
 // ===========================================================================
-// R306-6: LEAVECHANNEL after JOIN
+// LEAVECHANNEL after JOIN
 // ===========================================================================
 
 TEST_CASE("BnetFsm R306: LEAVECHANNEL after JOIN keeps InChat state",

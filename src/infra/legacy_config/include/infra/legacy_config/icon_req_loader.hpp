@@ -15,7 +15,7 @@
 // `anongame_infos_get_ICON_REQ_TOURNEY(level)` (in
 // `bnetd/anongame_infos.cpp`) read directly out of these tables.
 //
-// This loader returns a typed, copyable `IconReqTable` so the v3
+// This loader returns a typed, copyable `IconReqTable` so the
 // icon-table service can run pure (no global state, no file IO).
 
 #pragma once

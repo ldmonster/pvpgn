@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/persistence/sql_realm_repository_test.cpp -- Plan 07.
+// tests/unit/infra/persistence/sql_realm_repository_test.cpp
 //
-// Verifies the consolidated SqlRealmRepository over the recording fake
+// Verifies the SqlRealmRepository over the recording fake
 // IDbDriver (no sqlite needed). Pins SQL generation, parameter binding, the
 // COUNT path, and the row → Realm rehydration (including the active flag).
 

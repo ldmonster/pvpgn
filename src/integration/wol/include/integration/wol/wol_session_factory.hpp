@@ -24,7 +24,7 @@ public:
     explicit WolSession(std::string session_id);
     
     // Feed raw bytes from client.
-    // R212: takes canonical core::ByteView (std::span<const std::byte>) at the
+    // Takes canonical core::ByteView (std::span<const std::byte>) at the
     // integration boundary; internal buffer remains uint8_t-typed.
     core::Result<std::vector<uint8_t>, core::Error> feed(core::ByteView data);
     

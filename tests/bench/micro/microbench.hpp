@@ -2,15 +2,14 @@
 #pragma once
 
 /// @file microbench.hpp
-/// Plan 13 — a tiny, dependency-free microbenchmark harness.
+/// A tiny, dependency-free microbenchmark harness.
 ///
-/// The plan names `nanobench` (vcpkg, header-only); that dependency is not
-/// available in every build environment, so this in-tree equivalent provides
-/// the same essentials: warm-up, repeated samples, and a **median + MAD**
-/// summary (the plan's Risks section mandates median-of-N + MAD so a noisy CI
-/// runner does not flap the gate). Results serialise to a `bench-results.json`
-/// for the runner / regression gate. Swap in nanobench later without changing
-/// the bench cases if a richer report is wanted.
+/// `nanobench` (vcpkg, header-only) is not available in every build
+/// environment, so this in-tree equivalent provides the same essentials:
+/// warm-up, repeated samples, and a **median + MAD** summary (median-of-N + MAD
+/// so a noisy CI runner does not flap the gate). Results serialise to a
+/// `bench-results.json` for the runner / regression gate. Swap in nanobench
+/// later without changing the bench cases if a richer report is wanted.
 
 #include <algorithm>
 #include <chrono>

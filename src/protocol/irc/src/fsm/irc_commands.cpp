@@ -95,7 +95,7 @@ core::Status<> IrcFsm::on_join(const Message& m) {
         chan_name.erase(0, 1);
     }
 
-    // R301: relay via JoinChannel use-case when available.
+    // Relay via JoinChannel use-case when available.
     if (join_channel_) {
         auto join_result = join_channel_->execute(
             account_id_, chan_name, domain::ClientTag{});
@@ -142,7 +142,7 @@ core::Status<> IrcFsm::on_join(const Message& m) {
         std::vector<std::string> member_nicks;
         for (const auto& mid : join_result.value().channel.member_ids()) {
             // We only have account IDs here; use numeric string as placeholder
-            // until a nick-lookup service is wired in Phase H.
+            // until a nick-lookup service is wired in.
             member_nicks.push_back(std::to_string(mid.value()));
         }
         s = send_names_reply(channel_, member_nicks);
@@ -198,7 +198,7 @@ core::Status<> IrcFsm::on_part(const Message& m) {
 
     const std::string reason = (m.params.size() >= 2) ? m.params[1] : "";
 
-    // R301: relay via LeaveChannel use-case when available.
+    // Relay via LeaveChannel use-case when available.
     if (leave_channel_ && channel_id_.value() != 0) {
         auto leave_result = leave_channel_->execute(channel_id_, account_id_);
         // On error, still proceed with local state cleanup (best-effort).
@@ -241,7 +241,7 @@ core::Status<> IrcFsm::on_privmsg(const Message& m) {
 
     // Channel message (target starts with '#').
     if (!target.empty() && target[0] == '#') {
-        // R301: relay via PostMessage use-case when available.
+        // Relay via PostMessage use-case when available.
         if (post_message_ && channel_id_.value() != 0) {
             auto chat_msg_result = domain::ChatMessage::create(text);
             if (!chat_msg_result) {
@@ -267,7 +267,7 @@ core::Status<> IrcFsm::on_privmsg(const Message& m) {
         return core::ok();
     }
 
-    // Private message to a nick — Phase H; send 401 ERR_NOSUCHNICK.
+    // Private message to a nick; send 401 ERR_NOSUCHNICK.
     return send_numeric(401, nick_, target + " :No such nick");
 }
 
@@ -418,7 +418,7 @@ core::Status<> IrcFsm::on_topic(const Message& m) {
     }
 
     if (m.params.size() >= 2) {
-        // SET topic — Phase H: no set_topic use-case yet; return 482.
+        // SET topic — no set_topic use-case yet; return 482.
         // 482 ERR_CHANOPRIVSNEEDED
         return send_numeric(482, nick_,
                             channel_ + " :You're not channel operator");
@@ -479,7 +479,7 @@ core::Status<> IrcFsm::on_kick(const Message& m) {
         return send_numeric(403, nick_, target_chan + " :No such channel");
     }
 
-    // Phase H: kick is not yet implemented; return 482 ERR_CHANOPRIVSNEEDED.
+    // Kick is not yet implemented; return 482 ERR_CHANOPRIVSNEEDED.
     return send_numeric(482, nick_,
                         channel_ + " :You're not channel operator");
 }
@@ -497,7 +497,7 @@ core::Status<> IrcFsm::on_list(const Message&) {
     auto s = send_numeric(321, nick_, "Channel :Users  Name");
     if (!s) return s;
 
-    // R301: relay via ListChannels use-case when available.
+    // Relay via ListChannels use-case when available.
     if (list_channels_) {
         application::chat::ListChannelsRequest req;
         req.max_results   = 100;

@@ -26,7 +26,7 @@
 ///
 /// All states accept PING (→ PONG) and QUIT (→ Disconnecting).
 ///
-/// ## R289 — LoginUser auth wiring
+/// ## LoginUser auth wiring
 ///
 /// When constructed with a `LoginUser&` reference, `on_pass()` calls
 /// `login_user_.execute(LoginRequest{...})` using OLS (old-style) auth.
@@ -84,7 +84,7 @@ public:
     explicit WolFsm(std::shared_ptr<IWolSessionContext> ctx) noexcept
         : ctx_(std::move(ctx)), login_user_(nullptr) {}
 
-    /// Construct with a LoginUser use-case (R289 — production mode).
+    /// Construct with a LoginUser use-case (production mode).
     /// on_pass() calls login_user_.execute() for OLS credential check.
     /// @param ctx        Session I/O context. Non-owning shared ownership.
     /// @param login_user OLS authentication use-case. Non-owning ref;
@@ -93,7 +93,7 @@ public:
            application::auth::LoginUser& login_user) noexcept
         : ctx_(std::move(ctx)), login_user_(&login_user) {}
 
-    /// Construct with full chat use-cases (R299/R300 — production mode).
+    /// Construct with full chat use-cases (production mode).
     /// @param ctx          Session I/O context.
     /// @param login_user   OLS authentication use-case (non-owning, may be null).
     /// @param list_channels ListChannels use-case for LIST command.
@@ -195,11 +195,11 @@ private:
 
     std::shared_ptr<IWolSessionContext> ctx_;
 
-    /// Non-owning pointer to the OLS auth use-case (R289).
+    /// Non-owning pointer to the OLS auth use-case.
     /// Null when constructed without auth (skeleton / test mode).
     application::auth::LoginUser* login_user_;
 
-    /// Chat use-cases (R299/R300). Null when not wired (stub mode).
+    /// Chat use-cases. Null when not wired (stub mode).
     std::shared_ptr<application::chat::ListChannels> list_channels_;
     std::shared_ptr<application::chat::JoinChannel>  join_channel_;
     std::shared_ptr<application::chat::PostMessage>  post_message_;

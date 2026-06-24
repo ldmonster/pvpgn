@@ -69,9 +69,8 @@ public:
     /// caller must have completed any `socket(2)`/`bind(2)`/
     /// `setsockopt(2)`/non-blocking setup it cares about. After
     /// this call the endpoint owns the descriptor — do **not**
-    /// `close(2)` it from outside. Used by the v3 strangler-fig
-    /// integration to take over a UDP fd that the legacy bnetd
-    /// server already opened and bound.
+    /// `close(2)` it from outside. Used to take over a UDP fd that
+    /// the legacy bnetd server already opened and bound.
     core::Result<boost::asio::ip::udp::endpoint>
     adopt_native_handle(int fd, bool ipv6 = false);
 

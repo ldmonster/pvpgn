@@ -15,11 +15,11 @@
 # ------------
 #   application_ports       — IUnitOfWorkFactory, IEventLoop, IChannelRepository,
 #                             IAccountRepository, ISessionRegistry port interfaces
-#   application_auth        — LoginUserNls, INlsCredentialStore (R285)
-#   application_chat        — JoinChannel, PostMessage, LeaveChannel, ListChannels (R304)
+#   application_auth        — LoginUserNls, INlsCredentialStore
+#   application_chat        — JoinChannel, PostMessage, LeaveChannel, ListChannels
 #   domain_chat             — Channel aggregate, ChannelPolicy, ChannelFlag
 #
-# Optional (future Phase3 wiring):
+# Optional (future wiring):
 #   infra_inmemory     — InMemoryUnitOfWorkFactory
 #   infra_net          — IoRuntime, TcpAcceptor (Boost.Asio)
 

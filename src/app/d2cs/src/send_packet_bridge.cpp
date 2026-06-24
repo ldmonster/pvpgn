@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Dispatcher half of the v3 -> legacy-d2cs send-packet strangler
-// bridge. Mirrors `integration/legacy_bnetd/src/send_packet_bridge.cpp`.
+// Dispatcher half of the d2cs send-packet bridge.
+// Mirrors `integration/legacy_bnetd/src/send_packet_bridge.cpp`.
 //
 // The legacy-aware handler is installed at runtime by the future
 // `integration_legacy_d2cs_linked` library (once a `d2cs_legacy`

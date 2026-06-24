@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new behavioural tests for Account aggregate methods the existing
+// Behavioural tests for Account aggregate methods the existing
 // account_test.cpp does not reach: the must-change-password rotation flags
 // (require_password_change / clear_password_change_requirement and their
 // edge-only event emission + idempotency), change_password's interaction with

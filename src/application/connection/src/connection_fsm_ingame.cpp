@@ -4,8 +4,8 @@
 ///
 /// Handlers in this TU:
 ///   on_leave_game()       — SID_STOPADV (0x07): leave/close the current game
-///   on_d2_char_select()   — SID_D2GAMELISTEX (0x68): D2 character select (R287)
-///   on_warcraft_general() — SID_WARCRAFTGENERAL (0x44): WAR3 route token (R288)
+///   on_d2_char_select()   — SID_D2GAMELISTEX (0x68): D2 character select
+///   on_warcraft_general() — SID_WARCRAFTGENERAL (0x44): WAR3 route token
 
 #include "application/connection/connection_fsm.hpp"
 
@@ -42,7 +42,7 @@ core::Status<> ConnectionFsm::on_leave_game(std::span<const std::byte> payload) 
 }
 
 // ---------------------------------------------------------------------------
-// R287 — D2 character select handler
+// D2 character select handler
 // ---------------------------------------------------------------------------
 
 core::Status<> ConnectionFsm::on_d2_char_select(
@@ -74,7 +74,7 @@ core::Status<> ConnectionFsm::on_d2_char_select(
 }
 
 // ---------------------------------------------------------------------------
-// R288 — WAR3 route token handler
+// WAR3 route token handler
 // ---------------------------------------------------------------------------
 
 core::Status<> ConnectionFsm::on_warcraft_general(

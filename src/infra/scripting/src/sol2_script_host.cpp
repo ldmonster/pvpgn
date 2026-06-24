@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * @file sol2_script_host.cpp
- * @brief sol2 / Lua 5.4 implementation of IScriptHost (R348).
+ * @brief sol2 / Lua 5.4 implementation of IScriptHost.
  */
 
 #include "infra/scripting/sol2_script_host.hpp"

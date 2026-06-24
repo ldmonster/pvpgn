@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new edge-case unit tests for GameServerQueue (gs_queue.cpp).
+// Edge-case unit tests for GameServerQueue (gs_queue.cpp).
 // Complements gs_queue_test.cpp by exercising not-found branches, server
 // selection filters, stale cleanup, and re-registration semantics.
 

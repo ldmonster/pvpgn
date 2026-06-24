@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/crypto/bnet_srp3_property_test.cpp -- Plan 10 property tests.
+// tests/unit/infra/crypto/bnet_srp3_property_test.cpp -- property tests.
 //
 // Mathematical-invariant properties for the Battle.net SRP-3 handshake
 // (`infra::crypto::BnetSrp3`). For randomized credentials and randomized

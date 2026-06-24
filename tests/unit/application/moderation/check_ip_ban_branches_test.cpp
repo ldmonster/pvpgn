@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new branch coverage for `application::moderation::CheckIpBan`.
+// Branch coverage for `application::moderation::CheckIpBan`.
 // The existing check_ip_ban_test.cpp only exercises the "not banned"
 // path with a stub repository. These cases drive the remaining branches:
 //   - banned IP whose matching entry supplies reason + expiry,

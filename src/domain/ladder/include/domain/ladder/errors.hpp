@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // domain/ladder/errors.hpp — Error codes for the ladder bounded context.
-// Plan 07: Bounded Contexts and Layering
 
 #include "core/error.hpp"
 

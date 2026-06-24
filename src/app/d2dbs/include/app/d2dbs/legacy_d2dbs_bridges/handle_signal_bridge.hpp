@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file handle_signal_bridge.hpp
-/// R232(3) -- observation-only strangler-fig bridges for the legacy
+/// Observation-only bridges for the legacy
 /// signal-handling lifecycle in `src/d2dbs/handle_signal.cpp`:
 ///
 ///   * `d2dbs_handle_signal_init()` -- one-shot signal-handler

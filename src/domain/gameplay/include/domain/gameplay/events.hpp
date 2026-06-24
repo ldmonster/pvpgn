@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // domain/gameplay/events.hpp — Domain events for the gameplay bounded context.
-// Plan 07: Bounded Contexts and Layering
 
 namespace pvpgn::domain::gameplay {
 

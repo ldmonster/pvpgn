@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new error/edge coverage for four realm use-cases, filling the
+// Error/edge coverage for four realm use-cases, filling the
 // branches the per-use-case base tests skip:
 //
 //   join_game_server.cpp  - empty char_name guard (InvalidArgument)

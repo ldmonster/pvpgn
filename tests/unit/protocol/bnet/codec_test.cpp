@@ -259,7 +259,7 @@ TEST_CASE("bnet codec: SID_CHATEVENT (0x0F) TALK byte parity vs legacy",
     // fields, so byte parity requires the caller to set
     //   acct_number  = 0xBAADF00Du
     //   registration = 0xBAADF00Du
-    // which is exactly what the strangler-fig bridge will emit.
+    // which is exactly what the bridge will emit.
     ChatEvent m;
     m.event_id     = 0x05u;                    // SERVER_MESSAGE_TYPE_TALK
     m.flags        = 0u;

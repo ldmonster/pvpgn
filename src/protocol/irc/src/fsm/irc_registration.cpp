@@ -34,7 +34,7 @@ core::Status<> IrcFsm::try_complete_registration() {
         return core::ok();
 
     if (login_user_ != nullptr) {
-        // --- OLS authentication path (R290) ---
+        // --- OLS authentication path ---
         auto name_result = domain::UserName::parse(nick_);
         if (!name_result) {
             // 432 ERR_ERRONEUSNICKNAME
@@ -76,7 +76,7 @@ core::Status<> IrcFsm::try_complete_registration() {
 }
 
 // ---------------------------------------------------------------------------
-// R290 — PASS handler
+// PASS handler
 // ---------------------------------------------------------------------------
 
 core::Status<> IrcFsm::on_pass(const Message& m) {

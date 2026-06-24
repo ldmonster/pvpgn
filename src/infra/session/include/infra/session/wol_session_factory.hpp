@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file wol_session_factory.hpp
-/// SessionFactory for WOL (Warcraft Online) game server (Phase 6b).
+/// SessionFactory for WOL (Warcraft Online) game server.
 /// Creates WolFsm for each accepted connection.
 
 #include <atomic>

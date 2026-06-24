@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// application/ads/ads_repository.hpp -- R171.b.
-//
 // Repository abstraction over the legacy `AdBannerList` global.
 // Lets the integration bridge inject any backend (legacy banner
 // list, a future TOML-driven source, an in-test fake) without the

@@ -7,7 +7,7 @@
 /// Unlike the unit tests (which use in-memory fakes), these drive the *real*
 /// `SQLiteUnitOfWorkFactory` against a real on-disk SQLite file: the factory
 /// runs the embedded migrations, hands out `IUnitOfWork` bundles whose
-/// repositories are the consolidated SQL-backed implementations, and
+/// repositories are the SQL-backed implementations, and
 /// begin/commit/rollback route through the shared connection. This is the only
 /// place the following critical behaviours are exercised end-to-end:
 ///
@@ -18,7 +18,7 @@
 ///     atomically (all-or-nothing across bounded contexts);
 ///   * data survives a factory teardown + reopen of the same file, and the
 ///     migration runner is idempotent on an already-migrated DB;
-///   * the ISP `UnitOfWorkGuard` / `ITransaction` RAII path (ADR 0012, M4)
+///   * the ISP `UnitOfWorkGuard` / `ITransaction` RAII path
 ///     commits on success and rolls back on scope exit, against a real DB.
 ///
 /// SQLite tests always run (on-disk temp files; no external services).
@@ -242,7 +242,7 @@ TEST_CASE("SQLite UoW: data survives factory teardown and file reopen",
 }
 
 // ---------------------------------------------------------------------------
-// UnitOfWorkGuard / ITransaction RAII path (ADR 0012, M4)
+// UnitOfWorkGuard / ITransaction RAII path
 // ---------------------------------------------------------------------------
 
 TEST_CASE("SQLite UoW: UnitOfWorkGuard commits on success",

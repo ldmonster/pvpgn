@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file driver.hpp
-/// V3 packet-pump driver class (R180.c).
+/// Packet-pump driver class.
 ///
 /// Owns a `Lifecycle` per connection and exposes a single
 /// `feed(span)` entry that mirrors what
@@ -14,8 +14,7 @@
 /// Still pure-C++: no legacy types, no I/O, no `t_connection`,
 /// no `t_packet`. The driver is constructible / movable, and
 /// every method is `[[nodiscard]]`-friendly. Integration with
-/// `LegacyBnetFrameRouter` lands in a future round (after R180.a
-/// / R180.b clear the linked-adapter pivots).
+/// `LegacyBnetFrameRouter` lands in a future round.
 
 #include "application/bnet_packet_pump/lifecycle.hpp"
 #include "application/bnet_packet_pump/init_side_effects.hpp"
@@ -37,8 +36,8 @@ enum class FeedOutcome : std::uint8_t {
     kAlreadyOpen  = 2,  ///< Frame arrived after init handshake -- caller should hand off to per-class handler.
     kMalformed    = 3,  ///< Frame size didn't match the expected single byte.
     kClosed       = 4,  ///< Driver is in terminal kClosed state -- caller should drop.
-    kRateLimited  = 5,  ///< R182.a: per-IP rate-limit exceeded; reject without opening.
-    kD2csIpDenied = 6,  ///< R182.a: D2CS_BNETD client whose IP is not in the realmlist.
+    kRateLimited  = 5,  ///< per-IP rate-limit exceeded; reject without opening.
+    kD2csIpDenied = 6,  ///< D2CS_BNETD client whose IP is not in the realmlist.
 };
 
 constexpr std::string_view to_string(FeedOutcome o) noexcept {
@@ -54,7 +53,7 @@ constexpr std::string_view to_string(FeedOutcome o) noexcept {
     return "?";
 }
 
-/// R182.a: per-IP / realmlist policy the driver consults BEFORE
+/// Per-IP / realmlist policy the driver consults BEFORE
 /// the cclass-byte FSM step. Mirrors the legacy gates inside
 /// `pvpgn_v3_init_conn_apply_ex`.
 ///
@@ -68,7 +67,7 @@ struct PumpPolicy {
     bool         d2cs_ip_allowed  = true;
 };
 
-/// V3 packet-pump driver. One instance per connection.
+/// Packet-pump driver. One instance per connection.
 class PacketPumpDriver {
 public:
     [[nodiscard]] constexpr Lifecycle state()       const noexcept { return state_; }
@@ -89,7 +88,7 @@ public:
         return feed(frame, PumpPolicy{});
     }
 
-    /// R182.a: policy-aware overload. Consults `application/init`'s
+    /// Policy-aware overload. Consults `application/init`'s
     /// `dispatch_init_conn` so per-IP rate limits and the D2CS_BNETD
     /// realmlist gate are applied BEFORE the cclass byte opens
     /// the connection. The byte-only `feed()` above calls this
@@ -149,10 +148,9 @@ public:
         class_ = ConnClass::kNone;
     }
 
-    /// R186.a: policy-aware feed that ALSO invokes the
+    /// Policy-aware feed that ALSO invokes the
     /// `InitSideEffects` callback table on accept. This is the
-    /// entry the linked half uses now that `apply_via_legacy` is
-    /// being retired: the driver consumes the cclass byte,
+    /// entry the linked half uses: the driver consumes the cclass byte,
     /// consults `dispatch_init_conn` against `policy`, and on
     /// accept runs `set_connected` -> `set_class` -> (if
     /// `kD2csBnetd`) `apply_d2cs_init`. If `apply_d2cs_init`

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R236(2): observation bridges for d2cs server-queue lifecycle.
+// Observation bridges for d2cs server-queue lifecycle.
 
 #include "app/d2cs/legacy_d2cs_bridges/serverqueue_bridge.hpp"
 

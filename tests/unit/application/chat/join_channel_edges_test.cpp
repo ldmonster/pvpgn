@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new edge/error-branch tests for `application::chat::JoinChannel`.
+// Edge/error-branch tests for `application::chat::JoinChannel`.
 // Exercises the domain-outcome mapping arms (Locked / Banned /
 // WrongClientTag / Full) that the happy-path tests in
 // join_channel_test.cpp do not reach. Channels are pre-seeded with a

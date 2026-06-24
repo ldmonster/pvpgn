@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file metrics_handler.cpp
-/// Implementation of MetricsHandler (Plan 10 §5–6).
+/// Implementation of MetricsHandler.
 
 #include "infra/health/metrics_handler.hpp"
 #include "core/metrics.hpp"

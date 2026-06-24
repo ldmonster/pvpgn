@@ -18,34 +18,6 @@ namespace {
 // Global handler instance for static signal handler functions
 // This is intentional - signal handlers require C linkage and static storage
 SignalHandler* g_signal_handler = nullptr;
-
-// These handlers are registered with the signal set but not directly called
-// They exist for future use when signal handling is fully integrated
-#if 0
-void handle_sighup(int) {
-    if (g_signal_handler) {
-        g_signal_handler->install();  // Re-register handlers
-    }
-}
-
-void handle_sigusr1(int) {
-    if (g_signal_handler) {
-        // Handler will be invoked in the post() callback
-    }
-}
-
-void handle_sigusr2(int) {
-    if (g_signal_handler) {
-        // Handler will be invoked in the post() callback
-    }
-}
-
-void handle_sigint_sigterm(int sig) {
-    if (g_signal_handler) {
-        // Handler will be invoked in the post() callback
-    }
-}
-#endif
 }  // anonymous namespace
 
 SignalHandler::SignalHandler(
@@ -95,7 +67,7 @@ void SignalHandler::on_sigusr1_save_all() {
         try {
             auto uow = uow_factory_->create();
             // The flush only needs transaction control — depend on the
-            // segregated ITransaction sub-interface (ADR 0012), not the full
+            // segregated ITransaction sub-interface, not the full
             // repository-bundle IUnitOfWork.
             application::ports::ITransaction& txn = *uow;
             auto result = txn.begin();

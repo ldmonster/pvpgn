@@ -65,8 +65,8 @@ public:
     boost::asio::ip::tcp::endpoint remote_endpoint() const;
 
     /// Returns the OS-level socket descriptor as a signed integer.
-    /// Used by the strangler-fig bridge to build a legacy
-    /// `t_connection` that shares the fd with this Asio socket.
+    /// Used to build a legacy `t_connection` that shares the fd
+    /// with this Asio socket.
     /// Asio retains ownership: the caller MUST NOT close the
     /// returned fd. Returns `-1` if the socket has been closed.
     int native_handle_int() noexcept;

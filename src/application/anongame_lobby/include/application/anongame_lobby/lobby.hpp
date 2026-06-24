@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// application/anongame_lobby/lobby.hpp -- R170.d skeleton
-//
 // Interface-only header for the anonymous-game lobby state. The
 // legacy code path (src/bnetd/anongame*) covers the entire
 // match-making lifecycle: a client opts into FindAnonGame, gets
@@ -9,10 +7,9 @@
 // candidates fill the bracket and the lobby promotes them to a
 // game session.
 //
-// R170.d only commits to the *transition* surface here: the
-// dispatcher receives the current queue state + a new entrant and
-// decides "enqueue", "drop", or "promote to game". The actual
-// queue storage stays caller-side until a later round.
+// The dispatcher receives the current queue state + a new entrant
+// and decides "enqueue", "drop", or "promote to game". The actual
+// queue storage stays caller-side.
 
 #pragma once
 
@@ -56,7 +53,6 @@ struct LobbyAdmitResponse {
     std::vector<LobbyEntry> promoted_party;
 };
 
-/// R170.d declares; later round implements.
 LobbyAdmitResponse dispatch_admit(LobbyAdmitRequest const& req);
 
 }  // namespace pvpgn::application::anongame_lobby

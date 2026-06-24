@@ -139,7 +139,7 @@ void D2CSTcpSession::send_char_delete_result(bool success) {
 
 void D2CSTcpSession::send_ladder(
     const std::vector<domain::d2cs::LadderEntry>& /*entries*/) {
-    // TODO(Phase4-Step5): implement LADDERREPLY encoder.
+    // TODO: implement LADDERREPLY encoder.
     // For now send a minimal stub: 3-byte header with zero entries.
     // Header: length(2 LE) + type(1)
     // LADDERREPLY = 0x11, total length = 3 (header only)

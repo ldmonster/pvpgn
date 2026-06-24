@@ -68,7 +68,7 @@ void send_chat_event(
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// R302 — dispatch_channel_events (event-bearing overload)
+// dispatch_channel_events (event-bearing overload)
 // ---------------------------------------------------------------------------
 
 void BnetEventDispatcher::dispatch_channel_events(
@@ -86,7 +86,7 @@ void BnetEventDispatcher::dispatch_channel_events(
             if constexpr (std::is_same_v<T, domain::events::ChannelJoined>) {
                 // EID_JOIN — a user entered the channel.
                 // Username is the AccountId stringified until a name-lookup
-                // port is wired in (Phase 6).
+                // port is wired in.
                 const std::string name = std::to_string(e.who.value());
                 send_chat_event(router, target_sessions,
                                 kEidJoin, 0u, 0u, name, "");
@@ -130,12 +130,12 @@ void BnetEventDispatcher::dispatch_channel_events(
 }
 
 // ---------------------------------------------------------------------------
-// dispatch_game_events — stub (Phase 5)
+// dispatch_game_events — stub
 // ---------------------------------------------------------------------------
 
 void BnetEventDispatcher::dispatch_game_events(
     const std::vector<domain::SessionId>& target_sessions) {
-    // Phase 5 implementation framework:
+    // Implementation framework:
     //
     // When actual domain events are available, this would:
     //   1. Iterate through pending game events

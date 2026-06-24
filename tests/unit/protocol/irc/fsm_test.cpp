@@ -287,10 +287,10 @@ TEST_CASE("IrcFsm: JOIN echoes JOIN + 332 RPL_TOPIC + 353 RPL_NAMREPLY + 366 RPL
     REQUIRE(f.handle(msg("JOIN", {"#pvpgn"})).has_value());
     REQUIRE(f.state() == IrcState::InChannel);
     REQUIRE(std::string{f.channel()} == "#pvpgn");
-    // R301: JOIN echo, 332 RPL_TOPIC (empty), 353 RPL_NAMREPLY, 366 RPL_ENDOFNAMES
+    // JOIN echo, 332 RPL_TOPIC (empty), 353 RPL_NAMREPLY, 366 RPL_ENDOFNAMES
     REQUIRE(ctx.sent.size() == 4);
     REQUIRE(ctx.sent[0].command == "JOIN");
-    // R301: prefix is nick!nick@pvpgn
+    // prefix is nick!nick@pvpgn
     REQUIRE(ctx.sent[0].prefix  == "alice!alice@pvpgn");
     REQUIRE(ctx.sent[0].params.front() == "#pvpgn");
     REQUIRE(ctx.sent[1].command == "332");  // RPL_TOPIC (empty topic)
@@ -322,7 +322,7 @@ TEST_CASE("IrcFsm: PART leaves channel and transitions to Registered",
     REQUIRE(f.channel().empty());
     REQUIRE(ctx.sent.size() == 1);
     REQUIRE(ctx.sent[0].command == "PART");
-    // R301: prefix is nick!nick@pvpgn
+    // prefix is nick!nick@pvpgn
     REQUIRE(ctx.sent[0].prefix  == "alice!alice@pvpgn");
     REQUIRE(ctx.sent[0].params.front() == "#pvpgn");
 }
@@ -368,7 +368,7 @@ TEST_CASE("IrcFsm: PRIVMSG to channel is silently accepted (no echo in stub mode
     FakeContext ctx;
     IrcFsm f{ctx};
     register_user(f, ctx);
-    // R301: channel PRIVMSG is forwarded to PostMessage use-case when wired;
+    // channel PRIVMSG is forwarded to PostMessage use-case when wired;
     // in stub mode (no use-case) it is silently accepted — no echo back.
     REQUIRE(f.handle(msg("PRIVMSG", {"#pvpgn", "Hello world"})).has_value());
     REQUIRE(ctx.sent.empty());
@@ -519,7 +519,7 @@ TEST_CASE("IrcFsm: TOPIC set returns 482 ERR_CHANOPRIVSNEEDED (Phase H stub)",
     FakeContext ctx;
     IrcFsm f{ctx};
     join_channel(f, ctx, "#pvpgn");
-    // R301: set_topic use-case not yet wired; returns 482 ERR_CHANOPRIVSNEEDED.
+    // set_topic use-case not yet wired; returns 482 ERR_CHANOPRIVSNEEDED.
     REQUIRE(f.handle(msg("TOPIC", {"#pvpgn", "Welcome to PvPGN!"})).has_value());
     REQUIRE(ctx.sent.size() == 1);
     REQUIRE(ctx.sent[0].command == "482");
@@ -586,7 +586,7 @@ TEST_CASE("IrcFsm: KICK in channel returns 482 ERR_CHANOPRIVSNEEDED (Phase H stu
     FakeContext ctx;
     IrcFsm f{ctx};
     join_channel(f, ctx, "#pvpgn");
-    // R301: kick use-case not yet wired; returns 482 ERR_CHANOPRIVSNEEDED.
+    // kick use-case not yet wired; returns 482 ERR_CHANOPRIVSNEEDED.
     REQUIRE(f.handle(msg("KICK", {"#pvpgn", "bob"})).has_value());
     REQUIRE(ctx.sent.size() == 1);
     REQUIRE(ctx.sent[0].command == "482");

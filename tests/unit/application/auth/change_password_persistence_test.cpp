@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new coverage for `application::auth::ChangePasswordUseCase`'s
+// Coverage for `application::auth::ChangePasswordUseCase`'s
 // persistence-failure branch. The wrong-old-password / unknown-user / no-op /
 // happy / rotation-clear paths are already covered by change_password_test.cpp
 // and change_password_session_hash_test.cpp. This file drives the otherwise-

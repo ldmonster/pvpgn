@@ -10,7 +10,7 @@
 ///     (rejects out-of-order traffic before any use-case fires).
 ///   * Sends the canonical immediate replies that the protocol demands
 ///     (PING echo, LOGON acks, ENTERCHAT echo). Real domain mutations
-///     are delegated to `ISessionContext` in Phase 5; for now the FSM
+///     are delegated to `ISessionContext`; for now the FSM
 ///     only performs the wire dance and records what it saw.
 ///
 /// **What this class does NOT do**
@@ -88,7 +88,7 @@ public:
     core::Status<> on(const ChatCommand&);
 
     // Newer SIDs decoded but not yet driven by the FSM skeleton.
-    // The Phase 5 application-layer use-cases will own these. For now
+    // The application-layer use-cases will own these. For now
     // the FSM accepts them as no-ops so unknown protocol traffic in
     // a valid state doesn't tear down the session.
     core::Status<> on(const AuthCheckRequest&);

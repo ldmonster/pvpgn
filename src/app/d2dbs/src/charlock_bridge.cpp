@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R231(1): observation bridge for d2dbs charlock init/destroy.
+// Observation bridge for d2dbs charlock init/destroy.
 
 #include "app/d2dbs/legacy_d2dbs_bridges/charlock_bridge.hpp"
 

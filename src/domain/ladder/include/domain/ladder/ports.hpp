@@ -3,7 +3,6 @@
 //
 // domain/ladder/ports.hpp — Abstract ports (interfaces) for the ladder bounded context.
 // Implementations live in src/infra/<tech>/ and src/integration/<binding>/.
-// Plan 05: Ports Consolidation (migrated from application/ports/)
 
 #include <cstdint>
 #include <vector>
@@ -29,8 +28,7 @@ public:
     ILadderRepository& operator=(ILadderRepository&&)      = delete;
 
     // Rank is 1-based; keyed by account id to match `save_entry` /
-    // `LadderEntry` (Plan 07: the legacy by-name signature could not be
-    // satisfied — entries carry only an id).
+    // `LadderEntry` (entries carry only an id).
     [[nodiscard]] virtual core::Result<std::uint32_t, core::Error>
     get_rank(domain::AccountId account_id) = 0;
 

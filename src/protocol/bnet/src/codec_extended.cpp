@@ -39,13 +39,6 @@ core::Status<> encode(Writer& w, const ClanMemberListRequest& msg) {
 core::Status<> encode(Writer& w, const ClanMemberListReply& msg) {
     w.write_u32(msg.cookie);
     // TODO: Implement full member list encoding
-    // w.write_u32(members.size());
-    // for (auto& member : members) {
-    //     w.write_string(member.name);
-    //     w.write_u8(member.rank);
-    //     w.write_u8(member.status);
-    //     w.write_string(member.location);
-    // }
     return core::Status<>::Ok();
 }
 

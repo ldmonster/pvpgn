@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // domain/social/errors.hpp — Error codes for the social bounded context.
-// Plan 07: Bounded Contexts and Layering
 
 #include "core/error.hpp"
 

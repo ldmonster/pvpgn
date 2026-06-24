@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file handle_d2cs_packet_bridge.hpp
-/// R235(1) -- observation-only strangler-fig bridge for the legacy
+/// Observation-only bridge for the legacy
 /// `d2cs_handle_d2cs_packet()` dispatcher in
 /// `src/d2cs/handle_d2cs.cpp`. Fires once per inbound client packet
 /// (after the init handshake has placed the connection in the

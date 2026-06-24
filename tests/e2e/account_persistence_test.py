@@ -66,7 +66,7 @@ def main() -> int:
     workdir = tempfile.mkdtemp(prefix="pvpgn-e2e-persist-")
 
     try:
-        # Phase 1: create the account, then stop bnetd.
+        # Create the account, then stop bnetd.
         rc = run_phase(bnetd, free_port(), workdir,
                        lambda s: mlj.create_account(s, USER))
         if rc != mlj.CREATE_ACCT1_OK:
@@ -79,7 +79,7 @@ def main() -> int:
             raise AssertionError(f"expected persisted account file {plain}")
         print(f"[persist] on disk: {os.path.basename(plain)} OK")
 
-        # Phase 2: a fresh bnetd in the same workdir must authenticate it.
+        # A fresh bnetd in the same workdir must authenticate it.
         result = run_phase(bnetd, free_port(), workdir,
                            lambda s: mlj.logon(s, USER, mlj.PASSWORD_WORDS))
         if result != 0x00:

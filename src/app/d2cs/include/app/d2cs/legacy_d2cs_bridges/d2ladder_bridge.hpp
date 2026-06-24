@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file d2ladder_bridge.hpp
-/// R233(1) -- observation-only strangler-fig bridge for the legacy
+/// Observation-only bridge for the legacy
 /// `d2ladder_init() / d2ladder_destroy()` lifecycle in
 /// `src/d2cs/d2ladder.cpp`. The d2cs-side ladder owns an in-memory
 /// snapshot fetched from d2dbs; this bridge layers structured

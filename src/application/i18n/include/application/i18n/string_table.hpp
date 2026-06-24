@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file string_table.hpp
-/// Minimal i18n port (Batch 25d). The application layer asks for a
+/// Minimal i18n port. The application layer asks for a
 /// localised string by `key` + optional locale tag and receives the
 /// raw template back (with positional placeholders `{0}`, `{1}`, ...
 /// already substituted). Implementations own:
@@ -11,8 +11,8 @@
 ///     the `{N}` form to keep the surface tiny and locale-neutral),
 ///   * loading / caching of the underlying table.
 ///
-/// This port exists so the chat reply sink (Batch 25a) and any
-/// future v3 reply path can produce user-visible text without
+/// This port exists so the chat reply sink and any
+/// reply path can produce user-visible text without
 /// reaching into the legacy `localize()` machinery, which is
 /// per-connection, depends on the legacy `t_account` globals, and
 /// is unreachable from the application layer.

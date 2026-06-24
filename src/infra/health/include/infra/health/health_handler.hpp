@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file health_handler.hpp
-/// HTTP handler for liveness and readiness probes (Plan 10 §12–13).
+/// HTTP handler for liveness and readiness probes.
 ///
 /// Routes:
 ///   GET /healthz  — liveness:  always 200 {"status":"ok"} while the process
@@ -10,7 +10,7 @@
 ///   GET /readyz   — readiness: 200 {"status":"ready"} once set_ready(true)
 ///                               has been called; 503 {"status":"starting"}
 ///                               before that.
-///   GET /varz     — debug dump (opt-in, Plan 10 §14): TOML snapshot, plugin
+///   GET /varz     — debug dump (opt-in): TOML snapshot, plugin
 ///                               list, Lua VM stats.  Returns 404 unless
 ///                               enabled via enable_varz().
 ///

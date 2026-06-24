@@ -6,18 +6,18 @@
 ///
 /// Background: the legacy `src/bnetd/helpfile.cpp` keeps an open
 /// `std::FILE*` per language and re-scans the help file on every
-/// `/help` invocation. The R216 strangler bridge currently delegates
+/// `/help` invocation. The bridge currently delegates
 /// `/help` to that legacy code via `LegacyHelpResponder`.
 ///
-/// R216e introduces a pure-v3 in-memory model that a future
-/// `FileHelpResponder` (R216f) can consume directly, eliminating
-/// the legacy file I/O and the global `hfd_list` map.
+/// This pure in-memory model lets a `FileHelpResponder` consume the
+/// corpus directly, eliminating the legacy file I/O and the global
+/// `hfd_list` map.
 ///
 /// The model captures only what `/help` actually needs:
 ///
 ///   * `HelpEntry::aliases`           -- the command and its aliases,
 ///                                       each stored with the leading
-///                                       `/` (matching v3 router
+///                                       `/` (matching router
 ///                                       conventions and legacy
 ///                                       `command_get_group` input).
 ///   * `HelpEntry::description_lines` -- the body lines following

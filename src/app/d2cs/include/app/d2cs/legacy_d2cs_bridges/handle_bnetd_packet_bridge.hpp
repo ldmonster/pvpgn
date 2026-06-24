@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file handle_bnetd_packet_bridge.hpp
-/// R235(3) -- observation-only strangler-fig bridge for the legacy
+/// Observation-only bridge for the legacy
 /// `handle_bnetd_packet()` dispatcher in
 /// `src/d2cs/handle_bnetd.cpp`. Fires once per inbound packet from
 /// the upstream bnetd realm-link (s2s) connection.

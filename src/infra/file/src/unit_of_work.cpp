@@ -12,7 +12,7 @@
 
 namespace pvpgn::infra::file {
 
-// R317: all in-memory repos are per-instance members — no static locals.
+// All in-memory repos are per-instance members — no static locals.
 FileUnitOfWork::FileUnitOfWork(
     std::unique_ptr<FileAccountRepository> accounts,
     std::unique_ptr<FileIpBanRepository> ip_bans)

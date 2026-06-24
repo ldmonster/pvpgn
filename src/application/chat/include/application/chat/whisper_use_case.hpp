@@ -2,13 +2,13 @@
 #pragma once
 
 /// @file whisper_use_case.hpp
-/// CHAT vertical (Batch 19a, partial). Pure decision for `/whisper`
+/// Pure decision for `/whisper`
 /// (and `/w`, `/msg`, `/m`) commands.
 ///
 /// Given the sender's name, the target name, the body text, and a
 /// snapshot of the target's current state, the use-case decides
 /// whether the whisper is `Delivered` or rejected (and why). The
-/// caller (legacy bridge / future v3 chat router) is responsible for
+/// caller (legacy bridge / chat router) is responsible for
 /// snapshotting the inputs and performing the side effects suggested
 /// by the verdict.
 ///

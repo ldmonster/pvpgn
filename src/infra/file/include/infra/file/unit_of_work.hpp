@@ -53,7 +53,7 @@ private:
     std::unique_ptr<FileAccountRepository>              accounts_;
     std::unique_ptr<FileIpBanRepository>                ip_bans_;
 
-    // Per-instance in-memory repositories (R317: no static locals)
+    // Per-instance in-memory repositories (no static locals)
     std::unique_ptr<inmemory::InMemoryChannelRepository>    channels_;
     std::unique_ptr<inmemory::InMemoryGameRepository>       games_;
     std::unique_ptr<inmemory::InMemoryClanRepository>       clans_;

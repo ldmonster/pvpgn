@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /// @file wol_fsm_auth_test.cpp
-/// Unit tests for WolFsm::on_pass() with a real LoginUser use-case (R289).
+/// Unit tests for WolFsm::on_pass() with a real LoginUser use-case.
 ///
-/// Test count: 9 TEST_CASEs.
-///
-/// These tests exercise the R289 auth wiring:
+/// These tests exercise the auth wiring:
 ///   - Correct password → Authenticated state + 001 RPL_WELCOME
 ///   - Wrong password → 464 :Password incorrect + connection closed
 ///   - No LoginUser injected → old skeleton behaviour (accept any PASS)

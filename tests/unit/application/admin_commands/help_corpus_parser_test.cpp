@@ -2,7 +2,7 @@
 //
 // Tests for `parse_help_corpus` and `HelpCorpus::find_by_alias`.
 //
-// R216e: the parser is the pure-v3 replacement for the legacy
+// The parser is the replacement for the legacy
 // `helpfile.cpp` reader. The fixtures below mirror the shapes of
 // actual lines from `conf/bnhelp.conf.in`.
 

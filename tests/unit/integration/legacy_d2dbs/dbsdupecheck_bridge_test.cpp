@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Unit tests for the d2dbs dbsdupecheck observation bridge (R232).
+// Unit tests for the d2dbs dbsdupecheck observation bridge.
 
 #include <catch2/catch_test_macros.hpp>
 

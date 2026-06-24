@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new error/edge-branch tests for `application::game::CreatePrivateGame`.
+// Error/edge-branch tests for `application::game::CreatePrivateGame`.
 // Covers branches the happy-path suite misses:
 //   * max_players above the 1..16 range returns MaxPlayersOutOfRange
 //   * save() failure maps to PersistenceFailed

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# ---- app/d2cs (D2CS session handler + composition root — Phase 4) ----------
+# ---- app/d2cs (D2CS session handler + composition root) --------------------
 #
 # `app_d2cs` is a static library that bridges the D2CS protocol FSM
 # (`protocol_d2cs`) to the domain use cases (`domain_d2cs`).
@@ -10,15 +10,11 @@
 #   - `D2CSTcpSession`      — per-connection object (TCP + FSM + handler)
 #
 # `pvpgn_v3_d2cs` is the standalone D2CS server binary (composition root).
-#
-# Phase 4 Step 3 — R146 (library)
-# Phase 4 Step 4 — R147 (composition root binary)
 
 pvpgn_v3_add_library(app_d2cs
     STATIC
     SOURCES
         src/d2cs_session_handler.cpp
-        # MIGRATED from legacy_d2cs/src/ (Plan 04 strangler)
         src/send_packet_bridge.cpp
         src/send_loginreply_bridge.cpp
         src/send_createcharreply_bridge.cpp
@@ -121,7 +117,7 @@ install(TARGETS pvpgn_v3_d2cs
 target_compile_definitions(pvpgn_v3_d2cs PRIVATE
     $<$<BOOL:${PVPGN_VERSION}>:PVPGN_VERSION="${PVPGN_VERSION}">)
 
-# R167 smoke tests.
+# Smoke tests.
 if(BUILD_TESTING)
     add_test(NAME pvpgn_v3_d2cs_help    COMMAND pvpgn_v3_d2cs --help)
     add_test(NAME pvpgn_v3_d2cs_version COMMAND pvpgn_v3_d2cs --version)

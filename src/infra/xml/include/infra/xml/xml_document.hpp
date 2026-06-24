@@ -2,11 +2,8 @@
 //
 // Thin C++20 wrapper over pugixml.
 //
-// v3 XML document API — replaces direct pugixml usage in legacy code.
-//
-// The legacy code used pugixml directly (src/common/pugixml.h) in
-// src/bnetd/i18n.cpp and a few other places.  This wrapper provides a
-// clean, exception-free, std::optional-based API that fits the v3 style.
+// XML document API providing a clean, exception-free,
+// std::optional-based interface over pugixml.
 //
 // ## Types
 //

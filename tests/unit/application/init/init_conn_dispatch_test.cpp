@@ -107,7 +107,7 @@ TEST_CASE("InitConnResponse equality is value-based",
         == appinit::InitConnResponse{appinit::InitDecision::kFile});
 }
 
-// ── R168.b rate-limit tests ──────────────────────────────────────────
+// ── rate-limit tests ──────────────────────────────────────────
 
 TEST_CASE("dispatch_init_conn: max_conns_per_ip=0 disables rate limit",
           "[application][init][dispatch][ratelimit]") {
@@ -165,7 +165,7 @@ TEST_CASE("dispatch_init_conn: rate-limit precedes class lookup",
             == appinit::InitDecision::kRateLimited);
 }
 
-// ── R168.c realmlist tests ───────────────────────────────────────────
+// ── realmlist tests ───────────────────────────────────────────
 
 TEST_CASE("dispatch_init_conn: D2CS_BNETD with allowed IP accepts",
           "[application][init][dispatch][realmlist]") {

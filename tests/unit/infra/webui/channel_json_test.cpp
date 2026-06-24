@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R309 — WebUI /api/v1/channels JSON serialisation tests
+// WebUI /api/v1/channels JSON serialisation tests
 //
 // Covers:
 //   - channels_to_json(nullptr)  → "[]"

@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file file_session_factory.hpp
-/// SessionFactory for BNFTP file-serving protocol (Phase 6b).
+/// SessionFactory for BNFTP file-serving protocol.
 /// Creates BnftpFsm for each accepted connection.
 
 #include <atomic>

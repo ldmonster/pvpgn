@@ -216,7 +216,7 @@ inline constexpr std::uint32_t kLoginReply1_Fail    = 0x00000000u;
 inline constexpr std::uint32_t kLoginReply1_Success = 0x00000001u;
 
 // CLIENT_CREATEACCTREQ1 0x2aff -- account name appended after the struct.
-// R197: used by bnchat_v3's `--create-account` flag to bootstrap an
+// Used by bnchat_v3's `--create-account` flag to bootstrap an
 // account against a fresh bnetd before LOGINREQ1.
 struct CClientCreateAcctReq1 {
     bn_int password_hash1[5];  // 20 bytes: bnet_hash(lowercase(password))

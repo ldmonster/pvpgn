@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file send_echorequest_bridge.hpp
-/// Strangler-fig hook for D2DBS_D2GS_ECHOREQUEST (type 0x34).
+/// Hook for D2DBS_D2GS_ECHOREQUEST (type 0x34).
 /// Sent by d2dbs to each connected d2gs as a keepalive probe.
 ///
 /// Wire (8 bytes, all LE): u16 size=8 | u16 type=0x34 | u32 seqno.
@@ -13,7 +13,7 @@
 
 extern "C" {
 
-/// Build a D2DBS_D2GS_ECHOREQUEST via the v3 codec and dispatch via
+/// Build a D2DBS_D2GS_ECHOREQUEST via the codec and dispatch via
 /// the registered legacy_d2dbs send-packet handler (which memcpys
 /// into the t_d2dbs_connection WriteBuf).
 ///

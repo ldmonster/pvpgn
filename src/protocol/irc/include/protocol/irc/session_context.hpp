@@ -3,7 +3,7 @@
 
 /// @file session_context.hpp
 /// Dependency surface of the IRC FSM. Concrete sessions plug in the
-/// transport and (in Phase 5) the use-case bus.
+/// transport and the use-case bus.
 
 #include "core/result.hpp"
 #include "protocol/irc/message.hpp"

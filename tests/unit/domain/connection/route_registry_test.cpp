@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /// @file route_registry_test.cpp
-/// Unit tests for domain::connection::RouteRegistry (R288).
+/// Unit tests for domain::connection::RouteRegistry.
 ///
 /// Test count: 12 TEST_CASEs.
 

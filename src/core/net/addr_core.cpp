@@ -15,8 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-// Core address creation, destruction, formatting, and accessor functions (plan 15 §3 / SOLID-S).
-// Split from addr.cpp (Plan 02 full-split: one TU per file).
+// Core address creation, destruction, formatting, and accessor functions.
 
 #include "addr_internal.h"
 

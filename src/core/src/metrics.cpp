@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file metrics.cpp
-/// Process-wide default metrics registry (Plan 10 — Observability).
+/// Process-wide default metrics registry.
 
 #include "core/metrics.hpp"
 

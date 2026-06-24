@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file sql_account_repository_test.cpp
-/// Plan 07: exercises the consolidated, driver-parameterized
+/// Exercises the driver-parameterized
 /// `infra::persistence::SqlAccountRepository` over the SQLite `IDbDriver`
 /// (in-memory). The same repository runs unchanged over the MySQL/PostgreSQL
-/// drivers — this is the SQLite column of what will become a parameterized
-/// cross-backend matrix.
+/// drivers — this is the SQLite column of the cross-backend matrix.
 
 #include <memory>
 

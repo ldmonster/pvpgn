@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new error/edge-branch tests for `application::game::LeaveGame`.
+// Error/edge-branch tests for `application::game::LeaveGame`.
 // Covers branches the happy-path suite misses:
 //   * repository remove() failure on empty game maps to PersistenceFailed
 //   * repository save() failure on non-empty game maps to PersistenceFailed

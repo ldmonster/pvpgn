@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/net/idle_memory_footprint_test.cpp -- Plan 06.
+// tests/unit/infra/net/idle_memory_footprint_test.cpp
 //
-// Idle-connection memory-footprint regression gate (plans/06: "Idle-connection
-// memory footprint regression test passes within a 10% budget vs the
-// pre-migration baseline").
+// Idle-connection memory-footprint regression gate: the idle-connection
+// memory footprint must stay within a 10% budget vs the baseline.
 //
-// The literal pre-migration baseline (the old `fdwatch` + `t_connection` path)
+// The literal baseline of the old `fdwatch` + `t_connection` path
 // no longer exists in the tree -- it was deleted when the Boost.Asio/Fiber
-// runtime landed. So this test instead pins the *current* post-migration
+// runtime landed. So this test instead pins the *current*
 // per-idle-connection footprint as the baseline and fails if a future change
-// grows it by more than 10%. That is the regression guarantee the plan asks
-// for, anchored to the only baseline we can still observe.
+// grows it by more than 10%. That is the regression guarantee,
+// anchored to the only baseline we can still observe.
 //
 // What an idle connection costs (production path = `TcpSession` only):
 //   * `sizeof(TcpSession)` -- dominated by the inline 4096-byte read buffer.
@@ -51,7 +50,7 @@ constexpr std::size_t kReadBufferBytes = 4096;
 // re-measure deliberately and update kBaselineBytes with a note explaining why.
 constexpr std::size_t kBaselineBytes = 4592;
 
-// 10% growth budget, per the plan's acceptance criterion.
+// 10% growth budget, per the acceptance criterion.
 constexpr std::size_t kBudgetBytes = kBaselineBytes + kBaselineBytes / 10;  // 5051
 
 }  // namespace

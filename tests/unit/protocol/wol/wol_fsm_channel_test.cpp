@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R307 — WolFsm Channel Operation Tests
+// WolFsm Channel Operation Tests
 //
 // Covers:
 //   - LIST command: client sends LIST, server responds with 321/322/323 numerics
@@ -114,7 +114,7 @@ void do_auth_and_join(WolFsm& fsm, std::string_view nick = "TestUser",
 }  // namespace
 
 // ===========================================================================
-// R307-1: LIST command — 321/322/323 numerics
+// LIST command — 321/322/323 numerics
 // ===========================================================================
 
 TEST_CASE("WolFsm R307: LIST after auth returns 321 RPL_LISTSTART",
@@ -199,7 +199,7 @@ TEST_CASE("WolFsm R307: LIST before auth returns 451 ERR_NOTREGISTERED",
 }
 
 // ===========================================================================
-// R307-2: JOIN #channel — JOIN echo + 353 NAMES + 366
+// JOIN #channel — JOIN echo + 353 NAMES + 366
 // ===========================================================================
 
 TEST_CASE("WolFsm R307: JOIN #channel sends JOIN echo",
@@ -283,7 +283,7 @@ TEST_CASE("WolFsm R307: JOIN with no channel param returns 461 ERR_NEEDMOREPARAM
 }
 
 // ===========================================================================
-// R307-3: PRIVMSG #channel :message — accepted (no error)
+// PRIVMSG #channel :message — accepted (no error)
 // ===========================================================================
 
 TEST_CASE("WolFsm R307: PRIVMSG to channel after JOIN is accepted without error",
@@ -325,7 +325,7 @@ TEST_CASE("WolFsm R307: PRIVMSG to channel after auth but before JOIN is accepte
 }
 
 // ===========================================================================
-// R307-4: PRIVMSG to nick — server responds with 401 ERR_NOSUCHNICK
+// PRIVMSG to nick — server responds with 401 ERR_NOSUCHNICK
 // ===========================================================================
 
 TEST_CASE("WolFsm R307: PRIVMSG to nick (not a channel) returns 401 ERR_NOSUCHNICK",
@@ -366,7 +366,7 @@ TEST_CASE("WolFsm R307: PRIVMSG to nick in Authenticated state returns 401",
 }
 
 // ===========================================================================
-// R307-5: JOIN non-existent channel — stub creates it (no 403 in skeleton mode)
+// JOIN non-existent channel — stub creates it (no 403 in skeleton mode)
 // ===========================================================================
 
 TEST_CASE("WolFsm R307: JOIN any channel name is accepted in skeleton mode",
@@ -396,7 +396,7 @@ TEST_CASE("WolFsm R307: JOIN channel name is stored in FSM state",
 }
 
 // ===========================================================================
-// R307-6: PART after JOIN
+// PART after JOIN
 // ===========================================================================
 
 TEST_CASE("WolFsm R307: PART after JOIN leaves channel",

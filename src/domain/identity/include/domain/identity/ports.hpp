@@ -3,7 +3,6 @@
 //
 // domain/identity/ports.hpp — Abstract ports (interfaces) for the identity bounded context.
 // Implementations live in src/infra/<tech>/ and src/integration/<binding>/.
-// Plan 05: Ports Consolidation (migrated from application/ports/)
 
 #include <cstddef>
 #include <cstdint>
@@ -23,7 +22,7 @@
 namespace pvpgn::domain::identity {
 
 // ---------------------------------------------------------------------------
-// IAccountRepository — segregated into reader + writer ports (ADR 0012 / ISP).
+// IAccountRepository — segregated into reader + writer ports.
 // Read-only consumers (e.g. the permission checker) depend on IAccountReader
 // only; IAccountRepository = IAccountReader + IAccountWriter remains for
 // callers and implementers that need both, so existing code is unaffected.

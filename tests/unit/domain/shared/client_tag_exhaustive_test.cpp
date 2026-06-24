@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file client_tag_exhaustive_test.cpp
-/// Net-new branch coverage for domain::ClientTag beyond client_tag_test.cpp.
+/// Branch coverage for domain::ClientTag beyond client_tag_test.cpp.
 /// Targets: error StatusCode on each parse rejection branch, from_packed_be
 /// byte-order layout, parse/packed round-trip for the boundary printable
 /// chars, title()/is_* for the lang-tag and unknown branches not already

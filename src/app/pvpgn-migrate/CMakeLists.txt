@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# src/v3/app/pvpgn-migrate/CMakeLists.txt
 #
 # Defines the `pvpgn_migrate` executable — a standalone CLI tool for
 # migrating PvPGN account data between storage backends.

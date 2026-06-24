@@ -5,14 +5,14 @@
 # Composes auth and chat use-cases; uses `domain::connection::IConnectionContext`
 # as its abstract I/O port.
 #
-# Moved from `domain/connection` (R298) so the FSM can legally depend on
+# Lives here (rather than `domain/connection`) so the FSM can legally depend on
 # application use-cases without violating the hexagonal layering rule
 # `domain MUST NOT depend on application`.
 
 pvpgn_v3_add_library(application_connection
     STATIC
     SOURCES
-        # R306-split: connection_fsm.cpp split by State pattern into focused sub-TUs
+        # connection_fsm.cpp split by State pattern into focused sub-TUs
         src/connection_fsm.cpp                  # thin coordinator: dispatch() + close() + private helpers
         src/connection_fsm_connecting.cpp        # Connecting state: on_auth_info, on_auth_check, on_logon_request
         src/connection_fsm_authenticating.cpp    # Authenticating state: on_auth_accountlogon, on_auth_accountlogonproof

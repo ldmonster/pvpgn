@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file route_registry.hpp
-/// WAR3 route-connection pairing registry (R288).
+/// WAR3 route-connection pairing registry.
 ///
 /// WAR3 clients open a second TCP connection for game routing.  Both the
 /// primary connection and the route connection carry the same 4-byte token

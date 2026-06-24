@@ -2,15 +2,14 @@
 #pragma once
 
 /// @file whisper_target_lookup.hpp
-/// Port for looking up the live state of a whisper target (Batch
-/// 21a).
+/// Port for looking up the live state of a whisper target.
 ///
 /// The pure `decide_whisper` use-case is parameterised on a
 /// `WhisperTarget` snapshot of the target's connection. The bridge
-/// (legacy / future v3) must produce that snapshot before calling
+/// must produce that snapshot before calling
 /// `decide_whisper`. This port is the seam:
 ///
-///   * `LegacyWhisperTargetLookup` (deferred to 22a) queries
+///   * `LegacyWhisperTargetLookup` queries
 ///     `connlist_find_connection_by_accountname` + `account_get_dnd`
 ///     + the sender's ignore list in `bnetd_legacy`.
 ///   * `MapWhisperTargetLookup` (this header) is a test fake that

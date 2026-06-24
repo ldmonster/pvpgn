@@ -5,7 +5,7 @@
 // `bnchat` is the largest of the four legacy client tools
 // (~1968 LoC of imperative C-with-classes spread across
 // bnchat.cpp + client.cpp + client_connect.cpp + udptest.cpp).
-// This v3 rewrite focuses on the core flow:
+// This rewrite focuses on the core flow:
 //
 //   1. BNet handshake (via `bnclient_login::Session`).
 //   2. CLIENT_LOGINREQ1 -- the double-SHA1 password ladder
@@ -23,7 +23,7 @@
 //   * UDP test (`udptest.cpp` / NETINFO);
 //   * Diablo 1 PLAYERINFOREQ stat upload.
 //
-// R197: account creation (`CLIENT_CREATEACCTREQ1`) was previously
+// Account creation (`CLIENT_CREATEACCTREQ1`) was previously
 // dropped, but the docker-compose end-to-end smoke needs to bootstrap
 // an account against a fresh bnetd. Reinstated as an opt-in `-C` /
 // `--create-account` flag -- sends CLIENT_CREATEACCTREQ1 once *after*
@@ -32,8 +32,7 @@
 // both treated as success (the smoke runs the client multiple times
 // against the same persistent state).
 //
-// Those are valuable but tangential to the modernization
-// objective -- the build now produces a `bnchat` binary that
+// The build produces a `bnchat` binary that
 // links only `core` + `${NETWORK_LIBRARIES}` under
 // `pvpgn_v3_apply_flags()` (`-Wall -Wextra -Wpedantic -Werror`).
 
@@ -75,8 +74,8 @@ struct Options {
     std::string   cdowner   = "owner";
     bool          send_cdkey2 = false;
     bool          create_account = false;
-    std::string   say;            // R197.b: send this CLIENT_MESSAGE right after join
-    int           linger_secs = 0; // R197.b: read for N seconds, then exit (only used with --say)
+    std::string   say;            // send this CLIENT_MESSAGE right after join
+    int           linger_secs = 0; // read for N seconds, then exit (only used with --say)
 };
 
 [[noreturn]] void usage(const char* prog) {
@@ -241,7 +240,7 @@ bool send_loginreq1(net::socket_t sd, const std::string& user,
     return proto::send_bnet(sd, p);
 }
 
-// ---- CREATEACCTREQ1 helper (R197) ------------------------------------
+// ---- CREATEACCTREQ1 helper -------------------------------------------
 
 bool send_createacctreq1(net::socket_t sd, const std::string& user,
                          const std::string& password) {
@@ -351,7 +350,7 @@ int main(int argc, char** argv) {
     std::println(stderr, "{}: handshake ok, sessionkey=0x{:08x} sessionnum=0x{:08x}",
         argv[0], lr.sessionkey, lr.sessionnum);
 
-    // ---- (R197) optional CLIENT_CREATEACCTREQ1 ----
+    // ---- optional CLIENT_CREATEACCTREQ1 ----
     proto::Packet p;
     if (opts.create_account) {
         if (!send_createacctreq1(sock.get(), opts.user, opts.password)) {
@@ -454,7 +453,7 @@ int main(int argc, char** argv) {
     std::println(stderr, "{}: joining channel \"{}\"...",
         argv[0], opts.channel.c_str());
 
-    // ---- R197.b: --say one-shot mode ---------------------------------
+    // ---- --say one-shot mode -----------------------------------------
     // If --say=TEXT is given, send a CLIENT_MESSAGE immediately, then
     // read packets for --linger-secs seconds (so the server has time to
     // echo our own TALK back) and exit. No stdin loop -- this is the

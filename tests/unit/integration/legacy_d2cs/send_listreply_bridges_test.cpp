@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Wire tests for R75 list-reply bridges:
+// Wire tests for list-reply bridges:
 //   D2CS_CLIENT_GAMELISTREPLY (0x05) and D2CS_CLIENT_GAMEINFOREPLY (0x06).
 
 #include <catch2/catch_test_macros.hpp>

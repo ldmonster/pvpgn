@@ -7,7 +7,7 @@
 /// Handles registration/unregistration with MessageRouter and SessionRegistry.
 /// Injects use-case context for domain operation dispatch.
 ///
-/// R284: The factory now also instantiates a `BnetConnectionAdapter` per
+/// The factory also instantiates a `BnetConnectionAdapter` per
 /// session, wiring `ConnectionFsm` (domain layer) into the session.  An
 /// optional `LoginUserNls*` enables the NLS (WAR3/W3XP) auth path; pass
 /// `nullptr` to fall back to OLS-only mode.
@@ -68,7 +68,7 @@ public:
     /// Called by TcpAcceptor for each accepted connection.
     /// Creates and starts a complete BNet session.
     ///
-    /// Wiring per session (R284):
+    /// Wiring per session:
     ///   TcpSession
     ///     └─ TcpSessionEgress (IConnectionEgress)
     ///         └─ BnetSessionContextImpl (ISessionContext)
@@ -92,7 +92,7 @@ public:
         // Create BNet FSM with use-case context
         auto fsm = std::make_shared<protocol::bnet::BnetFsm>(context, use_cases_);
 
-        // R284/R293: Create BnetConnectionAdapter (owns ConnectionFsm).
+        // Create BnetConnectionAdapter (owns ConnectionFsm).
         // Choose the richest constructor available based on injected use-cases.
         std::shared_ptr<app::bnetd::BnetConnectionAdapter> conn_adapter;
         if (login_ols_ && login_nls_) {
@@ -169,7 +169,7 @@ private:
         core::ByteView                                     bytes) {
         if (!fsm) return;
 
-        // TODO: In Phase 3, implement stateful decoding that handles
+        // TODO: implement stateful decoding that handles
         // incomplete packets, multiple messages per recv, etc.
         // For now, this is a placeholder.
         (void)adapter;

@@ -2,7 +2,7 @@
 
 /// @file test_config.cpp
 /// Catch2 unit tests for pvpgn::infra::config::Config — the thin
-/// toml++ wrapper introduced in Phase 1 Step 10.
+/// toml++ wrapper.
 
 #include <filesystem>
 #include <fstream>

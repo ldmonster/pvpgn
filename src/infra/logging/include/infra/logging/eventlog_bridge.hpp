@@ -1,6 +1,6 @@
 #pragma once
 // DEPRECATED: This header is a compatibility shim. Use core/format.hpp directly.
-// The infra::logging::eventlog_bridge module is being retired in R251.
+// The infra::logging::eventlog_bridge module is being retired.
 // All LOG_* macros and log_message() calls should use core/format.hpp.
 #pragma message("eventlog_bridge.hpp is deprecated. Include core/format.hpp instead.")
 #include "core/format.hpp"

@@ -108,7 +108,6 @@ void Win32_ServiceUninstall()
 				if (serviceStatus.dwCurrentState == SERVICE_STOPPED)
 					DeleteService(service);
 			}
-			//DeleteService(service);
 
 			CloseServiceHandle(service);
 		}

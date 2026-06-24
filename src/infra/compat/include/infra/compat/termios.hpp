@@ -2,20 +2,17 @@
 //
 // Terminal I/O (termios) portability shim.
 //
-// v3 equivalent of src/compat/termios.h
-//
 // The legacy header defined a stub `struct termios` and no-op macros for
 // `tcgetattr` / `tcsetattr` on platforms that lacked <termios.h> (primarily
-// Windows). The v3 version follows the same pattern but uses C++20 idioms:
+// Windows). This version follows the same pattern but uses C++20 idioms:
 //
 //   - On POSIX: includes <termios.h> directly; all real types and functions
 //     are available.
 //   - On Windows: provides a minimal stub struct and constexpr no-op lambdas
 //     so that call sites compile without `#ifdef WIN32` guards.
 //
-// The v3 tree discourages direct terminal manipulation; prefer the
-// `infra/log/` or `runtime/` layers for console I/O. This header is
-// provided only as a migration aid.
+// Direct terminal manipulation is discouraged; prefer the
+// `infra/log/` or `runtime/` layers for console I/O.
 
 #pragma once
 

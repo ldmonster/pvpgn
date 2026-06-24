@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new edge/error-branch tests for the ladder use-cases that the
+// Edge/error-branch tests for the ladder use-cases that the
 // happy-path suites (get_ladder_entry_test.cpp, get_ladder_entry_lookup_test.cpp,
 // recompute_ladder_test.cpp) do not reach:
 //

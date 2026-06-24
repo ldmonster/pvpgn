@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new coverage for `application::auth::CreateAccount`. The base
+// Coverage for `application::auth::CreateAccount`. The base
 // create_account_test.cpp covers the happy path, username-taken, IP-banned,
 // and event publication. This file drives the two remaining error arms:
 //   * is_banned() port failure -> CreateAccountError::Internal

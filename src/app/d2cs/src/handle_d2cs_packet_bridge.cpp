@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R235(1): observation bridge for d2cs client-packet dispatch.
+// Observation bridge for d2cs client-packet dispatch.
 
 #include "app/d2cs/legacy_d2cs_bridges/handle_d2cs_packet_bridge.hpp"
 

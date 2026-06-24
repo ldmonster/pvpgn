@@ -6,7 +6,7 @@
 /// Replaces direct calls to legacy `message_send_text` from
 /// application-layer code.
 ///
-/// Two severities are supported: the v3 router and responder maps
+/// Two severities are supported: the router and responder maps
 /// from semantic intent (informational / error) to the concrete
 /// legacy message types (`message_type_info` / `message_type_error`)
 /// in the adapter.

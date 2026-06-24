@@ -3,9 +3,9 @@
 
 /// @file fiber.hpp
 /// Optional Boost.Fiber integration. Compiled into `infra_net` only when
-/// `PVPGN_V3_WITH_FIBER=ON`. The default v3 build does not pull Fiber.
+/// `PVPGN_V3_WITH_FIBER=ON`. The default build does not pull Fiber.
 ///
-/// Rationale: per migration plan §15.2 / §6, the network layer wants
+/// Rationale: the network layer wants
 /// "synchronous-style" coroutines per session so the code reads linearly
 /// while the runtime multiplexes thousands of sessions over a small
 /// thread pool. We pick Boost.Fiber because it ships in 1.83 (already a

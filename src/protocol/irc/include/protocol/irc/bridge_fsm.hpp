@@ -6,9 +6,9 @@
 ///
 /// `IrcBridgeFsm` is a thin factory/wiring wrapper around `IrcFsm`.
 /// It bundles all required use-case pointers into a single `UseCaseContext`
-/// struct and constructs the underlying FSM with the full R301 constructor.
+/// struct and constructs the underlying FSM with the full constructor.
 ///
-/// Channel lifecycle (R301):
+/// Channel lifecycle:
 ///   JOIN  → JoinChannel::execute()  → 332 RPL_TOPIC + 353 RPL_NAMREPLY + 366
 ///   PART  → LeaveChannel::execute() → PART echo
 ///   PRIVMSG #chan → PostMessage::execute()
@@ -39,16 +39,16 @@ class PostMessage;
 
 namespace pvpgn::protocol::irc {
 
-/// IRC FSM with channel bridging to PvPGN chat use-cases (R301).
+/// IRC FSM with channel bridging to PvPGN chat use-cases.
 class IrcBridgeFsm : public IrcFsm {
 public:
     /// All use-cases needed by the bridge FSM.
     struct UseCaseContext {
         /// OLS authentication use-case (may be null for skeleton/test mode).
         application::auth::LoginUser*                            login_user    = nullptr;
-        /// Logout use-case (reserved for Phase H; may be null).
+        /// Logout use-case (reserved; may be null).
         application::auth::LogoutUser*                           logout_user   = nullptr;
-        /// Chat use-cases (R301). Null = stub mode for that command.
+        /// Chat use-cases. Null = stub mode for that command.
         std::shared_ptr<application::chat::ListChannels>         list_channels;
         std::shared_ptr<application::chat::JoinChannel>          join_channel;
         std::shared_ptr<application::chat::PostMessage>          post_message;

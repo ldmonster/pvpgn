@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file irc_session_factory.hpp
-/// SessionFactory for IRC protocol (Phase 6b).
+/// SessionFactory for IRC protocol.
 /// Creates IrcBridgeFsm for each accepted connection.
 
 #include <atomic>

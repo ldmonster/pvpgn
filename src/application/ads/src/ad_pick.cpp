@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// application/ads/ad_pick.cpp -- R171.a implementation.
-//
 // Pure-function dispatchers mirroring the legacy
 // `_client_adreq` / `_client_adclick2` paths from
 // `src/bnetd/handle_bnet.cpp`. The legacy code consults the global

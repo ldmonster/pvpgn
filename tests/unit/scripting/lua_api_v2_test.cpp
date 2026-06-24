@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Plan 11 — §11.2  Lua API v2 Interface Tests
+// Lua API v2 Interface Tests
 //
 // These tests verify the Lua API v2 interface contract at the C++ level.
 // Because a full Lua runtime may not be available in unit tests, the tests
@@ -175,7 +175,7 @@ inline ApiVersion get_api_version() noexcept {
 using namespace pvpgn::lua_api_v2_stub;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.2.1  pvpgn.commands.register signature contract
+// pvpgn.commands.register signature contract
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Lua API v2: pvpgn.commands.register — basic registration", "[lua-api][commands]") {
@@ -263,7 +263,7 @@ TEST_CASE("Lua API v2: pvpgn.commands.register — args are forwarded correctly"
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.2.2  pvpgn.events.on signature contract
+// pvpgn.events.on signature contract
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Lua API v2: pvpgn.events.on — basic subscription", "[lua-api][events]") {
@@ -318,7 +318,7 @@ TEST_CASE("Lua API v2: pvpgn.events.on — payload is forwarded correctly",
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.2.3  pvpgn.events.off — deregistration lifecycle
+// pvpgn.events.off — deregistration lifecycle
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Lua API v2: pvpgn.events.off — deregistration lifecycle", "[lua-api][events]") {
@@ -374,7 +374,7 @@ TEST_CASE("Lua API v2: pvpgn.events — multiple handlers, partial deregistratio
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.2.4  pvpgn.version() — API version structure
+// pvpgn.version() — API version structure
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Lua API v2: pvpgn.version() returns expected structure", "[lua-api][version]") {
@@ -399,12 +399,12 @@ TEST_CASE("Lua API v2: pvpgn.version() returns expected structure", "[lua-api][v
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §11.2.5  Compile-time interface contract checks
+// Compile-time interface contract checks
 //
 // These static_asserts verify that the handler type signatures match what
 // the Lua API v2 documentation specifies.  If a refactor changes the
 // signatures, these will fail to compile — which is the desired behaviour
-// (the "lua_api_v2_conformance" test failure described in the plan).
+// (the "lua_api_v2_conformance" test failure).
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Lua API v2: compile-time interface contract", "[lua-api][contract]") {

@@ -3,7 +3,7 @@
 
 /// @file d2cs_prefs_bridge.hpp
 /// C-linkage bridge to vend a parsed `D2csServerConfig` to legacy
-/// `src/d2cs/prefs.cpp` (R152 skeleton).
+/// `src/d2cs/prefs.cpp`.
 ///
 /// Mirrors the design of `legacy_bnetd/prefs_bridge.hpp`:
 /// `pvpgn_v3_d2cs_prefs_load_toml()` parses a TOML file into a

@@ -2,15 +2,13 @@
 //
 // RAII directory iterator.
 //
-// v3 equivalent of src/compat/pdir.h + src/compat/pdir.cpp
-//
 // The legacy code exposed a `pvpgn::Directory` class that wrapped POSIX
 // `opendir`/`readdir`/`closedir` (and the Win32 `_findfirst`/`_findnext`
 // equivalents) behind a manual open/read/rewind/close interface.  It also
 // provided a free function `dir_getfiles()` for recursive extension-filtered
 // listing.
 //
-// The v3 version replaces all of that with `std::filesystem::directory_iterator`
+// This version replaces all of that with `std::filesystem::directory_iterator`
 // (C++17/20 standard library — no platform ifdefs needed).
 //
 // ## Types

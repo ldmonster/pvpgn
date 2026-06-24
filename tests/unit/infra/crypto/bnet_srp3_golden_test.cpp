@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/infra/crypto/bnet_srp3_golden_test.cpp -- Plan 08.
+// tests/unit/infra/crypto/bnet_srp3_golden_test.cpp
 //
 // Golden-vector / round-trip regression tests for the Battle.net SRP-3
 // implementation (`infra::crypto::BnetSrp3`). Two complementary guards:
@@ -16,8 +16,8 @@
 //      the bytes on the wire — i.e. would break compatibility with shipped
 //      clients — fails this test. The values were captured from the current
 //      implementation, which is parity-verified against the legacy
-//      `pvpgn::BnetSRP3` (see parity_test.cpp). Replacing/augmenting them with
-//      vectors captured from real client builds is tracked in Plan 08.
+//      `pvpgn::BnetSRP3` (see parity_test.cpp). They may later be replaced or
+//      augmented with vectors captured from real client builds.
 
 #include <array>
 #include <cstdint>

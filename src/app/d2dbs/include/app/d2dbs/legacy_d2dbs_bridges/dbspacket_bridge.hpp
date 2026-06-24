@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file dbspacket_bridge.hpp
-/// R242 -- observation-only strangler-fig bridges for the d2dbs
+/// Observation-only bridges for the d2dbs
 /// packet dispatcher in `src/d2dbs/dbspacket.cpp`. Three entry
 /// points are covered:
 ///   * `dbs_packet_handle(conn)`  -- per-packet dispatcher (top of

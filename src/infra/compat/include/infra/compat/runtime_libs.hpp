@@ -2,20 +2,18 @@
 //
 // Cross-platform dynamic library loading.
 //
-// v3 equivalent of src/compat/runtime_libs.h
-//
 // The legacy header exposed three macros:
 //   OpenLibrary(path)      — dlopen / LoadLibrary
 //   GetFunction(handle, f) — dlsym  / GetProcAddress
 //   CloseLibrary(handle)   — dlclose / FreeLibrary
 //
-// The v3 version wraps these in a RAII `DynamicLibrary` class that
+// This version wraps these in a RAII `DynamicLibrary` class that
 // automatically closes the handle on destruction, plus free functions
-// that mirror the legacy macro names for migration-aid purposes.
+// that mirror the legacy macro names.
 //
-// NOTE: The v3 SQL backends should prefer static linking or a proper
-// plugin abstraction over raw dlopen. This header is provided as a
-// migration aid; new v3 code should use `DynamicLibrary` directly.
+// NOTE: SQL backends should prefer static linking or a proper plugin
+// abstraction over raw dlopen; new code should use `DynamicLibrary`
+// directly.
 
 #pragma once
 
@@ -120,7 +118,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// Legacy-compatible free functions (migration aid — prefer DynamicLibrary)
+// Legacy-compatible free functions (prefer DynamicLibrary)
 // ---------------------------------------------------------------------------
 
 /// Open a shared library.  Returns nullptr on failure.

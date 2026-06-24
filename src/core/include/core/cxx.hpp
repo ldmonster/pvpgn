@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Part of PvPGN v3.
+// Part of PvPGN.
 #pragma once
 
 /// @file cxx.hpp
-/// @brief Compile-time C++ language standard guard for the v3 sub-tree.
+/// @brief Compile-time C++ language standard guard.
 ///
-/// R210 (plans/01-modern-cpp-baseline.md): the v3 tree requires C++20.
+/// The tree requires C++20.
 /// Including this header from any translation unit forces a hard error
 /// on older toolchains rather than producing cryptic template diagnostics
 /// deep in stdlib code.

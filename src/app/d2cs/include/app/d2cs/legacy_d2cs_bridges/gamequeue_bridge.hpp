@@ -2,7 +2,7 @@
 #pragma once
 
 /// @file gamequeue_bridge.hpp
-/// R236(1) -- observation-only strangler-fig bridges for the legacy
+/// Observation-only bridges for the legacy
 /// game-queue lifecycle in `src/d2cs/gamequeue.cpp`:
 ///
 ///   * `gqlist_create()`  -- builds the queue list at startup.

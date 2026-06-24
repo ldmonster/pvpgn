@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// tests/unit/application/ads/ads_test.cpp -- R171.a unit tests for
-// the application-layer ad-banner dispatchers.
+// Unit tests for the application-layer ad-banner dispatchers.
 
 #include <catch2/catch_test_macros.hpp>
 

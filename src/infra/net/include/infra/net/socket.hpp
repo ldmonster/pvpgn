@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
-// v3 equivalent of src/compat/psock.h
 // Thin C++20 RAII wrapper over POSIX sockets / Winsock2.
 // No Boost.Asio dependency — uses OS socket APIs directly.
 //

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R308 — IrcFsm Channel Operation Tests
+// IrcFsm Channel Operation Tests
 //
 // Covers:
 //   - JOIN #channel: client joins, server sends JOIN echo + 332 + 353 + 366
@@ -93,7 +93,7 @@ void join_channel(IrcFsm& f, FakeIrcCtx& ctx,
 }  // namespace
 
 // ===========================================================================
-// R308-1: JOIN #channel — JOIN echo + 332 + 353 + 366
+// JOIN #channel — JOIN echo + 332 + 353 + 366
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: JOIN sends JOIN echo with nick prefix",
@@ -191,7 +191,7 @@ TEST_CASE("IrcFsm R308: JOIN with different channel name stores correct channel"
 }
 
 // ===========================================================================
-// R308-2: PART #channel — PART echo
+// PART #channel — PART echo
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: PART sends PART echo with nick prefix",
@@ -257,7 +257,7 @@ TEST_CASE("IrcFsm R308: PART before joining returns 403 ERR_NOSUCHCHANNEL",
 }
 
 // ===========================================================================
-// R308-3: PRIVMSG #channel :message — channel message accepted
+// PRIVMSG #channel :message — channel message accepted
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: PRIVMSG to channel in InChannel state is accepted silently",
@@ -307,7 +307,7 @@ TEST_CASE("IrcFsm R308: PRIVMSG before registration returns 451",
 }
 
 // ===========================================================================
-// R308-4: PRIVMSG nick :message — private message → 401
+// PRIVMSG nick :message — private message → 401
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: PRIVMSG to nick returns 401 ERR_NOSUCHNICK",
@@ -348,7 +348,7 @@ TEST_CASE("IrcFsm R308: PRIVMSG to nick in Registered state returns 401",
 }
 
 // ===========================================================================
-// R308-5: LIST — 321/322/323
+// LIST — 321/322/323
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: LIST in Registered state returns 321 + 323",
@@ -417,7 +417,7 @@ TEST_CASE("IrcFsm R308: LIST order is 321 then 322 then 323",
 }
 
 // ===========================================================================
-// R308-6: TOPIC #channel — get topic → 331/332
+// TOPIC #channel — get topic → 331/332
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: TOPIC get with no topic returns 331 RPL_NOTOPIC",
@@ -462,7 +462,7 @@ TEST_CASE("IrcFsm R308: TOPIC get after failed set still returns 331",
 }
 
 // ===========================================================================
-// R308-7: TOPIC #channel :new topic — set topic → 482 (no operator)
+// TOPIC #channel :new topic — set topic → 482 (no operator)
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: TOPIC set returns 482 ERR_CHANOPRIVSNEEDED",
@@ -502,7 +502,7 @@ TEST_CASE("IrcFsm R308: TOPIC set on wrong channel returns 403",
 }
 
 // ===========================================================================
-// R308-8: KICK #channel nick — → 482 (no operator)
+// KICK #channel nick — → 482 (no operator)
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: KICK in channel returns 482 ERR_CHANOPRIVSNEEDED",
@@ -553,7 +553,7 @@ TEST_CASE("IrcFsm R308: KICK wrong channel returns 403 ERR_NOSUCHCHANNEL",
 }
 
 // ===========================================================================
-// R308-9: NAMES #channel — → 353 + 366
+// NAMES #channel — → 353 + 366
 // ===========================================================================
 
 TEST_CASE("IrcFsm R308: NAMES in channel returns 353 RPL_NAMREPLY",

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new edge/error-branch tests for `application::chat::OpFromChannel`.
+// Edge/error-branch tests for `application::chat::OpFromChannel`.
 // Covers the lookup/validation arms that op_from_channel_test.cpp does
 // not reach:
 //   * channel not found (find_by_id miss)

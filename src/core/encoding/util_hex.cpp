@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-// Hex encoding/decoding utilities (plan 15 §3 / SOLID-S).
+// Hex encoding/decoding utilities.
 // Included as a sub-TU by util.cpp — do not compile directly.
 
 #include <cstdio>

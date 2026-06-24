@@ -9,7 +9,7 @@
 //     bytes[comp_len]           (zlib-wrapped deflate stream of the payload)
 //
 // This adapter lives in `infra/compression/` because it brings in a
-// real external dependency (zlib). The v3 protocol layer remains
+// real external dependency (zlib). The protocol layer remains
 // zlib-free and operates on decompressed bytes only — callers stitch
 // the two together at the transport edge.
 //

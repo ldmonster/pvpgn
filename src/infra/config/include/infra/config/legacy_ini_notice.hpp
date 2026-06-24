@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Part of PvPGN v3 (refactoring plan section 15 — Phase 9).
 #pragma once
 
 /// @file legacy_ini_notice.hpp
@@ -44,13 +43,11 @@ namespace pvpgn::infra::config {
 /// - TOML supports nested structures and arrays
 /// - TOML has better error reporting
 /// - INI parser maintenance burden is high relative to usage
-/// - PvPGN 4.0 focuses on the v3 refactored codebase with TOML-only support
+/// - PvPGN 4.0 focuses on TOML-only support
 ///
 /// ## Questions?
 ///
 /// Refer to:
-/// - `refactoring-plan-15-migration-roadmap.md` — Phase 9 cleanup details
-/// - `refactoring-progress.md` — Overall refactoring status
 /// - `src/v3/infra/config/include/infra/config/server_config.hpp` — TOML API
 
 }  // namespace pvpgn::infra::config

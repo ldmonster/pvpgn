@@ -9,11 +9,6 @@
 /// repository hides where those values come from -- in the legacy
 /// path it's the `anongame_queue` global walked by client_tag +
 /// game_type; in tests it's an in-memory `std::vector`.
-///
-/// R173.b: declared. The legacy adapter is part of R173.c (the
-/// `anongame_lobby_bridge` linked half). Until that lands the
-/// dispatcher is exercised only through unit tests with a
-/// `StaticLobbyRepository` test double.
 
 #include "application/anongame_lobby/lobby.hpp"
 

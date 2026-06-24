@@ -104,7 +104,7 @@ void FileAccountRepository::load_all() {
 }
 
 // ---------------------------------------------------------------------------
-// R314 — parse a single .plain file
+// Parse a single .plain file
 // ---------------------------------------------------------------------------
 
 std::optional<domain::identity::Account> FileAccountRepository::load_account_file(
@@ -181,7 +181,7 @@ std::optional<domain::identity::Account> FileAccountRepository::load_account_fil
 }
 
 // ---------------------------------------------------------------------------
-// R315 — atomic write-back to disk
+// Atomic write-back to disk
 // ---------------------------------------------------------------------------
 
 core::Status<> FileAccountRepository::save(
@@ -275,7 +275,7 @@ core::Status<> FileAccountRepository::save(
 }
 
 // ---------------------------------------------------------------------------
-// R315 — remove: delete .plain file from disk
+// remove: delete .plain file from disk
 // ---------------------------------------------------------------------------
 
 core::Status<> FileAccountRepository::remove(domain::AccountId id) {

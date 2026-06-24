@@ -13,33 +13,32 @@ struct Alias {
     std::string_view canonical;
 };
 
-// R216 first migration set, extended in R216b and R220. Add an entry
-// here when migrating a new legacy command into the v3 strangler-fig
-// path.
+// Add an entry here when routing a new legacy command through this
+// bridge.
 constexpr std::array<Alias, 117> kAliases = {{
     {"/version", "/version"},
     {"/ver",     "/version"},
     {"/uptime",  "/uptime"},
     {"/help",    "/help"},
     {"/?",       "/help"},
-    // R216b: read-only info commands. Bodies still in legacy
-    // command.cpp; the v3 bridge calls the un-static'd handlers.
+    // Read-only info commands. Bodies still in legacy
+    // command.cpp; the bridge calls the un-static'd handlers.
     {"/who",     "/who"},
     {"/whoami",  "/whoami"},
     {"/users",   "/users"},
     {"/finger",  "/finger"},
-    // R220: next read-only batch.
+    // Read-only batch.
     {"/time",     "/time"},
     {"/news",     "/news"},
     {"/games",    "/games"},
     {"/channels", "/channels"},
     {"/motd",     "/motd"},
-    // R221: server-info batch.
+    // Server-info batch.
     {"/copyright",   "/copyright"},
     {"/lusers",      "/lusers"},
     {"/connections", "/connections"},
     {"/admins",      "/admins"},
-    // R222: per-session state commands.
+    // Per-session state commands.
     {"/quit",      "/quit"},
     {"/beep",      "/beep"},
     {"/nobeep",    "/nobeep"},
@@ -47,7 +46,7 @@ constexpr std::array<Alias, 117> kAliases = {{
     {"/dnd",       "/dnd"},
     {"/squelch",   "/squelch"},
     {"/unsquelch", "/unsquelch"},
-    // R223: social / messaging commands.
+    // Social / messaging commands.
     {"/clan",       "/clan"},
     {"/c",          "/clan"},
     {"/friends",    "/friends"},
@@ -62,7 +61,7 @@ constexpr std::array<Alias, 117> kAliases = {{
     {"/unwatch",    "/unwatch"},
     {"/tos",        "/tos"},
     {"/clearstats", "/clearstats"},
-    // R224: backfill aliases for previously-routed canonicals.
+    // Backfill aliases for previously-routed canonicals.
     {"/warranty",  "/copyright"},
     {"/license",   "/copyright"},
     {"/ignore",    "/squelch"},
@@ -71,7 +70,7 @@ constexpr std::array<Alias, 117> kAliases = {{
     {"/exit",      "/quit"},
     {"/con",       "/connections"},
     {"/chs",       "/channels"},
-    // R224: channel/chat-ops commands.
+    // Channel/chat-ops commands.
     {"/channel",    "/channel"},
     {"/join",       "/channel"},
     {"/j",          "/channel"},
@@ -86,7 +85,7 @@ constexpr std::array<Alias, 117> kAliases = {{
     {"/watchall",   "/watchall"},
     {"/unwatchall", "/unwatchall"},
     {"/alert",      "/alert"},
-    // R225: channel rights / op commands.
+    // Channel rights / op commands.
     {"/admin",    "/admin"},
     {"/operator", "/operator"},
     {"/aop",      "/aop"},
@@ -96,7 +95,7 @@ constexpr std::array<Alias, 117> kAliases = {{
     {"/voice",    "/voice"},
     {"/devoice",  "/devoice"},
     {"/vop",      "/vop"},
-    // R226: moderation / account-state commands.
+    // Moderation / account-state commands.
     {"/kick",       "/kick"},
     {"/ban",        "/ban"},
     {"/unban",      "/unban"},
@@ -110,7 +109,7 @@ constexpr std::array<Alias, 117> kAliases = {{
     {"/unmute",     "/unmuteacct"},
     {"/flag",       "/flag"},
     {"/tag",        "/tag"},
-    // R227: account / admin-ops commands.
+    // Account / admin-ops commands.
     {"/addacct",   "/addacct"},
     {"/chpass",    "/chpass"},
     {"/kill",      "/kill"},
@@ -122,7 +121,7 @@ constexpr std::array<Alias, 117> kAliases = {{
     {"/config",    "/config"},
     {"/shutdown",  "/shutdown"},
     {"/serverban", "/serverban"},
-    // R228: info / network / misc commands.
+    // Info / network / misc commands.
     {"/stats",         "/stats"},
     {"/astat",         "/stats"},
     {"/whois",         "/whois"},
@@ -140,7 +139,7 @@ constexpr std::array<Alias, 117> kAliases = {{
     {"/ping",          "/ping"},
     {"/p",             "/ping"},
     {"/latency",       "/ping"},
-    // R229: extern bodies in other TUs.
+    // Extern bodies in other TUs.
     {"/mail",     "/mail"},
     {"/icon",     "/icon"},
     {"/ipban",    "/ipban"},

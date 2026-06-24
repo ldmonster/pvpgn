@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Net-new coverage for `application::auth::LockAccount` / `UnlockAccount`.
+// Coverage for `application::auth::LockAccount` / `UnlockAccount`.
 // account_lock_test.cpp covers happy lock/unlock, not-found, idempotent
 // unlock, and event publication. This file drives the otherwise-uncovered
 // persistence-failure arm of BOTH use-cases: find() succeeds but save()

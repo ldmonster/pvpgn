@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /// @file rotating_file_sink.cpp
-/// Implementation of make_rotating_file_logger() (Plan 10 §4).
+/// Implementation of make_rotating_file_logger().
 ///
 /// This translation unit is only compiled when PVPGN_V3_WITH_SPDLOG=ON
 /// (it is listed in the infra_log target, which is guarded by that option).

@@ -5,8 +5,8 @@
 // of password; output is an 8-character ASCII string drawn from a
 // fixed 64-character alphabet.
 //
-// This is the v3 port. Bit-for-bit compatible with the legacy
-// algorithm; verified via parity tests against `pvpgn::wol_hash`.
+// Bit-for-bit compatible with the legacy algorithm; verified via
+// parity tests against `pvpgn::wol_hash`.
 
 #pragma once
 

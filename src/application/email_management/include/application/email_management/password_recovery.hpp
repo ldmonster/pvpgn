@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// application/email_management/password_recovery.hpp -- R169.d skeleton
-//
 // Interface-only header for the `handle_getpassword` family. This
 // covers the "I forgot my password, mail it to me" path. The
 // dispatcher decides whether the request is acceptable, but the
@@ -41,11 +39,10 @@ struct PasswordRecoveryResponse {
     /// This is the *plaintext* token that the caller deals with
     /// (the dispatcher does not know whether the account stores
     /// hashed or plaintext passwords -- the caller supplies the
-    /// already-resolved value separately in R170).
+    /// already-resolved value separately).
     std::string token_to_deliver;
 };
 
-/// R169.d declares; R170 implements.
 PasswordRecoveryResponse dispatch_password_recovery(
     PasswordRecoveryRequest const& req);
 

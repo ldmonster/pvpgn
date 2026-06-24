@@ -12,13 +12,13 @@
 namespace {
 
 /// Process-global snapshot. Written by `pvpgn_v3_d2cs_prefs_load_toml`,
-/// read by every `_get_*` accessor. R161: holds a `D2csLegacyPrefs`
+/// read by every `_get_*` accessor. Holds a `D2csLegacyPrefs`
 /// adapter (which itself owns a `D2csServerConfig` + pre-computed
 /// std::string copies of all filesystem::path fields). The bridge no
 /// longer keeps its own StringCache -- the adapter is the single
 /// source of stable `const char*` storage.
 ///
-/// R165: wrapped in `std::atomic<std::shared_ptr<...>>` so SIGHUP
+/// Wrapped in `std::atomic<std::shared_ptr<...>>` so SIGHUP
 /// reload is race-free with concurrent readers. Note: returned
 /// `const char*` pointers are only safe to use within the same
 /// short critical section as the accessor call -- a concurrent
@@ -82,7 +82,7 @@ extern "C" void pvpgn_v3_d2cs_prefs_dump(void* user, void (*line_cb)(void*, cons
 
 // ── [server] ─────────────────────────────────────────────────────────────────
 //
-// LIFETIME WARNING (R168): every `extern "C" const char*` accessor
+// LIFETIME WARNING: every `extern "C" const char*` accessor
 // below returns a pointer into the LegacyPrefs snapshot held by
 // `g_d2cs_prefs`. The accessor's local `shared_ptr` lasts only for
 // the call; the returned pointer must be consumed immediately (e.g.

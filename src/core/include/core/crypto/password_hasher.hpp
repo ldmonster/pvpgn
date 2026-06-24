@@ -4,12 +4,11 @@
 /// @file password_hasher.hpp
 /// `core::crypto::IPasswordHasher` — the password-AT-REST hashing port.
 ///
-/// Plan 08 (`plans/08-crypto-modernization.md`) replaces the legacy
-/// password-equivalent storage (Blizzard SHA-1 `bnethash`) with a salted,
-/// memory-hard argon2id hash. This interface is what the application layer
-/// (account creation, login, password change) depends on; the concrete
-/// argon2id adapter lives in `infra/crypto/` and is built where libsodium is
-/// available (see ADR 0008).
+/// Replaces the legacy password-equivalent storage (Blizzard SHA-1
+/// `bnethash`) with a salted, memory-hard argon2id hash. This interface is
+/// what the application layer (account creation, login, password change)
+/// depends on; the concrete argon2id adapter lives in `infra/crypto/` and is
+/// built where libsodium is available.
 ///
 /// NOTE — do not confuse this with `domain::identity::IPasswordHasher`, which
 /// is a *session-hash* port: it derives the per-connection bnet session hash

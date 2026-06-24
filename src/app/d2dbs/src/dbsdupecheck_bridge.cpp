@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// R232(1): observation bridge for d2dbs dbsdupecheck per-call.
+// Observation bridge for d2dbs dbsdupecheck per-call.
 
 #include "app/d2dbs/legacy_d2dbs_bridges/dbsdupecheck_bridge.hpp"
 

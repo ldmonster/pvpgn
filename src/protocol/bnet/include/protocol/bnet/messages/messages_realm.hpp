@@ -73,7 +73,7 @@ struct RealmJoinReply {
 // PROFILE / AT_SEARCH / AT_INVITER_SEARCH / TOURNAMENT / PROFILE_CLAN /
 // GET_ICON / SET_ICON on the client side; SEARCH / FOUND / CANCEL on the
 // server side) has its own internal layout described in the legacy
-// `anongame_protocol.h`. The strangler bridge transports these packets
+// `anongame_protocol.h`. The bridge transports these packets
 // verbatim so the application layer can route on `sub_option`; per-option
 // parsers can be added incrementally without redefining the wire envelope.
 struct WarcraftGeneralRequest {

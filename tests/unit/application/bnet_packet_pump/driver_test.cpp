@@ -136,7 +136,7 @@ TEST_CASE("driver: FeedOutcome::to_string covers every enumerator",
     CHECK(pump::to_string(pump::FeedOutcome::kD2csIpDenied) == "d2cs_ip_denied");
 }
 
-// ---- R182.a: policy-aware feed overload ----
+// ---- policy-aware feed overload ----
 
 TEST_CASE("driver(policy): default PumpPolicy preserves byte-only semantics",
           "[application][bnet_packet_pump][driver][policy]")
@@ -221,7 +221,7 @@ TEST_CASE("driver(policy): max_conns_per_ip=0 disables the rate-limit gate",
     CHECK(o == pump::FeedOutcome::kAccepted);
 }
 
-// ---- R186.a: feed_with_side_effects + InitSideEffects port ----
+// ---- feed_with_side_effects + InitSideEffects port ----
 
 namespace {
 

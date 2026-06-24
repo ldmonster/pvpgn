@@ -15,7 +15,7 @@
 namespace pvpgn::app::bnetd {
 
 // ---------------------------------------------------------------------------
-// Build ServerConfig from CLI args (TOML loading deferred to Phase 3)
+// Build ServerConfig from CLI args (TOML loading deferred).
 // ---------------------------------------------------------------------------
 
 /// Apply CLI overrides on top of the default-constructed ServerConfig.
