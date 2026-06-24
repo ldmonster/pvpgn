@@ -77,10 +77,16 @@ core::Result<std::vector<std::uint8_t>> anongame_decompress(
             core::StatusCode::OutOfRange,
             "anongame_decompress: input shorter than 4-byte header"));
     }
-    const std::uint16_t raw_len = static_cast<std::uint16_t>(framed[0]) |
-                                  (static_cast<std::uint16_t>(framed[1]) << 8);
-    const std::uint16_t comp_len = static_cast<std::uint16_t>(framed[2]) |
-                                   (static_cast<std::uint16_t>(framed[3]) << 8);
+    // The shift integer-promotes each operand to int, so the OR is an int that
+    // narrows on assignment to uint16_t. Both bytes provably fit, but make the
+    // narrowing explicit — value-range propagation suppresses the -Wconversion
+    // warning in plain builds, yet ubsan instrumentation defeats that analysis.
+    const std::uint16_t raw_len = static_cast<std::uint16_t>(
+        static_cast<std::uint16_t>(framed[0]) |
+        (static_cast<std::uint16_t>(framed[1]) << 8));
+    const std::uint16_t comp_len = static_cast<std::uint16_t>(
+        static_cast<std::uint16_t>(framed[2]) |
+        (static_cast<std::uint16_t>(framed[3]) << 8));
     if (framed.size() - kAnonGameHeaderSize < comp_len) {
         return core::fail(core::make_error(
             core::StatusCode::OutOfRange,

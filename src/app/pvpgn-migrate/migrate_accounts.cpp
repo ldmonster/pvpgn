@@ -45,7 +45,7 @@ pvpgn::domain::BNHash bn_hash_from_hex(std::string_view hex) {
     }
     pvpgn::domain::BNHash::Bytes bytes{};
     for (std::size_t i = 0; i < 20; ++i) {
-        unsigned int hi = 0, lo = 0;
+        int hi = 0, lo = 0;
         const auto h = static_cast<unsigned char>(hex[i * 2]);
         const auto l = static_cast<unsigned char>(hex[i * 2 + 1]);
         if      (h >= '0' && h <= '9') hi = h - '0';

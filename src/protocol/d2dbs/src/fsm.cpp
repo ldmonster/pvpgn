@@ -37,9 +37,9 @@ core::Result<size_t, core::Error> D2DBSSessionFsm::feed(const uint8_t* data, siz
 
     while (buffer_.size() >= kHeaderSize) {
         // Parse header: size(2 LE) + type(2 LE) + seqno(4 LE)
-        const uint16_t packet_len =
+        const uint16_t packet_len = static_cast<uint16_t>(
             static_cast<uint16_t>(buffer_[0]) |
-            (static_cast<uint16_t>(buffer_[1]) << 8);
+            (static_cast<uint16_t>(buffer_[1]) << 8));
 
         if (packet_len < kHeaderSize) {
             return core::fail(
@@ -51,9 +51,9 @@ core::Result<size_t, core::Error> D2DBSSessionFsm::feed(const uint8_t* data, siz
             break;  // Wait for more data
         }
 
-        const uint16_t packet_type =
+        const uint16_t packet_type = static_cast<uint16_t>(
             static_cast<uint16_t>(buffer_[2]) |
-            (static_cast<uint16_t>(buffer_[3]) << 8);
+            (static_cast<uint16_t>(buffer_[3]) << 8));
 
         const uint32_t seqno =
             static_cast<uint32_t>(buffer_[4])        |

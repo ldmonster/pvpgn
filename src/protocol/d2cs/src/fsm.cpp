@@ -43,9 +43,9 @@ core::Result<size_t, core::Error> D2CSSessionFsm::feed(const uint8_t* data, size
 
     while (buffer_.size() >= kHeaderSize) {
         // Parse header: length (2 bytes LE) + type (1 byte)
-        const uint16_t packet_len =
+        const uint16_t packet_len = static_cast<uint16_t>(
             static_cast<uint16_t>(buffer_[0]) |
-            (static_cast<uint16_t>(buffer_[1]) << 8);
+            (static_cast<uint16_t>(buffer_[1]) << 8));
 
         if (packet_len < kHeaderSize) {
             return core::fail(

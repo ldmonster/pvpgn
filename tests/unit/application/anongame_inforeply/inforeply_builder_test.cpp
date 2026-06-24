@@ -245,9 +245,9 @@ TEST_CASE("inforeply: encode_inforeply_packet starts with 0xFF 0x44 + length",
     REQUIRE(bytes.value().size() >= 5);
     REQUIRE(std::to_integer<std::uint8_t>(bytes.value()[0]) == 0xFF);
     REQUIRE(std::to_integer<std::uint8_t>(bytes.value()[1]) == 0x44);
-    const std::uint16_t len =
+    const std::uint16_t len = static_cast<std::uint16_t>(
         std::to_integer<std::uint16_t>(bytes.value()[2]) |
-        (std::to_integer<std::uint16_t>(bytes.value()[3]) << 8);
+        (std::to_integer<std::uint16_t>(bytes.value()[3]) << 8));
     REQUIRE(len == bytes.value().size());
     // sub_option byte for INFOREPLY is the client INFOS code 0x02.
     REQUIRE(std::to_integer<std::uint8_t>(bytes.value()[4]) ==
@@ -297,9 +297,9 @@ TEST_CASE("inforeply: encode_inforeply_packets concatenates N packets",
         REQUIRE(bytes.value().size() - cursor >= 4);
         REQUIRE(std::to_integer<std::uint8_t>(bytes.value()[cursor]) == 0xFF);
         REQUIRE(std::to_integer<std::uint8_t>(bytes.value()[cursor + 1]) == 0x44);
-        const std::uint16_t len =
+        const std::uint16_t len = static_cast<std::uint16_t>(
             std::to_integer<std::uint16_t>(bytes.value()[cursor + 2]) |
-            (std::to_integer<std::uint16_t>(bytes.value()[cursor + 3]) << 8);
+            (std::to_integer<std::uint16_t>(bytes.value()[cursor + 3]) << 8));
         REQUIRE(len >= 5);
         REQUIRE(cursor + len <= bytes.value().size());
         cursor += len;

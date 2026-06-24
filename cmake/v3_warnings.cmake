@@ -78,6 +78,13 @@ macro(pvpgn_v3_target_werror target)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             target_compile_options(${target} PRIVATE
                 -Wno-error=free-nonheap-object)
+            # Under -fsanitize=thread, GCC's -Wtsan fires on libstdc++'s own
+            # std::atomic_thread_fence (e.g. inside shared_ptr's atomic refcount
+            # release) because ThreadSanitizer cannot model a standalone fence.
+            # It is a tooling limitation in the standard library, not a defect in
+            # our code and not something we can change, so demote it to a warning
+            # rather than failing the tsan build. Inert outside tsan builds.
+            target_compile_options(${target} PRIVATE -Wno-error=tsan)
         endif()
     endif()
 endmacro()

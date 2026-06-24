@@ -42,7 +42,8 @@ TEST_CASE("zlib_anongame: round-trip small ASCII payload",
     REQUIRE(framed.has_value());
     // raw_len matches header.
     const auto& f = framed.value();
-    const std::uint16_t raw_len = std::uint16_t(f[0]) | (std::uint16_t(f[1]) << 8);
+    const std::uint16_t raw_len =
+        static_cast<std::uint16_t>(std::uint16_t(f[0]) | (std::uint16_t(f[1]) << 8));
     REQUIRE(raw_len == raw.size());
     auto back = anongame_decompress(as_span(f));
     REQUIRE(back.has_value());
