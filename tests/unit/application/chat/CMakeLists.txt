@@ -16,6 +16,11 @@ pvpgn_v3_add_test(test_application_chat_event_compose
     DEPS    application_chat
             protocol_bnet)
 
+pvpgn_v3_add_test(test_application_chat_event_compose_edges
+    SOURCES chat_event_compose_edges_test.cpp
+    DEPS    application_chat
+            protocol_bnet)
+
 pvpgn_v3_add_test(test_application_chat_reply_sink
     SOURCES chat_reply_sink_test.cpp
     DEPS    application_chat
@@ -24,6 +29,12 @@ pvpgn_v3_add_test(test_application_chat_reply_sink
 
 pvpgn_v3_add_test(test_application_chat_join
     SOURCES join_channel_test.cpp
+    DEPS    application_chat
+            infra_inmemory
+            infra_storage_repository)
+
+pvpgn_v3_add_test(test_application_chat_join_edges
+    SOURCES join_channel_edges_test.cpp
     DEPS    application_chat
             infra_inmemory
             infra_storage_repository)
@@ -82,4 +93,8 @@ pvpgn_v3_add_test(test_application_chat_op_from_channel
 
 pvpgn_v3_add_test(test_application_chat_command_registry
     SOURCES command_registry_test.cpp
+    DEPS    application_chat infra_inmemory)
+
+pvpgn_v3_add_test(test_application_chat_command_registry_parse
+    SOURCES command_registry_parse_test.cpp
     DEPS    application_chat infra_inmemory)

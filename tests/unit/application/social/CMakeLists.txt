@@ -2,6 +2,10 @@ pvpgn_v3_add_test(test_application_social_add_friend
     SOURCES add_friend_test.cpp
     DEPS    application_social infra_inmemory)
 
+pvpgn_v3_add_test(test_application_social_add_friend_outcomes
+    SOURCES add_friend_outcomes_test.cpp
+    DEPS    application_social infra_inmemory)
+
 pvpgn_v3_add_test(test_application_social_remove_friend
     SOURCES remove_friend_test.cpp
     DEPS    application_social infra_inmemory)

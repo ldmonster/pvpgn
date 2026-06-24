@@ -1694,6 +1694,39 @@ stay hidden); full `build/v3-dev` build green; unit+functional suite green
 (2741/2741; the 5 anongame/icon loader failures are the known parallel-WD flake,
 green under `-j1`, unrelated to this change).
 
+## Coverage wave 1 — agent fleet (2026-06-05)
+
+Toward the M1 exit (coverage ≥ 85% domain+app). Baseline **65.73%** (just under
+the 66 floor after the clean coverage rebuild). Fanned out 8 parallel agents,
+each owning one context's test dir (disjoint paths, tests-only, no production
+edits), then built + verified centrally:
+
+- **23 net-new unit-test files**, ~223 new cases, targeting the gap-ranked
+  uncovered branches: connection FSM (inchannel/dispatch/auth-reject error
+  arms), realm (character-persistence parse errors, gs_queue selection/cleanup,
+  dupe_checker GUID+hash passes, create_character capacity/persistence-fail),
+  auth (the `PersistenceFailed` save-fail arms no existing test reached),
+  moderation (the `IpBanList` value object 0%→covered: add/remove/range/CIDR/
+  expiry/prune; `CheckIpBan` branches), chat (join_channel outcome arms,
+  command-registry parsing, event-compose variants), shared value objects
+  (exhaustive `UserName`/`Locale`/`ClientTag`/`IpAddress` parse/equality/
+  boundary), identity (`Account` rotation/ban/unlock + `AttributeMap` profile/
+  stat accessors), ladder+social (pagination boundaries, entry lookup misses,
+  add-friend duplicate/full).
+- **Result: 68.32%** (`~9952/14568` lines), **+2.59 pt**, above floor. Floor
+  ratcheted 66 → 68. Full unit suite 2951 tests, all green (the 4 anongame/icon
+  loader failures are the known parallel-WD flake, green under `-j1`). Zero
+  production changes, zero regressions; first central build compiled clean.
+- Methodology note: the gate sums per-TU header occurrences, so each new test TU
+  re-adds shared-header lines to the denominator (denominator +1357 vs covered
+  +1269 this wave). Real unique-line coverage is materially higher than the gate
+  figure; reaching 85% on the gate metric is a multi-wave campaign.
+- Observations surfaced by agents (not bugs, left unfixed): realm
+  `character_persistence` ignores the `check_dupes` flag (commented-out TODO);
+  `create_character` does not validate `char_class`; the in-memory channel repo
+  drops `ChannelPolicy`/client tags on the create path (id==0) — a test-fixture
+  limitation worth noting.
+
 ## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

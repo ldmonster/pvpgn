@@ -5,6 +5,11 @@ pvpgn_v3_add_test(domain_realm_dupe_checker_test
     DEPS domain_realm
 )
 
+pvpgn_v3_add_test(domain_realm_dupe_checker_edges_test
+    SOURCES dupe_checker_edges_test.cpp
+    DEPS domain_realm
+)
+
 pvpgn_v3_add_test(domain_realm_character_test
     SOURCES character_test.cpp
     DEPS domain_realm

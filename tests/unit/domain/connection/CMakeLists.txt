@@ -69,6 +69,40 @@ if(TARGET test_domain_connection_fsm_ingame_dispatch AND NOT MSVC)
         PRIVATE -Wno-error=null-dereference)
 endif()
 
+# Error / edge branches of the InChannel handlers: empty-text chat no-op,
+# over-long / not-in-channel PostMessage EID_ERROR, parsed-ClientTag join,
+# existing-member EID_SHOWUSER, leave-without-join, out-of-order leave.
+pvpgn_v3_add_test(test_domain_connection_fsm_inchannel_error_branches
+    SOURCES connection_fsm_inchannel_error_branches_test.cpp
+    DEPS    domain_connection application_connection application_chat infra_inmemory)
+if(TARGET test_domain_connection_fsm_inchannel_error_branches AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_inchannel_error_branches
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
+# Core dispatch-routing branches: PING/NULL in the remaining states, the
+# LOGONRESPONSE2 / STARTADVEX3 aliases, unknown-packet ignore from each state,
+# close() from Authenticating, and the post-reject Disconnecting drain.
+pvpgn_v3_add_test(test_domain_connection_fsm_dispatch_branches
+    SOURCES connection_fsm_dispatch_branches_test.cpp
+    DEPS    domain_connection application_connection)
+if(TARGET test_domain_connection_fsm_dispatch_branches AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_dispatch_branches
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
+# Connecting + Authenticating reject / fallback branches: AUTH_CHECK out of
+# order, empty-username LOGON_REQUEST / ACCOUNTLOGON, injected-OLS invalid
+# username, and the PROOF empty-username fallback.
+pvpgn_v3_add_test(test_domain_connection_fsm_auth_reject_branches
+    SOURCES connection_fsm_auth_reject_branches_test.cpp
+    DEPS    domain_connection application_connection application_auth
+            infra_inmemory infra_crypto_nls infra_crypto_nls_adapter)
+if(TARGET test_domain_connection_fsm_auth_reject_branches AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_auth_reject_branches
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
 pvpgn_v3_add_test(test_domain_connection_route_registry
     SOURCES route_registry_test.cpp
     DEPS    domain_connection application_connection)

@@ -24,6 +24,23 @@ pvpgn_v3_add_test(test_domain_shared_bn_hash
     SOURCES bn_hash_test.cpp
     DEPS    domain_shared)
 
+# Net-new exhaustive branch coverage for shared value objects.
+pvpgn_v3_add_test(test_domain_shared_user_name_exhaustive
+    SOURCES user_name_exhaustive_test.cpp
+    DEPS    domain_shared)
+
+pvpgn_v3_add_test(test_domain_shared_locale_exhaustive
+    SOURCES locale_exhaustive_test.cpp
+    DEPS    domain_shared)
+
+pvpgn_v3_add_test(test_domain_shared_client_tag_exhaustive
+    SOURCES client_tag_exhaustive_test.cpp
+    DEPS    domain_shared)
+
+pvpgn_v3_add_test(test_domain_shared_ip_address_exhaustive
+    SOURCES ip_address_exhaustive_test.cpp
+    DEPS    domain_shared)
+
 pvpgn_v3_add_test(test_domain_shared_account_id
     SOURCES account_id_test.cpp
     DEPS    domain_shared)

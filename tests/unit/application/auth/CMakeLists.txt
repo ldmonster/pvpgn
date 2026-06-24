@@ -6,6 +6,10 @@ pvpgn_v3_add_test(test_application_auth_login_user_session_hash
     SOURCES login_user_session_hash_test.cpp
     DEPS    application_auth infra_inmemory)
 
+pvpgn_v3_add_test(test_application_auth_login_user_persistence
+    SOURCES login_user_persistence_test.cpp
+    DEPS    application_auth infra_inmemory)
+
 # Plan 08: transparent password-at-rest upgrade policy (plaintext-bearing auth)
 pvpgn_v3_add_test(test_application_auth_password_upgrade
     SOURCES password_upgrade_test.cpp
@@ -29,6 +33,10 @@ pvpgn_v3_add_test(test_application_auth_change_password
 
 pvpgn_v3_add_test(test_application_auth_change_password_session_hash
     SOURCES change_password_session_hash_test.cpp
+    DEPS    application_auth infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_change_password_persistence
+    SOURCES change_password_persistence_test.cpp
     DEPS    application_auth infra_inmemory)
 
 pvpgn_v3_add_test(test_application_auth_create_account
