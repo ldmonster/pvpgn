@@ -29,12 +29,14 @@ RecomputeLadder::execute(RecomputeLadderCommand cmd) const {
         return RecomputeLadderResult{0};
     }
 
-    // 3. Sort by wins descending (ties broken by rating descending)
+    // 3. Sort by rating descending (ties broken by wins descending),
+    //    matching the original rank-bearing ladder `ladder_sort_highestrated`
+    //    (src/bnetd/ladder.cpp): primary = rating, secondary = wins.
     std::stable_sort(entries.begin(), entries.end(),
         [](const domain::ladder::LadderEntry& a,
            const domain::ladder::LadderEntry& b) {
-            if (a.wins != b.wins) return a.wins > b.wins;
-            return a.rating > b.rating;
+            if (a.rating != b.rating) return a.rating > b.rating;
+            return a.wins > b.wins;
         });
 
     // 4. Save updated entries back (rank is implicit by position)

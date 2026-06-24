@@ -54,6 +54,14 @@ core::Status<> IrcFsm::on_ping(const Message& m) {
     return ctx_->send(pong);
 }
 
+core::Status<> IrcFsm::on_pong(const Message&) {
+    // Client keepalive reply to a server PING. The original
+    // (_handle_pong_command, handle_irc.cpp:85) accepts and effectively ignores
+    // it (it only updates latency bookkeeping). Treat it as a no-op success so a
+    // routine PONG never produces a 421 ERR_UNKNOWNCOMMAND.
+    return core::ok();
+}
+
 core::Status<> IrcFsm::on_quit(const Message&) {
     state_ = IrcState::Closing;
     ctx_->close();
@@ -62,11 +70,11 @@ core::Status<> IrcFsm::on_quit(const Message&) {
 
 core::Status<> IrcFsm::on_motd(const Message&) {
     // 375 RPL_MOTDSTART
-    auto s = send_numeric(375, nick_,
-                          "- " + std::string{ctx_->server_name()} + " Message of the day -");
+    auto s = send_numeric(375,
+                          ":- " + std::string{ctx_->server_name()} + " Message of the day -");
     if (!s) return s;
     // 376 RPL_ENDOFMOTD
-    return send_numeric(376, nick_, "End of /MOTD command.");
+    return send_numeric(376, ":End of /MOTD command.");
 }
 
 // ===========================================================================
@@ -80,11 +88,11 @@ core::Status<> IrcFsm::on_motd(const Message&) {
 core::Status<> IrcFsm::on_join(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
         // 451 ERR_NOTREGISTERED
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.empty() || m.params[0].empty()) {
         // 461 ERR_NEEDMOREPARAMS
-        return send_numeric(461, nick_, "JOIN :Not enough parameters");
+        return send_numeric(461, "JOIN :Not enough parameters");
     }
 
     const std::string& irc_chan = m.params[0];  // e.g. "#Lobby"
@@ -105,13 +113,13 @@ core::Status<> IrcFsm::on_join(const Message& m) {
             switch (join_result.error()) {
                 case E::Banned:
                     // 474 ERR_BANNEDFROMCHAN
-                    return send_numeric(474, nick_,
+                    return send_numeric(474,
                                         irc_chan + " :Cannot join channel (+b)");
                 case E::NotFound:
                 case E::InvalidChannelName:
                 default:
                     // 403 ERR_NOSUCHCHANNEL
-                    return send_numeric(403, nick_,
+                    return send_numeric(403,
                                         irc_chan + " :No such channel");
             }
         }
@@ -132,9 +140,9 @@ core::Status<> IrcFsm::on_join(const Message& m) {
 
         // 332 RPL_TOPIC (or 331 RPL_NOTOPIC)
         if (topic_.empty()) {
-            s = send_numeric(331, nick_, channel_ + " :No topic is set");
+            s = send_numeric(331, channel_ + " :No topic is set");
         } else {
-            s = send_numeric(332, nick_, channel_ + " :" + topic_);
+            s = send_numeric(332, channel_ + " :" + topic_);
         }
         if (!s) return s;
 
@@ -148,8 +156,8 @@ core::Status<> IrcFsm::on_join(const Message& m) {
         s = send_names_reply(channel_, member_nicks);
         if (!s) return s;
 
-        // 366 RPL_ENDOFNAMES
-        return send_numeric(366, channel_, "End of /NAMES list");
+        // 366 RPL_ENDOFNAMES  →  :<server> 366 <nick> <channel> :End of /NAMES list
+        return send_numeric(366, channel_ + " :End of /NAMES list");
     }
 
     // Stub / no use-case: accept the join locally.
@@ -165,15 +173,15 @@ core::Status<> IrcFsm::on_join(const Message& m) {
     if (!s) return s;
 
     // 332 RPL_TOPIC (empty topic for stub)
-    s = send_numeric(332, nick_, channel_ + " :");
+    s = send_numeric(332, channel_ + " :");
     if (!s) return s;
 
     // 353 RPL_NAMREPLY — skeleton: just ourselves
     s = send_names_reply(channel_, {nick_});
     if (!s) return s;
 
-    // 366 RPL_ENDOFNAMES
-    return send_numeric(366, channel_, "End of /NAMES list");
+    // 366 RPL_ENDOFNAMES  →  :<server> 366 <nick> <channel> :End of /NAMES list
+    return send_numeric(366, channel_ + " :End of /NAMES list");
 }
 
 // ---------------------------------------------------------------------------
@@ -182,17 +190,17 @@ core::Status<> IrcFsm::on_join(const Message& m) {
 
 core::Status<> IrcFsm::on_part(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.empty() || m.params[0].empty()) {
-        return send_numeric(461, nick_, "PART :Not enough parameters");
+        return send_numeric(461, "PART :Not enough parameters");
     }
 
     const std::string& target_chan = m.params[0];
 
     // If we're not in a channel, or the channel doesn't match, 403.
     if (state_ != IrcState::InChannel || channel_ != target_chan) {
-        return send_numeric(403, nick_,
+        return send_numeric(403,
                             target_chan + " :No such channel");
     }
 
@@ -229,11 +237,11 @@ core::Status<> IrcFsm::on_part(const Message& m) {
 
 core::Status<> IrcFsm::on_privmsg(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.size() < 2) {
         // 411 ERR_NORECIPIENT / no text
-        return send_numeric(411, nick_, "PRIVMSG :No recipient or text");
+        return send_numeric(411, "PRIVMSG :No recipient or text");
     }
 
     const std::string& target  = m.params[0];
@@ -246,7 +254,7 @@ core::Status<> IrcFsm::on_privmsg(const Message& m) {
             auto chat_msg_result = domain::ChatMessage::create(text);
             if (!chat_msg_result) {
                 // 404 ERR_CANNOTSENDTOCHAN
-                return send_numeric(404, nick_,
+                return send_numeric(404,
                                     target + " :Cannot send to channel");
             }
 
@@ -255,7 +263,7 @@ core::Status<> IrcFsm::on_privmsg(const Message& m) {
 
             if (!post_result) {
                 // 404 ERR_CANNOTSENDTOCHAN
-                return send_numeric(404, nick_,
+                return send_numeric(404,
                                     target + " :Cannot send to channel");
             }
             // Success: other members receive the message via event dispatch.
@@ -268,7 +276,7 @@ core::Status<> IrcFsm::on_privmsg(const Message& m) {
     }
 
     // Private message to a nick; send 401 ERR_NOSUCHNICK.
-    return send_numeric(401, nick_, target + " :No such nick");
+    return send_numeric(401, target + " :No such nick");
 }
 
 // ---------------------------------------------------------------------------
@@ -277,10 +285,10 @@ core::Status<> IrcFsm::on_privmsg(const Message& m) {
 
 core::Status<> IrcFsm::on_notice(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.size() < 2) {
-        return send_numeric(411, nick_, "NOTICE :No recipient or text");
+        return send_numeric(411, "NOTICE :No recipient or text");
     }
     // Echo back with sender prefix (same skeleton as PRIVMSG).
     Message echo;
@@ -296,17 +304,17 @@ core::Status<> IrcFsm::on_notice(const Message& m) {
 
 core::Status<> IrcFsm::on_away(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.empty() || m.params[0].empty()) {
         // AWAY with no message → unset away
         away_msg_.clear();
         // 305 RPL_UNAWAY
-        return send_numeric(305, nick_, "You are no longer marked as being away");
+        return send_numeric(305, ":You are no longer marked as being away");
     }
     away_msg_ = m.params[0];
     // 306 RPL_NOWAWAY
-    return send_numeric(306, nick_, "You have been marked as being away");
+    return send_numeric(306, ":You have been marked as being away");
 }
 
 // ---------------------------------------------------------------------------
@@ -315,10 +323,10 @@ core::Status<> IrcFsm::on_away(const Message& m) {
 
 core::Status<> IrcFsm::on_whois(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.empty() || m.params[0].empty()) {
-        return send_numeric(431, nick_, "No nickname given");
+        return send_numeric(431, ":No nickname given");
     }
 
     const std::string& target = m.params[0];
@@ -326,7 +334,7 @@ core::Status<> IrcFsm::on_whois(const Message& m) {
     // Skeleton: only knows about ourselves.
     if (target != nick_) {
         // 401 ERR_NOSUCHNICK
-        return send_numeric(401, nick_, target + " :No such nick/channel");
+        return send_numeric(401, target + " :No such nick/channel");
     }
 
     // 311 RPL_WHOISUSER: <nick> <user> <host> * :<realname>
@@ -343,7 +351,7 @@ core::Status<> IrcFsm::on_whois(const Message& m) {
     if (!s) return s;
 
     // 318 RPL_ENDOFWHOIS
-    return send_numeric(318, nick_, target + " :End of /WHOIS list.");
+    return send_numeric(318, target + " :End of /WHOIS list.");
 }
 
 // ---------------------------------------------------------------------------
@@ -352,7 +360,7 @@ core::Status<> IrcFsm::on_whois(const Message& m) {
 
 core::Status<> IrcFsm::on_who(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
 
     const std::string mask = m.params.empty() ? "*" : m.params[0];
@@ -377,7 +385,7 @@ core::Status<> IrcFsm::on_who(const Message& m) {
     }
 
     // 315 RPL_ENDOFWHO
-    return send_numeric(315, nick_, mask + " :End of /WHO list.");
+    return send_numeric(315, mask + " :End of /WHO list.");
 }
 
 // ---------------------------------------------------------------------------
@@ -386,17 +394,17 @@ core::Status<> IrcFsm::on_who(const Message& m) {
 
 core::Status<> IrcFsm::on_mode(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.empty()) {
-        return send_numeric(461, nick_, "MODE :Not enough parameters");
+        return send_numeric(461, "MODE :Not enough parameters");
     }
 
     const std::string& target = m.params[0];
 
     // Skeleton: return current channel mode string (empty = no modes set).
-    // 324 RPL_CHANNELMODEIS: <channel> <mode string>
-    return send_numeric(324, nick_, target + " +");
+    // 324 RPL_CHANNELMODEIS: <nick> <channel> <mode string>
+    return send_numeric(324, target + " +");
 }
 
 // ---------------------------------------------------------------------------
@@ -405,32 +413,32 @@ core::Status<> IrcFsm::on_mode(const Message& m) {
 
 core::Status<> IrcFsm::on_topic(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.empty()) {
-        return send_numeric(461, nick_, "TOPIC :Not enough parameters");
+        return send_numeric(461, "TOPIC :Not enough parameters");
     }
 
     const std::string& target_chan = m.params[0];
 
     if (state_ != IrcState::InChannel || channel_ != target_chan) {
-        return send_numeric(403, nick_, target_chan + " :No such channel");
+        return send_numeric(403, target_chan + " :No such channel");
     }
 
     if (m.params.size() >= 2) {
         // SET topic — no set_topic use-case yet; return 482.
         // 482 ERR_CHANOPRIVSNEEDED
-        return send_numeric(482, nick_,
+        return send_numeric(482,
                             channel_ + " :You're not channel operator");
     }
 
     // GET topic
     if (topic_.empty()) {
         // 331 RPL_NOTOPIC
-        return send_numeric(331, nick_, channel_ + " :No topic is set");
+        return send_numeric(331, channel_ + " :No topic is set");
     }
     // 332 RPL_TOPIC
-    return send_numeric(332, nick_, channel_ + " :" + topic_);
+    return send_numeric(332, channel_ + " :" + topic_);
 }
 
 // ---------------------------------------------------------------------------
@@ -439,7 +447,7 @@ core::Status<> IrcFsm::on_topic(const Message& m) {
 
 core::Status<> IrcFsm::on_names(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
 
     const std::string target_chan =
@@ -448,7 +456,7 @@ core::Status<> IrcFsm::on_names(const Message& m) {
             : m.params[0];
 
     if (target_chan.empty()) {
-        return send_numeric(461, nick_, "NAMES :Not enough parameters");
+        return send_numeric(461, "NAMES :Not enough parameters");
     }
 
     if (state_ == IrcState::InChannel && channel_ == target_chan) {
@@ -457,8 +465,8 @@ core::Status<> IrcFsm::on_names(const Message& m) {
         if (!s) return s;
     }
 
-    // 366 RPL_ENDOFNAMES
-    return send_numeric(366, target_chan, "End of /NAMES list.");
+    // 366 RPL_ENDOFNAMES  →  :<server> 366 <nick> <channel> :End of /NAMES list.
+    return send_numeric(366, target_chan + " :End of /NAMES list.");
 }
 
 // ---------------------------------------------------------------------------
@@ -467,20 +475,20 @@ core::Status<> IrcFsm::on_names(const Message& m) {
 
 core::Status<> IrcFsm::on_kick(const Message& m) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
     if (m.params.size() < 2) {
-        return send_numeric(461, nick_, "KICK :Not enough parameters");
+        return send_numeric(461, "KICK :Not enough parameters");
     }
 
     const std::string& target_chan = m.params[0];
 
     if (state_ != IrcState::InChannel || channel_ != target_chan) {
-        return send_numeric(403, nick_, target_chan + " :No such channel");
+        return send_numeric(403, target_chan + " :No such channel");
     }
 
     // Kick is not yet implemented; return 482 ERR_CHANOPRIVSNEEDED.
-    return send_numeric(482, nick_,
+    return send_numeric(482,
                         channel_ + " :You're not channel operator");
 }
 
@@ -490,11 +498,11 @@ core::Status<> IrcFsm::on_kick(const Message& m) {
 
 core::Status<> IrcFsm::on_list(const Message&) {
     if (state_ != IrcState::Registered && state_ != IrcState::InChannel) {
-        return send_numeric(451, effective_nick(), "You have not registered");
+        return send_numeric(451, ":You have not registered");
     }
 
     // 321 RPL_LISTSTART
-    auto s = send_numeric(321, nick_, "Channel :Users  Name");
+    auto s = send_numeric(321, "Channel :Users  Name");
     if (!s) return s;
 
     // Relay via ListChannels use-case when available.
@@ -536,7 +544,7 @@ core::Status<> IrcFsm::on_list(const Message&) {
     }
 
     // 323 RPL_LISTEND
-    return send_numeric(323, nick_, "End of /LIST");
+    return send_numeric(323, ":End of /LIST");
 }
 
 }  // namespace pvpgn::protocol::irc

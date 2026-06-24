@@ -2,6 +2,7 @@
 #include "domain/realm/character.hpp"
 #include "core/clock.hpp"
 #include <chrono>
+#include <cstdint>
 
 namespace pvpgn::domain::realm {
 
@@ -175,6 +176,18 @@ TEST_CASE("Character - lock and unlock cycle", "[domain][realm]") {
     REQUIRE(lock_result2);
     CHECK(character.is_locked());
     CHECK(character.locked_by().value() == "gs2.example.com");
+}
+
+// Pins the shared-kernel CharacterClass enum to the canonical D2 class ids
+// (fixed by the wire/save format). If anyone reorders the enum, this fails.
+TEST_CASE("CharacterClass - canonical D2 class id ordering", "[domain][realm]") {
+    CHECK(static_cast<std::uint8_t>(CharacterClass::amazon)      == 0);
+    CHECK(static_cast<std::uint8_t>(CharacterClass::sorceress)   == 1);
+    CHECK(static_cast<std::uint8_t>(CharacterClass::necromancer) == 2);
+    CHECK(static_cast<std::uint8_t>(CharacterClass::paladin)     == 3);
+    CHECK(static_cast<std::uint8_t>(CharacterClass::barbarian)   == 4);
+    CHECK(static_cast<std::uint8_t>(CharacterClass::druid)       == 5);
+    CHECK(static_cast<std::uint8_t>(CharacterClass::assassin)    == 6);
 }
 
 TEST_CASE("Character - different character classes", "[domain][realm]") {

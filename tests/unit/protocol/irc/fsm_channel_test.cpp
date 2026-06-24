@@ -23,6 +23,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "protocol/irc/codec.hpp"
 #include "protocol/irc/fsm.hpp"
 
 using namespace pvpgn;
@@ -331,8 +332,9 @@ TEST_CASE("IrcFsm R308: PRIVMSG to nick 401 reply contains target nick",
 
     const auto& reply = ctx.first_with_command("401");
     REQUIRE(reply.prefix == "pvpgn.test");
-    // make_numeric: params[0]=target(=nick_), params[1]=text("charlie :No such nick")
-    // The target nick appears at the start of params[1]
+    // 401 wire layout: :<server> 401 <nick> <target> :No such nick
+    // params[0] is the implicit nick slot; the queried target is params[1].
+    REQUIRE(reply.params[0] == "alice");
     REQUIRE(reply.params[1].find("charlie") != std::string::npos);
 }
 
@@ -623,6 +625,86 @@ TEST_CASE("IrcFsm R308: NAMES 366 contains channel name",
 
     const auto& endofnames = ctx.first_with_command("366");
     REQUIRE(endofnames.prefix == "pvpgn.test");
-    // make_numeric(366, target_chan, text): params[0]=target_chan, params[1]=text
-    REQUIRE(endofnames.params[0] == "#pvpgn");
+    // 366 wire layout: :<server> 366 <nick> <channel> :End of /NAMES list
+    // make_numeric always injects the nick as the implicit first param, so the
+    // channel is params[1], not params[0].
+    REQUIRE(endofnames.params[0] == "alice");   // implicit nick slot
+    REQUIRE(endofnames.params[1] == "#pvpgn");   // channel
+}
+
+// ===========================================================================
+// Regression: F1 — numeric replies must carry the client nick as the implicit
+//             first parameter (mirroring the original irc_send_cmd, irc.cpp:104).
+// Regression: F6 — a client keepalive PONG must NOT yield 421 ERR_UNKNOWNCOMMAND.
+// ===========================================================================
+
+TEST_CASE("IrcFsm F1: RPL_ENDOFNAMES (366) wires nick then channel then trailer",
+          "[protocol][irc][fsm][channel][regression][F1]") {
+    FakeIrcCtx ctx;
+    IrcFsm f{ctx};
+    join_channel(f, ctx, "#pvpgn");  // nick == "alice"
+
+    REQUIRE(f.handle(msg("NAMES", {"#pvpgn"})).has_value());
+
+    const auto& endofnames = ctx.first_with_command("366");
+    // Encoded wire: :pvpgn.test 366 alice #pvpgn :End of /NAMES list.
+    REQUIRE(endofnames.prefix  == "pvpgn.test");
+    REQUIRE(endofnames.command == "366");
+    REQUIRE(endofnames.params.size() == 3u);
+    REQUIRE(endofnames.params[0] == "alice");                 // implicit nick
+    REQUIRE(endofnames.params[1] == "#pvpgn");                // channel
+    REQUIRE(endofnames.params[2] == "End of /NAMES list.");   // trailer text
+
+    // Round-trip the encoded form to assert the on-wire layout directly.
+    const std::string wire = encode_to_string(endofnames);
+    REQUIRE(wire == ":pvpgn.test 366 alice #pvpgn :End of /NAMES list.\r\n");
+}
+
+TEST_CASE("IrcFsm F1: numeric reply before registration uses '*' as the nick slot",
+          "[protocol][irc][fsm][regression][F1]") {
+    FakeIrcCtx ctx;
+    IrcFsm f{ctx};
+
+    // PRIVMSG before registration → 451; the nick is unknown, so the slot is '*'.
+    REQUIRE(f.handle(msg("PRIVMSG", {"#pvpgn", "hi"})).has_value());
+
+    const auto& reply = ctx.first_with_command("451");
+    REQUIRE(reply.params.front() == "*");
+}
+
+TEST_CASE("IrcFsm F6: client PONG is accepted as a no-op (no 421)",
+          "[protocol][irc][fsm][regression][F6]") {
+    FakeIrcCtx ctx;
+    IrcFsm f{ctx};
+    register_user(f, ctx, "alice");
+
+    // A typical keepalive PONG carrying the server token.
+    REQUIRE(f.handle(msg("PONG", {"pvpgn.test"})).has_value());
+
+    // It must be silently accepted: no reply at all, and crucially no 421.
+    REQUIRE(!ctx.has_command("421"));
+    REQUIRE(ctx.sent.empty());
+}
+
+TEST_CASE("IrcFsm F6: PONG in Greeting state is also accepted (no 421)",
+          "[protocol][irc][fsm][regression][F6]") {
+    FakeIrcCtx ctx;
+    IrcFsm f{ctx};
+
+    REQUIRE(f.handle(msg("PONG", {"token"})).has_value());
+
+    REQUIRE(!ctx.has_command("421"));
+    REQUIRE(ctx.sent.empty());
+}
+
+TEST_CASE("IrcFsm F6: an unknown command still yields 421 (PONG fix is narrow)",
+          "[protocol][irc][fsm][regression][F6]") {
+    FakeIrcCtx ctx;
+    IrcFsm f{ctx};
+    register_user(f, ctx, "alice");
+
+    REQUIRE(f.handle(msg("FLOOF", {})).has_value());
+
+    REQUIRE(ctx.has_command("421"));
+    REQUIRE(ctx.first_with_command("421").params.front() == "alice");
 }

@@ -29,6 +29,8 @@
 #include <optional>
 #include <string>
 
+#include "protocol/bnet/chat_wire_types.hpp"
+
 #include "application/chat/join_channel.hpp"
 #include "application/chat/leave_channel.hpp"
 #include "application/chat/list_channels.hpp"
@@ -39,6 +41,19 @@
 #include "domain/moderation/ports.hpp"
 
 namespace pvpgn::protocol::bnet {
+
+// Canonical BNCS SID_CHATEVENT event-ids live in chat_wire_types.hpp as
+// chat::kServerMessageType*. Alias them locally so the FSM never re-invents
+// the numeric values (the source of finding F1: hand-typed literals whose
+// comments named the right EID but whose numbers were wrong).
+namespace {
+constexpr std::uint32_t kEidShowUser = chat::kServerMessageTypeAddUser;  // 0x01
+constexpr std::uint32_t kEidJoin     = chat::kServerMessageTypeJoin;     // 0x02
+constexpr std::uint32_t kEidLeave    = chat::kServerMessageTypePart;     // 0x03
+constexpr std::uint32_t kEidTalk     = chat::kServerMessageTypeTalk;     // 0x05
+constexpr std::uint32_t kEidChannel  = chat::kServerMessageTypeChannel;  // 0x07
+constexpr std::uint32_t kEidInfo     = chat::kServerMessageTypeInfo;     // 0x12
+}  // namespace
 
 core::Status<> BnetFsm::on(const EnterChatRequest& m) {
     if (state_ != BnetState::LoggedIn && state_ != BnetState::InChat) {
@@ -60,7 +75,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
     if (!use_cases_.join_channel) {
         // No join_channel use-case available - accept the join
         return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    3,  // EID_CHANNEL
+            /*event_id*/    kEidChannel,  // EID_CHANNEL (0x07)
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0,
@@ -99,7 +114,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
         }
 
         return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    4,  // EID_INFO
+            /*event_id*/    kEidInfo,  // EID_INFO (0x12)
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0,
@@ -136,7 +151,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
             }
 
             if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
-                /*event_id*/    0x01,  // EID_SHOWUSER
+                /*event_id*/    kEidShowUser,  // EID_SHOWUSER (0x01)
                 /*flags*/       0x00,
                 /*ping_ms*/     0,
                 /*user_ip*/     0x00000000u,
@@ -151,7 +166,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
 
     // Send EID_CHANNEL event with the channel name
     if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
-        /*event_id*/    3,  // EID_CHANNEL
+        /*event_id*/    kEidChannel,  // EID_CHANNEL (0x07)
         /*flags*/       0,
         /*ping_ms*/     0,
         /*user_ip*/     0,
@@ -166,7 +181,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
     if (!join_result.value().members_to_notify.empty()) {
         broadcast_chat_event(
             ChatEvent{
-                /*event_id*/    1,   // EID_JOIN
+                /*event_id*/    kEidJoin,   // EID_JOIN (0x02)
                 /*flags*/       0,
                 /*ping_ms*/     0,
                 /*user_ip*/     0,
@@ -228,9 +243,9 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             }
         }
 
-        // Send result as SID_CHATEVENT EID_INFO (4).
+        // Send result as SID_CHATEVENT EID_INFO (0x12).
         return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    4,  // EID_INFO
+            /*event_id*/    kEidInfo,  // EID_INFO (0x12)
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0x00000000u,
@@ -244,7 +259,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
     if (!use_cases_.post_message) {
         // No post_message use-case available - echo the message back
         return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    5,  // EID_TALK
+            /*event_id*/    kEidTalk,  // EID_TALK (0x05)
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0,
@@ -258,7 +273,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
     auto chat_msg_result = domain::ChatMessage::create(m.text);
     if (!chat_msg_result) {
         return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    4,  // EID_INFO
+            /*event_id*/    kEidInfo,  // EID_INFO (0x12)
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0,
@@ -273,7 +288,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
 
     if (!post_result) {
         return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    4,  // EID_INFO
+            /*event_id*/    kEidInfo,  // EID_INFO (0x12)
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0,
@@ -287,7 +302,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
     if (!post_result.value().recipients.empty()) {
         broadcast_chat_event(
             ChatEvent{
-                /*event_id*/    5,   // EID_TALK
+                /*event_id*/    kEidTalk,   // EID_TALK (0x05)
                 /*flags*/       0,
                 /*ping_ms*/     0,
                 /*user_ip*/     0,
@@ -413,7 +428,7 @@ core::Status<> BnetFsm::on(const LeaveChannel&) {
     if (!remaining_members.empty()) {
         broadcast_chat_event(
             ChatEvent{
-                /*event_id*/    4,   // EID_LEAVE
+                /*event_id*/    kEidLeave,   // EID_LEAVE (0x03)
                 /*flags*/       0,
                 /*ping_ms*/     0,
                 /*user_ip*/     0,

@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "domain/social/clan.hpp"
+#include "domain/social/clan_rank_wire.hpp"
 #include "domain/social/friend_list.hpp"
 
 using namespace pvpgn;
@@ -67,6 +68,54 @@ TEST_CASE("Clan::create rejects bad tag/name and emits Created+MemberJoined",
     REQUIRE(evs.size() == 2);
     REQUIRE(std::holds_alternative<domain::events::ClanCreated>(evs[0]));
     REQUIRE(std::holds_alternative<domain::events::ClanMemberJoined>(evs[1]));
+}
+
+TEST_CASE("ClanRank maps to the correct legacy wire byte",
+          "[domain][social][clan][wire]") {
+    using domain::social::clan_rank_from_wire;
+    using domain::social::clan_rank_to_wire;
+
+    // Legacy bytes (src/bnetd/clan.h): CHIEFTAIN=0x04 .. PEON=0x01. The domain
+    // enum is numbered the *other* way (Chieftain=1 .. Peon=4), so the mapping
+    // — not the raw enum value — is what must reach the wire / the DB.
+    CHECK(clan_rank_to_wire(ClanRank::Chieftain) == 0x04);
+    CHECK(clan_rank_to_wire(ClanRank::Shaman)    == 0x03);
+    CHECK(clan_rank_to_wire(ClanRank::Grunt)     == 0x02);
+    CHECK(clan_rank_to_wire(ClanRank::Peon)      == 0x01);
+
+    // The mapping is NOT the identity (this is the bug being guarded against):
+    // a raw cast would send Chieftain as 0x01 (= wire Peon).
+    CHECK(clan_rank_to_wire(ClanRank::Chieftain) !=
+          static_cast<std::uint8_t>(ClanRank::Chieftain));
+
+    // Round-trips every modeled rank.
+    CHECK(clan_rank_from_wire(0x04) == ClanRank::Chieftain);
+    CHECK(clan_rank_from_wire(0x03) == ClanRank::Shaman);
+    CHECK(clan_rank_from_wire(0x02) == ClanRank::Grunt);
+    CHECK(clan_rank_from_wire(0x01) == ClanRank::Peon);
+    // The legacy NEW (0x00) probation rank is not modeled -> lowest rank.
+    CHECK(clan_rank_from_wire(0x00) == ClanRank::Peon);
+}
+
+TEST_CASE("Higher clan rank still outranks lower after the wire mapping",
+          "[domain][social][clan][wire]") {
+    using domain::social::clan_rank_to_wire;
+
+    // Authority ordering inside the aggregate: a *lower* enum value means a
+    // *higher* rank (Chieftain=1 is the strongest). The wire byte ordering is
+    // reversed (Chieftain=0x04 is the largest). Both must agree on "Chieftain
+    // outranks Peon".
+    CHECK(ClanRank::Chieftain < ClanRank::Shaman);  // enum: lower == stronger
+    CHECK(ClanRank::Shaman    < ClanRank::Grunt);
+    CHECK(ClanRank::Grunt     < ClanRank::Peon);
+
+    // On the wire: larger byte == stronger, and the strength order is preserved.
+    CHECK(clan_rank_to_wire(ClanRank::Chieftain) >
+          clan_rank_to_wire(ClanRank::Shaman));
+    CHECK(clan_rank_to_wire(ClanRank::Shaman) >
+          clan_rank_to_wire(ClanRank::Grunt));
+    CHECK(clan_rank_to_wire(ClanRank::Grunt) >
+          clan_rank_to_wire(ClanRank::Peon));
 }
 
 TEST_CASE("Clan: join / remove / set_rank semantics",

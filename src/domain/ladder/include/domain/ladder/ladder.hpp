@@ -24,7 +24,7 @@ namespace pvpgn::domain::ladder {
 
 struct LadderEntry {
     AccountId    account;
-    std::int32_t rating       = 1500;
+    std::int32_t rating       = 1000;  // original BNETD_LADDER_INIT_RAT
     std::uint32_t wins        = 0;
     std::uint32_t losses      = 0;
     std::uint32_t disconnects = 0;
@@ -52,7 +52,7 @@ public:
     /// Compute the per-player delta for a 1v1 or N-player free-for-all.
     /// Caller passes the *current* ladder entry for each participant
     /// (in the same order as `report.results`); missing entries are
-    /// treated as fresh 1500-rated rows.
+    /// treated as fresh 1000-rated rows.
     std::vector<LadderDelta>
     compute(const MatchReport& report, std::span<const LadderEntry> entries) const {
         std::vector<LadderDelta> out;
@@ -61,7 +61,7 @@ public:
         for (std::size_t i = 0; i < report.results.size(); ++i) {
             const auto& r = report.results[i];
             const std::int32_t cur_rating =
-                (i < entries.size()) ? entries[i].rating : 1500;
+                (i < entries.size()) ? entries[i].rating : 1000;
             const double opp_mean = opponent_mean_(entries, i);
 
             LadderDelta d;
@@ -94,7 +94,7 @@ public:
 
 private:
     double opponent_mean_(std::span<const LadderEntry> entries, std::size_t self) const noexcept {
-        if (entries.size() <= 1) return 1500.0;
+        if (entries.size() <= 1) return 1000.0;
         double sum = 0.0;
         std::size_t n = 0;
         for (std::size_t i = 0; i < entries.size(); ++i) {
@@ -102,7 +102,7 @@ private:
             sum += static_cast<double>(entries[i].rating);
             ++n;
         }
-        return n == 0 ? 1500.0 : sum / static_cast<double>(n);
+        return n == 0 ? 1000.0 : sum / static_cast<double>(n);
     }
 
     std::int32_t rating_step_(std::int32_t cur, double opp_mean, double score) const noexcept {

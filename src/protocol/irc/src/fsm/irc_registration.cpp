@@ -38,8 +38,7 @@ core::Status<> IrcFsm::try_complete_registration() {
         auto name_result = domain::UserName::parse(nick_);
         if (!name_result) {
             // 432 ERR_ERRONEUSNICKNAME
-            auto s = send_numeric(432, effective_nick(),
-                                  nick_ + " :Erroneous nickname");
+            auto s = send_numeric(432, nick_ + " :Erroneous nickname");
             if (!s) return s;
             state_ = IrcState::Closing;
             ctx_->close();
@@ -57,7 +56,7 @@ core::Status<> IrcFsm::try_complete_registration() {
         auto result = login_user_->execute(std::move(req));
         if (!result) {
             // 464 ERR_PASSWDMISMATCH
-            auto s = send_numeric(464, effective_nick(), "Password incorrect");
+            auto s = send_numeric(464, ":Password incorrect");
             if (!s) return s;
             state_ = IrcState::Closing;
             ctx_->close();
@@ -70,9 +69,9 @@ core::Status<> IrcFsm::try_complete_registration() {
 
     state_ = IrcState::Registered;
     // 001 RPL_WELCOME
-    std::string text = "Welcome to PvPGN, ";
+    std::string text = ":Welcome to PvPGN, ";
     text += nick_;
-    return send_numeric(1, nick_, text);
+    return send_numeric(1, text);
 }
 
 // ---------------------------------------------------------------------------
@@ -86,8 +85,7 @@ core::Status<> IrcFsm::on_pass(const Message& m) {
 
     if (m.params.empty() || m.params[0].empty()) {
         // 461 ERR_NEEDMOREPARAMS
-        return send_numeric(461, effective_nick(),
-                            "PASS :Not enough parameters");
+        return send_numeric(461, "PASS :Not enough parameters");
     }
 
     pending_password_ = m.params[0];
@@ -99,7 +97,7 @@ core::Status<> IrcFsm::on_pass(const Message& m) {
 core::Status<> IrcFsm::on_nick(const Message& m) {
     if (m.params.empty() || m.params[0].empty()) {
         // 431 ERR_NONICKNAMEGIVEN
-        return send_numeric(431, effective_nick(), "No nickname given");
+        return send_numeric(431, ":No nickname given");
     }
     nick_ = m.params[0];
     return try_complete_registration();
@@ -109,8 +107,7 @@ core::Status<> IrcFsm::on_user(const Message& m) {
     // USER <user> <mode> <unused> :<realname>
     if (m.params.size() < 4) {
         // 461 ERR_NEEDMOREPARAMS
-        return send_numeric(461, effective_nick(),
-                            "USER :Not enough parameters");
+        return send_numeric(461, "USER :Not enough parameters");
     }
     user_ = m.params[0];
     return try_complete_registration();

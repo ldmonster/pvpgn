@@ -685,10 +685,10 @@ TEST_CASE("IrcFsm: unknown command yields 421 ERR_UNKNOWNCOMMAND",
     REQUIRE(ctx.sent.size() == 1);
     REQUIRE(ctx.sent[0].command == "421");
     REQUIRE(ctx.sent[0].prefix  == "pvpgn.test");
-    // Target is "*" before registration.
+    // Nick slot is "*" before registration; the unknown command is the next
+    // positional param (RFC: :<server> 421 <nick> <command> :Unknown command).
     REQUIRE(ctx.sent[0].params.front() == "*");
-    // Text contains the unknown command name.
-    REQUIRE(ctx.sent[0].params.back().find("WUBWUB") != std::string::npos);
+    REQUIRE(ctx.sent[0].params[1] == "WUBWUB");
 }
 
 TEST_CASE("IrcFsm: unknown command after registration uses nick as target",

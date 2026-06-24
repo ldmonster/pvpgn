@@ -66,14 +66,14 @@ public:
 // Test cases
 // ---------------------------------------------------------------------------
 
-TEST_CASE("RecomputeLadder: happy path — entries sorted and ranked correctly",
+TEST_CASE("RecomputeLadder: happy path — entries ranked by rating descending",
           "[application][ladder][recompute]") {
     FakeLadderRepository repo;
     // Add entries out of order
     repo.entries = {
-        {domain::AccountId{1}, 1500, 5, 2, 0},  // 5 wins
-        {domain::AccountId{2}, 1600, 10, 1, 0}, // 10 wins — should be rank 1
-        {domain::AccountId{3}, 1400, 3, 4, 1},  // 3 wins
+        {domain::AccountId{1}, 1500, 5, 2, 0},  // rating 1500
+        {domain::AccountId{2}, 1600, 10, 1, 0}, // rating 1600 — should be rank 1
+        {domain::AccountId{3}, 1400, 3, 4, 1},  // rating 1400
     };
 
     RecomputeLadder uc{repo};
@@ -82,10 +82,32 @@ TEST_CASE("RecomputeLadder: happy path — entries sorted and ranked correctly",
     REQUIRE(result);
     REQUIRE(result.value().entries_updated == 3);
 
-    // After recompute, entries should be sorted by wins descending
-    REQUIRE(repo.entries[0].account == domain::AccountId{2});  // 10 wins
-    REQUIRE(repo.entries[1].account == domain::AccountId{1});  // 5 wins
-    REQUIRE(repo.entries[2].account == domain::AccountId{3});  // 3 wins
+    // After recompute, entries should be sorted by rating descending
+    REQUIRE(repo.entries[0].account == domain::AccountId{2});  // 1600
+    REQUIRE(repo.entries[1].account == domain::AccountId{1});  // 1500
+    REQUIRE(repo.entries[2].account == domain::AccountId{3});  // 1400
+}
+
+TEST_CASE("RecomputeLadder: rating is the primary key, wins only the tie-break",
+          "[application][ladder][recompute]") {
+    // A has a HIGHER rating but FEWER wins than B. The original rank-bearing
+    // ladder (ladder_sort_highestrated) ranks by rating first, so A must
+    // outrank B despite having fewer wins.
+    FakeLadderRepository repo;
+    repo.entries = {
+        {domain::AccountId{10}, 1500, 2, 0, 0},   // B: lower rating, more wins
+        {domain::AccountId{20}, 1800, 1, 0, 0},   // A: higher rating, fewer wins
+    };
+
+    RecomputeLadder uc{repo};
+    auto result = uc.execute(RecomputeLadderCommand{"STAR"});
+
+    REQUIRE(result);
+    REQUIRE(result.value().entries_updated == 2);
+
+    // A (higher rating) ranks above B (more wins).
+    REQUIRE(repo.entries[0].account == domain::AccountId{20});  // rating 1800
+    REQUIRE(repo.entries[1].account == domain::AccountId{10});  // rating 1500
 }
 
 TEST_CASE("RecomputeLadder: empty ladder_id returns InvalidArgument",

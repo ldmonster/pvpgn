@@ -17,6 +17,7 @@
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/social/clan.hpp"
+#include "domain/social/clan_rank_wire.hpp"
 #include "infra/persistence/clan_repository.hpp"
 
 #include "recording_fake_driver.hpp"
@@ -55,11 +56,13 @@ TEST_CASE("SqlClanRepository::find_by_id loads the clan and its ordered members"
     auto driver = make_driver();
     SqlClanRepository repo{driver};
 
-    // Query 1 → the clan header; Query 2 → its members.
+    // Query 1 → the clan header; Query 2 → its members. The DB stores the
+    // *legacy wire* rank byte (Chieftain=0x04, Grunt=0x02), NOT the raw domain
+    // enum value — so seed the rows with the wire bytes.
     driver->push_result_set({clan_row(10, "WoW", "Wolf Pack", "WAR3")});
     driver->push_result_set({
-        member_row(1, static_cast<std::int64_t>(ClanRank::Chieftain)),
-        member_row(2, static_cast<std::int64_t>(ClanRank::Grunt)),
+        member_row(1, pvpgn::domain::social::kWireRankChieftain),
+        member_row(2, pvpgn::domain::social::kWireRankGrunt),
     });
 
     auto r = repo.find_by_id(ClanId{10});
@@ -165,9 +168,13 @@ TEST_CASE("SqlClanRepository::save upserts the clan and replaces members atomica
 
     CHECK(driver->calls[2].sql.find("INSERT INTO clan_members") != std::string::npos);
     CHECK(as_int(driver->calls[2].params.at(1)) == 1);  // account
+    // Persisted as the legacy wire byte (Chieftain=0x04), not the raw enum (1).
     CHECK(as_int(driver->calls[2].params.at(2)) ==
-          static_cast<std::int64_t>(ClanRank::Chieftain));
+          pvpgn::domain::social::kWireRankChieftain);
     CHECK(as_int(driver->calls[2].params.at(3)) == 0);  // position
+    // Member 2 is a Peon -> wire byte 0x01.
+    CHECK(as_int(driver->calls[3].params.at(2)) ==
+          pvpgn::domain::social::kWireRankPeon);
     CHECK(as_int(driver->calls[3].params.at(3)) == 1);  // position
 }
 

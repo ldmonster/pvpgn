@@ -393,9 +393,9 @@ TEST_CASE("BnetFsm: JOINCHANNEL sends EID_CHANNEL reply (no use-case)",
     reach_in_chat(f);
 
     REQUIRE(f.handle(ClientMessage{JoinChannel{0, "Ladder"}}).has_value());
-    // Last sent message must be EID_CHANNEL (event_id == 3)
+    // Last sent message must be EID_CHANNEL (event_id == 7)
     REQUIRE(std::holds_alternative<ChatEvent>(session_ctx->sent.back()));
-    REQUIRE(std::get<ChatEvent>(session_ctx->sent.back()).event_id == 3u);
+    REQUIRE(std::get<ChatEvent>(session_ctx->sent.back()).event_id == 7u);
     REQUIRE(std::get<ChatEvent>(session_ctx->sent.back()).text == "Ladder");
 }
 
@@ -441,7 +441,7 @@ TEST_CASE("BnetFsm: CHATCOMMAND with '/' prefix returns EID_INFO",
 
     REQUIRE(f.handle(ClientMessage{ChatCommand{"/help"}}).has_value());
     REQUIRE(std::holds_alternative<ChatEvent>(session_ctx->sent.back()));
-    REQUIRE(std::get<ChatEvent>(session_ctx->sent.back()).event_id == 4u);  // EID_INFO
+    REQUIRE(std::get<ChatEvent>(session_ctx->sent.back()).event_id == 0x12u);  // EID_INFO
 }
 
 TEST_CASE("BnetFsm: LEAVECHANNEL before login is rejected",

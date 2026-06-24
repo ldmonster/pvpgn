@@ -7,6 +7,23 @@ namespace pvpgn::protocol::d2save {
 
 namespace {
 
+// Canonical .d2s v1.09/v1.10 (v87 / v96) fixed-header byte offsets.
+// Mirrors the original PvPGN constants in src/d2cs/d2charfile.h:
+//   D2CHARSAVE_CHARNAME_OFFSET_109 = 0x14 (20)
+//   D2CHARSAVE_STATUS_OFFSET_109   = 0x24 (36)
+//   D2CHARSAVE_CLASS_OFFSET_109    = 0x28 (40)
+//   level lives at status_offset_109 + 7 = 0x2B (43)
+constexpr std::size_t D2S_CHARNAME_OFFSET = 0x14; // 20
+constexpr std::size_t D2S_STATUS_OFFSET   = 0x24; // 36
+constexpr std::size_t D2S_CLASS_OFFSET    = 0x28; // 40
+constexpr std::size_t D2S_LEVEL_OFFSET    = 0x2B; // 43
+
+// Status-byte flag bits (original d2charfile.h D2CHARINFO_STATUS_FLAG_*,
+// identical to the on-disk D2 status bits):
+//   INIT=0x01, HARDCORE=0x04, DEAD=0x08, EXPANSION=0x20, LADDER=0x40
+constexpr uint8_t D2S_STATUS_FLAG_HARDCORE  = 0x04;
+constexpr uint8_t D2S_STATUS_FLAG_EXPANSION = 0x20;
+
 // CRC32 polynomial for D2 save file checksums
 constexpr uint32_t CRC32_POLY = 0xEDB88320;
 
@@ -205,53 +222,53 @@ core::Result<std::string, core::Error> D2SaveCodec::extract_char_name(std::span<
 }
 
 core::Result<uint8_t, core::Error> D2SaveCodec::extract_level(std::span<const uint8_t> data) {
-    if (data.size() < 41) {
+    if (data.size() < D2S_LEVEL_OFFSET + 1) {
         return core::fail(core::Error(
             core::StatusCode::InvalidArgument,
             "D2 save file too small to extract level"
         ));
     }
 
-    // Character level is at offset 40
-    return core::Result<uint8_t, core::Error>(data[40]);
+    // Character level is at offset 0x2B (43): status_offset_109 (0x24) + 7.
+    return core::Result<uint8_t, core::Error>(data[D2S_LEVEL_OFFSET]);
 }
 
 core::Result<uint8_t, core::Error> D2SaveCodec::extract_class(std::span<const uint8_t> data) {
-    if (data.size() < 37) {
+    if (data.size() < D2S_CLASS_OFFSET + 1) {
         return core::fail(core::Error(
             core::StatusCode::InvalidArgument,
             "D2 save file too small to extract class"
         ));
     }
 
-    // Character class is at offset 36
-    return core::Result<uint8_t, core::Error>(data[36]);
+    // Character class is at offset 0x28 (40) = D2CHARSAVE_CLASS_OFFSET_109.
+    return core::Result<uint8_t, core::Error>(data[D2S_CLASS_OFFSET]);
 }
 
 core::Result<bool, core::Error> D2SaveCodec::is_expansion(std::span<const uint8_t> data) {
-    if (data.size() < 37) {
+    if (data.size() < D2S_STATUS_OFFSET + 1) {
         return core::fail(core::Error(
             core::StatusCode::InvalidArgument,
             "D2 save file too small to check expansion"
         ));
     }
 
-    // Expansion flag is bit 2 of char_status at offset 36
-    uint8_t char_status = data[36];
-    return core::Result<bool, core::Error>((char_status & 0x04) != 0);
+    // Status byte is at offset 0x24 (36); EXPANSION is bit 0x20.
+    uint8_t char_status = data[D2S_STATUS_OFFSET];
+    return core::Result<bool, core::Error>((char_status & D2S_STATUS_FLAG_EXPANSION) != 0);
 }
 
 core::Result<bool, core::Error> D2SaveCodec::is_hardcore(std::span<const uint8_t> data) {
-    if (data.size() < 37) {
+    if (data.size() < D2S_STATUS_OFFSET + 1) {
         return core::fail(core::Error(
             core::StatusCode::InvalidArgument,
             "D2 save file too small to check hardcore"
         ));
     }
 
-    // Hardcore flag is bit 0 of char_status at offset 36
-    uint8_t char_status = data[36];
-    return core::Result<bool, core::Error>((char_status & 0x01) != 0);
+    // Status byte is at offset 0x24 (36); HARDCORE is bit 0x04.
+    uint8_t char_status = data[D2S_STATUS_OFFSET];
+    return core::Result<bool, core::Error>((char_status & D2S_STATUS_FLAG_HARDCORE) != 0);
 }
 
 } // namespace pvpgn::protocol::d2save

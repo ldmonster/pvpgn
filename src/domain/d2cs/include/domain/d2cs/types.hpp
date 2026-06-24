@@ -26,13 +26,24 @@ namespace pvpgn::domain::d2cs {
 /// and CHARLOGINREQ (char_class uint32).
 enum class CharacterClass : uint8_t {
     Amazon      = 0,
-    Necromancer = 1,
-    Barbarian   = 2,
-    Sorceress   = 3,
-    Paladin     = 4,
+    Sorceress   = 1,
+    Necromancer = 2,
+    Paladin     = 3,
+    Barbarian   = 4,
     Druid       = 5,  ///< Lord of Destruction expansion only
     Assassin    = 6,  ///< Lord of Destruction expansion only
 };
+
+// The ordinals are the canonical D2 class ids fixed by the wire/save format;
+// the d2cs session handler casts the raw CREATECHARREQ/CHARLOGINREQ class byte
+// straight into this enum, so the order must not drift. Do NOT reorder.
+static_assert(static_cast<uint8_t>(CharacterClass::Amazon) == 0);
+static_assert(static_cast<uint8_t>(CharacterClass::Sorceress) == 1);
+static_assert(static_cast<uint8_t>(CharacterClass::Necromancer) == 2);
+static_assert(static_cast<uint8_t>(CharacterClass::Paladin) == 3);
+static_assert(static_cast<uint8_t>(CharacterClass::Barbarian) == 4);
+static_assert(static_cast<uint8_t>(CharacterClass::Druid) == 5);
+static_assert(static_cast<uint8_t>(CharacterClass::Assassin) == 6);
 
 // ---------------------------------------------------------------------------
 // CharacterFlags

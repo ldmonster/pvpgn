@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "domain/shared/client_tag.hpp"
+#include "domain/social/clan_rank_wire.hpp"
 
 namespace pvpgn::infra::persistence {
 
@@ -23,7 +24,8 @@ SqlClanRepository::load_members(std::uint32_t clan_id) const {
         [&members](const DbRow& row) {
             domain::social::ClanMember m{
                 domain::AccountId{static_cast<std::uint32_t>(row.get_int(0))},
-                static_cast<domain::social::ClanRank>(row.get_int(1))};
+                domain::social::clan_rank_from_wire(
+                    static_cast<std::uint8_t>(row.get_int(1)))};
             members.push_back(m);
             return true;  // collect all members
         });
@@ -127,7 +129,8 @@ core::Result<void, core::Error> SqlClanRepository::save(
             "INSERT INTO clan_members (clan_id, account_id, rank, position) "
             "VALUES (?, ?, ?, ?)",
             {id, static_cast<std::int64_t>(member.account.value()),
-             static_cast<std::int64_t>(static_cast<std::uint8_t>(member.rank)),
+             static_cast<std::int64_t>(
+                 domain::social::clan_rank_to_wire(member.rank)),
              position},
             no_rows);
         if (!ins.has_value()) {

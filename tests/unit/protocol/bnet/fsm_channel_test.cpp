@@ -6,10 +6,10 @@
 //   - SID_CHANNELLIST (0x0B): client sends channel list request, server
 //     responds with ChannelListReply containing channel names
 //   - SID_JOINCHANNEL (0x0C): client joins a channel, server sends
-//     EID_CHANNEL (event_id=3) reply
+//     EID_CHANNEL (event_id=7) reply
 //   - SID_CHATCOMMAND (0x0E): client sends a chat message, server echoes
 //     EID_TALK (event_id=5)
-//   - SID_CHATCOMMAND with /help: server responds with EID_INFO (event_id=4)
+//   - SID_CHATCOMMAND with /help: server responds with EID_INFO (event_id=0x12)
 //   - EID_SHOWUSER roster: joining a channel sends EID_CHANNEL as last event
 //   - LEAVECHANNEL after JOIN: state stays InChat
 //   - Multiple JOINs: each sends EID_CHANNEL
@@ -175,7 +175,7 @@ TEST_CASE("BnetFsm R306: ChannelListRequest before InChat is accepted as no-op",
 // SID_JOINCHANNEL (0x0C) — join channel, EID_CHANNEL reply
 // ===========================================================================
 
-TEST_CASE("BnetFsm R306: JOINCHANNEL sends EID_CHANNEL (event_id=3)",
+TEST_CASE("BnetFsm R306: JOINCHANNEL sends EID_CHANNEL (event_id=7)",
           "[protocol][bnet][fsm][channel][R306]") {
     auto ctx = std::make_shared<FakeBnetCtx>();
     auto uc  = make_null_ctx();
@@ -185,11 +185,11 @@ TEST_CASE("BnetFsm R306: JOINCHANNEL sends EID_CHANNEL (event_id=3)",
 
     REQUIRE(f.handle(ClientMessage{JoinChannel{0, "Diablo USA-1"}}).has_value());
 
-    // Last message must be EID_CHANNEL (event_id == 3)
+    // Last message must be EID_CHANNEL (event_id == 7)
     REQUIRE(!ctx->sent.empty());
     REQUIRE(std::holds_alternative<ChatEvent>(ctx->sent.back()));
     const auto& ev = std::get<ChatEvent>(ctx->sent.back());
-    REQUIRE(ev.event_id == 3u);  // EID_CHANNEL
+    REQUIRE(ev.event_id == 7u);  // EID_CHANNEL
     REQUIRE(ev.text == "Diablo USA-1");
 }
 
@@ -204,7 +204,7 @@ TEST_CASE("BnetFsm R306: JOINCHANNEL channel name is preserved in EID_CHANNEL",
     const std::string channel_name = "Op Allstars";
     REQUIRE(f.handle(ClientMessage{JoinChannel{0, channel_name}}).has_value());
 
-    const auto* ev = last_chat_event_with_id(ctx->sent, 3u);
+    const auto* ev = last_chat_event_with_id(ctx->sent, 7u);  // EID_CHANNEL
     REQUIRE(ev != nullptr);
     REQUIRE(ev->text == channel_name);
 }
@@ -221,7 +221,7 @@ TEST_CASE("BnetFsm R306: JOINCHANNEL with flags=1 (force-join) still sends EID_C
     REQUIRE(f.handle(ClientMessage{JoinChannel{1, "Ladder"}}).has_value());
 
     REQUIRE(count_of<ChatEvent>(ctx->sent) >= 1u);
-    const auto* ev = last_chat_event_with_id(ctx->sent, 3u);
+    const auto* ev = last_chat_event_with_id(ctx->sent, 7u);  // EID_CHANNEL
     REQUIRE(ev != nullptr);
     REQUIRE(ev->text == "Ladder");
 }
@@ -238,7 +238,7 @@ TEST_CASE("BnetFsm R306: second JOINCHANNEL replaces first channel",
 
     REQUIRE(f.handle(ClientMessage{JoinChannel{0, "Diablo USA-1"}}).has_value());
 
-    const auto* ev = last_chat_event_with_id(ctx->sent, 3u);
+    const auto* ev = last_chat_event_with_id(ctx->sent, 7u);  // EID_CHANNEL
     REQUIRE(ev != nullptr);
     REQUIRE(ev->text == "Diablo USA-1");
 }
@@ -297,7 +297,7 @@ TEST_CASE("BnetFsm R306: CHATCOMMAND empty message is accepted",
 // SID_CHATCOMMAND with /help — server responds with EID_INFO
 // ===========================================================================
 
-TEST_CASE("BnetFsm R306: CHATCOMMAND /help returns EID_INFO (event_id=4)",
+TEST_CASE("BnetFsm R306: CHATCOMMAND /help returns EID_INFO (event_id=0x12)",
           "[protocol][bnet][fsm][channel][R306]") {
     auto ctx = std::make_shared<FakeBnetCtx>();
     auto uc  = make_null_ctx();
@@ -310,10 +310,10 @@ TEST_CASE("BnetFsm R306: CHATCOMMAND /help returns EID_INFO (event_id=4)",
     REQUIRE(!ctx->sent.empty());
     REQUIRE(std::holds_alternative<ChatEvent>(ctx->sent.back()));
     const auto& ev = std::get<ChatEvent>(ctx->sent.back());
-    REQUIRE(ev.event_id == 4u);  // EID_INFO
+    REQUIRE(ev.event_id == 0x12u);  // EID_INFO
 }
 
-TEST_CASE("BnetFsm R306: CHATCOMMAND /who returns EID_INFO (event_id=4)",
+TEST_CASE("BnetFsm R306: CHATCOMMAND /who returns EID_INFO (event_id=0x12)",
           "[protocol][bnet][fsm][channel][R306]") {
     auto ctx = std::make_shared<FakeBnetCtx>();
     auto uc  = make_null_ctx();
@@ -324,11 +324,11 @@ TEST_CASE("BnetFsm R306: CHATCOMMAND /who returns EID_INFO (event_id=4)",
     REQUIRE(f.handle(ClientMessage{ChatCommand{"/who"}}).has_value());
 
     // Any slash-command returns EID_INFO
-    const auto* ev = last_chat_event_with_id(ctx->sent, 4u);
+    const auto* ev = last_chat_event_with_id(ctx->sent, 0x12u);  // EID_INFO
     REQUIRE(ev != nullptr);
 }
 
-TEST_CASE("BnetFsm R306: CHATCOMMAND /unknown_cmd returns EID_INFO (event_id=4)",
+TEST_CASE("BnetFsm R306: CHATCOMMAND /unknown_cmd returns EID_INFO (event_id=0x12)",
           "[protocol][bnet][fsm][channel][R306]") {
     auto ctx = std::make_shared<FakeBnetCtx>();
     auto uc  = make_null_ctx();
@@ -338,7 +338,7 @@ TEST_CASE("BnetFsm R306: CHATCOMMAND /unknown_cmd returns EID_INFO (event_id=4)"
 
     REQUIRE(f.handle(ClientMessage{ChatCommand{"/xyzzy_unknown"}}).has_value());
 
-    const auto* ev = last_chat_event_with_id(ctx->sent, 4u);
+    const auto* ev = last_chat_event_with_id(ctx->sent, 0x12u);  // EID_INFO
     REQUIRE(ev != nullptr);
 }
 
@@ -356,9 +356,9 @@ TEST_CASE("BnetFsm R306: JOINCHANNEL sends at least one ChatEvent",
 
     REQUIRE(f.handle(ClientMessage{JoinChannel{0, "Ladder"}}).has_value());
 
-    // At minimum, EID_CHANNEL (event_id=3) must be sent
+    // At minimum, EID_CHANNEL (event_id=7) must be sent
     REQUIRE(count_of<ChatEvent>(ctx->sent) >= 1u);
-    const auto* channel_ev = last_chat_event_with_id(ctx->sent, 3u);
+    const auto* channel_ev = last_chat_event_with_id(ctx->sent, 7u);
     REQUIRE(channel_ev != nullptr);
 }
 
@@ -372,10 +372,10 @@ TEST_CASE("BnetFsm R306: JOINCHANNEL EID_CHANNEL is the last ChatEvent sent",
 
     REQUIRE(f.handle(ClientMessage{JoinChannel{0, "Ladder"}}).has_value());
 
-    // The last ChatEvent must be EID_CHANNEL (event_id=3)
+    // The last ChatEvent must be EID_CHANNEL (event_id=7)
     // (EID_SHOWUSER events for existing members come before EID_CHANNEL)
     REQUIRE(std::holds_alternative<ChatEvent>(ctx->sent.back()));
-    REQUIRE(std::get<ChatEvent>(ctx->sent.back()).event_id == 3u);
+    REQUIRE(std::get<ChatEvent>(ctx->sent.back()).event_id == 7u);
 }
 
 // ===========================================================================

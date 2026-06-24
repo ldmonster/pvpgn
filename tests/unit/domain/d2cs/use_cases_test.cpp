@@ -63,6 +63,23 @@ void seed(InMemoryCharacterRepository& repo,
 } // namespace
 
 // ===========================================================================
+// CharacterClass enum ordering
+// ===========================================================================
+
+// The d2cs session handler casts the raw CREATECHARREQ/CHARLOGINREQ class byte
+// straight into CharacterClass, so the ordinals must equal the canonical D2
+// class ids. This pins them so a reorder can't silently mislabel classes.
+TEST_CASE("CharacterClass — canonical D2 class id ordering", "[d2cs][types]") {
+    CHECK(static_cast<uint8_t>(CharacterClass::Amazon)      == 0);
+    CHECK(static_cast<uint8_t>(CharacterClass::Sorceress)   == 1);
+    CHECK(static_cast<uint8_t>(CharacterClass::Necromancer) == 2);
+    CHECK(static_cast<uint8_t>(CharacterClass::Paladin)     == 3);
+    CHECK(static_cast<uint8_t>(CharacterClass::Barbarian)   == 4);
+    CHECK(static_cast<uint8_t>(CharacterClass::Druid)       == 5);
+    CHECK(static_cast<uint8_t>(CharacterClass::Assassin)    == 6);
+}
+
+// ===========================================================================
 // CharacterListUseCase
 // ===========================================================================
 

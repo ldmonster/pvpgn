@@ -217,9 +217,11 @@ TEST_CASE("CharacterPersistence: load returns metadata for a valid blob",
     CharacterPersistenceUseCase use_case(store);
 
     // Round-trip a valid save then load it, checking extracted metadata.
+    // Canonical D2S v96 layout: status byte at offset 36 (hardcore 0x04,
+    // expansion 0x20), level at offset 43.
     auto blob = make_valid_save();
-    blob[36] = 0x05;  // char_status: bit0 hardcore, bit2 expansion
-    blob[40] = 42;    // level
+    blob[36] = 0x04 | 0x20;  // char_status: hardcore + expansion
+    blob[43] = 42;           // level
 
     SaveCharacterCommand save_cmd;
     save_cmd.account_name = "acct";

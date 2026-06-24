@@ -13,6 +13,7 @@
 /// Commands handled by the FSM:
 ///   * NICK / USER  — registration handshake; emits 001 RPL_WELCOME.
 ///   * PING         — answered immediately with PONG.
+///   * PONG         — client keepalive reply; accepted and ignored (no-op).
 ///   * JOIN         — transitions to InChannel; calls JoinChannel use-case
 ///                    when wired; echoes JOIN + 332 RPL_TOPIC + 353 RPL_NAMREPLY
 ///                    + 366 RPL_ENDOFNAMES.
@@ -143,6 +144,10 @@ private:
 
     // ---- always-available ---------------------------------------------------
     core::Status<> on_ping(const Message&);
+    /// PONG — client keepalive reply. Accepted and ignored (no-op success),
+    /// matching the original's tolerant _handle_pong_command. Without this a
+    /// client's PONG would wrongly fall through to 421 ERR_UNKNOWNCOMMAND.
+    core::Status<> on_pong(const Message&);
     core::Status<> on_quit(const Message&);
     core::Status<> on_motd(const Message&);
 
@@ -161,9 +166,11 @@ private:
     core::Status<> on_list(const Message&);
 
     // ---- helpers ------------------------------------------------------------
-    core::Status<> send_numeric(int code,
-                                std::string_view target,
-                                std::string_view text);
+    /// Send a numeric reply. The client's current nick (or "*" before
+    /// registration) is ALWAYS injected as the implicit first parameter,
+    /// mirroring the original irc_send_cmd(). @p params is everything that
+    /// follows the nick on the wire; embed a leading ':' to start the trailer.
+    core::Status<> send_numeric(int code, std::string_view params);
 
     /// Build a 353 RPL_NAMREPLY message for the given channel and member list.
     core::Status<> send_names_reply(std::string_view irc_channel,
