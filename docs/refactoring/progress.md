@@ -1816,6 +1816,18 @@ The remaining "dead arm" observations are intentionally left as-is: the
 unreachable arms (`report_game_result` post-`begin_report`, `join_game_server`
 create-game) are low-risk defensive guards left with the existing comments.
 
+### Test-writing lever exhausted — `connection_fsm.cpp` dead helpers removed
+Investigating the last apparent gap (`connection_fsm.cpp`, which the per-TU
+ranking listed at 52%) showed its TRUE union coverage is ~89%: only 7 lines
+uncovered, both in the private `send_empty_reply` / `send_result_reply` helpers,
+which are **declared and defined but never called anywhere**. Deleted them (YAGNI)
+rather than test dead code; handlers build reply bodies inline. Gate coverage
+**69.32%** (`~10821/15612`), floor 69. This confirms the test-writing lever is
+essentially exhausted: true line coverage is ~96.6% and the residual gaps are
+dead code or per-TU header artifacts, not untested behaviour. Further movement on
+the gate number requires the methodology fix (deferred by user) rather than more
+tests.
+
 ## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
