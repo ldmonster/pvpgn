@@ -128,17 +128,6 @@ core::Status<> ConnectionFsm::reject(const char* reason) {
     return core::fail(core::Error{core::StatusCode::InvalidArgument, reason});
 }
 
-core::Status<> ConnectionFsm::send_empty_reply(std::uint8_t packet_id) {
-    return ctx_.send_packet(packet_id, std::span<const std::byte>{});
-}
-
-core::Status<> ConnectionFsm::send_result_reply(std::uint8_t packet_id,
-                                                  std::uint32_t result) {
-    std::vector<std::byte> body;
-    write_le32(body, result);
-    return ctx_.send_packet(packet_id, std::span<const std::byte>{body});
-}
-
 void ConnectionFsm::clear_pending_nls() noexcept {
     pending_nls_ctx_.reset();
     pending_nls_username_.reset();

@@ -461,13 +461,6 @@ private:
     /// Returns a fail() status with the given reason for propagation.
     [[nodiscard]] core::Status<> reject(const char* reason);
 
-    /// Build and send a minimal 4-byte BNCS reply with no body.
-    [[nodiscard]] core::Status<> send_empty_reply(std::uint8_t packet_id);
-
-    /// Build and send a BNCS reply with a 4-byte result code body.
-    [[nodiscard]] core::Status<> send_result_reply(std::uint8_t packet_id,
-                                                    std::uint32_t result);
-
     /// Clear all pending NLS session state (called on success or failure).
     void clear_pending_nls() noexcept;
 
