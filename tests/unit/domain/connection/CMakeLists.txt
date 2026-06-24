@@ -80,6 +80,18 @@ if(TARGET test_domain_connection_fsm_inchannel_error_branches AND NOT MSVC)
         PRIVATE -Wno-error=null-dereference)
 endif()
 
+# Net-new InChannel SUCCESS-path coverage: decodes the SID_STARTADVEX /
+# SID_GETADVLISTEX 4-byte reply bodies and full GameInfo per game_type arm, plus
+# the EID_CHANNEL/EID_SHOWUSER/EID_JOIN join wire bodies and the EID_TALK chat
+# echo (injected JoinChannel / PostMessage over in-memory repos).
+pvpgn_v3_add_test(test_domain_connection_fsm_inchannel_success
+    SOURCES connection_fsm_inchannel_success_test.cpp
+    DEPS    domain_connection application_connection application_chat infra_inmemory)
+if(TARGET test_domain_connection_fsm_inchannel_success AND NOT MSVC)
+    target_compile_options(test_domain_connection_fsm_inchannel_success
+        PRIVATE -Wno-error=null-dereference)
+endif()
+
 # Core dispatch-routing branches: PING/NULL in the remaining states, the
 # LOGONRESPONSE2 / STARTADVEX3 aliases, unknown-packet ignore from each state,
 # close() from Authenticating, and the post-reject Disconnecting drain.

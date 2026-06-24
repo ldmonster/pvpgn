@@ -51,6 +51,26 @@ pvpgn_v3_add_test(test_application_auth_account_lock
     SOURCES account_lock_test.cpp
     DEPS    application_auth infra_inmemory)
 
+pvpgn_v3_add_test(test_application_auth_account_lock_errors
+    SOURCES account_lock_errors_test.cpp
+    DEPS    application_auth infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_login_user_ban_lock_edges
+    SOURCES login_user_ban_lock_edges_test.cpp
+    DEPS    application_auth infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_logout_user_channel_cleanup
+    SOURCES logout_user_channel_cleanup_test.cpp
+    DEPS    application_auth application_chat infra_inmemory)
+
+pvpgn_v3_add_test(test_application_auth_login_user_nls_crypto_errors
+    SOURCES login_user_nls_crypto_errors_test.cpp
+    DEPS    application_auth)
+
+pvpgn_v3_add_test(test_application_auth_create_account_errors
+    SOURCES create_account_errors_test.cpp
+    DEPS    application_auth infra_inmemory)
+
 pvpgn_v3_add_test(test_application_auth_lookup_account
     SOURCES lookup_account_test.cpp
     DEPS    application_auth infra_inmemory)

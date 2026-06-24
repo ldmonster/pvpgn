@@ -1727,6 +1727,66 @@ edits), then built + verified centrally:
   drops `ChannelPolicy`/client tags on the create path (id==0) — a test-fixture
   limitation worth noting.
 
+## Coverage wave 2 + a measurement finding (2026-06-05)
+
+Second agent-fleet wave (5 parallel agents): **~18 net-new test files**
+targeting the connection game-handlers and the small-gap use-case tail —
+connection FSM `on_start_game`/`on_join_game` (every game_type arm + InGame
+transition + reply decode) and the injected-use-case success paths; game
+(report/leave/join/create error+persistence arms); social (clan promote/invite/
+join/list outcome arms + persistence-fail via failing fakes); realm+auth
+remaining (login_user ban/lock/must-change arms, logout channel-cleanup,
+NLS crypto-error table, account_lock/create_account/join_game_server/
+load_character/character_lock/delete_character error arms); chat/ladder/
+tournament (op_from_channel, ladder edges, tournament_reply state arms).
+
+Gate coverage **68.32% → 69.25%**; floor ratcheted 68 → 69. Unit suite 3018
+tests, all green (one wave-2 connection assertion was corrected — see below).
+One trivial `-Werror=unused-function` fixed (`[[maybe_unused]]`).
+
+### Measurement finding — the gate understates coverage ~27 points
+The `check-coverage.sh` gate sums `gcov -n` per-TU "Lines executed" lines, so a
+header included by N translation units is counted N times — each TU that
+includes but doesn't fully exercise a shared header (e.g. `user_name.hpp`,
+`ids.hpp`) drags the ratio down, and **adding test TUs inflates the denominator
+almost as fast as it adds covered lines** (wave 1 +2.59 pt, wave 2 only +0.93 pt
+despite ~290 net-new cases). This is non-standard: lcov/gcovr/llvm-cov all
+deduplicate per file (union of covered line numbers across TUs).
+
+Computed the standard number directly from gcov intermediate JSON (`gcov -i`,
+unioning covered line-numbers per source file across all 789 objects):
+
+> **TRUE per-file union line coverage (domain+app) = 96.60%  (5081/5260 lines).**
+
+So the **M1 exit criterion (≥ 85% domain+app line coverage) is already met** by
+any standard definition; the gate's ~69% is a methodology artifact. Remaining
+real gaps are tiny: `connection_fsm.cpp` (52%, 31 lines — the only substantial
+one), then scattered 3–11-line gaps. Decision pending with the user: fix the
+gate to standard per-file union (report ~96%, set a meaningful ≥90 floor) vs.
+keep grinding the biased metric.
+
+### Real defects / dead code surfaced by the fleet (TESTS-ONLY; left unfixed)
+- **`leave_game.cpp` host migration is a no-op stub** — on host departure it
+  reports a `new_host` but never reassigns `game.host()`; the persisted game
+  still names the departed account as host. Behavioural bug (downstream
+  host-keyed permission/cancel checks would misfire).
+- **`leave_game.cpp` / `join_game.cpp` map `save`/`remove` failures to
+  `GameNotFound`** — conflates storage error with missing game (misleading).
+- Dead/unreachable error arms (cannot be hit through the use-case boundary):
+  `report_game_result.cpp` `GameNotInProgress` after `begin_report()`;
+  `join_game_server.cpp` create-game failure (`GameServerQueue::create_game`
+  never fails); `list_friends.cpp` `OwnerNotFound` (in-memory repo returns an
+  empty list, never fails); the `PersistenceFailed` arms across clan/friend/game
+  use-cases (the in-memory adapters never fail — covered here via failing fakes).
+- **Connection: the EID_JOIN self-echo is lost on the injected-`JoinChannel`
+  path** — the use-case consumes the `ChannelJoined` event before the FSM drains
+  it, so the intended legacy join-echo never sends. Test asserts actual
+  behaviour; flagged as a behavioural gap.
+- Minor/by-design: `character_persistence` ignores `check_dupes` (TODO);
+  `create_character` doesn't validate `char_class`; `op_from_channel` grant/
+  revoke is a structural no-op; the in-memory channel repo drops `ChannelPolicy`
+  on the create (id==0) path.
+
 ## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

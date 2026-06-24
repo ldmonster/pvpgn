@@ -65,3 +65,7 @@ pvpgn_v3_add_test(application_realm_join_game_server_test
 pvpgn_v3_add_test(application_realm_unregister_realm_test
     SOURCES unregister_realm_test.cpp
     DEPS application_realm)
+
+pvpgn_v3_add_test(application_realm_usecase_error_edges_test
+    SOURCES realm_usecase_error_edges_test.cpp
+    DEPS application_realm)

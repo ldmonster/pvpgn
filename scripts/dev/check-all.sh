@@ -167,7 +167,7 @@ if [ "$DEEP" -eq 1 ]; then
     # re-add shared-header lines to the denominator.)
     # See progress 1.9 (root cause) / 1.16 (ratchet) / 1.19+ (FSM injection) /
     # the 2026-06-05 coverage-wave entry.
-    COVERAGE_RAMP_FLOOR=68
+    COVERAGE_RAMP_FLOOR=69
     if command -v ctest >/dev/null 2>&1 && [ -d build/v3-coverage ]; then
         gate "coverage (>=${COVERAGE_RAMP_FLOOR}% domain+app, ramp->85)" \
             bash scripts/dev/check-coverage.sh build/v3-coverage "$COVERAGE_RAMP_FLOOR"

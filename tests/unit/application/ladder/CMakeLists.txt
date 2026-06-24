@@ -29,3 +29,9 @@ pvpgn_v3_add_test(test_application_ladder_get_entry_lookup
     DEPS    application_ladder
             domain_ladder
             domain_identity)
+
+pvpgn_v3_add_test(test_application_ladder_edges
+    SOURCES ladder_edges_test.cpp
+    DEPS    application_ladder
+            domain_ladder
+            domain_identity)
