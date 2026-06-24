@@ -88,9 +88,19 @@ TEST_CASE("LeaveGame: if host leaves, host migrates to another player",
     REQUIRE(r);
     REQUIRE(r.value().host_migrated);
     REQUIRE(r.value().new_host.value() > 0);
-    
+
     // Verify new host is one of the remaining players
     REQUIRE((r.value().new_host == f.bob_id || r.value().new_host == f.charlie_id));
+
+    // Regression: the migration must be reflected in the *persisted* aggregate,
+    // not just the returned new_host. Previously Game::leave never reassigned
+    // host_, so the saved game still named the departed host (alice) — breaking
+    // any later host()-keyed permission/cancel logic. Re-load and assert.
+    auto reloaded = f.games.find_by_id(1);
+    REQUIRE(reloaded);
+    CHECK((*reloaded)->host() == r.value().new_host);
+    CHECK((*reloaded)->host() != f.alice_id);
+    CHECK_FALSE((*reloaded)->contains(f.alice_id));
 }
 
 TEST_CASE("LeaveGame: leaving non-existent game returns GameNotFound",

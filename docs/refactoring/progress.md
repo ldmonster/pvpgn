@@ -1787,6 +1787,35 @@ keep grinding the biased metric.
   revoke is a structural no-op; the in-memory channel repo drops `ChannelPolicy`
   on the create (id==0) path.
 
+## Fix real defects surfaced by the coverage fleet (2026-06-05)
+
+Fixed the genuine bugs the wave-1/2 agents found while writing tests:
+
+- **`Game::leave` now migrates the host (domain invariant).** Previously the host
+  was never reassigned when it left, so the persisted aggregate still named the
+  departed account as `host()` (the use-case's returned `new_host` was correct,
+  but the saved game was wrong — breaking any later `host()`-keyed permission/
+  cancel logic). `Game::leave` now reassigns `host_` to the next remaining player
+  ("host is always a current player"); `LeaveGame` reads the migrated host from
+  the aggregate instead of the old no-op stub. Regression test re-loads the saved
+  game and asserts `host()` migrated and the departed account is gone.
+- **Storage failures no longer masquerade as "not found".** `LeaveGame` (save/
+  remove fail) and `JoinGame` (save fail) returned `GameNotFound`, conflating a
+  durable-write failure with a missing game. Added `PersistenceFailed` to both
+  `LeaveGameError` and `JoinGameError` and mapped the write-failure paths to it.
+  (Enums are game-module-local — no external switch needed updating.) The wave-2
+  error tests were updated to assert the corrected mapping.
+
+Verified: gameplay domain + game use-case tests green; full unit suite 3018
+(only the known anongame/icon loader parallel-WD flake fails, green under `-j1`);
+`check-all` 18/0/0.
+
+The remaining "dead arm" observations are intentionally left as-is: the
+`PersistenceFailed`/`OwnerNotFound` arms are reachable with a real SQL backend
+(just not the in-memory adapters), so they are defensive, not dead; the two truly
+unreachable arms (`report_game_result` post-`begin_report`, `join_game_server`
+create-game) are low-risk defensive guards left with the existing comments.
+
 ## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).

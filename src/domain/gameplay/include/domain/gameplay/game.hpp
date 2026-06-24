@@ -109,6 +109,13 @@ public:
         if (it == players_.end()) return false;
         players_.erase(it);
         events_.push_back(events::GamePlayerLeft{id_, who});
+        // Invariant: the host is always a current player. If the host left and
+        // players remain, migrate the host to the next remaining player so the
+        // aggregate never reports a departed account as its host. (When the
+        // last player leaves, the game is empty and the caller deletes it.)
+        if (who == host_ && !players_.empty()) {
+            host_ = players_.front();
+        }
         return true;
     }
 

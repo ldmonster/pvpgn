@@ -25,6 +25,8 @@ enum class JoinGameError : std::uint8_t {
     GameClosed,
     AlreadyInGame,
     WrongClientTag,
+    /// A durable write (save) failed — distinct from "game not found".
+    PersistenceFailed,
 };
 
 /// Result of a successful game join.

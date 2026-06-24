@@ -20,6 +20,8 @@ namespace pvpgn::application::game {
 enum class LeaveGameError : std::uint8_t {
     GameNotFound,
     NotInGame,
+    /// A durable write (save/remove) failed — distinct from "game not found".
+    PersistenceFailed,
 };
 
 /// Result of a successful game leave.

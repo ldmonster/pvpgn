@@ -3,7 +3,7 @@
 // Net-new error/edge-branch tests for `application::game::JoinGame`.
 // Covers branches the happy-path suite misses:
 //   * joining a game one is already in returns AlreadyInGame
-//   * save() failure after a successful join maps to GameNotFound
+//   * save() failure after a successful join maps to PersistenceFailed
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -91,7 +91,7 @@ TEST_CASE("JoinGame: joining a game you already host returns AlreadyInGame",
     REQUIRE(r.error() == JoinGameError::AlreadyInGame);
 }
 
-TEST_CASE("JoinGame: save() failure after a successful join returns GameNotFound",
+TEST_CASE("JoinGame: save() failure after a successful join returns PersistenceFailed",
           "[application][game][join]") {
     domain::AccountId alice{1};
     domain::AccountId bob{2};
@@ -110,5 +110,5 @@ TEST_CASE("JoinGame: save() failure after a successful join returns GameNotFound
     auto r = uc.execute(domain::GameId{1}, bob);
 
     REQUIRE_FALSE(r);
-    REQUIRE(r.error() == JoinGameError::GameNotFound);
+    REQUIRE(r.error() == JoinGameError::PersistenceFailed);
 }

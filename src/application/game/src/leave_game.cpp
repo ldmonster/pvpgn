@@ -32,11 +32,11 @@ LeaveGame::execute(domain::GameId game_id, domain::AccountId account_id) const {
     bool host_migrated = false;
     domain::AccountId new_host = domain::AccountId{0};
 
-    // 5. If host left, migrate to another player or close game
+    // 5. If the host left and players remain, the aggregate has already
+    //    migrated the host (Game::leave enforces "host is always a current
+    //    player"); report the new host it chose.
     if (is_host && game->player_count() > 0) {
-        // Migrate host to first remaining player
-        new_host = game->players()[0];
-        // In a real implementation, would have game.migrate_host() method
+        new_host = game->host();
         host_migrated = true;
     }
 
@@ -47,13 +47,13 @@ LeaveGame::execute(domain::GameId game_id, domain::AccountId account_id) const {
         // Delete the game from repository
         auto remove_result = game_repo_.remove(game->descriptor().name);
         if (!remove_result) {
-            return core::fail(LeaveGameError::GameNotFound);
+            return core::fail(LeaveGameError::PersistenceFailed);
         }
     } else {
         // Save updated game
         auto save_result = game_repo_.save(*game);
         if (!save_result) {
-            return core::fail(LeaveGameError::GameNotFound);
+            return core::fail(LeaveGameError::PersistenceFailed);
         }
     }
 

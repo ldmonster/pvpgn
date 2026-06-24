@@ -33,7 +33,7 @@ JoinGame::execute(domain::GameId game_id, domain::AccountId account_id) const {
     // 3. Save updated game
     auto save_result = game_repo_.save(*game);
     if (!save_result) {
-        return core::fail(JoinGameError::GameNotFound);
+        return core::fail(JoinGameError::PersistenceFailed);
     }
 
     // 4. Drain domain events

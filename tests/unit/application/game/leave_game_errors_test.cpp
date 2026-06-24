@@ -2,8 +2,9 @@
 //
 // Net-new error/edge-branch tests for `application::game::LeaveGame`.
 // Covers branches the happy-path suite misses:
-//   * repository remove() failure on empty game maps to GameNotFound
-//   * repository save() failure on non-empty game maps to GameNotFound
+//   * repository remove() failure on empty game maps to PersistenceFailed
+//   * repository save() failure on non-empty game maps to PersistenceFailed
+//   * host departure migrates the host to a remaining player
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -24,7 +25,7 @@ using application::game::LeaveGameError;
 
 /// IGameRepository whose find_by_id returns a seeded game, but whose save()
 /// and remove() always fail. Both LeaveGame persistence paths funnel their
-/// failure to LeaveGameError::GameNotFound.
+/// failure to LeaveGameError::PersistenceFailed.
 class FailingGameRepository final : public domain::gameplay::IGameRepository {
 public:
     core::Result<std::shared_ptr<domain::gameplay::Game>, core::Error>
@@ -75,7 +76,7 @@ make_game(domain::GameId id, std::vector<domain::AccountId> players) {
 
 }  // namespace
 
-TEST_CASE("LeaveGame: remove() failure on empty game returns GameNotFound",
+TEST_CASE("LeaveGame: remove() failure on empty game returns PersistenceFailed",
           "[application][game][leave]") {
     domain::AccountId alice{1};
     FailingGameRepository repo;
@@ -86,10 +87,10 @@ TEST_CASE("LeaveGame: remove() failure on empty game returns GameNotFound",
     auto r = uc.execute(domain::GameId{1}, alice);
 
     REQUIRE_FALSE(r);
-    REQUIRE(r.error() == LeaveGameError::GameNotFound);
+    REQUIRE(r.error() == LeaveGameError::PersistenceFailed);
 }
 
-TEST_CASE("LeaveGame: save() failure on non-empty game returns GameNotFound",
+TEST_CASE("LeaveGame: save() failure on non-empty game returns PersistenceFailed",
           "[application][game][leave]") {
     domain::AccountId alice{1};
     domain::AccountId bob{2};
@@ -101,5 +102,5 @@ TEST_CASE("LeaveGame: save() failure on non-empty game returns GameNotFound",
     auto r = uc.execute(domain::GameId{1}, bob);
 
     REQUIRE_FALSE(r);
-    REQUIRE(r.error() == LeaveGameError::GameNotFound);
+    REQUIRE(r.error() == LeaveGameError::PersistenceFailed);
 }
