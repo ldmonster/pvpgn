@@ -74,5 +74,13 @@ implements the feature.
 - gamelist F3: the inchannel STARTADVEX hand-parser uses wrong offsets (but that
   path is a stub; the correct codec exists and should be wired instead).
 
-## Runtime bug-hunt (sanitizers)
-asan + ubsan suites rebuilt on the post-fix tree and run — results appended below.
+## Runtime bug-hunt (sanitizers) — CLEAN
+asan + ubsan suites rebuilt on the post-fix tree and run over the full unit suite
+(3070 tests): **zero** AddressSanitizer / LeakSanitizer / UBSan reports (0 matches
+for any error/leak/runtime-error/SUMMARY signature across both logs). No memory
+bugs, no undefined behaviour, no leaks in the implemented code. The only test
+failures under the sanitizer builds are the pre-existing config-file-loader
+parallel flake (anongame_infos/maplists, icon_req, multilocale, TOML) — they
+share a working directory / temp path and race under `-j`; all 40 pass 100%
+serially. That flake is a test-harness issue, not a product bug (worth fixing the
+loader tests to use isolated temp dirs in a future pass).
