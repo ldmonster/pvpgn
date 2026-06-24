@@ -157,22 +157,20 @@ fi
 # =============================================================================
 if [ "$DEEP" -eq 1 ]; then
     echo "${C_BOLD}=== Ring 3: deep gates (--deep) ===${C_RST}"
-    # Coverage floor is a *no-regress* ratchet, not the M1 target. Measured
-    # domain+app line coverage is 68.32% (2026-06-05, after the agent-fleet
-    # net-new test wave across connection/realm/auth/moderation/chat/shared/
-    # identity/ladder/social); the floor is pinned just below that so the gains
-    # can't silently regress. Ramp this toward the 85% M1 exit as net-new tests
-    # land — raise the number here, never lower it. (Note the gate weights by
-    # per-TU header occurrence, so each wave's % bump shrinks as new test TUs
-    # re-add shared-header lines to the denominator.)
-    # See progress 1.9 (root cause) / 1.16 (ratchet) / 1.19+ (FSM injection) /
-    # the 2026-06-05 coverage-wave entry.
-    COVERAGE_RAMP_FLOOR=69
+    # Coverage floor is a *no-regress* ratchet. check-coverage.sh now reports
+    # standard per-file UNION line coverage (gcov -i, deduplicated across TUs —
+    # the lcov/gcovr/llvm-cov definition), not the old per-TU summation that
+    # double-counted shared headers. Measured domain+app coverage under the fixed
+    # gate is 97.37% (2026-06-05), comfortably past the 85% M1 exit; the floor is
+    # pinned at 90 with headroom for churn + per-TU collision noise. Raise it as
+    # coverage rises, never lower it. See docs/refactoring/progress.md
+    # (coverage-fleet arc + gate-methodology fix).
+    COVERAGE_RAMP_FLOOR=90
     if command -v ctest >/dev/null 2>&1 && [ -d build/v3-coverage ]; then
-        gate "coverage (>=${COVERAGE_RAMP_FLOOR}% domain+app, ramp->85)" \
+        gate "coverage (>=${COVERAGE_RAMP_FLOOR}% domain+app, per-file union; M1 exit met)" \
             bash scripts/dev/check-coverage.sh build/v3-coverage "$COVERAGE_RAMP_FLOOR"
     else
-        skip "coverage (>=${COVERAGE_RAMP_FLOOR}% domain+app, ramp->85)" "no build/v3-coverage"
+        skip "coverage (>=${COVERAGE_RAMP_FLOOR}% domain+app, per-file union; M1 exit met)" "no build/v3-coverage"
     fi
     if [ -d build/v3-asan ]; then gate "asan suite" ctest --test-dir build/v3-asan --output-on-failure
         else skip "asan suite" "no build/v3-asan (cmake --preset v3-asan)"; fi

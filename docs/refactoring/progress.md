@@ -1828,6 +1828,27 @@ dead code or per-TU header artifacts, not untested behaviour. Further movement o
 the gate number requires the methodology fix (deferred by user) rather than more
 tests.
 
+## Fix the coverage gate methodology — M1 coverage exit MET (2026-06-05)
+
+Rewrote `scripts/dev/check-coverage.sh` to compute **standard per-file union**
+line coverage (gcov `-i` intermediate JSON, unioning covered line numbers per
+source file across all TUs — the lcov/gcovr/llvm-cov definition) instead of the
+old per-TU `gcov -n` summation that counted each shared header once per including
+TU. The old method understated coverage by ~28 points and inflated the
+denominator whenever a test TU was added (so writing tests barely moved it).
+
+Same `.gcda`, two methods: **old 69.3% → fixed 97.37%** (`5138/5277` domain+app
+lines). Implementation notes: each object is processed in its own temp CWD so
+`gcov -i`'s basename-derived output can't clobber across same-named split TUs;
+requires `gcov` + `python3` (already required by the e2e gates); CLI/exit
+contract unchanged. Verified it is a real check — passes at floor 90, fails at 99.
+
+`check-all.sh` floor ratcheted **69 → 90** (headroom below the true 97.37% for
+churn + per-TU collision noise; far past the plan's 85% M1 exit). **The M1
+coverage exit (≥ 85% domain+app line coverage) is met.** This is a measurement
+correction, not a weakened gate: the floor is stricter in real terms (90 vs the
+old biased 69) and the metric is now the industry standard.
+
 ## Milestones 5–6
 
 Not started. See [`plans/14-migration-roadmap.md`](../../plans/14-migration-roadmap.md).
