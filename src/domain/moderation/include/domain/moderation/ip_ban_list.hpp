@@ -3,8 +3,12 @@
 
 /// @file ip_ban_list.hpp
 /// `moderation::IpBanList` aggregate — authoritative list of banned
-/// IPv4 / IPv6 addresses. CIDR ranges land in a follow-up commit; this
-/// first cut covers exact-host bans (the legacy `bnban.conf` majority).
+/// IPv4 / IPv6 addresses. Models all five legacy `bnban.conf` forms:
+/// exact host, CIDR / dotted-netmask range, trailing/middle-octet
+/// wildcard (`1.2.3.*`, `1.2.*.4`), and inclusive range
+/// (`1.2.3.4-1.2.3.40`). Exact + CIDR keep their dedicated fast paths;
+/// the non-contiguous wildcard / inclusive-range forms are carried as
+/// `BanPattern` entries (see ban_pattern.hpp).
 
 #include <algorithm>
 #include <optional>
@@ -13,6 +17,7 @@
 #include <vector>
 
 #include "core/clock.hpp"
+#include "domain/moderation/ban_pattern.hpp"
 #include "domain/shared/events.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/shared/ip_address.hpp"
@@ -70,6 +75,30 @@ public:
             network, prefix_bits, ranges_.back().reason, issuer, expires_at});
     }
 
+    /// Non-contiguous IPv4 ban pattern (wildcard `1.2.*.4` or inclusive
+    /// range `1.2.3.4-1.2.3.40`). Exact and CIDR/netmask forms should be
+    /// added via `add` / `add_range` instead — `add_ban_pattern` rejects
+    /// them so there is exactly one canonical home per form. Returns false
+    /// if the pattern was not a wildcard/range.
+    bool add_ban_pattern(const BanPattern& pattern, std::string reason,
+                         AccountId issuer, core::SystemTime issued_at,
+                         std::optional<core::SystemTime> expires_at = std::nullopt) {
+        if (pattern.kind() != BanPattern::Kind::Wildcard &&
+            pattern.kind() != BanPattern::Kind::Range) {
+            return false;
+        }
+        patterns_.push_back({pattern, std::move(reason), issuer, issued_at,
+                             expires_at});
+        events_.push_back(events::IpBanRangeAdded{
+            // Reuse the range event; the pattern's textual form is opaque to
+            // the event, so we publish the don't-care network 0.0.0.0/0 as a
+            // placeholder identifier alongside the reason.
+            IpAddress{}, 0, patterns_.back().reason, issuer, expires_at});
+        return true;
+    }
+
+    std::size_t pattern_count() const noexcept { return patterns_.size(); }
+
     bool remove_range(const IpAddress& network, std::uint8_t prefix_bits) {
         auto it = std::find_if(ranges_.begin(), ranges_.end(),
             [&](const RangeEntry& r) {
@@ -103,20 +132,57 @@ public:
                 ++it;
             }
         }
+        for (auto it = patterns_.begin(); it != patterns_.end(); ) {
+            if (it->expires_at && now >= *it->expires_at) {
+                events_.push_back(events::IpBanRangeRemoved{IpAddress{}, 0});
+                it = patterns_.erase(it);
+                ++removed;
+            } else {
+                ++it;
+            }
+        }
         return removed;
     }
 
-    /// True iff `ip` matches an entry or CIDR range that is still
-    /// active at `now`.
+    /// True iff `ip` matches an entry, CIDR range, or wildcard/inclusive
+    /// pattern that is still active at `now`. Allocation-free (does not
+    /// build the reason string — use `match_info` when the reason matters).
     bool blocks(const IpAddress& ip, core::SystemTime now) const noexcept {
-        for (const auto& e : entries_) {
-            if (e.ip == ip && e.active_at(now)) return true;
-        }
+        if (find_match(ip, now)) return true;
         for (const auto& r : ranges_) {
             if (r.expires_at && now >= *r.expires_at) continue;
             if (range_matches_(r.network, r.prefix_bits, ip)) return true;
         }
-        return false;
+        return matches_pattern_(ip, now) != nullptr;
+    }
+
+    /// Result of a ban lookup: the reason / expiry of the *matching* entry,
+    /// regardless of which form (exact, CIDR, wildcard, range) matched. Used
+    /// by the application layer to report an accurate ban reason / expiry.
+    struct MatchInfo {
+        std::string                     reason;
+        std::optional<core::SystemTime> expires_at;
+    };
+
+    /// Find the active match for `ip` and return its reason/expiry, or
+    /// nullopt if `ip` is not blocked at `now`. Exact entries take
+    /// precedence, then CIDR ranges, then wildcard/inclusive patterns —
+    /// the same traversal order as the original `ipbanlist_check`.
+    std::optional<MatchInfo> match_info(const IpAddress& ip,
+                                        core::SystemTime now) const {
+        if (const auto* e = find_match(ip, now)) {
+            return MatchInfo{e->reason, e->expires_at};
+        }
+        for (const auto& r : ranges_) {
+            if (r.expires_at && now >= *r.expires_at) continue;
+            if (range_matches_(r.network, r.prefix_bits, ip)) {
+                return MatchInfo{r.reason, r.expires_at};
+            }
+        }
+        if (const auto* p = matches_pattern_(ip, now)) {
+            return MatchInfo{p->reason, p->expires_at};
+        }
+        return std::nullopt;
     }
 
     const std::vector<IpBanEntry>& entries() const noexcept { return entries_; }
@@ -136,6 +202,35 @@ private:
         core::SystemTime                issued_at;
         std::optional<core::SystemTime> expires_at;
     };
+
+    struct PatternEntry {
+        BanPattern                      pattern;
+        std::string                     reason;
+        AccountId                       issuer;
+        core::SystemTime                issued_at;
+        std::optional<core::SystemTime> expires_at;
+    };
+
+    /// Active exact-host entry matching `ip`, or nullptr.
+    const IpBanEntry* find_match(const IpAddress& ip,
+                                 core::SystemTime now) const noexcept {
+        for (const auto& e : entries_) {
+            if (e.ip == ip && e.active_at(now)) return &e;
+        }
+        return nullptr;
+    }
+
+    /// Active wildcard / inclusive-range pattern matching `ip`, or nullptr.
+    const PatternEntry* matches_pattern_(const IpAddress& ip,
+                                         core::SystemTime now) const noexcept {
+        if (!ip.is_v4()) return nullptr;
+        const std::uint32_t host = ip.v4_packed();
+        for (const auto& p : patterns_) {
+            if (p.expires_at && now >= *p.expires_at) continue;
+            if (p.pattern.matches(host)) return &p;
+        }
+        return nullptr;
+    }
 
     static bool range_matches_(const IpAddress& network, std::uint8_t prefix_bits,
                                const IpAddress& candidate) noexcept {
@@ -173,6 +268,7 @@ private:
 
     std::vector<IpBanEntry>          entries_;
     std::vector<RangeEntry>          ranges_;
+    std::vector<PatternEntry>        patterns_;
     std::vector<events::DomainEvent> events_;
 };
 

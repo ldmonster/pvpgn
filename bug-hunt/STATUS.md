@@ -44,5 +44,36 @@ Discovery wave 1 complete (10 subsystems). Triage below.
 - **ACCT-1..4: attribute key strings differ**; profile-key interop is a real bug, fix those; Record keys document.
 - **ANON-1..4: inforeply tag_unk magics, DESC gametype id**.
 
-## Confirmed bug fixes
-_(updated as fix fleet lands)_
+## Wave-1 fixes — LANDED (commit 9030b71, 3029/3029 green)
+- [x] D2-1 .d2s codec offsets/masks + tests
+- [x] D2-2 CharacterClass enum ordering (both enums) + static_asserts
+- [x] CHAT-1 BnetFsm EID values + tests
+- [x] IRC-1 make_numeric nick + PONG + tests
+- [x] LADDER-3 rank sort key + LADDER-1 initial rating + tests
+- [x] CLAN-1 domain<->wire rank mapping + tests
+
+## Discovery wave 2 — done (7 more subsystems)
+| Subsystem | findings file | notable |
+|---|---|---|
+| commands / permissions | findings/commands.md | perm model ignores groups 5-8; kick/ban/op missing op-immunity |
+| friends / watch | findings/friends-watch.md | mostly NOT-WIRED (scope gaps); max_friends 25 vs 20 |
+| moderation / ipban | findings/moderation-ipban.md | CRIT: wildcard/range bans silently dropped by loader |
+| news / motd / version | findings/news-motd-version.md | mostly NOT-IMPLEMENTED; version-check always passes |
+| bnftp / file | findings/bnftp-file.md | CRIT: dispatch replays 0x02 init byte -> every download fails |
+| tournament / gameresult | findings/tournament-gameresult.md | result reporting trusts single reporter; never updates ladder |
+| config defaults | findings/config-defaults.md | TOML key-name mismatches silently drop settings; wrong defaults |
+
+## Wave-2 fix targets (implemented-but-wrong; in progress)
+- BNFTP-1 (CRIT): strip leading 0x02 before replaying into BnftpFsm.
+- CONFIG: align bnetd.toml.in keys to loader + correct wrong compiled defaults + add key-coverage gate.
+- PERM: kick/ban require operator + protect ops/admins (vs membership-only).
+- IPBAN: file loader + domain model must accept wildcard/range/CIDR bans, not drop them.
+
+## Scope gaps (NOT bugs to auto-fix — features unimplemented in the rewrite)
+friends wiring, mutual-friend flag, watch/notify, news/MOTD delivery, version-check
+(CheckRevision), autoupdate, anongame result-agreement/anti-cheat, account lock/mute,
+many original commands. Documented for product decision; not "fix bug" scope.
+
+## Deferred decisions (real divergence, likely intentional redesign)
+CRYPTO-1 (SRP-6a vs SRP-3 login), GAME-1 (game-type enum simplification),
+ACCT Record/ladder key formats, ANON inforeply magic constants, LADDER K-factor model.

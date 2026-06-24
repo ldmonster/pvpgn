@@ -5,3 +5,11 @@ pvpgn_v3_add_test(test_domain_moderation
 pvpgn_v3_add_test(test_domain_moderation_ip_ban_list_coverage
     SOURCES ip_ban_list_coverage_test.cpp
     DEPS    domain_moderation)
+
+pvpgn_v3_add_test(test_domain_moderation_ban_pattern
+    SOURCES ban_pattern_test.cpp
+    DEPS    domain_moderation)
+
+pvpgn_v3_add_test(test_domain_moderation_ip_ban_list_pattern
+    SOURCES ip_ban_list_pattern_test.cpp
+    DEPS    domain_moderation)

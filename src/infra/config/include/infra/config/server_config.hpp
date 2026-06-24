@@ -143,11 +143,11 @@ struct ClientVerificationConfig {
 
 struct TimingConfig {
     std::uint32_t usersync            = 300;
-    std::uint32_t userflush           = 3600;
+    std::uint32_t userflush           = 1000;  // BNETD_USERFLUSH
     std::uint32_t userstep            = 100;
     bool          userflush_connected = true;
     std::uint32_t latency             = 600;
-    std::uint32_t irc_latency         = 300;
+    std::uint32_t irc_latency         = 180;  // BNETD_IRC_LATENCY
     std::uint32_t nullmsg             = 120;
     std::uint32_t shutdown_delay      = 300;
     std::uint32_t shutdown_decr       = 60;
@@ -174,12 +174,12 @@ struct PolicyConfig {
     bool          hide_addr              = false;
     std::uint32_t udptest_port           = 0;
     std::uint32_t max_conns_per_IP       = 0;
-    std::uint32_t max_connections        = 4096;
-    std::uint32_t packet_limit           = 0;
+    std::uint32_t max_connections        = 1000;  // BNETD_MAX_SOCKETS
+    std::uint32_t packet_limit           = 1000;  // BNETD_PACKET_LIMIT
     std::uint32_t passfail_count         = 0;
-    std::uint32_t passfail_bantime       = 0;
+    std::uint32_t passfail_bantime       = 300;   // prefs.cpp conf_setdef_passfail_bantime
     std::uint32_t maxusers_per_channel   = 0;
-    std::uint32_t max_friends            = 25;
+    std::uint32_t max_friends            = 20;     // MAX_FRIENDS
     std::uint32_t hashtable_size         = 61;
     std::uint32_t max_concurrent_logins  = 0;
     std::uint32_t v3_tcp_session_mode    = 0;
@@ -191,11 +191,11 @@ struct PolicyConfig {
 
 struct AccountConfig {
     bool          savebyname              = true;
-    bool          sync_on_logoff          = true;
+    bool          sync_on_logoff          = false;  // prefs.cpp conf_setdef_sync_on_logoff
     std::string   account_allowed_symbols = "-_[]";
     bool          account_force_username  = false;
     bool          mail_support            = false;
-    std::uint32_t mail_quota              = 10;
+    std::uint32_t mail_quota              = 5;       // BNETD_MAIL_QUOTA
 };
 
 // ── [tracking] ───────────────────────────────────────────────────────────────
@@ -258,7 +258,7 @@ struct WolConfig {
 struct IrcConfig {
     std::string   irc_addrs;
     std::string   irc_network_name = "PvPGN";
-    std::uint32_t irc_latency      = 300;
+    std::uint32_t irc_latency      = 180;  // BNETD_IRC_LATENCY
 };
 
 // ── [telnet] ─────────────────────────────────────────────────────────────────
@@ -270,22 +270,22 @@ struct TelnetConfig {
 // ── [ladder] ─────────────────────────────────────────────────────────────────
 
 struct LadderConfig {
-    std::uint32_t war3_ladder_update_secs = 3600;
+    std::uint32_t war3_ladder_update_secs = 0;  // prefs.cpp conf_setdef_war3_ladder_update_secs
     bool          XML_output_ladder       = false;
 };
 
 // ── [status] ─────────────────────────────────────────────────────────────────
 
 struct StatusConfig {
-    std::uint32_t output_update_secs = 300;
+    std::uint32_t output_update_secs = 0;  // prefs.cpp conf_setdef_output_update_secs
     bool          XML_status_output  = false;
 };
 
 // ── [clan] ───────────────────────────────────────────────────────────────────
 
 struct ClanConfig {
-    std::uint32_t clan_newer_time              = 0;
-    std::uint32_t clan_max_members             = 100;
+    std::uint32_t clan_newer_time              = 168;  // CLAN_NEWER_TIME
+    std::uint32_t clan_max_members             = 50;   // CLAN_DEFAULT_MAX_MEMBERS
     bool          clan_channel_default_private = false;
     std::uint32_t clan_min_invites             = 2;
 };

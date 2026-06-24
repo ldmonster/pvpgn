@@ -16,6 +16,7 @@
 #include "domain/chat/ports.hpp"
 #include "domain/connection/ports.hpp"
 #include "domain/identity/ports.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -25,6 +26,9 @@ enum class KickFromChannelError : std::uint8_t {
     TargetNotInChannel,
     InsufficientPermissions,  // kicker rank <= target rank
     CannotKickSelf,
+    /// Kicker is not a channel operator/admin, or the target is itself an
+    /// operator/admin and therefore immune from being kicked.
+    NotAuthorized,
 };
 
 /// Request to kick a member from a channel.
@@ -39,17 +43,21 @@ class KickFromChannel {
 public:
     explicit KickFromChannel(
         std::shared_ptr<domain::chat::IChannelRepository> channels,
-        std::shared_ptr<domain::identity::IAccountRepository> accounts,
+        std::shared_ptr<domain::moderation::IPermissionChecker> permissions,
         std::shared_ptr<domain::connection::IMessageRouter> router)
-        : channels_(channels), accounts_(accounts), router_(router) {}
+        : channels_(channels), permissions_(permissions), router_(router) {}
 
-    /// Execute: validate permissions and kick member from channel.
+    /// Execute: validate authorization and kick member from channel.
+    ///
+    /// The kicker must hold the channel "operator" command group, and the
+    /// target must NOT be an operator/admin (operator/admin immunity),
+    /// mirroring the original `_handle_kick_command` authority rule.
     core::Result<void, KickFromChannelError>
     execute(const KickFromChannelRequest& req) const;
 
 private:
     std::shared_ptr<domain::chat::IChannelRepository> channels_;
-    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::moderation::IPermissionChecker> permissions_;
     std::shared_ptr<domain::connection::IMessageRouter>     router_;
 };
 

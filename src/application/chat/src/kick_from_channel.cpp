@@ -3,6 +3,7 @@
 
 #include "domain/chat/ports.hpp"
 #include "domain/chat/channel.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -13,7 +14,15 @@ KickFromChannel::execute(const KickFromChannelRequest& req) const {
         return core::fail(KickFromChannelError::CannotKickSelf);
     }
 
-    // 2. Find the channel
+    // 2. Authorize the kicker. The original `_handle_kick_command` requires
+    //    the actor to be a channel admin / operator / tempOP; here we gate on
+    //    the same "operator" command group used by OpFromChannel, which is the
+    //    only per-actor authorization seam currently exposed.
+    if (!permissions_->has_command_group(req.kicker_id, "operator")) {
+        return core::fail(KickFromChannelError::NotAuthorized);
+    }
+
+    // 3. Find the channel
     auto found = channels_->find_by_id(req.channel_id);
     if (!found) {
         return core::fail(KickFromChannelError::ChannelNotFound);
@@ -21,7 +30,7 @@ KickFromChannel::execute(const KickFromChannelRequest& req) const {
 
     domain::chat::Channel channel = found.value();
 
-    // 3. Verify kicker and target are members
+    // 4. Verify kicker and target are members
     if (!channel.contains(req.kicker_id)) {
         return core::fail(KickFromChannelError::TargetNotInChannel);
     }
@@ -30,20 +39,27 @@ KickFromChannel::execute(const KickFromChannelRequest& req) const {
         return core::fail(KickFromChannelError::TargetNotInChannel);
     }
 
-    // 4. Call channel.kick() — domain enforces permissions if needed
+    // 5. Operator/admin immunity: the original refuses to kick administrators
+    //    or operators. Reject if the target holds either group.
+    if (permissions_->has_command_group(req.target_id, "operator") ||
+        permissions_->has_command_group(req.target_id, "admin")) {
+        return core::fail(KickFromChannelError::NotAuthorized);
+    }
+
+    // 6. Call channel.kick() — domain mechanically removes + banlists.
     bool kicked = channel.kick(req.kicker_id, req.target_id);
     if (!kicked) {
         // Kicker not actually a member (double-check)
         return core::fail(KickFromChannelError::InsufficientPermissions);
     }
 
-    // 5. Save updated channel
+    // 7. Save updated channel
     auto save_result = channels_->save(channel);
     if (!save_result) {
         return core::fail(KickFromChannelError::ChannelNotFound);
     }
 
-    // 6. Drain and route events
+    // 8. Drain and route events
     auto events = channel.drain_events();
     // Events would be routed here via router_
     // For now, just acknowledge success

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/moderation/check_ip_ban.hpp"
 
+#include <chrono>
+
 #include "domain/moderation/ports.hpp"
 
 namespace pvpgn::application::moderation {
@@ -25,14 +27,28 @@ CheckIpBan::execute(const domain::IpAddress& ip) const {
         };
     }
 
-    // 3. Search for the matching ban entry to get reason and expiration
+    // 3. Recover the matching entry's reason / expiry. A range, wildcard or
+    //    inclusive-range ban will NOT show up in the exact-entry list, so we
+    //    ask the aggregate for the matching reason/expiry across *all* forms
+    //    (exact, CIDR, wildcard, range) rather than scanning exact entries
+    //    only (which mis-reported range matches as a permanent "Banned").
     CheckIpBanResult result{
         .banned = true,
         .reason = "Banned",
         .expires_at = std::nullopt,
     };
 
-    // 4. Iterate over entries to find matching IP
+    if (auto banlist = ban_repo_.load_banlist()) {
+        const auto now = std::chrono::system_clock::now();
+        if (auto info = banlist.value().match_info(ip, now)) {
+            result.reason = info->reason;
+            result.expires_at = info->expires_at;
+            return result;
+        }
+    }
+
+    // Fallback (e.g. a repository that cannot snapshot its banlist): scan the
+    // exact entries for a direct hit, preserving the original behaviour.
     ban_repo_.for_each_entry([&](const domain::moderation::IpBanEntry& entry) {
         if (entry.ip == ip) {
             result.reason = entry.reason;

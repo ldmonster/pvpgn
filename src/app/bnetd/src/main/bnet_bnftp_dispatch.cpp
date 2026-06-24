@@ -146,9 +146,28 @@ void BnetBnftpDispatchFactory::operator()(
             auto fsm    = std::make_shared<protocol::file::BnftpFsm>(
                 ctx, cfg_.data_dir.string());
 
-            // Replay buffered bytes
-            auto sp = std::span<const std::byte>(pbuf->data(),
-                                                  pbuf->size());
+            // A BNFTP connection opens with a single init-class octet
+            // (CLIENT_INITCONN_CLASS_FILE == 0x02) that selects the file
+            // protocol; the CLIENT_FILE_REQ packet (which BnftpFsm parses,
+            // starting with its {size,type} header) follows immediately
+            // after. The original server consumes this byte in its init
+            // handler (handle_init.cpp: conn_set_class(c, conn_class_file))
+            // and never forwards it to the file-request parser. We must do
+            // the same here: strip the leading 0x02 before replaying, or
+            // BnftpFsm would misread it as the low byte of `size`, shifting
+            // the whole header by one and silently closing the connection.
+            //
+            // The init byte only appears once, at the very start of the
+            // stream, so only this initial replay needs the skip; the
+            // rewired on_bytes handler below sees post-init bytes verbatim.
+            std::size_t skip = 0;
+            if (first == static_cast<std::byte>(0x02)) {
+                skip = 1;  // CLIENT_INITCONN_CLASS_FILE
+            }
+
+            // Replay buffered bytes (past the consumed init byte).
+            auto sp = std::span<const std::byte>(pbuf->data() + skip,
+                                                  pbuf->size() - skip);
             (void)fsm->on_bytes(sp);
 
             // Rewire for future bytes

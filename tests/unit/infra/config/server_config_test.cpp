@@ -26,13 +26,13 @@ TEST_CASE("config: empty input yields defaults", "[infra][config]") {
     // storage section
     REQUIRE(c.storage.driver      == "file");
     // policy defaults
-    REQUIRE(c.policy.max_connections == 4096u);
+    REQUIRE(c.policy.max_connections == 1000u);  // BNETD_MAX_SOCKETS
     REQUIRE(c.policy.new_accounts    == true);
     // timing defaults
     REQUIRE(c.timing.usersync        == 300u);
     REQUIRE(c.timing.shutdown_delay  == 300u);
     // clan defaults
-    REQUIRE(c.clan.clan_max_members  == 100u);
+    REQUIRE(c.clan.clan_max_members  == 50u);  // CLAN_DEFAULT_MAX_MEMBERS
     REQUIRE(c.clan.clan_min_invites  == 2u);
 }
 

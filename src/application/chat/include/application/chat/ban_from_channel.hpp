@@ -17,6 +17,7 @@
 #include "domain/chat/ports.hpp"
 #include "domain/connection/ports.hpp"
 #include "domain/identity/ports.hpp"
+#include "domain/moderation/ports.hpp"
 
 namespace pvpgn::application::chat {
 
@@ -26,6 +27,9 @@ enum class BanFromChannelError : std::uint8_t {
     TargetAlreadyBanned,
     InsufficientPermissions,
     CannotBanSelf,
+    /// Banner is not a channel operator/admin, or the target is itself an
+    /// operator/admin and therefore immune from being banned.
+    NotAuthorized,
 };
 
 /// Request to ban a member from a channel.
@@ -41,17 +45,21 @@ class BanFromChannel {
 public:
     explicit BanFromChannel(
         std::shared_ptr<domain::chat::IChannelRepository> channels,
-        std::shared_ptr<domain::identity::IAccountRepository> accounts,
+        std::shared_ptr<domain::moderation::IPermissionChecker> permissions,
         std::shared_ptr<domain::connection::IMessageRouter> router)
-        : channels_(channels), accounts_(accounts), router_(router) {}
+        : channels_(channels), permissions_(permissions), router_(router) {}
 
-    /// Execute: validate permissions and ban member from channel.
+    /// Execute: validate authorization and ban member from channel.
+    ///
+    /// The banner must hold the channel "operator" command group, and the
+    /// target must NOT be an operator/admin (operator/admin immunity),
+    /// mirroring the original `_handle_ban_command` authority rule.
     core::Result<void, BanFromChannelError>
     execute(const BanFromChannelRequest& req) const;
 
 private:
     std::shared_ptr<domain::chat::IChannelRepository> channels_;
-    std::shared_ptr<domain::identity::IAccountRepository> accounts_;
+    std::shared_ptr<domain::moderation::IPermissionChecker> permissions_;
     std::shared_ptr<domain::connection::IMessageRouter>     router_;
 };
 

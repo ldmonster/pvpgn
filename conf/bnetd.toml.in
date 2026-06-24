@@ -210,6 +210,8 @@ shutdown_decr        = 60
 
 # How often to check IP bans for expiration.
 ipban_check_int      = 30
+# Timeout (seconds) before killing stale init/defer connections (0 = disabled).
+initkill_timer       = 120
 
 ##############################################################################
 # [policy]  — Server behaviour and flood-control                            #
@@ -244,12 +246,6 @@ ladder_prefix            = ""
 enable_conn_all          = true
 # Hide client IP addresses from non-admins?
 hide_addr                = false
-# Log private channel messages to chanlogdir?
-chanlog                  = false
-
-# Mail
-mail_support             = true
-mail_quota               = 5
 
 # Brute-force password-fail banning (0 = disabled).
 passfail_count           = 0
@@ -257,6 +253,24 @@ passfail_bantime         = 300  # seconds
 
 # Maximum users per private channel (0 = unlimited).
 maxusers_per_channel     = 0
+
+# Maximum friends per user.
+max_friends              = 20
+# Hash-table size for account lookup (larger = faster for many accounts).
+hashtable_size           = 61
+
+# Maximum concurrent connections (minimum 32).
+max_connections          = 1000
+# Maximum packets in a client's outbound queue (0 = unlimited).
+packet_limit             = 1000
+# Maximum connections per source IP (0 = unlimited; D2CS exempt).
+max_conns_per_IP         = 0
+# Maximum concurrent logged-in users (0 = unlimited).
+max_concurrent_logins    = 0
+# v3 strangler-fig mode: 0 = legacy fdwatch, 1 = v3 TcpSession pipeline.
+v3_tcp_session_mode      = 0
+# UDP test port (0 = use the TCP source port).
+#udptest_port            = 6112
 
 ##############################################################################
 # [account]  — Account storage and lookup                                   #
@@ -267,15 +281,14 @@ maxusers_per_channel     = 0
 savebyname               = true
 # Flush account data on logoff?
 sync_on_logoff           = false
-# Hash-table size for account lookup (larger = faster for many accounts).
-hashtable_size           = 61
 # Extra symbols allowed in account names beyond alphanumerics.
 # WARNING: '/', '\' are always filtered; '*', '?' can cause problems.
 account_allowed_symbols  = "-_[]"
 # Force displayed username to match the registered account name?
 account_force_username   = false
-# Maximum friends per user.
-max_friends              = 20
+# Mail
+mail_support             = true
+mail_quota               = 5
 
 ##############################################################################
 # [tracking]  — PvPGN tracker registration                                  #
@@ -285,7 +298,7 @@ max_friends              = 20
 # Interval in seconds between tracker packets (0 = disabled).
 track         = 60
 # Comma-delimited list of tracker hostnames (with optional :port).
-trackaddrs    = "track.pvpgn.pro,track.pvpgn.org,bntrack.darkwings.org,bnet.mivabe.nl,track.eurobattle.net"
+trackserv_addrs = "track.pvpgn.pro,track.pvpgn.org,bntrack.darkwings.org,bnet.mivabe.nl,track.eurobattle.net"
 location      = "unknown"
 description   = "unknown"
 url           = "https://github.com/pvpgn/pvpgn-server"
@@ -299,27 +312,19 @@ contact_email = "unknown"
 [network]
 # Server name reported to clients.
 servername           = "PvPGN Realm"
-# Maximum concurrent connections (minimum 32).
-max_connections      = 1000
-# Maximum packets in a client's outbound queue (0 = unlimited).
-packet_limit         = 1000
-# v3 strangler-fig mode: 0 = legacy fdwatch, 1 = v3 TcpSession pipeline.
-v3_tcp_session_mode  = 0
-# Maximum concurrent logged-in users (0 = unlimited).
-max_concurrent_logins = 0
 # Enable TCP keepalive on client sockets?
 use_keepalive        = false
-# Maximum connections per source IP (0 = unlimited; D2CS exempt).
-max_conns_per_IP     = 0
+# Log private channel messages to chanlogdir?
+chanlog              = false
 # Comma-delimited listen addresses for Battle.net protocol.
 # Format: "host:port" — empty host = all interfaces; empty port = 6112.
-servaddrs            = ":"
-# UDP test port (0 = use the TCP source port).
-#udptest_port        = 6112
+bnetdserv_addrs      = "0.0.0.0:6112"
 # W3 Play-Game router address.
-w3routeaddr          = "0.0.0.0:6200"
-# Timeout (seconds) before killing stale init/defer connections.
-initkill_timer       = 120
+w3route_addr         = "0.0.0.0:6200"
+
+# NOTE: connection limits (max_connections, packet_limit, max_conns_per_IP,
+# max_concurrent_logins, v3_tcp_session_mode, udptest_port) live in [policy];
+# initkill_timer lives in [timing].
 
 ##############################################################################
 # [net.timeouts]  — per-protocol idle-read deadlines (seconds)             #
@@ -345,19 +350,19 @@ d2cs   = 300   # Diablo II realm server
 # Listen addresses for WOL connections (blank = disabled).
 # WOLv1 default port: 4000; WOLv2 default port: 4005.
 # DO NOT change the ports — WOL clients hard-code them.
-#wolv1addrs    = ":4000"
-#wolv2addrs    = ":4005"
-#wgameresaddrs = ":4807"
-#apiregaddrs   = ":5400"
+#wolv1_addrs   = ":4000"
+#wolv2_addrs   = ":4005"
+#wgameres_addrs = ":4807"
+#apireg_addrs  = ":5400"
 
-timezone  = "-8"
-longitude = "36.1083"
-latitude  = "-115.0582"
+wol_timezone  = "-8"
+wol_longitude = "36.1083"
+wol_latitude  = "-115.0582"
 
 # WOL auto-update FTP server credentials.
-autoupdate_serverhost = "westwood-patch.ea.com"
-autoupdate_username   = "update"
-autoupdate_password   = "world96"
+wol_autoupdate_serverhost = "westwood-patch.ea.com"
+wol_autoupdate_username   = "update"
+wol_autoupdate_password   = "world96"
 
 ##############################################################################
 # [irc]  — Internet Relay Chat (IRC) configuration  [experimental]         #
@@ -365,13 +370,11 @@ autoupdate_password   = "world96"
 
 [irc]
 # Listen address for IRC connections (blank = disabled; default port 6667).
-#addrs        = ":6667"
+#irc_addrs        = ":6667"
 # IRC network name.
-network_name  = "PvPGN"
-# Hostname reported to IRC clients (empty = auto-detect).
-#hostname     = "none"
+irc_network_name  = "PvPGN"
 # IRC connection timeout in seconds.
-latency       = 180
+irc_latency       = 180
 
 ##############################################################################
 # [telnet]  — Telnet configuration                                          #
@@ -379,7 +382,7 @@ latency       = 180
 
 [telnet]
 # Listen address for telnet connections (blank = disabled; default port 23).
-#addrs = ":23"
+#telnet_addrs = ":23"
 
 ##############################################################################
 # [ladder]  — Warcraft III ladder text/XML output                           #
@@ -387,9 +390,9 @@ latency       = 180
 
 [ladder]
 # Interval in seconds between ladder file updates (0 = disabled).
-war3_update_secs  = 300
+war3_ladder_update_secs = 300
 # Write ladder output as XML instead of plain text?
-xml_output        = false
+XML_output_ladder       = false
 
 ##############################################################################
 # [status]  — Server status file output                                     #
@@ -397,9 +400,9 @@ xml_output        = false
 
 [status]
 # Interval in seconds between status file updates (0 = disabled).
-update_secs   = 60
+output_update_secs = 60
 # Write status output as XML?
-xml_output    = false
+XML_status_output  = false
 
 ##############################################################################
 # [clan]  — Clan settings                                                   #
@@ -408,13 +411,13 @@ xml_output    = false
 [clan]
 # Hours a new member remains a "newer" (Peon icon, cannot be promoted).
 # 0 = no waiting period.  Default: 168 (7 days).
-newer_time              = 0
+clan_newer_time              = 0
 # Maximum members per clan (10–100).
-max_members             = 50
+clan_max_members             = 50
 # Default channel privacy when a clan is created (1 = private, 0 = public).
-channel_default_private = 0
+clan_channel_default_private = false
 # Minimum accepted invitations required to create a clan (0 = no minimum).
-min_invites             = 2
+clan_min_invites             = 2
 
 ##############################################################################
 # [messages]  -- Chat quota / flood control                                 #

@@ -100,6 +100,36 @@ std::vector<std::byte> make_file_req(std::string_view filename,
     return pkt;
 }
 
+// Init-class octet that opens a real BNFTP connection on the wire
+// (CLIENT_INITCONN_CLASS_FILE). The shared-port dispatch peeks this byte
+// to route to BnftpFsm, then must consume it before replaying the rest.
+constexpr std::byte kInitClassFile{0x02};
+
+// Build a full on-the-wire BNFTP opening stream: the leading init-class
+// byte (0x02) immediately followed by a CLIENT_FILE_REQ packet — exactly
+// what a real client sends and what the dispatch buffers in its peek.
+std::vector<std::byte> make_wire_open(std::string_view filename) {
+    std::vector<std::byte> wire;
+    wire.push_back(kInitClassFile);
+    auto req = make_file_req(filename);
+    wire.insert(wire.end(), req.begin(), req.end());
+    return wire;
+}
+
+// Mirror of the shared-port dispatch's BNFTP branch (post-fix): peek the
+// first byte, and when it is the file init-class octet, strip it before
+// replaying the remainder into the FSM. Keeping this in lock-step with
+// bnet_bnftp_dispatch.cpp lets us regression-test the byte handling that
+// reproduces Finding 1 without standing up the full Asio/SessionManager
+// dispatch factory.
+std::span<const std::byte> dispatch_strip_init(
+    std::span<const std::byte> wire) {
+    if (!wire.empty() && wire.front() == kInitClassFile) {
+        return wire.subspan(1);
+    }
+    return wire;
+}
+
 }  // namespace
 
 // ===========================================================================
@@ -196,6 +226,79 @@ TEST_CASE("BnftpFsm: send failure from context transitions to Done",
 
     // send_bytes fails → FSM should be Done
     CHECK(fsm2.state() == BnftpFsm::State::Done);
+}
+
+// ===========================================================================
+// TEST SUITE 1b: Shared-port dispatch init-class byte handling
+//   Regression for Finding 1 — the BNFTP init-class octet (0x02) must be
+//   consumed by the dispatch before the CLIENT_FILE_REQ is replayed into
+//   BnftpFsm, otherwise the {size,type} header is read one byte too early,
+//   pkt_type != 0x0100, and the FSM silently closes (every real BNFTP
+//   download fails).
+// ===========================================================================
+
+TEST_CASE("dispatch: leading 0x02 init byte fed verbatim breaks the FSM (bug)",
+          "[bnftp_session][dispatch][regression]") {
+    // Demonstrates the failure mode the fix prevents: if the dispatch
+    // forwarded the *entire* peek buffer (including the 0x02 init byte)
+    // into the FSM, the header is shifted by one and the request is NOT
+    // recognized as CLIENT_FILE_REQ — the FSM closes without replying.
+    auto ctx = std::make_shared<FakeFileContext>();
+    BnftpFsm fsm{ctx, "/proc"};
+
+    auto wire = make_wire_open("version");  // exists under /proc
+    // Intentionally do NOT strip the init byte — replay verbatim.
+    (void)fsm.on_bytes(std::span<const std::byte>(wire));
+
+    // Misparsed header (shifted by the stray 0x02): the request is NOT
+    // recognized as CLIENT_FILE_REQ, so the FSM produces NO SERVER_FILE_REPLY
+    // — the download silently fails. (It does not reach a successful reply;
+    // the stripped path below is what makes it work.)
+    CHECK(ctx->sent.empty());
+    CHECK(fsm.state() != BnftpFsm::State::Done);
+}
+
+TEST_CASE("dispatch: init byte stripped → CLIENT_FILE_REQ parsed and reply sent",
+          "[bnftp_session][dispatch][regression]") {
+    // The fix: dispatch consumes the leading 0x02 init-class octet, so the
+    // remaining bytes start cleanly at the CLIENT_FILE_REQ {size,type}
+    // header. The FSM must recognize the request (type 0x0100) and emit a
+    // SERVER_FILE_REPLY rather than closing the connection unanswered.
+    auto ctx = std::make_shared<FakeFileContext>();
+    BnftpFsm fsm{ctx, "/proc"};
+
+    auto wire = make_wire_open("version");  // /proc/version always exists
+    auto payload = dispatch_strip_init(std::span<const std::byte>(wire));
+
+    // Sanity: the strip removed exactly the init byte.
+    REQUIRE(payload.size() + 1 == wire.size());
+
+    (void)fsm.on_bytes(payload);
+
+    // A reply header was produced (request recognized as CLIENT_FILE_REQ).
+    REQUIRE(ctx->sent.size() >= 24);
+
+    // Reply header type field (bytes 2..3) is SERVER_FILE_REPLY == 0x0000,
+    // confirming the file-request path was taken (not a misparse/close).
+    const auto type_lo = static_cast<std::uint8_t>(ctx->sent[2]);
+    const auto type_hi = static_cast<std::uint8_t>(ctx->sent[3]);
+    CHECK(static_cast<std::uint16_t>(type_lo | (type_hi << 8)) == 0x0000u);
+
+    // The reply echoes the requested filename ("version") at offset 24.
+    REQUIRE(ctx->sent.size() >= 24 + 7);
+    const char* fname = reinterpret_cast<const char*>(ctx->sent.data() + 24);
+    CHECK(std::string(fname, 7) == "version");
+}
+
+TEST_CASE("dispatch: strip helper leaves a non-init first byte untouched",
+          "[bnftp_session][dispatch]") {
+    // Defensive: the strip must only fire for the 0x02 init octet so it
+    // never eats a real header byte on paths that don't carry the init
+    // prefix (and never the BNCS 0xFF path, which uses a different branch).
+    auto req = make_file_req("foo");
+    auto out = dispatch_strip_init(std::span<const std::byte>(req));
+    CHECK(out.size() == req.size());
+    CHECK(out.data() == req.data());
 }
 
 // ===========================================================================
