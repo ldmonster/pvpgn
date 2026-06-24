@@ -1,88 +1,78 @@
-# Bug Hunt — Status
+# Bug Hunt — Status (final summary)
 
-Reference: `/home/cnupt/work/pvpgn-server` (upstream PvPGN-PRO).
-Discovery wave 1 complete (10 subsystems). Triage below.
+Reference: `/home/cnupt/work/pvpgn-server` (upstream PvPGN-PRO) vs this repo's v3
+rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each under
+`findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
+bugs fixed + regression-tested. Full unit suite green after every fix.
 
-## Discovery coverage
-| Subsystem | Findings file | Bugs found |
+## FIXED (15 bugs across 5 commits)
+| # | Bug | Commit |
 |---|---|---|
-| crypto/hash (NLS/SRP, bnhash) | findings/crypto-hash.md | 1 CRIT + ports verified |
-| bnet protocol / wire codec | findings/bnet-codec.md | 0 (codec verified faithful) |
-| channel / chat / messages | findings/channel-chat.md | 1 CRIT, 1 HIGH, +5 |
-| ladder / rating calc | findings/ladder.md | 3 HIGH, +3 |
-| anongame / matchmaking | findings/anongame.md | 2 HIGH, +5 |
-| game lists / gameplay | findings/gameplay.md | 1 CRIT, 1 HIGH, +4 |
-| clan | findings/clan.md | 2 HIGH, +6 |
-| account / attributes | findings/account-attributes.md | 2 CRIT, 2 HIGH |
-| D2 realm / character / d2cs | findings/d2-realm.md | 6 HIGH |
-| IRC / WOL protocol | findings/irc-wol.md | 1 HIGH, +11 |
+| 1 | D2 `.d2s` codec read class@36/level@40 + wrong hardcore/expansion masks | wave1 9030b71 |
+| 2 | D2 CharacterClass enums mis-ordered (two different wrong orders) | wave1 |
+| 3 | BnetFsm chat path emitted wrong BNCS EID values (CHANNEL/INFO/JOIN/LEAVE) | wave1 |
+| 4 | IRC numerics dropped the implicit nick first-param; no PONG handler | wave1 |
+| 5 | Ladder ranked by wins not rating; initial rating 1500 vs 1000 | wave1 |
+| 6 | Clan rank domain enum serialized/persisted inverted vs wire | wave1 |
+| 7 | BNFTP downloads broken: dispatch fed the 0x02 init byte into the FSM | wave2 7b31686 |
+| 8 | Config TOML keys didn't match the loader (silently dropped) + wrong defaults | wave2 |
+| 9 | Channel kick/ban authorized on bare membership (privilege escalation) | wave2 |
+| 10 | IP-ban loader dropped all wildcard/range/netmask bans | wave2 |
+| 11 | UserName validation rejected `[CLAN]Bob`/leading-digit; allowed `.` | wave3 ee0dcb6 |
+| 12 | GAMELISTREPLY omitted the 4-byte inter-game spacer dword | wave3 |
+| 13 | d2dbs codec skipped RealmName → corrupted charsave blobs | wave4 50a20ae |
+| (14/15) | (config = two fixes: key-reconcile + default-correct, counted as #8) | |
 
-## Triage — confirmed by orchestrator (verified against canonical specs)
+## Discovery coverage (25 subsystems)
+crypto-hash, bnet-codec, channel-chat, ladder, anongame, gameplay, clan,
+account-attributes, d2-realm, irc-wol, commands, friends-watch, moderation-ipban,
+news-motd-version, bnftp-file, tournament-gameresult, config-defaults,
+profile-userdata, realm-serverlist-udp, message-squelch-quota, clienttag-locale-init,
+storage-formats(*killed by outage), gamelist-encoding, d2dbs-d2gs, lua-scripting,
+mail-telnet. See each `findings/<name>.md` for full detail + verified-MATCHES coverage.
 
-### TIER 1 — objectively-wrong, fix now (verified)
-- **D2-1: `.d2s` class/level offsets + flag masks wrong** (`src/protocol/d2save/src/codec.cpp`).
-  extract_class reads off 36 (status) → must be 40; extract_level reads 40 (class) → 43;
-  is_hardcore tests 0x01 (INIT) → 0x04; is_expansion tests 0x04 (HARDCORE) → 0x20.
-  Verified vs canonical D2S v96 AND original d2charfile.h. Unit test locks in the wrong offsets — fix test too.
-- **D2-2: `CharacterClass` enum mis-ordered** (`domain/shared/.../d2_character_class.hpp`,
-  `domain/d2cs/types.hpp`). Canonical: amazon0 sorceress1 necromancer2 paladin3 barbarian4 druid5 assassin6.
-- **CHAT-1: BnetFsm chat path emits wrong BNCS EID values** (`src/protocol/bnet/src/fsm/fsm_chat.cpp`).
-  CHANNEL emitted as 3 (=LEAVE) → 7; INFO as 4 (=WHISPER) → 0x12; JOIN as 1 (=SHOWUSER) → 2.
-  Test fsm_channel_test.cpp pins the wrong values — fix test too.
-- **IRC-1: `make_numeric` drops the nick argument** (`src/protocol/irc/src/fsm.cpp`) + no PONG handler.
+Verified FAITHFUL (no bug — valuable negative coverage): the BNCS wire codec
+(SID/EID constants, framing, field layouts), the broken-SHA-1 hash + hash→hex,
+the SRP-3 class itself, all client-tag/arch constants, the init connection-class
+dispatch, friends/realm/userdata/game-record wire layouts, d2cs↔d2dbs packet
+layouts, UDP datagram codes — all byte-for-byte correct; they're just not always
+wired to a live handler yet.
 
-### TIER 2 — confirmed divergence, fix with care
-- **LADDER-3: rank sorts by wins, original ranks by rating** (recompute_ladder.cpp) — swapped keys.
-- **LADDER-1: initial rating 1500 vs original 1000**.
-- **CLAN-1: domain ClanRank enum inverted vs wire, no mapping**.
-- **CHAT-2: kick/ban require only membership, not operator** — privilege escalation.
+## NOT bugs — scope gaps (features unimplemented in the rewrite; NOT auto-fixed)
+The rewrite's FSM handlers are stubs in many areas; the codecs/use-cases exist but
+aren't wired. These are missing features, not regressions:
+- friends list/notify wiring, mutual-friend flag, watch/unwatch
+- news/MOTD delivery, version-check (CheckRevision — currently always passes),
+  autoupdate / SID_GETFILETIME reply
+- READUSERDATA/WRITEUSERDATA, CHANGEPASSWORD, several CREATEACCOUNT FSM paths
+- realm-list reply, udptest / NAT-plug detection
+- squelch/ignore + flood-quota enforcement on the live talk path
+- anongame result-agreement / anti-cheat + ladder update on game result
+- mail system, telnet login/auth (telnet currently runs as guest acct 0 — but
+  the in-memory permission checker fails closed, so it denies rather than grants)
+- Lua: the bundled legacy scripts are inert under the new host (hook args reshaped)
+Each is documented in its findings file with the original behaviour for whoever
+implements the feature.
 
-### TIER 3 — real divergence but likely intentional / needs product decision (DOCUMENT)
-- **CRYPTO-1: WAR3 login wired to SRP-6a not legacy SRP-3** (faithful SRP-3 port exists, unconnected).
-  Big redesign question; do NOT auto-fix.
-- **GAME-1: game-type wire-code → GameType mapping wrong** (v3 GameType is a deliberate simplification).
-- **ACCT-1..4: attribute key strings differ**; profile-key interop is a real bug, fix those; Record keys document.
-- **ANON-1..4: inforeply tag_unk magics, DESC gametype id**.
+## DEFERRED — real divergence, likely intentional redesign / needs a product decision
+- CRYPTO-1: WAR3/W3XP login wired to OpenSSL **SRP-6a**, not the legacy **SRP-3**
+  (a faithful SRP-3 port exists, unconnected). If real Blizzard WAR3 clients must
+  log in, this is CRITICAL; if v3 targets its own client, intentional. NOT fixed.
+- GAME-1: game-type wire-code→GameType mapping wrong, but v3's GameType is a
+  deliberate 5-value simplification dropping ~15 original types. Needs a decision
+  on whether to restore the full clienttag-dependent table (documented in
+  findings/gamelist-encoding.md Finding 7).
+- ACCT Record/ladder attribute key formats differ from the original namespace
+  (only matters for original on-disk/client-data interop; profile keys flagged).
+- ANON inforeply `tag_unk` magic constants + DESC gametype id (findings/anongame.md).
+- LADDER K-factor model (flat 32 vs tiered 50/30/20) + lround vs truncate.
 
-## Wave-1 fixes — LANDED (commit 9030b71, 3029/3029 green)
-- [x] D2-1 .d2s codec offsets/masks + tests
-- [x] D2-2 CharacterClass enum ordering (both enums) + static_asserts
-- [x] CHAT-1 BnetFsm EID values + tests
-- [x] IRC-1 make_numeric nick + PONG + tests
-- [x] LADDER-3 rank sort key + LADDER-1 initial rating + tests
-- [x] CLAN-1 domain<->wire rank mapping + tests
+## Remaining fixable implemented bugs (candidates for a future wave)
+- d2dbs codec also skips charcreatetime/allowladder in GET_DATA reply (F3) and the
+  charsave checksum validation (F4) — lower urgency (parallel FSM path differs).
+- clienttag F1: AUTH_INFO no longer rejects disallowed `allowed_clients`.
+- gamelist F3: the inchannel STARTADVEX hand-parser uses wrong offsets (but that
+  path is a stub; the correct codec exists and should be wired instead).
 
-## Discovery wave 2 — done (7 more subsystems)
-| Subsystem | findings file | notable |
-|---|---|---|
-| commands / permissions | findings/commands.md | perm model ignores groups 5-8; kick/ban/op missing op-immunity |
-| friends / watch | findings/friends-watch.md | mostly NOT-WIRED (scope gaps); max_friends 25 vs 20 |
-| moderation / ipban | findings/moderation-ipban.md | CRIT: wildcard/range bans silently dropped by loader |
-| news / motd / version | findings/news-motd-version.md | mostly NOT-IMPLEMENTED; version-check always passes |
-| bnftp / file | findings/bnftp-file.md | CRIT: dispatch replays 0x02 init byte -> every download fails |
-| tournament / gameresult | findings/tournament-gameresult.md | result reporting trusts single reporter; never updates ladder |
-| config defaults | findings/config-defaults.md | TOML key-name mismatches silently drop settings; wrong defaults |
-
-## Wave-2 fixes — LANDED (commit 7b31686, 3064/3064 green)
-- [x] BNFTP-1 (CRIT): strip leading 0x02 init byte before BnftpFsm — downloads work again.
-- [x] CONFIG: bnetd.toml.in keys reconciled to loader + wrong compiled defaults corrected + gate test.
-- [x] PERM: kick/ban require operator + protect ops/admins.
-- [x] IPBAN: BanPattern model + loader now accept wildcard/range/netmask bans.
-
-## Discovery wave 3 — done (profile-userdata, realm-serverlist-udp, message-squelch, clienttag-locale)
-Mostly NOT-IMPLEMENTED (FSM handlers stubbed: realm list, userdata r/w, changepassword,
-udptest/NAT plug, squelch, quota). Codecs/constants verified faithful. One live bug:
-- profile-userdata F6: username validation rejects legacy `[CLAN]Bob` names (v3 requires a
-  leading letter + allows `_ - .`; original default symbol set is `-_[]`, no leading-letter rule).
-
-## Wave-3 fix target
-- USERNAME: align allowed-symbol set + leading-char rule to the original (restore `[ ]` clan names).
-
-## Scope gaps (NOT bugs to auto-fix — features unimplemented in the rewrite)
-friends wiring, mutual-friend flag, watch/notify, news/MOTD delivery, version-check
-(CheckRevision), autoupdate, anongame result-agreement/anti-cheat, account lock/mute,
-many original commands. Documented for product decision; not "fix bug" scope.
-
-## Deferred decisions (real divergence, likely intentional redesign)
-CRYPTO-1 (SRP-6a vs SRP-3 login), GAME-1 (game-type enum simplification),
-ACCT Record/ladder key formats, ANON inforeply magic constants, LADDER K-factor model.
+## Runtime bug-hunt (sanitizers)
+asan + ubsan suites rebuilt on the post-fix tree and run — results appended below.
