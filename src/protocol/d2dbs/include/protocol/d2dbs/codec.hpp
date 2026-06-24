@@ -87,6 +87,7 @@ struct SaveDataRequest {
     std::uint16_t              datatype = 0;  // kDataCharsave / kDataPortrait
     std::string                account;
     std::string                charname;
+    std::string                realm;         // RealmName cstring (after charname)
     std::vector<std::uint8_t>  data;          // datalen == data.size()
     bool operator==(const SaveDataRequest&) const = default;
 };
@@ -106,6 +107,7 @@ struct GetDataRequest {
     std::uint16_t  datatype = 0;
     std::string    account;
     std::string    charname;
+    std::string    realm;    // RealmName cstring (after charname)
     bool operator==(const GetDataRequest&) const = default;
 };
 

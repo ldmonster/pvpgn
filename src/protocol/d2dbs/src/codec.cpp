@@ -58,6 +58,10 @@ core::Result<SaveDataRequest> dec_save_data_req(const D2dbsHeader& hdr,
     m.account = std::move(an.value());
     auto cn = read_cstr(r); if (!cn) return core::fail(cn.error());
     m.charname = std::move(cn.value());
+    // RealmName precedes the data blob on the wire (original dbs_packet_savedata
+    // reads AccountName, CharName, RealmName, then the datalen-byte blob).
+    auto rn = read_cstr(r); if (!rn) return core::fail(rn.error());
+    m.realm = std::move(rn.value());
     auto blob = r.read_bytes(datalen); if (!blob) return core::fail(blob.error());
     m.data.resize(datalen);
     for (std::size_t i = 0; i < datalen; ++i) {
@@ -91,6 +95,9 @@ core::Result<GetDataRequest> dec_get_data_req(const D2dbsHeader& hdr,
     m.account = std::move(an.value());
     auto cn = read_cstr(r); if (!cn) return core::fail(cn.error());
     m.charname = std::move(cn.value());
+    // RealmName trails AccountName + CharName (original dbs_packet_getdata).
+    auto rn = read_cstr(r); if (!rn) return core::fail(rn.error());
+    m.realm = std::move(rn.value());
     return m;
 }
 
@@ -270,12 +277,14 @@ core::Status<> encode(Writer& w, const SaveDataRequest& m) {
         std::size_t{2 + 2}
         + m.account.size() + 1
         + m.charname.size() + 1
+        + m.realm.size() + 1
         + m.data.size());
     write_header(w, total, kSaveData, m.seqno);
     w.write_le<std::uint16_t>(m.datatype);
     w.write_le<std::uint16_t>(static_cast<std::uint16_t>(m.data.size()));
     write_cstr(w, m.account);
     write_cstr(w, m.charname);
+    write_cstr(w, m.realm);
     write_blob(w, m.data);
     return core::ok();
 }
@@ -294,11 +303,13 @@ core::Status<> encode(Writer& w, const GetDataRequest& m) {
     const std::uint16_t total = framed_size(
         std::size_t{2}
         + m.account.size() + 1
-        + m.charname.size() + 1);
+        + m.charname.size() + 1
+        + m.realm.size() + 1);
     write_header(w, total, kGetData, m.seqno);
     w.write_le<std::uint16_t>(m.datatype);
     write_cstr(w, m.account);
     write_cstr(w, m.charname);
+    write_cstr(w, m.realm);
     return core::ok();
 }
 

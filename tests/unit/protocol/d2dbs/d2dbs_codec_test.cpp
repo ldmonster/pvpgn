@@ -94,6 +94,7 @@ TEST_CASE("d2dbs: 0x30 SAVE_DATA request round-trip (charsave + blob)",
     in.datatype = kDataCharsave;
     in.account  = "moose";
     in.charname = "Squirrel";
+    in.realm    = "Asia";  // RealmName precedes the data blob on the wire
     in.data     = {0xDE, 0xAD, 0xBE, 0xEF, 0x42};
     round_trip_up<SaveDataRequest, SaveDataRequest>(in);
 }
@@ -114,6 +115,7 @@ TEST_CASE("d2dbs: 0x31 GET_DATA request round-trip", "[protocol][d2dbs]") {
     in.datatype = kDataCharsave;
     in.account  = "moose";
     in.charname = "Squirrel";
+    in.realm    = "Asia";  // RealmName trails account + charname on the wire
     round_trip_up<GetDataRequest, GetDataRequest>(in);
 }
 
