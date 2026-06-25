@@ -212,3 +212,26 @@ The OLS path (StarCraft/Diablo II/classic) is DONE. WAR3/W3XP use SID_AUTH_ACCOU
 faithful bnet_srp3.cpp exists, unconnected). Routing the WAR3 opcodes through SRP-3
 is the remaining auth work (no e2e harness for NLS yet — verify via SRP-3 protocol
 unit vectors). See crypto-hash.md.
+
+## Wave 11 (commit 100acb9): domain-invariant fixes
+Clan exactly-one-chieftain (promote rejects Chieftain + atomic transfer_chieftain);
+channel leave-previous-on-join (no more user-in-two-channels); ladder rating floor
+(kMinRating=1 clamp). Suite 3136/3136.
+
+## SRP-3 NLS path — scoped: it's a multi-layer FEATURE, not an adapter swap
+Investigated the WAR3/W3XP (SID_AUTH_ACCOUNTLOGON/PROOF) path. It is incomplete at
+THREE layers, not just "wrong crypto":
+1. The bnetd FSM has no SID_AUTH_ACCOUNTLOGON / ACCOUNTLOGONPROOF handlers wired
+   (none in fsm_auth.cpp) — the NLS use-case + adapter exist in bnetd_service but
+   nothing drives them from the wire.
+2. CreateAccount does NOT compute/store an NLS verifier + salt, so even a wired
+   NLS login has nothing to verify against.
+3. The adapter is SRP-6a (nls.cpp), not the legacy SRP-3 (bnet_srp3.cpp exists,
+   unconnected).
+Making WAR3 login work end-to-end therefore means implementing the NLS feature
+(handlers + verifier-at-creation + SRP-3 adapter), and there is NO WAR3 client /
+NLS e2e harness here to validate it — only deterministic SRP-3 unit vectors.
+Recommendation: a focused, unit-test-verified NLS/SRP-3 implementation as its own
+effort. The OLS path (StarCraft / Diablo II / classic) is DONE and e2e-verified.
+
+## RUNNING TOTAL: ~37 distinct bugs fixed across 11 waves. check-all 18/0/0.
