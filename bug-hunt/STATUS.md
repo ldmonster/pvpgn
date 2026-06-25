@@ -564,7 +564,19 @@ persists to the shared channel repo; LIST enumerates it. diff_wol_lobby.py: a WO
 client joins #wollobby and LISTs — the channel appears on both servers. Updated
 R307 WOL LIST unit tests to the 327 format.
 
-## RUNNING TOTAL: ~60 distinct bugs/features across 29 waves. Login (all families)
+## Wave 30: re-harden the expanded surface (ASan + UBSan fleet)
+Per user "iterate until 100% hardened/fixed", ran ASan+libFuzzer and UBSan fleet
+agents over the FULL expanded surface (passchange 0x55/0x56, friends 0x65/0x66,
+game 0x1C/0x09, all chat commands incl. squelch, WOL pre/post-login LIST/JOIN).
+Found+fixed 1 real availability defect: build_config() left bnftp_port at 6112
+when -p set a non-6112 BNet port → the dedicated-BNFTP path bound a hardcoded
+0.0.0.0:6112 → fatal "Address already in use" (broke non-default ports + 2
+instances). Fix: bnftp_port tracks bnet_port (commit 266e836). Post-fix: ~150
+malformed-input cases + 25 UBSan batches, 0 sanitizer hits, server alive
+throughout; libFuzzer 8.79M execs 0 crashes; full unit suite 3150 green; all 9
+oracle differentials pass. Both sanitizers report CLEAN.
+
+## RUNNING TOTAL: ~61 distinct bugs/features across 30 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + WOL
-## lobby LIST/JOIN now match the oracle. Still open: WOL game lobby
-## (GAMEOPT/STARTG/JOINGAME/matchbot), JOINGAME password enforcement.
+## lobby LIST/JOIN match the oracle; runtime-hardened (ASan+UBSan clean). Still
+## open: WOL game lobby (GAMEOPT/STARTG/JOINGAME/matchbot), JOINGAME password.

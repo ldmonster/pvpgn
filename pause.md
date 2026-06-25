@@ -46,9 +46,12 @@ Wired the chat use-cases into make_wol_session; on_list now emits WOL 327
 RPL_CHANNEL "<name> <count> <official> 388". diff_wol_lobby.py: joined channel
 appears in LIST on both servers.
 
-## HARDENING (in progress per user directive — iterate to 100%)
-Running ASan + UBSan fleet agents over the EXPANDED surface (all new handlers).
-Build is -Werror clean. Iterate until agents report no crashes/UB.
+## HARDENING — DONE (wave 30, commit 266e836)
+ASan + UBSan fleet over the full expanded surface. Fixed 1 defect (bnftp_port
+6112 bind). Both sanitizers CLEAN: ~150 ASan cases + 25 UBSan batches, 0 hits;
+fuzzer 8.79M execs 0 crashes; unit 3150 green; all 9 diffs pass. NOTE: leftover
+sanitizer bnetd procs can squat ports 4000/6112/6667 — `pkill -f build/v3-asan`
+etc. between runs. clang not on PATH (fuzzer reuses build/v3-fuzz from wave 23).
 
 ## NEXT — remaining divergences
 
