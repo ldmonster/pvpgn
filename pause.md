@@ -41,11 +41,19 @@ New IIgnoreStore + filter_squelched() drops squelched senders from TALK/EMOTE
 broadcasts (mirrors MF_X). diff_squelch.py: bob heard before /squelch, suppressed
 after, matches oracle. ALL BNCS chat commands now implemented.
 
-## NEXT — remaining post-login divergences
+## Wave 29 — DONE (WOL post-login lobby LIST/JOIN, commit f997a6b)
+Wired the chat use-cases into make_wol_session; on_list now emits WOL 327
+RPL_CHANNEL "<name> <count> <official> 388". diff_wol_lobby.py: joined channel
+appears in LIST on both servers.
 
-1. WOL post-login lobby/game commands (LIST/JOIN game model, GAMEOPT, STARTG,
-   matchbot) — still skeleton no-ops (see findings/wol-chat-lobby.md). This is
-   now the largest remaining functional area.
+## HARDENING (in progress per user directive — iterate to 100%)
+Running ASan + UBSan fleet agents over the EXPANDED surface (all new handlers).
+Build is -Werror clean. Iterate until agents report no crashes/UB.
+
+## NEXT — remaining divergences
+
+1. WOL game lobby (GAMEOPT/STARTG/JOINGAME game model, matchbot) — still skeleton
+   (LIST/JOIN of chat channels now done; the GAME side remains).
 2. JOINGAME password enforcement (noted while wiring game create).
 
 Note: the CommandRegistry is still NOT wired into bnetd (make_use_case_context
