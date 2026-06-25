@@ -113,3 +113,8 @@ Wave-5 fixes (all with regression tests; unit+functional+integration green):
   wrong ones wired. Tangled with the auth-handshake/SRP redesign — DEFERRED.
 - **arranged-team id (MED)**: team id from std::time(nullptr) → same-second
   collisions overwrite (teams not yet wired; low live impact).
+
+## Wave-6 fixes (LANDED, commit b36d89a) — 22 bugs fixed total
+- [x] d2cs char screen (CRIT): CHARLISTREPLY/CREATECHAR/CHARLOGIN/DELETECHAR wire layouts
+- [x] icon-req thresholds: seed original defaults (missing config no longer unlocks all)
+- [x] arranged-team id: monotonic next_id() (was std::time → collision overwrite)
