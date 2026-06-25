@@ -250,3 +250,82 @@ def login_ols(client, username, password, client_token, server_token):
     client.send(SID_LOGONRESPONSE2, body)
     res = _drain_until(client, SID_LOGONRESPONSE2)
     return first_result_u32(res)
+
+
+# ---- post-login chat / channel flows ----------------------------------------
+def parse_chat_event(body):
+    """SID_CHATEVENT: event_id, flags, ping, ip, acct, reg, username\0, text\0."""
+    if body is None or len(body) < 24:
+        return None
+    event_id = struct.unpack_from("<I", body, 0)[0]
+    rest = body[24:]
+    parts = rest.split(b"\x00")
+    username = parts[0].decode("latin-1", "replace") if len(parts) > 0 else ""
+    text = parts[1].decode("latin-1", "replace") if len(parts) > 1 else ""
+    return event_id, username, text
+
+
+def enter_chat(client, username):
+    """SID_ENTERCHAT -> returns the unique name the server assigns."""
+    client.send(SID_ENTERCHAT, cstring(username) + cstring(""))
+    body = _drain_until(client, SID_ENTERCHAT)
+    if body is None:
+        return None
+    return body.split(b"\x00")[0].decode("latin-1", "replace")
+
+
+def join_channel(client, channel, flags=0x00, collect=8, settle=0.4):
+    """SID_JOINCHANNEL -> collect the resulting CHATEVENT stream.
+    Returns a list of (event_id, username, text) the server emitted."""
+    import time
+    client.send(SID_JOINCHANNEL, struct.pack("<I", flags) + cstring(channel))
+    time.sleep(settle)
+    events = []
+    for _ in range(collect):
+        r = client.recv()
+        if r is None:
+            break
+        sid, body = r
+        if sid == SID_PING:
+            client.send(SID_PING, body[:4])
+            continue
+        if sid == SID_CHATEVENT:
+            ev = parse_chat_event(body)
+            if ev:
+                events.append(ev)
+    return events
+
+
+def chat_command(client, text, collect=8, settle=0.4):
+    """SID_CHATCOMMAND -> collect the resulting CHATEVENT stream."""
+    import time
+    client.send(SID_CHATCOMMAND, cstring(text))
+    time.sleep(settle)
+    events = []
+    for _ in range(collect):
+        r = client.recv()
+        if r is None:
+            break
+        sid, body = r
+        if sid == SID_PING:
+            client.send(SID_PING, body[:4])
+            continue
+        if sid == SID_CHATEVENT:
+            ev = parse_chat_event(body)
+            if ev:
+                events.append(ev)
+    return events
+
+
+def full_login(host, port, username, password, product=b"SEXP"):
+    """Connect + OLS create + login + enter chat. Returns (client, unique_name)."""
+    c = BncsClient(host, port)
+    ctok = 0xDEADBEEF
+    stok, _, _ = auth_handshake(c, product=product, client_token=ctok)
+    create_account_ols(c, username, password)
+    rc = login_ols(c, username, password, ctok, stok)
+    if rc != 0:
+        c.close()
+        raise RuntimeError(f"login failed rc={rc}")
+    uniq = enter_chat(c, username)
+    return c, uniq

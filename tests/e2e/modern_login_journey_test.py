@@ -389,18 +389,33 @@ def main() -> int:
             print(f"  [client] <- ENTER_CHAT reply unique_name={uniq!r} OK")
 
             # JOIN_CHANNEL: InChat. With a real account_id flowing from login,
-            # the join_channel use-case succeeds and the server emits
-            # EID_CHANNEL(3) carrying the channel name.
+            # the join_channel use-case succeeds. Like the original server, the
+            # join emits a small CHATEVENT stream — USERFLAGS + SHOWUSER for the
+            # joining user (so they appear in their own roster) plus an
+            # EID_CHANNEL carrying the channel name. Scan the stream for both the
+            # EID_CHANNEL (channel name) and a SHOWUSER for ourselves.
             channel = "PvPGN E2E"
             send_packet(sock, SID_JOIN_CHANNEL,
                         struct.pack("<I", 0) + cstring(channel))
-            event_id, _user, text = parse_chat_event(
-                expect(sock, SID_CHAT_EVENT, "JOIN_CHANNEL CHATEVENT"))
-            if event_id != EID_CHANNEL or text != channel:
+            saw_channel = False
+            saw_self_showuser = False
+            for _ in range(8):
+                event_id, ev_user, text = parse_chat_event(
+                    expect(sock, SID_CHAT_EVENT, "JOIN_CHANNEL CHATEVENT"))
+                if event_id == EID_CHANNEL and text == channel:
+                    saw_channel = True
+                if event_id == 0x01 and ev_user == user:  # EID_SHOWUSER for self
+                    saw_self_showuser = True
+                if saw_channel and saw_self_showuser:
+                    break
+            if not saw_channel:
                 raise AssertionError(
-                    f"JOIN_CHANNEL: expected EID_CHANNEL({EID_CHANNEL}) text={channel!r}, "
-                    f"got event_id={event_id} text={text!r}")
-            print(f"  [client] <- CHATEVENT EID_CHANNEL text={text!r} OK (join succeeded)")
+                    f"JOIN_CHANNEL: no EID_CHANNEL({EID_CHANNEL}) text={channel!r} in stream")
+            if not saw_self_showuser:
+                raise AssertionError(
+                    "JOIN_CHANNEL: joining user did not appear in the channel roster "
+                    "(no EID_SHOWUSER for self)")
+            print(f"  [client] <- CHATEVENT EID_CHANNEL + self SHOWUSER OK (join succeeded)")
 
         # --- Journey 2: wrong password on an existing account -> 0x02 -------
         print("[journey] reject: existing account, wrong password -> 0x02")

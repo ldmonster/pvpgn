@@ -52,6 +52,7 @@ constexpr std::uint32_t kEidJoin     = chat::kServerMessageTypeJoin;     // 0x02
 constexpr std::uint32_t kEidLeave    = chat::kServerMessageTypePart;     // 0x03
 constexpr std::uint32_t kEidTalk     = chat::kServerMessageTypeTalk;     // 0x05
 constexpr std::uint32_t kEidChannel  = chat::kServerMessageTypeChannel;  // 0x07
+constexpr std::uint32_t kEidUserFlags = chat::kServerMessageTypeUserFlags; // 0x09
 constexpr std::uint32_t kEidInfo     = chat::kServerMessageTypeInfo;     // 0x12
 }  // namespace
 
@@ -128,18 +129,23 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
     current_channel_id_ = join_result.value().channel.id();
     state_ = BnetState::InChat;
 
-    // Send EID_SHOWUSER (0x01) for each existing member to this client.
-    // We iterate the channel's member list (excluding the newly joined account)
-    // and look up each member's display name via IAccountRepository.
+    // Send EID_SHOWUSER (0x01) for EACH member of the channel to this client,
+    // INCLUDING the user who just joined — every real Battle.net client expects
+    // its own entry so the joining user appears in their own channel roster (the
+    // original emits USERFLAGS + SHOWUSER for the joiner; in an otherwise-empty
+    // channel that self-SHOWUSER is the only roster entry). EID_JOIN is a
+    // separate event broadcast to the OTHER members below, not to this client.
     {
         const auto& joined_channel = join_result.value().channel;
         for (const auto& member_id : joined_channel.member_ids()) {
-            // Skip the account that just joined — they get EID_JOIN, not EID_SHOWUSER.
-            if (member_id.value() == current_account_id_.value()) continue;
+            const bool is_self =
+                (member_id.value() == current_account_id_.value());
 
             // Resolve display name: use account_repo if available, else stringify ID.
             std::string member_name;
-            if (use_cases_.account_repo) {
+            if (is_self && !current_username_.empty()) {
+                member_name = current_username_;
+            } else if (use_cases_.account_repo) {
                 auto acct = use_cases_.account_repo->find_by_id(member_id);
                 if (acct) {
                     member_name = std::string{acct.value().name().display()};
@@ -148,6 +154,20 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
                 }
             } else {
                 member_name = std::to_string(member_id.value());
+            }
+
+            // EID_USERFLAGS (0x09) carries the member's channel/user flags; the
+            // original precedes each SHOWUSER with it. flags=0 (normal user).
+            if (auto s = ctx_->send(ServerMessage{ChatEvent{
+                /*event_id*/    kEidUserFlags,  // EID_USERFLAGS (0x09)
+                /*flags*/       0x00,
+                /*ping_ms*/     0,
+                /*user_ip*/     0x00000000u,
+                /*acct_number*/ 0xBADC0FFEu,
+                /*registration*/0xBADC0FFEu,
+                /*username*/    member_name,
+                /*text*/        ""}}); !s) {
+                return s;
             }
 
             if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
