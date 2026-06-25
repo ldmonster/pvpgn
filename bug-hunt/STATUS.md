@@ -235,3 +235,24 @@ Recommendation: a focused, unit-test-verified NLS/SRP-3 implementation as its ow
 effort. The OLS path (StarCraft / Diablo II / classic) is DONE and e2e-verified.
 
 ## RUNNING TOTAL: ~37 distinct bugs fixed across 11 waves. check-all 18/0/0.
+
+## Wave 12 (commit 3f76549): differential testing harness + the 0x01 init-byte fix
+Built BNCS mock clients (tests/diff/) that drive BOTH the upstream pvpgn-server
+(built it: cmake -DWITH_BNETD=ON -DWITH_D2CS=OFF -DWITH_D2DBS=OFF -DWITH_LUA=OFF)
+AND v3, diffing behaviour against the oracle. This is the verification mechanism
+the NLS/SRP-3 work needed.
+
+It immediately found a CRITICAL real-client bug: v3 only recognised a BNet
+connection by a leading 0xFF, but every real client (and the original) sends a
+0x01 CLIENT_INITCONN_CLASS_BNET octet first -> v3 hung. **So real clients could
+not connect at all, even after the OLS password fix.** Fixed the dispatch (strip
+0x01, like the 0x02 BNFTP fix). Now v3's OLS login is OUTCOME-EQUIVALENT to the
+oracle: accept 0x00 / wrong-pw 0x02 / unknown 0x01 all match, with the real
+broken-SHA-1 double-hash + server token. Added a real-client-init-byte e2e journey.
+
+This makes the OLS login genuinely real-client-compatible (transport + crypto),
+verified against ground truth. Remaining (oracle-confirmed) gap: the AUTH_INFO
+seed (server_token) + the AUTH_CHECK step (cdkey-authcheck findings) and the
+NLS/SRP-3 path — all now have a differential harness to verify against.
+
+## RUNNING TOTAL: ~39 distinct bugs across 12 waves. Differential oracle harness in place.
