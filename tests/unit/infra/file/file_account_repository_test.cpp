@@ -6,6 +6,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 #include "domain/identity/account.hpp"
@@ -145,6 +147,43 @@ TEST_CASE("FileAccountRepository: size_reflects_saved_accounts", "[infra][file]"
 
     REQUIRE(repo.save(make_test_account(2, "Beta")).has_value());
     REQUIRE(repo.size() == 2u);
+}
+
+TEST_CASE("FileAccountRepository: writes legacy quoted+escaped on-disk format",
+          "[infra][file][legacy]") {
+    TempDir tmp;
+    {
+        FileAccountRepository repo(tmp.str());
+        REQUIRE(repo.save(make_test_account(12, "Joe")).has_value());
+    }
+
+    // Read raw bytes back off disk and assert the legacy `"%s"="%s"` shape with
+    // doubled backslash separators — i.e. exactly what the original server
+    // emits, so the original can read this file too.
+    std::ifstream ifs{(tmp.path() / "Joe.plain").string()};
+    REQUIRE(ifs.is_open());
+    std::ostringstream oss;
+    oss << ifs.rdbuf();
+    const std::string disk = oss.str();
+
+    REQUIRE(disk.find("\"BNET\\\\acct\\\\username\"=\"Joe\"") != std::string::npos);
+    REQUIRE(disk.find("\"BNET\\\\acct\\\\userid\"=\"12\"") != std::string::npos);
+}
+
+TEST_CASE("FileAccountRepository: legacy on-disk format round-trips through load",
+          "[infra][file][legacy]") {
+    TempDir tmp;
+    {
+        FileAccountRepository repo(tmp.str());
+        REQUIRE(repo.save(make_test_account(42, "LegacyTrip")).has_value());
+    }
+
+    // Fresh instance loads from disk via the fixed reader.
+    FileAccountRepository repo2(tmp.str());
+    auto found = repo2.find_by_name(domain::UserName::parse("LegacyTrip").value());
+    REQUIRE(found.has_value());
+    REQUIRE(found.value().name().display() == "LegacyTrip");
+    REQUIRE(found.value().id().value() == 42u);
 }
 
 TEST_CASE("FileAccountRepository: find_by_id_returns_account", "[infra][file]") {

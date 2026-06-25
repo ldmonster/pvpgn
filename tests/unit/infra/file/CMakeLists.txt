@@ -4,6 +4,7 @@ if(TARGET pvpgn_infra_file)
     pvpgn_v3_add_test(test_infra_file
         SOURCES
             file_account_repository_test.cpp
+            flat_db_reader_test.cpp
         DEPS
             pvpgn_infra_file
             pvpgn_application

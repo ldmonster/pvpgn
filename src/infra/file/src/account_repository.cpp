@@ -3,7 +3,9 @@
 #include "infra/file/account_repository.hpp"
 
 #include <array>
+#include <cctype>
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -72,6 +74,46 @@ std::string bn_hash_to_hex(const domain::BNHash& hash) {
 std::filesystem::path account_path(const std::string& data_dir,
                                    std::string_view username) {
     return std::filesystem::path{data_dir} / (std::string{username} + ".plain");
+}
+
+/// Mirror of the legacy `escape_chars` (pvpgn-server src/common/util.cpp):
+/// doubles backslashes (`\` -> `\\`), escapes quotes (`"` -> `\"`), maps the
+/// usual C control escapes, and renders any other non-printable byte as `\ooo`
+/// (3-digit octal). This is the exact transform the original writer applies, so
+/// files written here are byte-compatible with the original server's reader.
+std::string escape_chars(std::string_view in) {
+    std::string out;
+    out.reserve(in.size());
+    for (unsigned char c : in) {
+        switch (c) {
+            case '\\': out += "\\\\"; break;
+            case '"':  out += "\\\""; break;
+            case '\a': out += "\\a";  break;
+            case '\b': out += "\\b";  break;
+            case '\t': out += "\\t";  break;
+            case '\n': out += "\\n";  break;
+            case '\v': out += "\\v";  break;
+            case '\f': out += "\\f";  break;
+            case '\r': out += "\\r";  break;
+            default:
+                if (std::isprint(c)) {
+                    out.push_back(static_cast<char>(c));
+                } else {
+                    char buf[5];
+                    std::snprintf(buf, sizeof(buf), "\\%03o",
+                                  static_cast<unsigned int>(c));
+                    out += buf;
+                }
+                break;
+        }
+    }
+    return out;
+}
+
+/// Emit one legacy-format line: `"<escaped-key>"="<escaped-value>"`.
+void write_attr(std::ostringstream& oss, std::string_view key,
+                std::string_view value) {
+    oss << '"' << escape_chars(key) << "\"=\"" << escape_chars(value) << "\"\n";
 }
 
 }  // namespace
@@ -195,11 +237,14 @@ core::Status<> FileAccountRepository::save(
         }
     }
 
-    // 2. Serialize to key=value text
+    // 2. Serialize to the legacy `"<escaped-key>"="<escaped-value>"` format.
+    // Keys use a single backslash separator in memory; escape_chars() doubles
+    // it on disk (BNET\acct\username -> "BNET\\acct\\username"), so files are
+    // readable both by the fixed v3 reader and by the original pvpgn server.
     std::ostringstream oss;
-    oss << "BNET\\acct\\username=" << account.name().display() << "\n";
-    oss << "BNET\\acct\\passhash1=" << bn_hash_to_hex(account.password_hash1()) << "\n";
-    oss << "BNET\\acct\\auth_lock=" << (account.is_locked() ? "1" : "0") << "\n";
+    write_attr(oss, "BNET\\acct\\username", account.name().display());
+    write_attr(oss, "BNET\\acct\\passhash1", bn_hash_to_hex(account.password_hash1()));
+    write_attr(oss, "BNET\\acct\\auth_lock", account.is_locked() ? "1" : "0");
 
     // Command groups bitmask
     std::uint32_t cg_mask = 0;
@@ -208,9 +253,9 @@ core::Status<> FileAccountRepository::save(
             cg_mask |= (1u << (g - 1));
         }
     }
-    oss << "BNET\\acct\\auth_command_groups=" << cg_mask << "\n";
-    oss << "BNET\\acct\\locale=" << account.locale().text() << "\n";
-    oss << "BNET\\acct\\userid=" << account.id().value() << "\n";
+    write_attr(oss, "BNET\\acct\\auth_command_groups", std::to_string(cg_mask));
+    write_attr(oss, "BNET\\acct\\locale", account.locale().text());
+    write_attr(oss, "BNET\\acct\\userid", std::to_string(account.id().value()));
 
     const std::string content = oss.str();
 

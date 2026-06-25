@@ -291,3 +291,140 @@ real OLS client can authenticate and password-change is a silent no-op. The
 verifier *storage* of hash1 is correct (Finding 4) and the proof compare is
 constant-time (Finding 5). One behavioural divergence on passwordless accounts
 (Finding 6).
+
+---
+
+## FIX PLAN (Findings 1 + 2) — DEFERRED, not applied
+
+**Status: DEFERRED.** Verified 2026-06-25. The use-case layer is correct and the
+fix is well understood, but applying it now meets BOTH of the brief's "do not
+force it" triggers: (a) no production `IPasswordHasher` adapter exists (must be
+written + composed), and (b) the change **breaks the passing e2e**
+(`tests/e2e/modern_login_journey_test.py`) — see "e2e impact" below. The e2e
+currently passes *because of* the bug, so a correct fix cannot land without also
+rewriting the test client's crypto, which is a separate, env-gated artifact.
+
+### 1. Exact overload-call change (`src/protocol/bnet/src/fsm/fsm_auth.cpp`)
+
+In `BnetFsm::on(const LogonResponse2& m)` (~lines 95-120) replace the
+`LoginRequest` construction + dispatch with the session-hash overload. The
+20-byte LE packing of `m.password_hash` IS the client's hash2 (the wire field
+already carries the double-hash — `password_hash` is mislabelled, not hash1):
+
+```cpp
+auto username_result = domain::UserName::parse(m.username);
+if (!username_result) { /* reply 0x01 as today */ }
+
+// m.password_hash is the client's hash2 (double-hash), NOT hash1.
+auto hash2_result = domain::BNHash::from_bytes(pack_hash1_le(m.password_hash));
+if (!hash2_result) { /* reply 0x02 as today */ }
+
+application::auth::LoginWithSessionHashRequest login_req{
+    .name           = username_result.value(),
+    .password_hash2 = hash2_result.value(),
+    .ticks          = m.client_token,    // = original `ticks`
+    .sessionkey     = m.server_token,    // = original `sessionkey`
+    .tag            = client_tag_,
+    .ip             = domain::IpAddress{},
+    .session        = session_id_,
+};
+auto login_result = use_cases_.login_user->execute(login_req);
+// error-code mapping + success bookkeeping unchanged (same LoginError enum).
+```
+
+The existing `pack_hash1_le` helper is reused verbatim (it just packs 5×u32 →
+20 LE bytes; the name is now doubly-misleading but functionally correct). The
+`LoginError` switch and the `current_account_id_ / current_username_ / state_`
+success path are unchanged. `ChangePasswordRequest` (Finding 3, fsm_auth.cpp:254)
+gets the analogous wiring to `ChangePasswordWithSessionHashRequest`.
+
+### 2. Production `IPasswordHasher` adapter (new — `src/infra/crypto/`)
+
+No class implements `domain::identity::IPasswordHasher` outside test fakes. Add
+one bridging the existing, correct `blizzard_hash` primitive
+(`infra/crypto/bnet_hash.{hpp,cpp}`) to the port. Byte layout must mirror the
+original `temp{ ticks; sessionkey; passhash1[5] }` exactly (confirmed against
+`pvpgn-server/src/bnetd/handle_bnet.cpp:1784-1817`): a **28-byte** buffer =
+`ticks` (LE u32) ‖ `sessionkey` (LE u32) ‖ `hash1` (20 wire-LE bytes, i.e. the
+stored `BNHash::bytes()` verbatim — that array already IS wire-LE), then
+`blizzard_hash` over all 28 bytes, then emit the digest in **wire-LE** form
+(`digest_to_wire`, from `bnet_hash_conv.hpp`) as a `domain::BNHash`.
+
+Header `src/infra/crypto/include/infra/crypto/bnet_session_hasher.hpp`:
+
+```cpp
+#pragma once
+#include "domain/identity/ports.hpp"
+namespace pvpgn::infra::crypto {
+class BnetSessionHasher final : public domain::identity::IPasswordHasher {
+public:
+    domain::BNHash derive_session_hash(const domain::BNHash& hash1,
+                                       std::uint32_t ticks,
+                                       std::uint32_t sessionkey) const noexcept override;
+};
+}  // namespace
+```
+
+Impl (`src/infra/crypto/src/bnet_session_hasher.cpp`): build the 28-byte buffer
+(ticks LE, sessionkey LE, then `hash1.bytes()` copied verbatim), call
+`v3::infra::crypto::blizzard_hash(span)`, convert the resulting `BnetDigest`
+with `digest_to_wire(...)` to a 20-byte array, return `domain::BNHash{that}`.
+A parity unit test should pin one known (ticks,sessionkey,hash1)→hash2 vector
+against a value computed by the legacy `bnet_hash` to guarantee bit-exactness.
+Add both files to `src/infra/crypto/CMakeLists.txt`.
+
+### 3. Composition-root wiring (`src/app/bnetd/src/main.cpp` ~line 388)
+
+Today: `LoginUser` is built with the **4-arg** ctor (no hasher) →
+`hasher_ == nullptr` → the session-hash overload returns `LoginError::Internal`.
+Construct a long-lived `BnetSessionHasher` in the run-loop scope and pass it to
+the **5-arg** ctors of both `LoginUser` and `ChangePasswordUseCase`:
+
+```cpp
+static const infra::crypto::BnetSessionHasher session_hasher;  // stateless
+use_cases.login_user = std::make_shared<application::auth::LoginUser>(
+    account_repo, session_reg, event_bus, auth_clock, session_hasher);
+// + the ChangePassword use-case (currently unwired) with the same hasher.
+```
+
+The hasher is stateless and `noexcept`, so a function-static / scope-static is
+safe and outlives the use-cases. Link `app/bnetd` against the crypto target if
+not already.
+
+### 4. e2e impact — THE BLOCKER (`tests/e2e/modern_login_journey_test.py`)
+
+The test's `build_logon_response2` sends the **raw** `PASSWORD_WORDS` in the
+password slot with `client_token=0xDEADBEEF, server_token=0`, and `create_account`
+stores those same words as hash1. It passes today only because the buggy FSM
+compares `client-words == stored-words`. After the fix the server expects
+`hash2 = blizzard_hash(0xDEADBEEF ‖ 0 ‖ words)`, which ≠ raw `PASSWORD_WORDS`, so:
+- Journey 1 (accept) would receive `0x02` and FAIL.
+- Journey 2 (wrong password → 0x02) would still pass by accident.
+- Journey 3 (unknown user → 0x01) unaffected.
+
+To keep the e2e meaningful the Python client must compute the real double-hash:
+port Blizzard's broken-SHA-1 (the `ROTL32(1,x)` message-schedule variant) into
+the test, then `build_logon_response2` sends
+`blizzard_hash(pack_le_u32(client_token) + pack_le_u32(server_token) +
+pack_5x_le_u32(words))` instead of the raw words. `WRONG_WORDS` then naturally
+produces a non-matching hash2. This is a self-contained but non-trivial crypto
+reimplementation in Python and should ship in the SAME change as the FSM fix so
+the e2e never regresses.
+
+### 5. Test additions (unit, env-independent)
+
+- A `BnetSessionHasher` parity test (one fixed vector vs legacy `bnet_hash`).
+- An FSM-level OLS test driving `on(LogonResponse2)` with a hasher that
+  reproduces the real double-hash: assert correct hash2 → accept (0x00) and
+  wrong hash2 → reject (0x02). (The use-case-level happy/sad paths are already
+  covered by `login_user_session_hash_test.cpp`.)
+
+### Why deferred (summary)
+
+Correct fix = FSM overload swap (small) + new infra hasher adapter + CMake +
+composition wiring + a Blizzard-SHA1 reimplementation inside the e2e client.
+The last item is required to avoid breaking the currently-green e2e and is an
+env-gated, separately-verifiable artifact (no local build of the e2e per the
+brief's "do not run any build" constraint). Per the brief — auth path,
+correctness over forcing — this is recorded as a plan rather than a rushed,
+unbuildable, e2e-breaking change.
