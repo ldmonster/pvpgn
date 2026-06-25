@@ -2,8 +2,9 @@
 //
 // Additional outcome tests for `application::social::PromoteClanMember`.
 // Mirrors promote_clan_member_test.cpp for fakes/helpers but exercises the
-// rank-string parsing arms ("peon", "shaman", "chieftain") and the
-// promote-to-current-rank case that the base test does not reach.
+// rank-string parsing arms ("peon", "shaman") and the promote-to-current-rank
+// case that the base test does not reach, plus the rejection of "chieftain"
+// (the rank-update path may never mint a second Chieftain).
 
 #include <memory>
 #include <string_view>
@@ -78,16 +79,23 @@ TEST_CASE("PromoteClanMember: chieftain promotes peon to shaman",
             domain::social::ClanRank::Shaman);
 }
 
-TEST_CASE("PromoteClanMember: chieftain promotes target to chieftain rank",
+TEST_CASE("PromoteClanMember: promoting to chieftain is rejected (one chieftain)",
           "[application][social][promote_clan_member]") {
+    // The rank-update path may never mint a second Chieftain — "chieftain" is
+    // not an accepted target rank (legacy CLAN_PEON..CLAN_SHAMAN cap). The crown
+    // moves only via the atomic Clan::transfer_chieftain hand-off.
     Fixture f;
     auto clan_id = seed_clan(*f.clans, f.chieftain, f.peon);
     auto uc = f.make_uc();
 
     auto r = uc.execute(clan_id, f.chieftain, f.peon, "chieftain");
 
-    REQUIRE(r);
+    REQUIRE_FALSE(r);
+    REQUIRE(r.error() == PromoteClanMemberError::InvalidRank);
+    // The target's rank is untouched and the founder is still the sole Chieftain.
     REQUIRE(rank_of(*f.clans, clan_id, f.peon) ==
+            domain::social::ClanRank::Peon);
+    REQUIRE(rank_of(*f.clans, clan_id, f.chieftain) ==
             domain::social::ClanRank::Chieftain);
 }
 

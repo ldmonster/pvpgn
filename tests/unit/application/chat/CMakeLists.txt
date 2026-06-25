@@ -39,6 +39,12 @@ pvpgn_v3_add_test(test_application_chat_join_edges
             infra_inmemory
             infra_storage_repository)
 
+pvpgn_v3_add_test(test_application_chat_join_leave_old
+    SOURCES join_channel_leave_old_test.cpp
+    DEPS    application_chat
+            infra_inmemory
+            infra_storage_repository)
+
 pvpgn_v3_add_test(test_application_chat_post_message
     SOURCES post_message_test.cpp
     DEPS    application_chat

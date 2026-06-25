@@ -22,6 +22,11 @@ PromoteClanMember::execute(domain::ClanId clan_id, domain::AccountId promoter,
     auto& clan = *clan_result.value();
 
     // 2. Parse the wire rank name (a protocol concern, so it stays here).
+    //    "chieftain" is deliberately NOT accepted: the rank-update path may
+    //    never mint a second Chieftain (it would break the "exactly one
+    //    Chieftain" invariant). The crown is moved only via an atomic
+    //    crown-transfer (Clan::transfer_chieftain), mirroring the legacy
+    //    rank-update cap of CLAN_PEON..CLAN_SHAMAN (handle_bnet.cpp:5133).
     domain::social::ClanRank rank;
     if (new_rank == "peon") {
         rank = domain::social::ClanRank::Peon;
@@ -29,19 +34,22 @@ PromoteClanMember::execute(domain::ClanId clan_id, domain::AccountId promoter,
         rank = domain::social::ClanRank::Grunt;
     } else if (new_rank == "shaman") {
         rank = domain::social::ClanRank::Shaman;
-    } else if (new_rank == "chieftain") {
-        rank = domain::social::ClanRank::Chieftain;
     } else {
         return core::fail(PromoteClanMemberError::InvalidRank);
     }
 
     // 3. Delegate authorization + the rank change to the aggregate — the
-    //    "only a Chieftain may promote" invariant lives in Clan, not here.
+    //    "only a Chieftain may promote" and "no second Chieftain" invariants
+    //    live in Clan, not here.
     switch (clan.promote_member(promoter, target, rank)) {
         case domain::social::Clan::PromoteOutcome::NotAuthorized:
             return core::fail(PromoteClanMemberError::InsufficientRank);
         case domain::social::Clan::PromoteOutcome::TargetNotMember:
             return core::fail(PromoteClanMemberError::TargetNotMember);
+        case domain::social::Clan::PromoteOutcome::RankNotAllowed:
+            // Defence in depth: even though "chieftain" is rejected at parse
+            // time above, the aggregate is the authority on this invariant.
+            return core::fail(PromoteClanMemberError::InvalidRank);
         case domain::social::Clan::PromoteOutcome::Promoted:
             break;
     }

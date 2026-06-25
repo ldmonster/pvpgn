@@ -166,6 +166,113 @@ TEST_CASE("Clan::promote_member enforces the Chieftain-only invariant",
             PO::NotAuthorized);
 }
 
+TEST_CASE("Clan::promote_member never mints a second Chieftain",
+          "[domain][social][clan][invariant]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    // Founder (AccountId{1}) is Chieftain; AccountId{2} is a peon member.
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});
+    (void)c.drain_events();
+
+    using PO = Clan::PromoteOutcome;
+
+    REQUIRE(c.chieftain_count() == 1);
+
+    // The Chieftain tries to promote a member to Chieftain — REJECTED. This is
+    // the legacy CLAN_PEON..CLAN_SHAMAN cap (handle_bnet.cpp:5133); the crown is
+    // moved only via the atomic transfer_chieftain hand-off.
+    REQUIRE(c.promote_member(AccountId{1}, AccountId{2}, ClanRank::Chieftain) ==
+            PO::RankNotAllowed);
+    // The target's rank is unchanged and there is still exactly one Chieftain.
+    REQUIRE(c.members().back().rank == ClanRank::Peon);
+    REQUIRE(c.chieftain_count() == 1);
+
+    // Promotions strictly below Chieftain still work.
+    REQUIRE(c.promote_member(AccountId{1}, AccountId{2}, ClanRank::Shaman) ==
+            PO::Promoted);
+    REQUIRE(c.members().back().rank == ClanRank::Shaman);
+    REQUIRE(c.promote_member(AccountId{1}, AccountId{2}, ClanRank::Grunt) ==
+            PO::Promoted);
+    REQUIRE(c.members().back().rank == ClanRank::Grunt);
+    // Still exactly one Chieftain after the legal promotions.
+    REQUIRE(c.chieftain_count() == 1);
+}
+
+TEST_CASE("Clan::transfer_chieftain atomically moves the crown",
+          "[domain][social][clan][invariant]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    // Founder (AccountId{1}) is Chieftain; AccountId{2} a peon member.
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});
+    (void)c.drain_events();
+
+    using TO = Clan::TransferChieftainOutcome;
+
+    // A non-Chieftain may not transfer the crown.
+    REQUIRE(c.transfer_chieftain(AccountId{2}, AccountId{1}) == TO::NotAuthorized);
+    // The Chieftain cannot hand the crown to themselves.
+    REQUIRE(c.transfer_chieftain(AccountId{1}, AccountId{1}) == TO::TargetIsSelf);
+    // The target must be a member.
+    REQUIRE(c.transfer_chieftain(AccountId{1}, AccountId{999}) ==
+            TO::TargetNotMember);
+    // Nothing changed by the rejected attempts.
+    REQUIRE(c.chieftain_count() == 1);
+    REQUIRE(c.is_chieftain(AccountId{1}));
+
+    // The Chieftain hands the crown to AccountId{2}: atomic demote + promote.
+    REQUIRE(c.transfer_chieftain(AccountId{1}, AccountId{2}) == TO::Transferred);
+    REQUIRE(c.is_chieftain(AccountId{2}));        // new chieftain
+    REQUIRE_FALSE(c.is_chieftain(AccountId{1}));  // old one stepped down
+    REQUIRE(c.chieftain_count() == 1);            // still exactly one
+}
+
+TEST_CASE("Clan keeps exactly one Chieftain across promote/kick sequences",
+          "[domain][social][clan][invariant]") {
+    auto kStar = ClientTag::parse("WAR3").value();
+    auto c = Clan::create(ClanId{1}, "PvP", "PvPGN", AccountId{1}, kStar).value();
+    (void)c.join(AccountId{2});
+    (void)c.join(AccountId{3});
+    (void)c.join(AccountId{4});
+    (void)c.drain_events();
+
+    using PO = Clan::PromoteOutcome;
+    using KO = Clan::KickOutcome;
+    using TO = Clan::TransferChieftainOutcome;
+
+    REQUIRE(c.chieftain_count() == 1);
+
+    // Make 2 a Shaman so it has kick authority.
+    REQUIRE(c.promote_member(AccountId{1}, AccountId{2}, ClanRank::Shaman) ==
+            PO::Promoted);
+    REQUIRE(c.chieftain_count() == 1);
+
+    // Attempts to crown 3 and 4 are all rejected by the rank-update path.
+    REQUIRE(c.promote_member(AccountId{1}, AccountId{3}, ClanRank::Chieftain) ==
+            PO::RankNotAllowed);
+    REQUIRE(c.promote_member(AccountId{1}, AccountId{4}, ClanRank::Chieftain) ==
+            PO::RankNotAllowed);
+    REQUIRE(c.chieftain_count() == 1);
+
+    // The Shaman cannot kick the Chieftain.
+    REQUIRE(c.kick_member(AccountId{2}, AccountId{1}) == KO::CannotKickChieftain);
+    REQUIRE(c.chieftain_count() == 1);
+
+    // Kick a regular member.
+    REQUIRE(c.kick_member(AccountId{2}, AccountId{3}) == KO::Kicked);
+    REQUIRE(c.chieftain_count() == 1);
+
+    // Transfer the crown, then more promote/kick churn.
+    REQUIRE(c.transfer_chieftain(AccountId{1}, AccountId{2}) == TO::Transferred);
+    REQUIRE(c.chieftain_count() == 1);
+    REQUIRE(c.is_chieftain(AccountId{2}));
+
+    // The new Chieftain demotes the old one further; still exactly one Chieftain.
+    REQUIRE(c.promote_member(AccountId{2}, AccountId{1}, ClanRank::Peon) ==
+            PO::Promoted);
+    REQUIRE(c.kick_member(AccountId{2}, AccountId{4}) == KO::Kicked);
+    REQUIRE(c.chieftain_count() == 1);
+}
+
 TEST_CASE("Clan::kick_member enforces rank + chieftain-protection invariants",
           "[domain][social][clan]") {
     auto kStar = ClientTag::parse("WAR3").value();

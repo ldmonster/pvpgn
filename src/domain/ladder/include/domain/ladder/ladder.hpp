@@ -22,6 +22,22 @@
 
 namespace pvpgn::domain::ladder {
 
+/// Hard floor on a ladder rating. The original PvPGN stores rating as an
+/// `unsigned int` and explicitly refuses to let it drop below 1
+/// (`account_wrap.cpp:1306` — "don't allow rating to go below 1"). v3 keeps
+/// rating as a signed `int32`, so without this floor a losing streak could
+/// drive it negative; the wire codec then writes it as `uint32`, turning e.g.
+/// -5 into 4294967291 and corrupting the displayed ladder.
+inline constexpr std::int32_t kMinRating = 1;
+
+/// Apply a rating delta to a current rating, clamping the result so it can
+/// never fall below `kMinRating`. Mirrors the original's
+/// `max(1, oldrating + delta)` semantics.
+[[nodiscard]] inline constexpr std::int32_t
+apply_rating_delta(std::int32_t cur, std::int32_t delta) noexcept {
+    return cur + delta < kMinRating ? kMinRating : cur + delta;
+}
+
 struct LadderEntry {
     AccountId    account;
     std::int32_t rating       = 1000;  // original BNETD_LADDER_INIT_RAT
@@ -109,7 +125,13 @@ private:
         const double expected =
             1.0 / (1.0 + std::pow(10.0, (opp_mean - static_cast<double>(cur)) / 400.0));
         const double delta = rules_.k_factor * (score - expected);
-        return static_cast<std::int32_t>(std::lround(delta));
+        const std::int32_t step = static_cast<std::int32_t>(std::lround(delta));
+        // Floor clamp: the resulting rating must never drop below kMinRating.
+        // A big expected-loss against a far stronger opponent could otherwise
+        // produce a delta large enough to take `cur` to 0 or negative (which
+        // the wire codec would render as a huge uint32). Clamp the *delta* so
+        // that `cur + delta >= kMinRating`, matching account_wrap.cpp:1306.
+        return apply_rating_delta(cur, step) - cur;
     }
 
     LadderRules rules_;

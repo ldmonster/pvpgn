@@ -39,6 +39,58 @@ JoinChannel::execute(domain::AccountId account_id, const std::string& channel_na
         return new_ch;
     }();
 
+    // 1b. Leave the account's *current* channel before joining the new one.
+    //
+    // Mirrors the original `conn_set_channel` (connection.cpp:1877), which calls
+    // `conn_part_channel` to drop the connection from its current channel BEFORE
+    // adding it to the target. Membership is mutually exclusive: an account is in
+    // at most one channel at a time. Without this, joining B while in A would
+    // leave the account a member of BOTH (corrupting member counts, auto-delete,
+    // and broadcasts) — see finding C-1.
+    //
+    // The use-case has no direct knowledge of the caller's current channel, so we
+    // discover it by scanning the repository for the (unique) channel the account
+    // currently belongs to. We skip the target channel itself so that re-joining
+    // the channel you are already in is an idempotent no-op (no leave-then-rejoin,
+    // and no spurious auto-delete of a temporary channel).
+    {
+        domain::ChannelId current_id{0};
+        channel_repo_.forEach([&](const domain::chat::Channel& ch) {
+            if (ch.contains(account_id)) {
+                current_id = ch.id();
+                return false;  // at most one membership — stop early
+            }
+            return true;
+        });
+
+        // Only leave when the account is currently in a *different*, real
+        // (already-persisted) channel than the join target. A freshly created
+        // target has id 0 and can never match a persisted current channel.
+        const bool in_other_channel =
+            current_id.value() != 0 && current_id.value() != channel.id().value();
+
+        if (in_other_channel) {
+            auto current_found = channel_repo_.find_by_id(current_id);
+            if (current_found) {
+                domain::chat::Channel current = current_found.value();
+                current.leave(account_id);
+
+                // Auto-delete an emptied temporary channel (parity with
+                // `channel_del_connection`); otherwise persist the departure.
+                const bool should_delete =
+                    current.member_count() == 0 &&
+                    !current.policy().flags.has(domain::chat::ChannelFlag::Permanent);
+
+                if (should_delete) {
+                    (void)channel_repo_.remove(current_id);
+                } else {
+                    (void)channel_repo_.save(current);
+                }
+                (void)current.drain_events();  // processed by caller
+            }
+        }
+    }
+
     // 2. Attempt to add member to channel
     auto outcome = channel.admit(account_id, client_tag);
 

@@ -114,22 +114,72 @@ public:
         Promoted,
         NotAuthorized,    ///< the promoter is not a Chieftain
         TargetNotMember,  ///< the target is not in this clan
+        RankNotAllowed,   ///< the requested rank may not be set this way (Chieftain)
     };
 
     /// Change `target`'s rank to `new_rank` on behalf of `promoter`, enforcing
-    /// the clan invariant that **only a Chieftain may change ranks**. This rule
-    /// lives in the aggregate, not in the application use-case (DDD: invariants
-    /// belong where the data lives).
+    /// the clan invariants that **only a Chieftain may change ranks** and that
+    /// the rank-update path may never mint a second Chieftain. The legacy server
+    /// caps this path at `CLAN_PEON..CLAN_SHAMAN` (`handle_bnet.cpp:5133`): the
+    /// crown is moved *only* via `transfer_chieftain`, which keeps the count at
+    /// exactly one. These rules live in the aggregate, not in the application
+    /// use-case (DDD: invariants belong where the data lives).
     PromoteOutcome promote_member(AccountId promoter, AccountId target,
                                   ClanRank new_rank) {
         auto pit = find_const_(promoter);
         if (pit == members_.end() || pit->rank != ClanRank::Chieftain) {
             return PromoteOutcome::NotAuthorized;
         }
+        // The rank-update path may NOT create a second Chieftain. Promotion to
+        // Chieftain only ever happens via the atomic `transfer_chieftain` crown
+        // hand-off, which preserves "exactly one Chieftain".
+        if (new_rank == ClanRank::Chieftain) {
+            return PromoteOutcome::RankNotAllowed;
+        }
         if (!set_rank(target, new_rank)) {
             return PromoteOutcome::TargetNotMember;
         }
         return PromoteOutcome::Promoted;
+    }
+
+    /// Outcome of an authorization-checked crown transfer.
+    enum class TransferChieftainOutcome : std::uint8_t {
+        Transferred,
+        NotAuthorized,    ///< the caller is not the current Chieftain
+        TargetNotMember,  ///< the target is not in this clan
+        TargetIsSelf,     ///< the Chieftain cannot hand the crown to themselves
+    };
+
+    /// Atomically move the Chieftain crown from `current` to `target`: the
+    /// current Chieftain is demoted to Grunt and `target` is promoted to
+    /// Chieftain in a single operation, mirroring the legacy
+    /// `_client_clan_membernewchiefreq` handler (`handle_bnet.cpp:5228`). This
+    /// is the ONLY way a member becomes Chieftain, and it preserves the
+    /// "exactly one Chieftain" invariant by construction (one out, one in).
+    TransferChieftainOutcome transfer_chieftain(AccountId current,
+                                                AccountId target) {
+        auto cit = find_mut_(current);
+        if (cit == members_.end() || cit->rank != ClanRank::Chieftain) {
+            return TransferChieftainOutcome::NotAuthorized;
+        }
+        if (current == target) {
+            return TransferChieftainOutcome::TargetIsSelf;
+        }
+        auto tit = find_mut_(target);
+        if (tit == members_.end()) {
+            return TransferChieftainOutcome::TargetNotMember;
+        }
+        cit->rank = ClanRank::Grunt;       // old chieftain steps down
+        tit->rank = ClanRank::Chieftain;   // new chieftain crowned
+        return TransferChieftainOutcome::Transferred;
+    }
+
+    /// Number of members holding Chieftain rank. The aggregate invariant for a
+    /// created clan is that this is always exactly 1.
+    [[nodiscard]] std::size_t chieftain_count() const noexcept {
+        return static_cast<std::size_t>(std::count_if(
+            members_.begin(), members_.end(),
+            [](const ClanMember& m) { return m.rank == ClanRank::Chieftain; }));
     }
 
     /// Outcome of an authorization-checked kick.

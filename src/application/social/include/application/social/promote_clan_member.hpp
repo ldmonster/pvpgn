@@ -30,7 +30,10 @@ public:
                       std::shared_ptr<application::ports::IEventBus> event_bus)
         : clans_(clans), event_bus_(event_bus) {}
 
-    /// Promote/demote member. new_rank: "peon", "grunt", "shaman", "chieftain"
+    /// Promote/demote member. new_rank: "peon", "grunt", "shaman".
+    /// "chieftain" is NOT accepted (rejected as InvalidRank): the crown is
+    /// moved only via an atomic crown-transfer, never the rank-update path,
+    /// so a clan always keeps exactly one Chieftain.
     core::Result<void, PromoteClanMemberError>
     execute(domain::ClanId clan_id, domain::AccountId promoter,
             domain::AccountId target, std::string_view new_rank);
