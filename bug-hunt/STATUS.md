@@ -462,3 +462,37 @@ feature, deferred). The OLS/NLS mocks are now exercised for every supported tag.
 ## RUNNING TOTAL: ~52 distinct bugs/features across 22 waves. Mock clients now
 ## cover the FULL supported-client matrix (OLS + NLS + WOL), all logging in
 ## against the oracle; OLS/NLS verified equivalent on v3, WOL gap confirmed.
+
+## Wave 23: close the WOL gap in v3 + harden + remove dead build code
+Three threads, all verified:
+
+1. WOL auth implemented in v3 (closes F-W22, 0/11 → 11/11). New IWolCredentialStore
+   port + InMemoryWolCredentialStore (mirror the SRP-3 store). WolFsm gains a
+   WolAuthDeps ctor + CVERS/VERCHK/APGAR handlers + try_wol_authenticate():
+   auto-create on first login (store APGAR), verbatim-compare thereafter, send
+   welcome/MOTD — mirroring handle_wol_authenticate. VERCHK→379, wrong token→378.
+   Wired into the live WOL listener. Also made --wol-port/--irc-port configurable
+   (were hardcoded 4000/6667 so two bnetd could never coexist — real robustness
+   fix). Tests: wol_fsm_native_auth_test.cpp (6 cases) + diff_wol_login.py
+   (auto-create/correct/wrong vs oracle). diff_all_clients.py now 19/19 oracle
+   AND 19/19 v3 match (OLS+NLS+WOL).
+
+2. Runtime hardening: built v3 under AddressSanitizer + ran the libFuzzer codec
+   target (9.7M execs, 0 crashes) + a 54-case malformed-input runtime stress
+   (BNCS framing/truncation, out-of-order opcodes, wrong protocol bytes, WOL
+   malformed lines, per-SID garbage, W3 SRP-3 edge cases incl. A=0/A=N). ZERO
+   sanitizer hits / crashes / hangs — the decoders' static bounding and the FSM
+   guards hold up at runtime. Fixed one real defect: the fuzz target never
+   compiled in fuzzing mode (unqualified core:: vs pvpgn::core::), silently
+   disabling CI fuzzing.
+
+3. Dead code: removed 42 never-processed (unreachable) CMakeLists — the orphaned
+   pvpgn_* "shadow" target graph that double-compiled modules already defined in
+   the monolithic src/CMakeLists.txt. Proven zero-impact by reachability analysis
+   + clean reconfigure/build/full unit suite. (src/application/ was never even
+   add_subdirectory'd.)
+
+## RUNNING TOTAL: ~54 distinct bugs/features across 23 waves. v3 now authenticates
+## EVERY supported client family (OLS + NLS + WOL) identically to the oracle;
+## runtime-hardened (0 sanitizer hits across fuzzing + 54 malformed cases); dead
+## shadow-CMake graph removed.

@@ -12,6 +12,26 @@ Tracking in `bug-hunt/STATUS.md` + `bug-hunt/findings/*.md`. Tests live in
 old (real) flow to test the new flow; enhance the mocks as needed."**
 Full state memory: `/home/cnupt/.claude/projects/-home-cnupt-work-pvpgn/memory/diff-bug-hunt-state.md`.
 
+## Wave 23 — DONE (close WOL gap in v3 + harden + remove dead build code)
+
+Commits: `b36c42a` (WOL auth), `cd81a66` (fuzz fix), `a1eb7a5` (dead CMake).
+- WOL auth implemented in v3 → full client matrix now 19/19 oracle AND 19/19 v3
+  match (OLS+NLS+WOL). New IWolCredentialStore + InMemoryWolCredentialStore;
+  WolFsm CVERS/VERCHK/APGAR + try_wol_authenticate (auto-create first login,
+  verbatim APGAR compare, 379/378/welcome). `--wol-port`/`--irc-port` now
+  configurable (were hardcoded 4000/6667). Tests: wol_fsm_native_auth_test.cpp,
+  diff_wol_login.py.
+- Hardening: ASan + libFuzzer (9.7M execs) + 54 malformed-input cases → 0
+  sanitizer hits. Fixed fuzz target that never compiled (core:: → pvpgn::core::).
+- Dead code: removed 42 unreachable CMakeLists (orphaned pvpgn_* shadow targets);
+  proven zero-impact via add_subdirectory reachability analysis + clean build+tests.
+
+Remaining WOL work (post-login, separate from auth): the lobby/game commands
+(LIST/JOIN game model, GAMEOPT, STARTG, automatch matchbot) are still skeleton
+no-ops — see bug-hunt/findings/wol-chat-lobby.md. Also still open: NLS passchange
+(0x55/0x56). Conservatively-kept dead files: src/common/CMakeLists.txt and
+src/win32/CMakeLists.txt (pending a Windows-build check).
+
 ## Wave 22 — DONE (full supported-client mock matrix + WOL mock)
 
 Added mock clients for PvPGN's ENTIRE supported-client matrix and a driver:

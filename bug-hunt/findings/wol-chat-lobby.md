@@ -420,3 +420,33 @@ VERCHK (379 NONREQ), and on USER (with NICK+APGAR present) auto-create/verify th
 account and send the welcome/MOTD — mirroring `handle_wol_authenticate`. Then the
 WOL rows in `diff_all_clients.py` flip to match and a `diff_wol_login.py` can
 assert it the way `diff_w3_login.py` does for SRP-3.
+
+---
+
+## F-W23 — WOL auth gap (F-W22) RESOLVED: native CVERS/APGAR login implemented in v3
+
+The WOL-auth gap from F-W22 is now fixed. v3's `wol_auth.cpp` authenticates the
+Westwood way: a new `WolAuthDeps`-injected `WolFsm` constructor wires
+`CreateAccount` + a new `IWolCredentialStore` (with `InMemoryWolCredentialStore`,
+mirroring the SRP-3 store), and new `on_cvers` / `on_verchk` / `on_apgar` handlers
+plus `try_wol_authenticate()` reproduce `handle_wol_authenticate`: VERCHK replies
+379 NONREQ; APGAR stores the opaque token; USER (with NICK+APGAR) auto-creates the
+account on first login and verbatim-compares the stored token thereafter, then
+sends the welcome/MOTD; a wrong token yields 378 RPL_BAD_LOGIN. Wired into the
+live WOL listener in main.cpp via a run-loop-scoped `InMemoryWolCredentialStore`.
+
+Also fixed a latent robustness limitation: the WOL/IRC listener ports were
+hardcoded (4000/6667), so two bnetd instances could never coexist. Added
+`--wol-port` / `--irc-port` CLI flags; the diff harness now gives each instance
+unique derived ports.
+
+Verified: `diff_all_clients.py` now reports **19/19 oracle logins and 19/19 v3
+matches** across OLS + NLS + WOL (was 0/11 for WOL). New differential
+`diff_wol_login.py` matches the oracle on first-login auto-create, correct
+re-login, and wrong-password rejection. Unit guard:
+`tests/unit/protocol/wol/wol_fsm_native_auth_test.cpp` (6 cases).
+
+Still skeleton (separate from auth): the post-login WOL lobby/game commands
+(LIST/JOIN game model, GAMEOPT, STARTG, the automatch `matchbot`) remain
+no-ops — see the body of this file. Auth (the entry gate for the whole Westwood
+family) is the part that is now faithful end to end.
