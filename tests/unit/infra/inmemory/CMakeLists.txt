@@ -2,8 +2,10 @@
 
 pvpgn_v3_add_test(test_infra_inmemory
     SOURCES
+        in_memory_event_bus_test.cpp
         in_memory_unit_of_work_test.cpp
         in_memory_clan_repository_test.cpp
+        in_memory_session_registry_test.cpp
         in_memory_ladder_repository_test.cpp
         in_memory_team_repository_test.cpp
         in_memory_mail_store_test.cpp

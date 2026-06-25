@@ -121,6 +121,11 @@ public:
     bool is_open() const { return db_ != nullptr; }
 
 private:
+    /// Busy-handler timeout (ms) applied to every connection. When multiple
+    /// connections target the same file, a contended writer waits up to this
+    /// long for the lock instead of failing immediately with SQLITE_BUSY.
+    static constexpr int kBusyTimeoutMs = 5000;
+
     sqlite3* db_;
     bool in_transaction_;
 };

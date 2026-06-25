@@ -37,7 +37,16 @@ SQLiteConnection::SQLiteConnection(std::string_view path)
     if (rc != SQLITE_OK) {
         if (db_) sqlite3_close(db_);
         db_ = nullptr;
+        return;
     }
+
+    // Each connection owns its own sqlite3 handle (see header: "create one
+    // connection per thread"). When several connections target the same file,
+    // SQLite serializes writers via file-level locks; without a busy handler a
+    // contended writer would fail fast with SQLITE_BUSY. A busy timeout makes
+    // such a connection wait-and-retry instead, so concurrent UoWs on separate
+    // connections to the same DB do not spuriously error under contention.
+    sqlite3_busy_timeout(db_, kBusyTimeoutMs);
 }
 
 SQLiteConnection::~SQLiteConnection() {

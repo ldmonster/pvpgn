@@ -20,8 +20,11 @@ public:
     std::unique_ptr<application::ports::IUnitOfWork> create() override;
 
 private:
+    // The path is retained so create() can open a fresh, independent
+    // connection per UoW (one sqlite3 handle per UoW/thread). No shared
+    // connection is held: sharing one handle across worker threads is a data
+    // race and corrupts transaction state.
     std::string connection_path_;
-    std::shared_ptr<SQLiteConnection> conn_;
 };
 
 }  // namespace pvpgn::infra::sqlite

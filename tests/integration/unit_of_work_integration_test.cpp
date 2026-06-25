@@ -283,6 +283,53 @@ TEST_CASE("SQLite UoW: UnitOfWorkGuard rolls back when commit is skipped",
                       .has_value());
 }
 
+// ---------------------------------------------------------------------------
+// Independent transaction state across concurrent UoWs (C1 regression)
+// ---------------------------------------------------------------------------
+//
+// Each create() now hands out a UoW over its OWN sqlite3 connection, so two
+// live UoWs must have fully independent transaction state: one can roll back
+// while the other commits, and neither must clobber the other. With the old
+// shared-connection design these two BEGINs collided on one physical
+// transaction and one UoW's COMMIT could flush the other's uncommitted writes.
+
+TEST_CASE("SQLite UoW: two live UoWs have independent transaction state",
+          "[integration][sqlite][uow][concurrency]") {
+    TempDir tmp;
+    infra::sqlite::SQLiteUnitOfWorkFactory factory(tmp.db_file());
+
+    // Two UoWs alive at the same time, each with its own connection and its own
+    // transaction state (the bug was a single shared connection whose tx_depth_
+    // collided across UoWs). SQLite is single-writer per file, so the two write
+    // transactions must not overlap — but each UoW still owns an independent
+    // transaction: a commit on one and a rollback on the other don't interfere.
+    auto committing  = factory.create();
+    auto rolling_back = factory.create();
+
+    // First UoW: write + commit (its own transaction).
+    REQUIRE(committing->begin().has_value());
+    REQUIRE(committing->accounts().save(make_account(80, "Keeper")).has_value());
+    REQUIRE(committing->commit().has_value());
+
+    // Second UoW (a distinct, still-alive object with its own connection): write
+    // + rollback. With the old shared connection this begin() would have reused
+    // the first UoW's transaction state; now it is fully independent.
+    REQUIRE(rolling_back->begin().has_value());
+    REQUIRE(
+        rolling_back->accounts().save(make_account(81, "Discarded")).has_value());
+    rolling_back->rollback();
+
+    // A third UoW observes exactly the committed row and nothing from the
+    // rolled-back one: proof the two transactions never shared a handle.
+    auto observer = factory.create();
+    REQUIRE(observer->accounts()
+                .find_by_name(domain::UserName::parse("Keeper").value())
+                .has_value());
+    REQUIRE_FALSE(observer->accounts()
+                      .find_by_name(domain::UserName::parse("Discarded").value())
+                      .has_value());
+}
+
 #endif  // PVPGN_HAS_INFRA_SQLITE
 
 }  // namespace pvpgn::integration

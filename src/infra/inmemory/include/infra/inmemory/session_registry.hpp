@@ -7,6 +7,8 @@
 /// both directions.
 
 #include <algorithm>
+#include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -20,6 +22,10 @@ class InMemorySessionRegistry final
 public:
     core::Status<> attach(domain::SessionId session,
                           domain::AccountId account) override {
+        // Check-then-act (the one-account/one-session invariant) is performed
+        // atomically: the guard checks and both inserts happen under a single
+        // exclusive lock that is never released between them.
+        std::unique_lock<std::shared_mutex> lock(mutex_);
         if (account_for_session_.contains(session.value())) {
             return core::fail(core::Error{
                 core::StatusCode::AlreadyExists,
@@ -36,6 +42,7 @@ public:
     }
 
     void detach(domain::SessionId session) override {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
         auto it = account_for_session_.find(session.value());
         if (it == account_for_session_.end()) return;
         session_for_account_.erase(it->second);
@@ -44,6 +51,7 @@ public:
 
     std::optional<domain::SessionId>
     session_for(domain::AccountId account) const override {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
         auto it = session_for_account_.find(account.value());
         if (it == session_for_account_.end()) return std::nullopt;
         return domain::SessionId{it->second};
@@ -51,12 +59,14 @@ public:
 
     std::optional<domain::AccountId>
     account_for(domain::SessionId session) const override {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
         auto it = account_for_session_.find(session.value());
         if (it == account_for_session_.end()) return std::nullopt;
         return domain::AccountId{it->second};
     }
 
     std::vector<domain::SessionId> list() const override {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
         std::vector<domain::SessionId> out;
         out.reserve(account_for_session_.size());
         for (const auto& [s, _a] : account_for_session_) {
@@ -68,6 +78,11 @@ public:
     }
 
 private:
+    // Guards both maps. `shared_lock` for read-only accessors (session_for,
+    // account_for, list), `unique_lock` for mutators (attach, detach). All
+    // accessors return by value (std::optional / std::vector), so no
+    // reference/pointer/iterator into the maps escapes the critical section.
+    mutable std::shared_mutex mutex_;
     std::unordered_map<std::uint64_t, std::uint32_t> account_for_session_;
     std::unordered_map<std::uint32_t, std::uint64_t> session_for_account_;
 };
