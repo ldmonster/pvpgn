@@ -214,6 +214,16 @@ private:
     /// space after the command word (npos if none).
     core::Status<> handle_friends(std::string_view rest, std::size_t cmd_end);
 
+    /// Handle /who <channel> — reply EID_INFO listing the channel's members.
+    core::Status<> handle_who(std::string_view args);
+
+    /// Handle /whois <user> (aliases /where /whereis) — report a user's online
+    /// status and current channel.
+    core::Status<> handle_whois(std::string_view args);
+
+    /// Handle /users (alias /status) — server population stats.
+    core::Status<> handle_users();
+
     std::shared_ptr<ISessionContext> ctx_;
     BnetUseCaseContext use_cases_;
     BnetState state_ = BnetState::Init;

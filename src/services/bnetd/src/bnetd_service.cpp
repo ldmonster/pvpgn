@@ -173,6 +173,9 @@ protocol::bnet::BnetUseCaseContext BnetdService::make_use_case_context() noexcep
         leave_channel_.get(), [](application::chat::LeaveChannel*) noexcept {});
     ctx.list_channels = std::shared_ptr<application::chat::ListChannels>(
         list_channels_.get(), [](application::chat::ListChannels*) noexcept {});
+    // Channel reader for /who and /whois (the shared channel repository).
+    ctx.channel_reader = std::shared_ptr<domain::chat::IChannelReader>(
+        &channel_repo_, [](domain::chat::IChannelReader*) noexcept {});
 
     return ctx;
 }

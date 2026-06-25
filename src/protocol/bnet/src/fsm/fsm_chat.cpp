@@ -40,6 +40,8 @@
 #include "application/social/add_friend.hpp"
 #include "application/social/list_friends.hpp"
 #include "application/social/remove_friend.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/chat/channel.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/user_name.hpp"
 #include "domain/chat/ports/command_registry.hpp"
@@ -266,6 +268,16 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "friends" || cmd == "f") {
                 return handle_friends(rest, cmd_end);
             }
+            // --- channel/user info commands (EID_INFO replies) ---
+            std::string_view info_args =
+                (cmd_end == std::string_view::npos) ? std::string_view{}
+                                                    : rest.substr(cmd_end + 1);
+            while (!info_args.empty() && info_args.front() == ' ')
+                info_args.remove_prefix(1);
+            if (cmd == "who") return handle_who(info_args);
+            if (cmd == "whois" || cmd == "where" || cmd == "whereis")
+                return handle_whois(info_args);
+            if (cmd == "users" || cmd == "status") return handle_users();
         }
 
         std::string result_text;
@@ -630,6 +642,106 @@ core::Status<> BnetFsm::handle_friends(std::string_view rest,
     auto r = use_cases_.remove_friend->execute(current_account_id_, target_id);
     if (!r) return info("That user is not on your friends list.");
     return ctx_->send(ServerMessage{FriendDelAck{slot}});
+}
+
+namespace {
+std::string_view rtrim_sv(std::string_view s) {
+    while (!s.empty() && s.back() == ' ') s.remove_suffix(1);
+    return s;
+}
+}  // namespace
+
+core::Status<> BnetFsm::handle_who(std::string_view args) {
+    auto info = [&](std::uint32_t eid, std::string text) {
+        return ctx_->send(ServerMessage{ChatEvent{
+            eid, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+            "Battle.net", std::move(text)}});
+    };
+    const std::string chan{rtrim_sv(args)};
+    if (chan.empty()) {
+        // No channel given — the original replies with the command usage as an
+        // EID_INFO (describe_command), not an error.
+        return info(kEidInfo, "Usage: /who <channel>");
+    }
+    if (!use_cases_.channel_reader) {
+        return info(kEidError, "That channel does not exist.");
+    }
+    auto ch = use_cases_.channel_reader->find_by_name(chan);
+    if (!ch) return info(kEidError, "That channel does not exist.");
+    std::string text = "Users in channel " + chan + ":";
+    for (const auto& mid : ch.value().member_ids()) {
+        std::string nm;
+        if (use_cases_.account_repo) {
+            auto a = use_cases_.account_repo->find_by_id(mid);
+            if (a) nm = std::string{a.value().name().display()};
+        }
+        if (nm.empty()) nm = std::to_string(mid.value());
+        text += " ";
+        text += nm;
+    }
+    return info(kEidInfo, std::move(text));
+}
+
+core::Status<> BnetFsm::handle_whois(std::string_view args) {
+    auto info = [&](std::uint32_t eid, std::string text) {
+        return ctx_->send(ServerMessage{ChatEvent{
+            eid, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+            "Battle.net", std::move(text)}});
+    };
+    const std::string who{rtrim_sv(args)};
+    auto parsed = who.empty() ? std::nullopt
+                              : std::optional{domain::UserName::parse(who)};
+    if (!parsed || !*parsed || !use_cases_.account_repo) {
+        return info(kEidError, "Unknown user.");
+    }
+    auto acct = use_cases_.account_repo->find_by_name(parsed->value());
+    if (!acct) return info(kEidError, "Unknown user.");
+    const domain::AccountId id = acct.value().id();
+    const std::string name{acct.value().name().display()};
+
+    const bool online = use_cases_.session_registry &&
+                        use_cases_.session_registry->session_for(id).has_value();
+    if (!online) {
+        return info(kEidInfo, "User is offline");
+    }
+    // Find the user's current channel by scanning channel membership.
+    std::string channel_name;
+    if (use_cases_.channel_reader) {
+        use_cases_.channel_reader->forEach([&](const domain::chat::Channel& c) {
+            for (const auto& mid : c.member_ids()) {
+                if (mid.value() == id.value()) {
+                    channel_name = c.name();
+                    return false;  // stop iteration
+                }
+            }
+            return true;
+        });
+    }
+    if (!channel_name.empty()) {
+        return info(kEidInfo,
+            name + " is using Battle.net and is currently in channel \"" +
+            channel_name + "\".");
+    }
+    return info(kEidInfo, name + " is using Battle.net.");
+}
+
+core::Status<> BnetFsm::handle_users() {
+    std::size_t users = use_cases_.session_registry
+                            ? use_cases_.session_registry->list().size() : 0;
+    std::size_t channels = use_cases_.channel_reader
+                               ? use_cases_.channel_reader->size() : 0;
+    std::size_t games = 0;
+    if (use_cases_.list_public_games) {
+        auto r = use_cases_.list_public_games->execute(
+            application::game::ListPublicGamesRequest{});
+        if (r) games = r.value().size();
+    }
+    std::string text = "There are currently " + std::to_string(users) +
+        " users online, in " + std::to_string(games) + " games, and in " +
+        std::to_string(channels) + " channels.";
+    return ctx_->send(ServerMessage{ChatEvent{
+        kEidInfo, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+        "Battle.net", std::move(text)}});
 }
 
 core::Status<> BnetFsm::on(const FriendInfoRequest& m) {

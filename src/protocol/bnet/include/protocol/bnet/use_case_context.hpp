@@ -27,6 +27,10 @@ class RemoveFriend;
 class ListFriends;
 }  // namespace pvpgn::application::social
 
+namespace pvpgn::domain::chat {
+class IChannelReader;
+}  // namespace pvpgn::domain::chat
+
 namespace pvpgn::application::chat {
 class JoinChannel;
 class PostMessage;
@@ -61,6 +65,10 @@ struct BnetUseCaseContext {
     std::shared_ptr<application::game::JoinGame> join_game;
     std::shared_ptr<application::game::LeaveGame> leave_game;
     std::shared_ptr<application::game::ListPublicGames> list_public_games;
+    /// Channel reader for /who (list a channel's members) and /whois (find a
+    /// user's current channel). Null when not wired (those commands then report
+    /// "channel does not exist" / offline).
+    std::shared_ptr<domain::chat::IChannelReader> channel_reader;
     std::shared_ptr<application::moderation::CheckIpBan> check_ip_ban;
     std::shared_ptr<domain::identity::IAccountRepository> account_repo;
     std::shared_ptr<application::ports::ICommandRegistry> command_registry;
