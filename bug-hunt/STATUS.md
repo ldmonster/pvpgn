@@ -518,7 +518,19 @@ protocol_bnet gains application_social/domain_social deps. Tests: diff_friends.p
 matches oracle (empty→[bob]→empty). Added the 3 fields to the fsm_test/fsm_channel_test
 designated-init sites (-Werror=missing-field-initializers).
 
-## RUNNING TOTAL: ~56 distinct bugs/features across 25 waves. Login (all families)
-## + NLS passchange + friends list now match the oracle. Still stubbed: game
-## advertise/list (0x1C/0x09, needs a game registry), /who /whois /squelch
-## (CommandRegistry not wired in bnetd), WOL post-login lobby/game commands.
+## Wave 26: game advertise/list (SID_STARTADVEX3 0x1C / GETADVLISTEX 0x09)
+Game opcodes were decoded but the FSM handlers were stubs (on(StartGame4Request)
+just set InGame; on(GameListRequest) always sent an empty list). Wired the
+existing StartGame + ListPublicGames use-cases over the shared InMemoryGameRepository
+(new list_public_games BnetUseCaseContext field; main.cpp). on(StartGame4Request)
+now registers the hosted game; on(GameListRequest) enumerates public games. Mock:
+bncs_client.advertise_game (status 0x10 = oracle INIT_VALID public/open) + game_list.
+diff_gamelist.py matches the oracle (empty → [DiffGame] visible to another client).
+Faithfulness fix: GETADVLISTEX carries TWO trailing cstrings (name+password); the
+original aborts without the password (v3 reads only name, tolerates trailing).
+Added list_public_games to the two designated-init test sites.
+
+## RUNNING TOTAL: ~57 distinct bugs/features across 26 waves. Login (all families)
+## + NLS passchange + friends list + game advertise/list now match the oracle.
+## Still stubbed: /who /whois /squelch (CommandRegistry not wired in bnetd), WOL
+## post-login lobby/game commands, JOINGAME password enforcement.

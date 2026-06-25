@@ -23,15 +23,15 @@ Full state memory: `/home/cnupt/.claude/projects/-home-cnupt-work-pvpgn/memory/d
   GOTCHA: new context fields must be added to the full designated-init blocks in
   fsm_test.cpp / fsm_channel_test.cpp (-Werror=missing-field-initializers).
 
+## Wave 26 — DONE (game advertise/list, commit 44a9fd3)
+SID_STARTADVEX3 (0x1C) + GETADVLISTEX (0x09): wired StartGame + ListPublicGames
+over the shared game repo. diff_gamelist.py matches the oracle (advertise on one
+conn, visible to another). GOTCHA: GETADVLISTEX request has TWO trailing cstrings
+(name+password) — the oracle aborts without the password.
+
 ## NEXT (investigated, plans ready) — remaining post-login divergences
 
-1. Game advertise/list (0x1C STARTADVEX3 / 0x09 GETADVLISTEX): codec complete;
-   on(StartGame4Request) + on(GameListRequest) are stubs. WIREABLE like friends —
-   IGameRepository + StartGame + ListPublicGames use-cases exist (start_game ctx
-   field already present, just unwired). Need GameListEntry mapping (BE port/ip,
-   status codes, statstring) + a game registry shared across connections, then a
-   diff_gamelist.py (advertise on one conn, list from another). Biggest remaining.
-2. /who /whois /squelch /users: the CommandRegistry is NOT wired into bnetd
+1. /who /whois /squelch /users: the CommandRegistry is NOT wired into bnetd
    (make_use_case_context doesn't set command_registry/permission_checker), so /cmds
    hit the no-registry fallback. /who needs channel-member-by-name; /whois needs
    per-account channel/game location; /squelch needs per-session ignore + broadcast
