@@ -555,7 +555,16 @@ message reaches alice BEFORE /squelch and is suppressed AFTER, matching the
 oracle on both (decisive observable is delivery, not the garbled reply text).
 New drain_chat() mock helper.
 
-## RUNNING TOTAL: ~59 distinct bugs/features across 28 waves. Login (all families)
-## + NLS passchange + friends + game advertise/list + /who/whois/users + /squelch
-## now match the oracle. All BNCS chat commands implemented. Still open: WOL
-## post-login lobby/game commands, JOINGAME password enforcement.
+## Wave 29: WOL post-login lobby (LIST + JOIN)
+The WOL chat use-cases were never wired into the production WOL session, and
+on_list emitted the standard IRC 322 instead of WOL's 327 RPL_CHANNEL. Wired
+ListChannels/JoinChannel/PostMessage into make_wol_session; rewrote on_list to
+emit 327 "<name> <count> <official> 388" (WOLv2) via send_raw. WOL JOIN now
+persists to the shared channel repo; LIST enumerates it. diff_wol_lobby.py: a WOL
+client joins #wollobby and LISTs — the channel appears on both servers. Updated
+R307 WOL LIST unit tests to the 327 format.
+
+## RUNNING TOTAL: ~60 distinct bugs/features across 29 waves. Login (all families)
+## + NLS passchange + friends + game advertise/list + all chat commands + WOL
+## lobby LIST/JOIN now match the oracle. Still open: WOL game lobby
+## (GAMEOPT/STARTG/JOINGAME/matchbot), JOINGAME password enforcement.
