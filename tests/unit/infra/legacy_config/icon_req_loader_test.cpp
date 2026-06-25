@@ -71,17 +71,40 @@ TEST_CASE("icon_req_loader: missing file is NotFound", "[legacy_config]") {
     REQUIRE(r.error().code() == pvpgn::core::StatusCode::NotFound);
 }
 
-TEST_CASE("icon_req_loader: empty file yields zero table", "[legacy_config]") {
+// Regression for finding F8: an empty config must NOT zero the
+// thresholds. The legacy server always seeds the defaults in
+// `anongame_infos_ICON_REQ_init` before loading any config, so a
+// missing/empty file must leave the built-in defaults intact.
+// Otherwise every threshold is 0, every icon is "unlocked", and the
+// icon-switch-hack protection is fully defeated.
+TEST_CASE("icon_req_loader: empty file yields built-in defaults, not zeros",
+          "[legacy_config]") {
     TempConfFile f{""};
     auto r = lc::load_icon_req_table(f.str());
     REQUIRE(r.has_value());
     const auto& t = r.value();
-    for (auto v : t.war3)    REQUIRE(v == 0);
-    for (auto v : t.w3xp)    REQUIRE(v == 0);
-    for (auto v : t.tourney) REQUIRE(v == 0);
+    REQUIRE(t.war3 == std::array<std::uint16_t, 4>{25, 250, 500, 1500});
+    REQUIRE(t.w3xp == std::array<std::uint16_t, 5>{25, 150, 350, 750, 1500});
+    REQUIRE(t.tourney == std::array<std::uint16_t, 5>{10, 75, 150, 250, 500});
+
+    // No threshold may be zero (the all-unlocked failure mode).
+    for (auto v : t.war3)    REQUIRE(v != 0);
+    for (auto v : t.w3xp)    REQUIRE(v != 0);
+    for (auto v : t.tourney) REQUIRE(v != 0);
 }
 
-TEST_CASE("icon_req_loader: ignores unknown sections + missing levels",
+// A default-constructed table (the fallback a caller uses when the
+// config file is absent / NotFound) must already carry the defaults.
+TEST_CASE("icon_req_loader: default-constructed table carries defaults",
+          "[legacy_config]") {
+    lc::IconReqTable t;
+    REQUIRE(t.war3 == std::array<std::uint16_t, 4>{25, 250, 500, 1500});
+    REQUIRE(t.w3xp == std::array<std::uint16_t, 5>{25, 150, 350, 750, 1500});
+    REQUIRE(t.tourney == std::array<std::uint16_t, 5>{10, 75, 150, 250, 500});
+}
+
+TEST_CASE("icon_req_loader: present levels override defaults, "
+          "absent levels keep defaults",
           "[legacy_config]") {
     TempConfFile f{
         "[OTHER]\n"
@@ -94,12 +117,14 @@ TEST_CASE("icon_req_loader: ignores unknown sections + missing levels",
     auto r = lc::load_icon_req_table(f.str());
     REQUIRE(r.has_value());
     const auto& t = r.value();
-    REQUIRE(t.war3[0] == 0);
-    REQUIRE(t.war3[1] == 42);
-    REQUIRE(t.war3[2] == 0);
-    REQUIRE(t.war3[3] == 0);
-    for (auto v : t.w3xp)    REQUIRE(v == 0);
-    for (auto v : t.tourney) REQUIRE(v == 0);
+    // Only Level2 overridden; the rest keep their built-in defaults.
+    REQUIRE(t.war3[0] == 25);    // default
+    REQUIRE(t.war3[1] == 42);    // overridden
+    REQUIRE(t.war3[2] == 500);   // default
+    REQUIRE(t.war3[3] == 1500);  // default
+    // Untouched blocks remain fully default.
+    REQUIRE(t.w3xp == std::array<std::uint16_t, 5>{25, 150, 350, 750, 1500});
+    REQUIRE(t.tourney == std::array<std::uint16_t, 5>{10, 75, 150, 250, 500});
 }
 
 TEST_CASE("icon_req_loader: malformed value returns InvalidArgument",

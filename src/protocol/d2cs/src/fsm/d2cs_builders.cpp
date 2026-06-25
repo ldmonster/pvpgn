@@ -9,7 +9,7 @@
 ///   make_char_login_reply()    — CHARLOGINREPLY (0x0B)
 ///   make_create_game_reply()   — CREATEGAMEREPLY (0x0D)
 ///   make_join_game_reply()     — JOINGAMEREPLY (0x0E)
-///   make_char_list_reply()     — CHARLISTREPLY (0x18)
+///   make_char_list_reply()     — CHARLISTREPLY (0x17)
 ///   make_create_char_reply()   — CREATECHARREPLY (0x03)
 ///   make_delete_char_reply()   — DELETECHARREPLY (0x04)
 ///   make_motd_reply()          — MOTDREPLY (0x13)
@@ -18,6 +18,8 @@
 
 #include "protocol/d2cs/fsm.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <string_view>
 #include <vector>
 
@@ -73,22 +75,21 @@ std::vector<uint8_t> D2CSSessionFsm::make_join_game_reply(
 }
 
 std::vector<uint8_t> D2CSSessionFsm::make_char_list_reply(
-    const std::vector<std::string>& char_names)
+    uint16_t maxchar_field,
+    const std::vector<charlistreply::CharEntry>& entries)
 {
-    // Header(3) + char_count(4) + names (each null-terminated)
-    size_t names_len = 0;
-    for (const auto& n : char_names) {
-        names_len += n.size() + 1;  // +1 for null terminator
-    }
-    const uint16_t total = static_cast<uint16_t>(3 + 4 + names_len);
+    // CHARLISTREPLY (0x17) body per d2cs_protocol.h t_d2cs_client_charlistreply:
+    //   maxchar(u16) currchar(u16) u1(u16=0) currchar2(u16)
+    //   then, per char: NUL-terminated name + NUL-terminated portrait block.
+    // The byte-accurate `charlistreply::encode()` produces this exact layout
+    // (including the 3-byte framed header), so just adapt its std::byte output
+    // to the std::vector<uint8_t> wire buffer used by the egress.
+    const auto bytes = charlistreply::encode(maxchar_field, entries);
 
     std::vector<uint8_t> v;
-    v.reserve(total);
-    push_header(v, total, D2CSPacketType::CHARLISTREPLY);
-    push_u32le(v, static_cast<uint32_t>(char_names.size()));
-    for (const auto& n : char_names) {
-        v.insert(v.end(), n.begin(), n.end());
-        v.push_back(0x00);
+    v.reserve(bytes.size());
+    for (std::byte b : bytes) {
+        v.push_back(static_cast<uint8_t>(b));
     }
     return v;
 }

@@ -53,7 +53,13 @@ core::Result<IconReqTable> load_icon_req_table(std::string_view path) {
             "icon_req_loader: cannot open " + std::string{path}));
     }
 
-    IconReqTable out{};
+    // Start from the legacy built-in defaults (IconReqTable's default
+    // member initializers), then let present config levels override
+    // them. This matches the original server, which always seeds the
+    // defaults in `anongame_infos_ICON_REQ_init` before applying any
+    // config — so a missing section/level keeps the protective default
+    // threshold instead of falling back to zero.
+    IconReqTable out;
     enum class Section { None, War3, W3xp, Tourney };
     Section sec = Section::None;
 

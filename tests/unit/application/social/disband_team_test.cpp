@@ -42,6 +42,14 @@ public:
         return std::vector<std::shared_ptr<domain::social::Team>>{};
     }
 
+    domain::TeamId next_id() override {
+        std::uint32_t max_id = 0;
+        for (const auto& [id, team] : store_) {
+            if (id > max_id) max_id = id;
+        }
+        return domain::TeamId{max_id + 1};
+    }
+
     core::Result<void, core::Error>
     save(const domain::social::Team& team) override {
         store_[team.id().value()] = std::make_shared<domain::social::Team>(team);

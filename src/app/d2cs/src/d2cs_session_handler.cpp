@@ -132,8 +132,10 @@ core::Result<void, core::Error> D2CSSessionHandler::handle_login(
 core::Result<void, core::Error> D2CSSessionHandler::handle_char_login(
     const protocol::d2cs::D2CSCharLoginRequest& req)
 {
+    // CHARLOGINREQ carries only the char name on the wire; the account is the
+    // session account established at LOGINREQ.
     domain::d2cs::CharacterSelectUseCase uc{char_repo_};
-    auto result = uc.execute(req.account_name, req.char_name);
+    auto result = uc.execute(account_name_, req.char_name);
 
     if (result.has_value()) {
         egress_.send_char_select_result(true, &result.value());
@@ -147,10 +149,14 @@ core::Result<void, core::Error> D2CSSessionHandler::handle_create_char(
     const protocol::d2cs::D2CSCreateCharRequest& req)
 {
     // Build a CharacterInfo from the wire request.
+    // CREATECHARREQ carries chclass and status as 16-bit fields (the low byte
+    // is the meaningful class/status value for the classes/flags we model).
     domain::d2cs::CharacterInfo info;
     info.name    = req.char_name;
-    info.class_  = static_cast<domain::d2cs::CharacterClass>(req.char_class);
-    info.flags   = static_cast<domain::d2cs::CharacterFlags>(req.char_flags);
+    info.class_  = static_cast<domain::d2cs::CharacterClass>(
+                       static_cast<uint8_t>(req.char_class));
+    info.flags   = static_cast<domain::d2cs::CharacterFlags>(
+                       static_cast<uint8_t>(req.char_status));
     info.level   = 1;
     info.experience = 0;
     info.last_played = 0;

@@ -45,6 +45,17 @@ public:
         return result;
     }
 
+    domain::TeamId next_id() override {
+        std::shared_lock lock(mutex_);
+        std::uint32_t max_id = 0;
+        for (const auto& [id, team] : teams_) {
+            if (id.value() > max_id) {
+                max_id = id.value();
+            }
+        }
+        return domain::TeamId{max_id + 1};  // first team -> 1; never 0
+    }
+
     core::Result<void, core::Error>
     save(const domain::social::Team& team) override {
         std::unique_lock lock(mutex_);

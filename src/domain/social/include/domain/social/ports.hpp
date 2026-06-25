@@ -99,6 +99,15 @@ public:
         std::vector<std::shared_ptr<Team>>, core::Error>
     find_by_member(domain::AccountId account_id) = 0;
 
+    /// Allocate a fresh, never-yet-used team id. Implementations must return a
+    /// strictly monotonic, unique value (typically max(existing id) + 1),
+    /// seeded so the first-ever team gets id 1 and id 0 (the sentinel) is never
+    /// handed out. This mirrors the original server's `++max_teamid` counter
+    /// (bnetd/team.cpp) and replaces the old wall-clock-second id, which made
+    /// two teams formed in the same second collide and silently overwrite each
+    /// other (the repo keys by id).
+    [[nodiscard]] virtual domain::TeamId next_id() = 0;
+
     virtual core::Result<void, core::Error>
     save(const Team& team) = 0;
 

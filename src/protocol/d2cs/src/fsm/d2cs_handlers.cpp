@@ -7,15 +7,15 @@
 /// transitions (authenticating → authenticated → in_game) are applied here.
 ///
 ///   handle_login()              — LOGINREQ (0x01)
-///   handle_char_login()         — CHARLOGINREQ (0x0A)
-///   handle_create_game()        — CREATEGAMEREQ (0x07)
-///   handle_join_game()          — JOINGAMEREQ (0x08)
-///   handle_game_list()          — GAMELISTREQ (0x09)
-///   handle_game_info()          — GAMEINFOREQ (0x0B)
+///   handle_char_login()         — CHARLOGINREQ (0x07)
+///   handle_create_game()        — CREATEGAMEREQ (0x03)
+///   handle_join_game()          — JOINGAMEREQ (0x04)
+///   handle_game_list()          — GAMELISTREQ (0x05)
+///   handle_game_info()          — GAMEINFOREQ (0x06)
 ///   handle_create_char()        — CREATECHARREQ (0x02)
-///   handle_delete_char()        — DELETECHARREQ (0x03)
+///   handle_delete_char()        — DELETECHARREQ (0x0A)
 ///   handle_char_list()          — CHARLISTREQ (0x17)
-///   handle_char_list_110()      — CHARLISTREQ110 (0x18)
+///   handle_char_list_110()      — CHARLISTREQ110 (0x19)
 ///   handle_motd()               — MOTDREQ (0x12)
 ///   handle_cancel_create_game() — CANCELCREATEGAME (0x0C)
 ///   handle_convert_char()       — CONVERTCHARREQ (0x19)
@@ -74,32 +74,15 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_login(
 core::Result<void, core::Error> D2CSSessionFsm::handle_char_login(
     const uint8_t* payload, size_t len)
 {
-    // Wire layout (after 3-byte header):
-    //   [0..3]   uint32_t  seqno
-    //   [4..7]   uint32_t  char_class
-    //   [8..11]  uint32_t  char_level
-    //   [12..15] uint32_t  char_status
-    //   [16..]   char[]    account_name (null-terminated)
-    //   [..]     char[]    char_name    (null-terminated)
-    constexpr size_t kMinFixed = 16;
-    if (len < kMinFixed) {
-        return core::fail(
-            core::make_error(core::StatusCode::InvalidArgument,
-                             "D2CS CHARLOGINREQ: payload too short"));
-    }
-
+    // Wire layout (after 3-byte header) per d2cs_protocol.h
+    // t_client_d2cs_charloginreq:
+    //   [0..]   char[]    char_name (null-terminated)
+    // There are no fixed fields: the account comes from the session (set at
+    // LOGINREQ) and class/level/status come from the server-side charinfo, not
+    // the client.
     D2CSCharLoginRequest req;
     size_t offset = 0;
 
-    if (!read_u32le(payload, len, offset, req.seqno))       goto short_payload;
-    if (!read_u32le(payload, len, offset, req.char_class))  goto short_payload;
-    if (!read_u32le(payload, len, offset, req.char_level))  goto short_payload;
-    if (!read_u32le(payload, len, offset, req.char_status)) goto short_payload;
-
-    if (!read_cstring(payload, len, offset, req.account_name)) {
-        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                           "D2CS CHARLOGINREQ: unterminated account_name"));
-    }
     if (!read_cstring(payload, len, offset, req.char_name)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
                                            "D2CS CHARLOGINREQ: unterminated char_name"));
@@ -113,10 +96,6 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_char_login(
     }
     state_ = D2CSSessionState::authenticated;
     return core::Result<void, core::Error>();
-
-short_payload:
-    return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                       "D2CS CHARLOGINREQ: payload too short"));
 }
 
 core::Result<void, core::Error> D2CSSessionFsm::handle_create_game(
@@ -275,11 +254,13 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_game_info(
 core::Result<void, core::Error> D2CSSessionFsm::handle_create_char(
     const uint8_t* payload, size_t len)
 {
-    // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    //   [4]     uint8_t   char_class
-    //   [5]     uint8_t   char_flags
+    // Wire layout (after 3-byte header) per d2cs_protocol.h
+    // t_client_d2cs_createcharreq:
+    //   [0..1]  uint16_t  chclass (character class)
+    //   [2..3]  uint16_t  u1      (always zero)
+    //   [4..5]  uint16_t  status  (same as in .d2s file)
     //   [6..]   char[]    char_name (null-terminated)
+    // There is NO seqno, and class/status are 16-bit fields.
     constexpr size_t kMinFixed = 6;
     if (len < kMinFixed) {
         return core::fail(
@@ -289,12 +270,14 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_create_char(
 
     D2CSCreateCharRequest req;
     size_t offset = 0;
-    if (!read_u32le(payload, len, offset, req.seqno)) {
+    uint16_t u1 = 0;
+    if (!read_u16le(payload, len, offset, req.char_class) ||
+        !read_u16le(payload, len, offset, u1) ||
+        !read_u16le(payload, len, offset, req.char_status)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                           "D2CS CREATECHARREQ: cannot read seqno"));
+                                           "D2CS CREATECHARREQ: payload too short"));
     }
-    req.char_class = payload[offset++];
-    req.char_flags = payload[offset++];
+    (void)u1;  // always zero on the wire
 
     if (!read_cstring(payload, len, offset, req.char_name)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
@@ -313,10 +296,12 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_create_char(
 core::Result<void, core::Error> D2CSSessionFsm::handle_delete_char(
     const uint8_t* payload, size_t len)
 {
-    // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    //   [4..]   char[]    char_name (null-terminated)
-    constexpr size_t kMinFixed = 4;
+    // Wire layout (after 3-byte header) per d2cs_protocol.h
+    // t_client_d2cs_deletecharreq:
+    //   [0..1]  uint16_t  u1 (always zero)
+    //   [2..]   char[]    char_name (null-terminated)
+    // There is NO seqno; only a 2-byte u1 precedes the name.
+    constexpr size_t kMinFixed = 2;
     if (len < kMinFixed) {
         return core::fail(
             core::make_error(core::StatusCode::InvalidArgument,
@@ -325,10 +310,12 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_delete_char(
 
     D2CSDeleteCharRequest req;
     size_t offset = 0;
-    if (!read_u32le(payload, len, offset, req.seqno)) {
+    uint16_t u1 = 0;
+    if (!read_u16le(payload, len, offset, u1)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                           "D2CS DELETECHARREQ: cannot read seqno"));
+                                           "D2CS DELETECHARREQ: payload too short"));
     }
+    (void)u1;  // always zero on the wire
     if (!read_cstring(payload, len, offset, req.char_name)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
                                            "D2CS DELETECHARREQ: unterminated char_name"));

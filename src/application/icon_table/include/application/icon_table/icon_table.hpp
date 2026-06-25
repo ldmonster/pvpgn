@@ -29,13 +29,32 @@ inline constexpr std::size_t kIconReqWar3Levels    = 4;
 inline constexpr std::size_t kIconReqW3xpLevels    = 5;
 inline constexpr std::size_t kIconReqTourneyLevels = 5;
 
+// Built-in default win-count thresholds. These mirror the hard-coded
+// defaults the legacy server always seeds in
+// `bnetd/anongame_infos.cpp::anongame_infos_ICON_REQ_init`
+// (lines 171-186), which run unconditionally *before* any config
+// override. Without these, a missing/malformed config would leave the
+// thresholds at zero and unlock every icon for every user, defeating
+// the icon-switch-hack protection.
+inline constexpr std::array<std::uint16_t, kIconReqWar3Levels>
+    kIconReqWar3Defaults{25, 250, 500, 1500};
+inline constexpr std::array<std::uint16_t, kIconReqW3xpLevels>
+    kIconReqW3xpDefaults{25, 150, 350, 750, 1500};
+inline constexpr std::array<std::uint16_t, kIconReqTourneyLevels>
+    kIconReqTourneyDefaults{10, 75, 150, 250, 500};
+
 // Win-count thresholds for race-icon and tournament-icon unlocks.
 // Loaded by `infra/legacy_config/icon_req_loader` from the
 // `[ICON_REQUIRED_*]` blocks in `anongame_infos.conf`.
+//
+// A default-constructed `IconReqTable` holds the legacy built-in
+// defaults (NOT zeros), so the icon-switch protection stays intact
+// even when no config file is present. The loader starts from these
+// defaults and overrides only the levels it finds in the file.
 struct IconReqTable {
-    std::array<std::uint16_t, kIconReqWar3Levels>    war3{};
-    std::array<std::uint16_t, kIconReqW3xpLevels>    w3xp{};
-    std::array<std::uint16_t, kIconReqTourneyLevels> tourney{};
+    std::array<std::uint16_t, kIconReqWar3Levels>    war3    = kIconReqWar3Defaults;
+    std::array<std::uint16_t, kIconReqW3xpLevels>    w3xp    = kIconReqW3xpDefaults;
+    std::array<std::uint16_t, kIconReqTourneyLevels> tourney = kIconReqTourneyDefaults;
     bool operator==(const IconReqTable&) const = default;
 };
 

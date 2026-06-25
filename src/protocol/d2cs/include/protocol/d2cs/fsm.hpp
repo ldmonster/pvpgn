@@ -18,6 +18,7 @@
 /// Payload follows immediately after the 3-byte header.
 
 #include "core/result.hpp"
+#include "protocol/d2cs/charlistreply_encoder.hpp"
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -100,12 +101,14 @@ struct D2CSLoginRequest {
 };
 
 struct D2CSCharLoginRequest {
-    uint32_t    seqno;        ///< Sequence number
-    uint32_t    char_class;   ///< Character class
-    uint32_t    char_level;   ///< Character level
-    uint32_t    char_status;  ///< Character status flags
-    std::string account_name; ///< Null-terminated account name
-    std::string char_name;    ///< Null-terminated character name
+    // CHARLOGINREQ (0x07) wire layout (after the 3-byte header) is just the
+    // null-terminated character name — see d2cs_protocol.h
+    // t_client_d2cs_charloginreq. The account is taken from the session (set at
+    // LOGINREQ), and class/level/status come from the server-side charinfo, not
+    // the client. account_name is populated by the application layer from the
+    // session, not parsed off the wire.
+    std::string account_name; ///< Session account name (not on the wire)
+    std::string char_name;    ///< Null-terminated character name (on the wire)
 };
 
 struct D2CSCreateGameRequest {
@@ -135,14 +138,18 @@ struct D2CSGameInfoRequest {
 };
 
 struct D2CSCreateCharRequest {
-    uint32_t    seqno;      ///< Sequence number
-    uint8_t     char_class; ///< Character class
-    uint8_t     char_flags; ///< Character flags (hardcore/expansion)
+    // CREATECHARREQ (0x02) wire layout (after the 3-byte header):
+    //   chclass (u16 LE) + u1 (u16 LE, always 0) + status (u16 LE) + name.
+    // See d2cs_protocol.h t_client_d2cs_createcharreq. There is NO seqno.
+    uint16_t    char_class; ///< Character class (16-bit on the wire)
+    uint16_t    char_status; ///< Character status flags (16-bit on the wire)
     std::string char_name;  ///< Null-terminated character name
 };
 
 struct D2CSDeleteCharRequest {
-    uint32_t    seqno;     ///< Sequence number
+    // DELETECHARREQ (0x0a) wire layout (after the 3-byte header):
+    //   u1 (u16 LE, always 0) + name. See d2cs_protocol.h
+    //   t_client_d2cs_deletecharreq. There is NO seqno.
     std::string char_name; ///< Null-terminated character name
 };
 
@@ -252,10 +259,24 @@ public:
         uint32_t seqno, uint32_t game_id, uint32_t gs_ip,
         uint32_t token, uint32_t result_code);
 
-    /// Build a CHARLISTREPLY packet.
-    /// @param char_names   List of character names
+    /// Build a CHARLISTREPLY (0x17) packet.
+    ///
+    /// Emits the wire-accurate body per d2cs_protocol.h
+    /// t_d2cs_client_charlistreply:
+    ///   maxchar(u16) currchar(u16) u1(u16=0) currchar2(u16)
+    /// followed, per character, by a NUL-terminated name and a NUL-terminated
+    /// portrait block. This delegates to the byte-accurate
+    /// `charlistreply::encode()`.
+    ///
+    /// @param maxchar_field  Value for the `maxchar` slot — the actual
+    ///                       per-account maximum if new-char creation is
+    ///                       permitted and there is room, otherwise 0 (the
+    ///                       client uses this to enable/disable the Create
+    ///                       button).
+    /// @param entries        Per-character name + portrait, in wire order.
     [[nodiscard]] static std::vector<uint8_t> make_char_list_reply(
-        const std::vector<std::string>& char_names);
+        uint16_t maxchar_field,
+        const std::vector<charlistreply::CharEntry>& entries);
 
     /// Build a CREATECHARREPLY packet.
     /// @param result_code  0x00 = success, 0x01 = failed, 0x14 = already exists

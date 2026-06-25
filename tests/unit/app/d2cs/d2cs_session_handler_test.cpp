@@ -221,13 +221,10 @@ TEST_CASE("D2CSSessionHandler: on_char_login found sends success",
     auto ch = make_char("MyChar", CharacterClass::Paladin, 42, 99999);
     REQUIRE(f.char_repo.save_character("Carol", ch));
 
+    // CHARLOGINREQ carries only the char name; the account is the session
+    // account set by f.login("Carol").
     D2CSCharLoginRequest req;
-    req.account_name = "Carol";
     req.char_name    = "MyChar";
-    req.seqno        = 1;
-    req.char_class   = 0;
-    req.char_level   = 42;
-    req.char_status  = 0;
     REQUIRE(f.cb.on_char_login(req).has_value());
 
     REQUIRE(f.egress.char_select_called);
@@ -248,12 +245,7 @@ TEST_CASE("D2CSSessionHandler: on_char_login not found sends failure",
     f.login("Dave");
 
     D2CSCharLoginRequest req;
-    req.account_name = "Dave";
     req.char_name    = "Ghost";
-    req.seqno        = 1;
-    req.char_class   = 0;
-    req.char_level   = 1;
-    req.char_status  = 0;
     REQUIRE(f.cb.on_char_login(req).has_value());
 
     REQUIRE(f.egress.char_select_called);
@@ -272,10 +264,9 @@ TEST_CASE("D2CSSessionHandler: on_create_char success sends true",
     f.login("Eve");
 
     D2CSCreateCharRequest req;
-    req.seqno      = 1;
-    req.char_class = static_cast<uint8_t>(CharacterClass::Amazon);
-    req.char_flags = static_cast<uint8_t>(CharacterFlags::None);
-    req.char_name  = "NewAmazon";
+    req.char_class  = static_cast<uint16_t>(CharacterClass::Amazon);
+    req.char_status = static_cast<uint16_t>(CharacterFlags::None);
+    req.char_name   = "NewAmazon";
     REQUIRE(f.cb.on_create_char(req).has_value());
 
     REQUIRE(f.egress.char_create_called);
@@ -301,10 +292,9 @@ TEST_CASE("D2CSSessionHandler: on_create_char duplicate sends false",
     REQUIRE(f.char_repo.save_character("Frank", make_char("Dupe")));
 
     D2CSCreateCharRequest req;
-    req.seqno      = 1;
-    req.char_class = static_cast<uint8_t>(CharacterClass::Necromancer);
-    req.char_flags = static_cast<uint8_t>(CharacterFlags::None);
-    req.char_name  = "Dupe";
+    req.char_class  = static_cast<uint16_t>(CharacterClass::Necromancer);
+    req.char_status = static_cast<uint16_t>(CharacterFlags::None);
+    req.char_name   = "Dupe";
     REQUIRE(f.cb.on_create_char(req).has_value());
 
     REQUIRE(f.egress.char_create_called);
@@ -324,7 +314,6 @@ TEST_CASE("D2CSSessionHandler: on_delete_char success sends true",
     REQUIRE(f.char_repo.save_character("Grace", make_char("ToDelete")));
 
     D2CSDeleteCharRequest req;
-    req.seqno     = 1;
     req.char_name = "ToDelete";
     REQUIRE(f.cb.on_delete_char(req).has_value());
 
@@ -347,7 +336,6 @@ TEST_CASE("D2CSSessionHandler: on_delete_char not found sends false",
     f.login("Hank");
 
     D2CSDeleteCharRequest req;
-    req.seqno     = 1;
     req.char_name = "NoSuchChar";
     REQUIRE(f.cb.on_delete_char(req).has_value());
 

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/social/create_team.hpp"
 
-#include <ctime>
-
 #include "domain/shared/event_bus.hpp"
 #include "domain/social/ports.hpp"
 #include "domain/shared/client_tag.hpp"
@@ -18,8 +16,19 @@ CreateTeam::execute(const CreateTeamRequest& req) {
         return core::fail(CreateTeamError::InvalidMemberCount);
     }
 
-    // 2. Generate a team ID (timestamp-based, same strategy as CreateClan)
-    domain::TeamId team_id{static_cast<std::uint32_t>(std::time(nullptr))};
+    // 2. Allocate a fresh, monotonic team ID via the repository.
+    //
+    // Rationale: the previous implementation derived the id from
+    // std::time(nullptr) (a wall-clock second). Two teams formed within the
+    // same second collided on the same id, and because the team repository
+    // keys by id (in-memory: teams_[team.id()] = ...), the second create
+    // SILENTLY OVERWROTE the first — lost team / data loss on a busy server.
+    // next_id() returns max(existing id) + 1, seeded so the first team gets 1
+    // and id 0 (the sentinel) is never handed out. This mirrors the original
+    // server's strictly monotonic ++max_teamid counter (bnetd/team.cpp) and is
+    // the same fix pattern applied to account-uid allocation in
+    // create_account.cpp.
+    domain::TeamId team_id = teams_->next_id();
 
     // 3. Create the team aggregate (domain validates uniqueness of members)
     auto team_result = domain::social::Team::create(

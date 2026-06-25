@@ -12,6 +12,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "protocol/d2cs/fsm.hpp"
 
+#include <cstddef>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -194,23 +195,16 @@ TEST_CASE("D2CSSessionFsm - TC-07 CHARLOGINREQ callback and state transition", "
     };
     D2CSSessionFsm fsm(cb);
 
+    // CHARLOGINREQ (0x07) wire body is just the NUL-terminated char name
+    // (d2cs_protocol.h t_client_d2cs_charloginreq). No seqno/class/level/status
+    // and no account on the wire — the account comes from the session.
     std::vector<uint8_t> payload;
-    push_u32(payload, 7);    // seqno
-    push_u32(payload, 3);    // char_class (Amazon = 3)
-    push_u32(payload, 25);   // char_level
-    push_u32(payload, 0x01); // char_status (hardcore)
-    push_cstr(payload, "MyAccount");
     push_cstr(payload, "MyAmazon");
 
     auto r = feed(fsm, make_packet(0x07, payload));
 
     REQUIRE(r);
     CHECK(called);
-    CHECK(captured.seqno == 7);
-    CHECK(captured.char_class == 3);
-    CHECK(captured.char_level == 25);
-    CHECK(captured.char_status == 0x01);
-    CHECK(captured.account_name == "MyAccount");
     CHECK(captured.char_name == "MyAmazon");
     CHECK(fsm.state() == D2CSSessionState::authenticated);
 }
@@ -352,19 +346,21 @@ TEST_CASE("D2CSSessionFsm - TC-12 CREATECHARREQ callback invoked", "[protocol][d
     };
     D2CSSessionFsm fsm(cb);
 
+    // CREATECHARREQ (0x02) wire body per d2cs_protocol.h
+    // t_client_d2cs_createcharreq: chclass(u16) + u1(u16=0) + status(u16) + name.
+    // There is NO seqno; class and status are 16-bit.
     std::vector<uint8_t> payload;
-    push_u32(payload, 33);  // seqno
-    payload.push_back(0);   // char_class = Barbarian
-    payload.push_back(0x40);// char_flags = expansion
+    push_u16(payload, 4);     // chclass = Barbarian
+    push_u16(payload, 0);     // u1 (always zero)
+    push_u16(payload, 0x20);  // status = expansion
     push_cstr(payload, "NewBarb");
 
     auto r = feed(fsm, make_packet(0x02, payload));
 
     REQUIRE(r);
     CHECK(called);
-    CHECK(captured.seqno == 33);
-    CHECK(captured.char_class == 0);
-    CHECK(captured.char_flags == 0x40);
+    CHECK(captured.char_class == 4);
+    CHECK(captured.char_status == 0x20);
     CHECK(captured.char_name == "NewBarb");
 }
 
@@ -383,16 +379,87 @@ TEST_CASE("D2CSSessionFsm - TC-13 DELETECHARREQ callback invoked", "[protocol][d
     };
     D2CSSessionFsm fsm(cb);
 
+    // DELETECHARREQ (0x0a) wire body per d2cs_protocol.h
+    // t_client_d2cs_deletecharreq: u1(u16=0) + name. There is NO seqno; only a
+    // 2-byte u1 precedes the name.
     std::vector<uint8_t> payload;
-    push_u32(payload, 44);  // seqno
+    push_u16(payload, 0);   // u1 (always zero)
     push_cstr(payload, "OldChar");
 
     auto r = feed(fsm, make_packet(0x0A, payload));
 
     REQUIRE(r);
     CHECK(called);
-    CHECK(captured.seqno == 44);
     CHECK(captured.char_name == "OldChar");
+}
+
+// ---------------------------------------------------------------------------
+// TC-13r: Regression (F2) — CREATECHARREQ reads class from offset 0, not 4.
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-13r CREATECHARREQ class at offset 0 (no seqno)", "[protocol][d2cs]") {
+    D2CSCreateCharRequest captured;
+    D2CSFsmCallbacks cb;
+    cb.on_create_char = [&](const D2CSCreateCharRequest& req) {
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    // chclass=6 (Assassin) at offset 0; status=0x24 at offset 4. With the old
+    // phantom-seqno parse, class would have been read from offset 4 (=0x24).
+    std::vector<uint8_t> payload;
+    push_u16(payload, 6);     // chclass @0
+    push_u16(payload, 0);     // u1     @2
+    push_u16(payload, 0x24);  // status @4
+    push_cstr(payload, "Sin");
+
+    REQUIRE(feed(fsm, make_packet(0x02, payload)));
+    CHECK(captured.char_class == 6);      // not 0x24
+    CHECK(captured.char_status == 0x24);
+    CHECK(captured.char_name == "Sin");
+}
+
+// ---------------------------------------------------------------------------
+// TC-13s: Regression (F4) — DELETECHARREQ name starts at offset 2 (u1), not 4.
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-13s DELETECHARREQ name after 2-byte u1", "[protocol][d2cs]") {
+    D2CSDeleteCharRequest captured;
+    D2CSFsmCallbacks cb;
+    cb.on_delete_char = [&](const D2CSDeleteCharRequest& req) {
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    // Only a 2-byte u1 precedes the name. The old 4-byte skip would have eaten
+    // the first two name bytes ("He"), corrupting it to "ro".
+    std::vector<uint8_t> payload;
+    push_u16(payload, 0);   // u1 @0..1
+    push_cstr(payload, "Hero");
+
+    REQUIRE(feed(fsm, make_packet(0x0A, payload)));
+    CHECK(captured.char_name == "Hero");  // not "ro"
+}
+
+// ---------------------------------------------------------------------------
+// TC-13t: Regression (F3) — CHARLOGINREQ name starts at offset 0 (no 16 bytes).
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-13t CHARLOGINREQ name at offset 0", "[protocol][d2cs]") {
+    D2CSCharLoginRequest captured;
+    D2CSFsmCallbacks cb;
+    cb.on_char_login = [&](const D2CSCharLoginRequest& req) {
+        captured = req;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    // Body is the name only. The old parse consumed 16 phantom bytes first, so
+    // it would have eaten the name into integer fields and read garbage.
+    std::vector<uint8_t> payload;
+    push_cstr(payload, "Hero");
+
+    REQUIRE(feed(fsm, make_packet(0x07, payload)));
+    CHECK(captured.char_name == "Hero");
 }
 
 // ---------------------------------------------------------------------------
@@ -680,44 +747,88 @@ TEST_CASE("D2CSSessionFsm - TC-25 make_join_game_reply structure", "[protocol][d
 }
 
 // ---------------------------------------------------------------------------
-// TC-26: make_char_list_reply — correct structure with names
+// TC-26: make_char_list_reply — wire-accurate CHARLISTREPLY structure
 // ---------------------------------------------------------------------------
 TEST_CASE("D2CSSessionFsm - TC-26 make_char_list_reply with names", "[protocol][d2cs]") {
-    std::vector<std::string> names = {"Barb", "Sorc"};
-    auto reply = D2CSSessionFsm::make_char_list_reply(names);
+    // Real CHARLISTREPLY body (d2cs_protocol.h t_d2cs_client_charlistreply):
+    //   maxchar(u16) currchar(u16) u1(u16=0) currchar2(u16)
+    //   then per char: NUL-terminated name + NUL-terminated portrait.
+    charlistreply::CharEntry barb;
+    barb.charname = "Barb";
+    barb.portrait = {std::byte{0xAA}};  // 1-byte stand-in portrait
+    charlistreply::CharEntry sorc;
+    sorc.charname = "Sorc";
+    sorc.portrait = {std::byte{0xBB}};
 
-    // Header(3) + count(4) + "Barb\0"(5) + "Sorc\0"(5) = 17
-    REQUIRE(reply.size() == 17);
-    CHECK(reply[2] == 0x17);  // CHARLISTREPLY
+    auto reply = D2CSSessionFsm::make_char_list_reply(8, {barb, sorc});
 
-    // count = 2 (LE)
-    CHECK(reply[3] == 2);
-    CHECK(reply[4] == 0);
-    CHECK(reply[5] == 0);
-    CHECK(reply[6] == 0);
+    auto u16le = [&](size_t off) {
+        return static_cast<uint16_t>(reply[off] | (reply[off + 1] << 8));
+    };
 
-    // "Barb\0"
-    CHECK(reply[7]  == 'B');
-    CHECK(reply[8]  == 'a');
-    CHECK(reply[9]  == 'r');
-    CHECK(reply[10] == 'b');
-    CHECK(reply[11] == 0x00);
+    // Header(3) + 4*u16(8) + "Barb\0"(5) + portrait(1)+NUL(1) +
+    //                        "Sorc\0"(5) + portrait(1)+NUL(1) = 25
+    REQUIRE(reply.size() == 25);
+    CHECK(u16le(0) == 25);     // size (includes header)
+    CHECK(reply[2] == 0x17);   // CHARLISTREPLY type
 
-    // "Sorc\0"
-    CHECK(reply[12] == 'S');
-    CHECK(reply[16] == 0x00);
+    CHECK(u16le(3) == 8);      // maxchar
+    CHECK(u16le(5) == 2);      // currchar
+    CHECK(u16le(7) == 0);      // u1 (always zero)
+    CHECK(u16le(9) == 2);      // currchar2
+
+    // First char: "Barb\0" + 0xAA + NUL
+    CHECK(reply[11] == 'B');
+    CHECK(reply[12] == 'a');
+    CHECK(reply[13] == 'r');
+    CHECK(reply[14] == 'b');
+    CHECK(reply[15] == 0x00);
+    CHECK(reply[16] == 0xAA);
+    CHECK(reply[17] == 0x00);
+
+    // Second char: "Sorc\0" + 0xBB + NUL
+    CHECK(reply[18] == 'S');
+    CHECK(reply[22] == 0x00);
+    CHECK(reply[23] == 0xBB);
+    CHECK(reply[24] == 0x00);
 }
 
 // ---------------------------------------------------------------------------
-// TC-27: make_char_list_reply — empty list
+// TC-27: make_char_list_reply — empty list (header-only body)
 // ---------------------------------------------------------------------------
 TEST_CASE("D2CSSessionFsm - TC-27 make_char_list_reply empty list", "[protocol][d2cs]") {
-    auto reply = D2CSSessionFsm::make_char_list_reply({});
+    auto reply = D2CSSessionFsm::make_char_list_reply(8, {});
 
-    // Header(3) + count(4) = 7
-    REQUIRE(reply.size() == 7);
+    auto u16le = [&](size_t off) {
+        return static_cast<uint16_t>(reply[off] | (reply[off + 1] << 8));
+    };
+
+    // Header(3) + maxchar/currchar/u1/currchar2 (4*u16 = 8) = 11
+    REQUIRE(reply.size() == 11);
+    CHECK(u16le(0) == 11);    // size
+    CHECK(reply[2] == 0x17);  // CHARLISTREPLY
+    CHECK(u16le(3) == 8);     // maxchar
+    CHECK(u16le(5) == 0);     // currchar = 0
+    CHECK(u16le(7) == 0);     // u1
+    CHECK(u16le(9) == 0);     // currchar2 = 0
+}
+
+// ---------------------------------------------------------------------------
+// TC-27b: make_char_list_reply — regression: maxchar=0 signals "no new char"
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-27b make_char_list_reply maxchar zero", "[protocol][d2cs]") {
+    // When the account is full the caller passes maxchar_field = 0, which the
+    // client reads as "Create disabled".
+    charlistreply::CharEntry e;
+    e.charname = "Full";
+    auto reply = D2CSSessionFsm::make_char_list_reply(0, {e});
+
+    auto u16le = [&](size_t off) {
+        return static_cast<uint16_t>(reply[off] | (reply[off + 1] << 8));
+    };
     CHECK(reply[2] == 0x17);
-    CHECK(reply[3] == 0);  // count = 0
+    CHECK(u16le(3) == 0);   // maxchar = 0 (no new-char allowed)
+    CHECK(u16le(5) == 1);   // currchar = 1
 }
 
 // ---------------------------------------------------------------------------
@@ -863,14 +974,14 @@ TEST_CASE("D2CSSessionFsm - TC-37 LOGINREQ too-short payload rejected", "[protoc
 }
 
 // ---------------------------------------------------------------------------
-// TC-38: CHARLOGINREQ too-short payload — returns error
+// TC-38: CHARLOGINREQ unterminated char name — returns error
 // ---------------------------------------------------------------------------
-TEST_CASE("D2CSSessionFsm - TC-38 CHARLOGINREQ too-short payload rejected", "[protocol][d2cs]") {
+TEST_CASE("D2CSSessionFsm - TC-38 CHARLOGINREQ unterminated name rejected", "[protocol][d2cs]") {
     D2CSFsmCallbacks cb;
     D2CSSessionFsm fsm(cb);
 
-    // Only 8 bytes (need at least 16 for 4 uint32_t fields)
-    std::vector<uint8_t> payload(8, 0x00);
+    // Body is the char name only; a name with no NUL terminator is malformed.
+    std::vector<uint8_t> payload = {'B', 'a', 'd'};  // no trailing NUL
     auto r = feed(fsm, make_packet(0x07, payload));
     CHECK_FALSE(r);
     CHECK(r.error().code() == core::StatusCode::InvalidArgument);
@@ -911,11 +1022,10 @@ TEST_CASE("D2CSSessionFsm - TC-40 full login flow state machine", "[protocol][d2
         CHECK(fsm.state() == D2CSSessionState::authenticating);
     }
 
-    // Step 2: CHARLOGINREQ
+    // Step 2: CHARLOGINREQ — body is just the NUL-terminated char name.
     {
         std::vector<uint8_t> p;
-        push_u32(p, 2); push_u32(p, 0); push_u32(p, 30); push_u32(p, 0);
-        push_cstr(p, "player"); push_cstr(p, "hero");
+        push_cstr(p, "hero");
         REQUIRE(feed(fsm, make_packet(0x07, p)));
         CHECK(fsm.state() == D2CSSessionState::authenticated);
     }
@@ -1354,9 +1464,9 @@ TEST_CASE("D2CSSessionFsm - TC-61 CREATECHARREQ callback failure propagates", "[
     D2CSSessionFsm fsm(cb);
 
     std::vector<uint8_t> payload;
-    push_u32(payload, 1);
-    push_u8(payload, 0);   // char_class
-    push_u8(payload, 0);   // char_flags
+    push_u16(payload, 0);   // chclass
+    push_u16(payload, 0);   // u1
+    push_u16(payload, 0);   // status
     push_cstr(payload, "DupChar");
 
     auto r = feed(fsm, make_packet(0x02, payload));
@@ -1376,7 +1486,7 @@ TEST_CASE("D2CSSessionFsm - TC-62 DELETECHARREQ callback failure propagates", "[
     D2CSSessionFsm fsm(cb);
 
     std::vector<uint8_t> payload;
-    push_u32(payload, 1);
+    push_u16(payload, 0);   // u1
     push_cstr(payload, "GhostChar");
 
     auto r = feed(fsm, make_packet(0x0A, payload));

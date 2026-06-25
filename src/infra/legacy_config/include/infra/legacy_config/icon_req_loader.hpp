@@ -36,9 +36,18 @@ using pvpgn::application::icon_table::kIconReqW3xpLevels;
 using pvpgn::application::icon_table::kIconReqTourneyLevels;
 
 /// Parse `[ICON_REQUIRED_*]` blocks from `anongame_infos.conf`.
-/// Missing blocks or missing levels are left at zero. Returns
-/// `NotFound` if the file cannot be opened, `InvalidArgument` for
-/// malformed `LevelN = ...` lines.
+///
+/// The returned table starts from the legacy built-in defaults
+/// (`kIconReq*Defaults`, mirroring `anongame_infos_ICON_REQ_init`);
+/// only levels actually present in the file override them. So a
+/// missing block or missing level keeps its protective default
+/// threshold rather than collapsing to zero (which would unlock every
+/// icon for every user and defeat the icon-switch-hack protection).
+///
+/// Returns `NotFound` if the file cannot be opened, `InvalidArgument`
+/// for malformed `LevelN = ...` lines. Callers that treat `NotFound`
+/// as "no config" should fall back to a default-constructed
+/// `IconReqTable`, which already carries the built-in defaults.
 core::Result<IconReqTable> load_icon_req_table(std::string_view path);
 
 }  // namespace pvpgn::infra::legacy_config

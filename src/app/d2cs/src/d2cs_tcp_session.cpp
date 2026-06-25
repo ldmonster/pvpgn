@@ -31,6 +31,44 @@
 
 namespace pvpgn::app::d2cs {
 
+namespace {
+
+// Portrait constants mirror the legacy d2cs encoding (d2charfile.cpp /
+// d2cs_d2gs_character.h):
+//   header = 0x8084 (LE bytes 0x84 0x80), gfx/color/u2 pad = 0xFF,
+//   u1 = 0x80 (MASK), status carries the 0x80 MASK bit, chclass = class+1,
+//   ladder = 1 (ladder) or 0xFF (pad).
+constexpr uint8_t kPortraitPadByte = 0xFF;
+constexpr uint8_t kPortraitMask    = 0x80;
+
+// Build the 33 wire bytes of a character's portrait block. The legacy server
+// appends the portrait with `packet_append_string`, i.e. the bytes up to (but
+// not including) the struct's trailing `end` (0x00) byte, followed by a NUL.
+// The `charlistreply` encoder appends that trailing NUL itself, so we emit the
+// 33 leading bytes here.
+std::vector<std::byte> build_portrait(const domain::d2cs::CharacterInfo& c) {
+    std::vector<std::byte> p;
+    p.reserve(33);
+    auto push = [&p](uint8_t b) { p.push_back(static_cast<std::byte>(b)); };
+
+    push(0x84);                               // header low
+    push(0x80);                               // header high
+    for (int i = 0; i < 11; ++i) push(kPortraitPadByte);  // gfx[11]
+    push(static_cast<uint8_t>(static_cast<uint8_t>(c.class_) + 1));  // chclass
+    for (int i = 0; i < 11; ++i) push(kPortraitPadByte);  // color[11]
+    push(c.level);                            // level
+    push(static_cast<uint8_t>(static_cast<uint8_t>(c.flags) | kPortraitMask));  // status
+    for (int i = 0; i < 3; ++i) push(kPortraitMask);      // u1[3]
+    const bool is_ladder =
+        domain::d2cs::has_flag(c.flags, domain::d2cs::CharacterFlags::Ladder);
+    push(is_ladder ? 0x01 : kPortraitPadByte); // ladder
+    for (int i = 0; i < 2; ++i) push(kPortraitPadByte);   // u2[2]
+    // The trailing `end` (0x00) byte is supplied by the encoder's NUL.
+    return p;
+}
+
+}  // namespace
+
 // ---------------------------------------------------------------------------
 // Constructor
 // ---------------------------------------------------------------------------
@@ -98,21 +136,36 @@ void D2CSTcpSession::send_realm_logon_result(
     send_raw(protocol::d2cs::D2CSSessionFsm::make_login_reply(code));
 }
 
+// Default per-account character cap (legacy d2cs prefs_get_maxchar default).
+static constexpr uint16_t kDefaultMaxChar = 8;
+
 void D2CSTcpSession::send_char_list(
     const std::vector<domain::d2cs::CharacterInfo>& chars) {
-    // Build the character name list for the FSM packet builder.
-    std::vector<std::string> names;
-    names.reserve(chars.size());
+    // Build the per-character entries (name + portrait block) for the
+    // wire-accurate CHARLISTREPLY encoder.
+    std::vector<protocol::d2cs::charlistreply::CharEntry> entries;
+    entries.reserve(chars.size());
     for (const auto& c : chars) {
-        names.push_back(c.name);
+        protocol::d2cs::charlistreply::CharEntry e;
+        e.charname = c.name;
+        e.portrait = build_portrait(c);
+        entries.push_back(std::move(e));
     }
-    send_raw(protocol::d2cs::D2CSSessionFsm::make_char_list_reply(names));
+
+    // `maxchar` doubles as the "new char allowed" signal: report the cap only
+    // when there is still room, otherwise 0 (so the client disables Create).
+    const uint16_t maxchar_field =
+        (chars.size() < kDefaultMaxChar) ? kDefaultMaxChar : 0;
+
+    send_raw(protocol::d2cs::D2CSSessionFsm::make_char_list_reply(
+        maxchar_field, entries));
 }
 
 void D2CSTcpSession::send_char_list_result(bool success) {
     // Send an empty char list on failure (client will show "no characters").
     if (!success) {
-        send_raw(protocol::d2cs::D2CSSessionFsm::make_char_list_reply({}));
+        send_raw(protocol::d2cs::D2CSSessionFsm::make_char_list_reply(
+            kDefaultMaxChar, {}));
     }
     // On success the caller should have called send_char_list() instead.
 }

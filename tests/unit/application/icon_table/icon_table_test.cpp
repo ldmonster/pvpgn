@@ -146,3 +146,53 @@ TEST_CASE("validate_user_icon: invalid level digit / race char rejected",
     REQUIRE_FALSE(it::validate_user_icon(kReq, {'7','H','3','W'}, wins));
     REQUIRE_FALSE(it::validate_user_icon(kReq, {'3','Z','3','W'}, wins));
 }
+
+// Regression for finding F8: with NO config loaded, a default-constructed
+// IconReqTable must carry the legacy built-in defaults (not zeros), so the
+// icon-switch protection holds. A user below the default threshold must NOT
+// be eligible for the icon.
+TEST_CASE("icon_table: default (no-config) table keeps protection — "
+          "below-threshold user is not eligible",
+          "[icon_table][validate]") {
+    // No config file is consulted: this is exactly the table a caller
+    // ends up with when anongame_infos.conf is absent/empty/malformed.
+    it::IconReqTable req;
+
+    // Sanity: defaults are seeded, not zero (the all-unlocked bug).
+    REQUIRE(req.w3xp == std::array<std::uint16_t, 5>{25, 150, 350, 750, 1500});
+    REQUIRE(req.tourney == std::array<std::uint16_t, 5>{10, 75, 150, 250, 500});
+
+    // A brand-new user with 0 wins must NOT be able to use a non-default
+    // icon. With the old zero-default bug these would all return true.
+    std::array<std::uint32_t, 6> no_wins{};
+    REQUIRE_FALSE(it::validate_user_icon(req, {'2','H','3','W'}, no_wins));
+    REQUIRE_FALSE(it::validate_user_icon(req, {'6','O','3','W'}, no_wins));
+    REQUIRE_FALSE(it::validate_user_icon(req, {'2','D','3','W'}, no_wins));
+
+    // Just below the default level-1 race threshold (25): still ineligible.
+    std::array<std::uint32_t, 6> almost{};
+    almost[1] = 24;  // HUMANS
+    REQUIRE_FALSE(it::validate_user_icon(req, {'2','H','3','W'}, almost));
+
+    // Exactly at the default threshold: now eligible (defaults are enforced).
+    almost[1] = 25;
+    REQUIRE(it::validate_user_icon(req, {'2','H','3','W'}, almost));
+
+    // The always-valid default icon stays valid even with no wins.
+    REQUIRE(it::validate_user_icon(req, {'1','O','3','W'}, no_wins));
+}
+
+// In the no-config (default) table, build_icon_reply_table must NOT mark
+// every cell unlocked for a winless user — proving the "all icons unlocked"
+// path is closed end-to-end.
+TEST_CASE("icon_table: default (no-config) table does not unlock all cells",
+          "[icon_table]") {
+    it::IconReqTable req;  // built-in defaults
+    auto t = it::build_icon_reply_table(
+        it::Clienttag::W3xp, req, make_ctx_with_no_user_icon_no_wins());
+    bool any_enabled = false;
+    for (const auto& e : t.entries) {
+        if (e.client_enabled) { any_enabled = true; break; }
+    }
+    REQUIRE_FALSE(any_enabled);
+}
