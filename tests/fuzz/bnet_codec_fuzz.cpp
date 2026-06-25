@@ -18,7 +18,7 @@
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     // Wrap the raw fuzzer buffer as a core::ByteView using the project helper.
-    const core::ByteView buf = core::as_byte_view(data, size);
+    const pvpgn::core::ByteView buf = pvpgn::core::as_byte_view(data, size);
 
     // Step 1: attempt to parse one complete BNet frame.
     //   - Err(DecodeError)  → malformed stream; not a crash.
