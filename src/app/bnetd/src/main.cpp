@@ -520,10 +520,16 @@ int main(int argc, char* argv[]) {
             /* wol_store        = */ &wol_store,
             /* session_registry = */ &session_reg,
         };
+        auto wol_list_channels = use_cases.list_channels;
+        auto wol_join_channel  = use_cases.join_channel;
+        auto wol_post_message  = use_cases.post_message;
         TcpListener wol_listener{
             rt,
-            [&cfg, wol_auth](std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
-                make_wol_session(std::move(tcp), cfg, wol_auth);
+            [&cfg, wol_auth, wol_list_channels, wol_join_channel,
+             wol_post_message](std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
+                make_wol_session(std::move(tcp), cfg, wol_auth,
+                                 wol_list_channels, wol_join_channel,
+                                 wol_post_message);
             },
             wol_idle};
         wol_listener.start(cfg.listen_address, cfg.wol_port);

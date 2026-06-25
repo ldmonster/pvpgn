@@ -125,6 +125,72 @@ def wol_login(host, port, username, password, sku=1000, oldver="1",
         c.close()
 
 
+RPL_CHANNEL  = 327
+RPL_LISTEND  = 323
+RPL_ENDOFNAMES = 366
+
+
+def wol_session(host, port, username, password, sku=1000, oldver="1",
+                version="1.0", realname="RealName"):
+    """Do the WOL login handshake and return the OPEN, logged-in WolClient (for
+    post-login LIST/JOIN). Returns None if login was refused."""
+    c = WolClient(host, port)
+    c.send_line(f"CVERS {oldver} {sku}")
+    c.send_line(f"VERCHK {sku} {version}")
+    c.send_line(f"APGAR {apgar_for(password)}")
+    c.send_line(f"NICK {username}")
+    c.send_line(f"USER {username} HostName irc.westwood.com :{realname}")
+    for _ in range(60):
+        line = c.read_line()
+        if line is None:
+            break
+        code = WolClient.numeric(line)
+        if code == RPL_ENDOFMOTD:
+            return c
+        if code in (RPL_BAD_LOGIN, ERR_NICKNAMEINUSE):
+            break
+    c.close()
+    return None
+
+
+def wol_join(client, channel):
+    """JOIN a channel; read until the NAMES list ends (366) or a few lines."""
+    client.send_line(f"JOIN {channel}")
+    lines = []
+    for _ in range(20):
+        line = client.read_line()
+        if line is None:
+            break
+        lines.append(line)
+        if WolClient.numeric(line) == RPL_ENDOFNAMES:
+            break
+        # The original echoes the JOIN (":nick!... JOIN ...") and a 353 NAMES.
+        if " JOIN " in line and len(lines) >= 2:
+            break
+    return lines
+
+
+def wol_list(client):
+    """LIST; collect RPL_CHANNEL (327) entries until RPL_LISTEND (323). Returns
+    the channel names (first token of each 327 reply, '#'-normalized)."""
+    client.send_line("LIST")
+    names = []
+    for _ in range(80):
+        line = client.read_line()
+        if line is None:
+            break
+        code = WolClient.numeric(line)
+        if code == RPL_LISTEND:
+            break
+        if code == RPL_CHANNEL:
+            # ":server 327 nick <name> <count> <flag> 388"
+            parts = line.split()
+            if len(parts) >= 4:
+                name = parts[3].lstrip("#").lower()
+                names.append(name)
+    return sorted(names)
+
+
 if __name__ == "__main__":
     import sys
     h = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"

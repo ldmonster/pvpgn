@@ -47,47 +47,45 @@ core::Status<> WolFsm::on_list(std::string_view /*params*/) {
     }
 
     // 321 RPL_LISTSTART
-    auto st = send_numeric(321, nick_, "Channel :Users  Name");
+    auto st = send_numeric(321, nick_, "Channel :Users Names");
     if (!st) return st;
 
-    // Relay via ListChannels use-case when available.
+    // WOL lists chat channels with RPL_CHANNEL (327), NOT the standard IRC 322:
+    //   :server 327 nick <name> <userCount> <official 0|1> 388
+    // (WOLv2 ends the line with " 388"; WOLv1 with ":"). We emit the WOLv2 form.
+    // The line is built with send_raw so the params follow the nick directly,
+    // exactly like the original irc_send_cmd (no leading ':' before <name>).
+    auto emit_channel = [&](std::string_view name, std::size_t count)
+        -> core::Status<> {
+        std::string line = ":";
+        line += std::string(ctx_->server_name());
+        line += " 327 ";
+        line += nick_;
+        line += ' ';
+        line += name;
+        line += ' ';
+        line += std::to_string(count);
+        line += " 0 388";  // 0 = user channel; 388 = WOLv2 line terminator
+        return send_raw(line);
+    };
+
     if (list_channels_) {
         application::chat::ListChannelsRequest req;
         req.max_results   = 100;
         req.filter_by_tag = std::nullopt;
-
         auto result = list_channels_->execute(req);
         if (result) {
             for (const auto& info : result.value()) {
-                // 322 RPL_LIST  <channel> <count> :<topic>
-                std::string line = ":";
-                line += std::string(ctx_->server_name());
-                line += " 322 ";
-                line += nick_;
-                line += ' ';
-                line += info.name;
-                line += ' ';
-                line += std::to_string(info.member_count);
-                line += " :";
-                // topic is not stored in ChannelInfo; send empty string
-                if (auto s = send_raw(line); !s) return s;
+                if (auto s = emit_channel(info.name, info.member_count); !s)
+                    return s;
             }
         }
-        // On error fall through to RPL_LISTEND with whatever we sent.
     } else if (state_ == WolState::InChannel && !channel_.empty()) {
-        // Stub / no use-case: emit a 322 entry for the channel we're in.
-        std::string line = ":";
-        line += std::string(ctx_->server_name());
-        line += " 322 ";
-        line += nick_;
-        line += ' ';
-        line += channel_;
-        line += " 1 :";
-        if (auto s = send_raw(line); !s) return s;
+        if (auto s = emit_channel(channel_, 1); !s) return s;
     }
 
     // 323 RPL_LISTEND
-    return send_numeric(323, nick_, "End of /LIST");
+    return send_numeric(323, nick_, "End of LIST command");
 }
 
 core::Status<> WolFsm::on_join(std::string_view params) {

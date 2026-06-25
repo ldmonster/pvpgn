@@ -17,11 +17,16 @@ namespace pvpgn::app::bnetd {
 void make_wol_session(
     std::shared_ptr<infra::net::TcpSession> tcp,
     const ServerConfig&                      cfg,
-    protocol::wol::WolAuthDeps               auth) {
+    protocol::wol::WolAuthDeps               auth,
+    std::shared_ptr<application::chat::ListChannels> list_channels,
+    std::shared_ptr<application::chat::JoinChannel>   join_channel,
+    std::shared_ptr<application::chat::PostMessage>   post_message) {
 
     auto egress = std::make_shared<TcpSessionEgress>(tcp);
     auto ctx    = std::make_shared<WolEgressContext>(egress, cfg.server_name);
-    auto fsm    = std::make_shared<protocol::wol::WolFsm>(ctx, auth);
+    auto fsm    = std::make_shared<protocol::wol::WolFsm>(
+        ctx, auth, std::move(list_channels), std::move(join_channel),
+        std::move(post_message));
 
     tcp->set_on_bytes([fsm](core::ByteView bv) {
         auto sp = std::span<const std::byte>(bv.data(), bv.size());

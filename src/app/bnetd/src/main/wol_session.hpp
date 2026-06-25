@@ -11,14 +11,25 @@
 #include "app/bnetd/server_config.hpp"
 #include "protocol/wol/wol_fsm.hpp"
 
+namespace pvpgn::application::chat {
+class JoinChannel;
+class ListChannels;
+class PostMessage;
+}  // namespace pvpgn::application::chat
+
 namespace pvpgn::app::bnetd {
 
 /// Wire up a WolFsm for the given TCP session and start it.
 /// @param auth  Native Westwood Online auth collaborators (CVERS/APGAR flow).
 ///              When incomplete the FSM falls back to the legacy IRC path.
+/// @param list_channels/join_channel/post_message  Chat use-cases for the
+///   post-login WOL lobby (LIST / JOIN / PRIVMSG); may be null.
 void make_wol_session(
     std::shared_ptr<infra::net::TcpSession> tcp,
     const ServerConfig&                      cfg,
-    protocol::wol::WolAuthDeps               auth);
+    protocol::wol::WolAuthDeps               auth,
+    std::shared_ptr<application::chat::ListChannels> list_channels,
+    std::shared_ptr<application::chat::JoinChannel>   join_channel,
+    std::shared_ptr<application::chat::PostMessage>   post_message);
 
 } // namespace pvpgn::app::bnetd

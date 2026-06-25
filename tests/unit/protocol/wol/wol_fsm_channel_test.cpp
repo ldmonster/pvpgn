@@ -159,7 +159,7 @@ TEST_CASE("WolFsm R307: LIST after auth — 321 comes before 323",
     REQUIRE(pos_321 < pos_323);
 }
 
-TEST_CASE("WolFsm R307: LIST after joining a channel includes 322 RPL_LIST entry",
+TEST_CASE("WolFsm R307: LIST after joining a channel includes 327 RPL_CHANNEL entry",
           "[protocol][wol][fsm][channel][R307]") {
     auto ctx = std::make_shared<FakeWolCtx>();
     WolFsm fsm{ctx};
@@ -168,13 +168,13 @@ TEST_CASE("WolFsm R307: LIST after joining a channel includes 322 RPL_LIST entry
 
     REQUIRE(feed_line(fsm, "LIST").has_value());
 
-    // 321 + at least one 322 + 323
+    // WOL LIST: 321 RPL_LISTSTART + RPL_CHANNEL (327) entries + 323 RPL_LISTEND.
     REQUIRE(ctx->has_line_containing("321"));
-    REQUIRE(ctx->has_line_containing("322"));
+    REQUIRE(ctx->has_line_containing(" 327 "));
     REQUIRE(ctx->has_line_containing("323"));
 }
 
-TEST_CASE("WolFsm R307: LIST 322 entry contains channel name",
+TEST_CASE("WolFsm R307: LIST 327 entry contains channel name and WOL terminator",
           "[protocol][wol][fsm][channel][R307]") {
     auto ctx = std::make_shared<FakeWolCtx>();
     WolFsm fsm{ctx};
@@ -183,10 +183,11 @@ TEST_CASE("WolFsm R307: LIST 322 entry contains channel name",
 
     REQUIRE(feed_line(fsm, "LIST").has_value());
 
-    // The 322 line should contain the channel name
-    auto line322 = ctx->first_line_containing("322");
-    REQUIRE(!line322.empty());
-    REQUIRE(line322.find("#lobby") != std::string::npos);
+    // The 327 RPL_CHANNEL line carries the channel name and the WOLv2 " 388" tail.
+    auto line327 = ctx->first_line_containing(" 327 ");
+    REQUIRE(!line327.empty());
+    REQUIRE(line327.find("#lobby") != std::string::npos);
+    REQUIRE(line327.find("388") != std::string::npos);
 }
 
 TEST_CASE("WolFsm R307: LIST before auth returns 451 ERR_NOTREGISTERED",
