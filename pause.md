@@ -36,14 +36,17 @@ charset-converts INFO replies; with the mock (no codepage) the localized text is
 garbled, so only /who's (non-localized) member names are byte-comparable; v3's
 clean /whois is verified v3-side. /squelch still open (needs broadcast filtering).
 
+## Wave 28 — DONE (/squelch /unsquelch + broadcast filtering, commit 5f0c986)
+New IIgnoreStore + filter_squelched() drops squelched senders from TALK/EMOTE
+broadcasts (mirrors MF_X). diff_squelch.py: bob heard before /squelch, suppressed
+after, matches oracle. ALL BNCS chat commands now implemented.
+
 ## NEXT — remaining post-login divergences
 
-1. /squelch /unsquelch: per-session ignore list + filtering squelched senders'
-   messages out of channel broadcasts (the IgnoreList aggregate exists). Larger
-   than /who-/whois because it mutates per-session state and the broadcast path.
-2. WOL post-login lobby/game commands (LIST/JOIN game model, GAMEOPT, STARTG,
-   matchbot) — still skeleton no-ops (see findings/wol-chat-lobby.md).
-3. JOINGAME password enforcement (noted while wiring game create).
+1. WOL post-login lobby/game commands (LIST/JOIN game model, GAMEOPT, STARTG,
+   matchbot) — still skeleton no-ops (see findings/wol-chat-lobby.md). This is
+   now the largest remaining functional area.
+2. JOINGAME password enforcement (noted while wiring game create).
 
 Note: the CommandRegistry is still NOT wired into bnetd (make_use_case_context
 doesn't set command_registry/permission_checker); the implemented chat commands

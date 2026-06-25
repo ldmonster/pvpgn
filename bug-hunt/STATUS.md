@@ -543,7 +543,19 @@ member names are sprintf'd outside localize so they survive and are the comparab
 observable; v3's clean /whois is verified v3-side. Fixed the R306 /who test
 contract (no-arg → EID_INFO usage, matching the oracle's describe_command).
 
-## RUNNING TOTAL: ~58 distinct bugs/features across 27 waves. Login (all families)
-## + NLS passchange + friends + game advertise/list + /who/whois/users now match
-## the oracle. Still open: /squelch (per-session ignore + broadcast filtering),
-## WOL post-login lobby/game commands, JOINGAME password enforcement.
+## Wave 28: /squelch /unsquelch + broadcast-side ignore filtering
+/squelch was unimplemented and squelched users' messages were never filtered.
+New IIgnoreStore (application/chat) + InMemoryIgnoreStore (infra/inmemory),
+run-loop wired (ignore_store ctx field). handle_squelch intercepts /squelch
+/ignore (+ /unsquelch /unignore) like /whisper. filter_squelched() drops, from a
+TALK/EMOTE broadcast's recipients, any session whose account ignores the sender
+(session_registry->account_for + ignore_store) — mirrors the original MF_X
+delivery filter; no-op when nothing is ignored. diff_squelch.py: bob's channel
+message reaches alice BEFORE /squelch and is suppressed AFTER, matching the
+oracle on both (decisive observable is delivery, not the garbled reply text).
+New drain_chat() mock helper.
+
+## RUNNING TOTAL: ~59 distinct bugs/features across 28 waves. Login (all families)
+## + NLS passchange + friends + game advertise/list + /who/whois/users + /squelch
+## now match the oracle. All BNCS chat commands implemented. Still open: WOL
+## post-login lobby/game commands, JOINGAME password enforcement.
