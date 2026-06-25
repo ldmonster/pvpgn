@@ -202,6 +202,11 @@ private:
     core::Status<> handle_whisper(std::string_view rest,
                                   std::size_t cmd_end);
 
+    /// Handle the /me (and /emote) command: broadcast EID_EMOTE with `body` to
+    /// the other members of the current channel. Errors to the sender when not
+    /// in a channel or the body is empty.
+    core::Status<> handle_emote(std::string_view body);
+
     std::shared_ptr<ISessionContext> ctx_;
     BnetUseCaseContext use_cases_;
     BnetState state_ = BnetState::Init;

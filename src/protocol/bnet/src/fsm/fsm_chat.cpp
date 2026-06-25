@@ -54,6 +54,7 @@ constexpr std::uint32_t kEidLeave    = chat::kServerMessageTypePart;     // 0x03
 constexpr std::uint32_t kEidTalk     = chat::kServerMessageTypeTalk;     // 0x05
 constexpr std::uint32_t kEidChannel  = chat::kServerMessageTypeChannel;  // 0x07
 constexpr std::uint32_t kEidWhisper  = chat::kServerMessageTypeWhisper;  // 0x04
+constexpr std::uint32_t kEidEmote    = chat::kServerMessageTypeEmote;    // 0x17
 constexpr std::uint32_t kEidUserFlags = chat::kServerMessageTypeUserFlags; // 0x09
 constexpr std::uint32_t kEidWhisperSent = chat::kServerMessageTypeWhisperAck; // 0x0a
 constexpr std::uint32_t kEidInfo     = chat::kServerMessageTypeInfo;     // 0x12
@@ -243,6 +244,18 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "w" || cmd == "whisper" || cmd == "msg" || cmd == "m") {
                 return handle_whisper(rest, cmd_end);
             }
+            // --- /me (and alias /emote) ---
+            // An emote is a channel broadcast (EID_EMOTE), not a text-returning
+            // command, so it is handled here rather than via CommandRegistry.
+            if (cmd == "me" || cmd == "emote") {
+                std::string_view body =
+                    (cmd_end == std::string_view::npos) ? std::string_view{}
+                                                        : rest.substr(cmd_end + 1);
+                while (!body.empty() && body.front() == ' ') {
+                    body.remove_prefix(1);
+                }
+                return handle_emote(body);
+            }
         }
 
         std::string result_text;
@@ -418,6 +431,50 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
     // Acknowledge to the sender with EID_WHISPERSENT (0x0a): username = target.
     return ctx_->send(ServerMessage{ChatEvent{
         kEidWhisperSent, 0, 0, 0, 0, 0, std::string{target_name}, message_str}});
+}
+
+core::Status<> BnetFsm::handle_emote(std::string_view body) {
+    auto error_to_self = [this](std::string text) -> core::Status<> {
+        return ctx_->send(ServerMessage{ChatEvent{
+            kEidError, 0, 0, 0, 0, 0, "", std::move(text)}});
+    };
+
+    // The original requires an empty-body /me to print usage; we treat an empty
+    // emote as a no-op error to the sender (parity: nothing is broadcast).
+    if (body.empty()) {
+        return error_to_self("Usage: /me <action>");
+    }
+
+    // An emote is a channel broadcast. Reuse PostMessage to validate membership
+    // and resolve the recipient set (channel members except the sender), then
+    // fan EID_EMOTE out instead of EID_TALK. Without the use-case there is no
+    // channel to emote into.
+    if (!use_cases_.post_message) {
+        return error_to_self("You are not in a channel.");
+    }
+    auto chat_msg_result = domain::ChatMessage::create(std::string{body});
+    if (!chat_msg_result) {
+        return error_to_self("You are not in a channel.");
+    }
+    auto post_result = use_cases_.post_message->execute(
+        current_channel_id_, current_account_id_, chat_msg_result.value());
+    if (!post_result) {
+        // Not in a channel (or not a member) — mirror the original's error.
+        return error_to_self("You are not in a channel.");
+    }
+
+    const std::string body_str{body};
+    const ChatEvent emote{kEidEmote, 0, 0, 0, 0, 0, current_username_, body_str};
+
+    // Unlike TALK (which the original suppresses for the speaker,
+    // channel.cpp:734), an EMOTE is echoed back to the sender too — so the
+    // author sees their own "* alice waves" line. Send to self first, then
+    // fan out to the other channel members.
+    (void)ctx_->send(ServerMessage{emote});
+    if (!post_result.value().recipients.empty()) {
+        broadcast_chat_event(emote, post_result.value().recipients);
+    }
+    return core::ok();
 }
 
 core::Status<> BnetFsm::on(const GameListRequest& m) {

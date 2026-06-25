@@ -233,3 +233,44 @@ EID_WHISPERSENT back to the sender. Offline/unknown target → EID_ERROR
 (`bob:[(4,'alice','hey there')] alice:[(10,'bob','hey there')]`). Unit guards in
 tests/unit/protocol/bnet/fsm_channel_broadcast_test.cpp: routing of EID_WHISPER +
 EID_WHISPERSENT, all four aliases, and the offline-target EID_ERROR path.
+
+---
+
+## F-W18 — /me (/emote) not implemented; emotes dropped
+**Severity:** MEDIUM (a standard chat command was missing)
+**Classification:** NOT-IMPLEMENTED — fixed (wave 18)
+
+**Symptom (differential, tests/diff/diff_emote.py):** Alice sends `/me waves`.
+The original broadcasts EID_EMOTE (0x17, username=alice) to the whole channel,
+INCLUDING the sender. v3 routed `/me` through the generic CommandRegistry, which
+rejected it as unknown, so the emote was dropped entirely.
+
+**Original ref:** src/bnetd/command.cpp `_handle_me_command` ("/me","/emote") ->
+`channel_message_send(channel, message_type_emote, …)`; channel.cpp:734 shows the
+server skips the speaker ONLY for message_type_talk — TALK is suppressed for the
+sender, but EMOTE/WHISPER are echoed back to the sender too.
+
+**Fix:** BnetFsm::on(ChatCommand) intercepts /me and /emote before the generic
+dispatch; new BnetFsm::handle_emote reuses PostMessage to validate channel
+membership + resolve the other-member recipient set, broadcasts EID_EMOTE to
+them, AND echoes EID_EMOTE back to the sender via ctx_ (the TALK/EMOTE self-echo
+asymmetry). Not-in-a-channel -> EID_ERROR "You are not in a channel."
+
+**Verified:** diff_emote.py matches the oracle (bob AND alice each get
+(0x17,'alice','waves')). Confirmed separately that the original does NOT echo
+TALK to self — v3's TALK already excludes the sender, so it stays correct. Unit
+guards in fsm_channel_broadcast_test.cpp: emote-to-others+self-echo, /emote alias,
+and the not-in-channel EID_ERROR path.
+
+---
+
+## F-W18b — EID_JOIN omits the joiner's statstring
+**Severity:** LOW — found wave 18, FIX PENDING
+**Classification:** PARTIAL
+
+When Bob joins Alice's channel the original sends Alice EID_JOIN (0x02) with the
+joiner's statstring as the event text (e.g. "BOON" — product + record), plus a
+couple of EID_USERFLAGS updates. v3 sends EID_JOIN with an EMPTY text and no
+USERFLAGS follow-ups. The join IS announced (event id + username correct), so
+rosters populate; only the statstring/flags payload is missing. Deferred: needs
+the client statstring plumbed from ENTERCHAT/login through the join broadcast.

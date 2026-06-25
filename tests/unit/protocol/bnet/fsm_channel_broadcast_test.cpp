@@ -346,6 +346,86 @@ TEST_CASE("fsm disconnect: leaving a channel notifies the remaining members",
     CHECK(ev->username == "alice");
 }
 
+TEST_CASE("fsm emote: /me broadcasts EID_EMOTE to others AND echoes to self",
+          "[protocol][bnet][emote]") {
+    Harness h;
+
+    auto alice_ctx = std::make_shared<CapturingSessionContext>();
+    auto bob_ctx   = std::make_shared<CapturingSessionContext>();
+    BnetFsm alice{alice_ctx, h.make_ctx(), domain::SessionId{1}};
+    BnetFsm bob{bob_ctx, h.make_ctx(), domain::SessionId{2}};
+
+    h.bring_into_channel(alice, "alice", "test");
+    h.bring_into_channel(bob, "bob", "test");
+
+    h.router->broadcasts.clear();
+    alice_ctx->clear_sent();
+
+    REQUIRE(alice.handle(ClientMessage{ChatCommand{"/me waves"}}).has_value());
+
+    // Other members get EID_EMOTE via the router...
+    REQUIRE(h.router->broadcasts.size() == 1u);
+    const auto& bcast = h.router->broadcasts.front();
+    REQUIRE(bcast.sessions.size() == 1u);
+    CHECK(bcast.sessions.front().value() == 2u);  // bob
+    auto fp = protocol::parse_packet(
+        core::ByteView{bcast.bytes.data(), bcast.bytes.size()});
+    REQUIRE(fp.has_value());
+    auto decoded = decode_server(fp.value().packet);
+    REQUIRE(decoded.has_value());
+    const auto* bev = std::get_if<ChatEvent>(&decoded.value());
+    REQUIRE(bev != nullptr);
+    CHECK(bev->event_id == 0x17u);  // EID_EMOTE
+    CHECK(bev->username == "alice");
+    CHECK(bev->text == "waves");
+
+    // ...and the sender receives the echo too (unlike TALK).
+    const auto* self = last_chat_event(alice_ctx);
+    REQUIRE(self != nullptr);
+    CHECK(self->event_id == 0x17u);  // EID_EMOTE
+    CHECK(self->username == "alice");
+    CHECK(self->text == "waves");
+}
+
+TEST_CASE("fsm emote: /emote alias works",
+          "[protocol][bnet][emote]") {
+    Harness h;
+    auto alice_ctx = std::make_shared<CapturingSessionContext>();
+    auto bob_ctx   = std::make_shared<CapturingSessionContext>();
+    BnetFsm alice{alice_ctx, h.make_ctx(), domain::SessionId{1}};
+    BnetFsm bob{bob_ctx, h.make_ctx(), domain::SessionId{2}};
+    h.bring_into_channel(alice, "alice", "test");
+    h.bring_into_channel(bob, "bob", "test");
+    h.router->broadcasts.clear();
+
+    REQUIRE(alice.handle(ClientMessage{ChatCommand{"/emote nods"}}).has_value());
+    REQUIRE(h.router->broadcasts.size() == 1u);
+}
+
+TEST_CASE("fsm emote: /me with no channel yields EID_ERROR, no broadcast",
+          "[protocol][bnet][emote]") {
+    Harness h;
+    auto alice_ctx = std::make_shared<CapturingSessionContext>();
+    BnetFsm alice{alice_ctx, h.make_ctx(), domain::SessionId{1}};
+
+    // Log in + enter chat but never join a channel.
+    REQUIRE(alice.handle(ClientMessage{AuthInfo{}}).has_value());
+    REQUIRE(alice.handle(ClientMessage{create_req("alice")}).has_value());
+    REQUIRE(alice.handle(ClientMessage{logon_req("alice")}).has_value());
+    REQUIRE(alice.handle(ClientMessage{EnterChatRequest{"alice", "PXES"}})
+                .has_value());
+
+    h.router->broadcasts.clear();
+    alice_ctx->clear_sent();
+
+    REQUIRE(alice.handle(ClientMessage{ChatCommand{"/me waves"}}).has_value());
+
+    CHECK(h.router->broadcasts.empty());
+    const auto* ev = last_chat_event(alice_ctx);
+    REQUIRE(ev != nullptr);
+    CHECK(ev->event_id == 0x13u);  // EID_ERROR
+}
+
 TEST_CASE("fsm disconnect: a user not in any channel broadcasts nothing",
           "[protocol][bnet][channel][broadcast]") {
     Harness h;
