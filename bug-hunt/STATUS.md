@@ -256,3 +256,15 @@ seed (server_token) + the AUTH_CHECK step (cdkey-authcheck findings) and the
 NLS/SRP-3 path — all now have a differential harness to verify against.
 
 ## RUNNING TOTAL: ~39 distinct bugs across 12 waves. Differential oracle harness in place.
+
+## Wave 13 (commit 05db4a8): differential chat harness + empty-roster fix
+Extended the mock-client harness (tests/diff/diff_chat.py) to the post-login
+chat/channel flow. It found that on channel join v3 emitted only [CHANNEL] while
+the oracle emits [CHANNEL,INFO,USERFLAGS,SHOWUSER,...] — v3 skipped the joining
+user, so a real client saw an EMPTY channel roster (not even itself). Fixed
+BnetFsm join to emit USERFLAGS+SHOWUSER for every member incl. self; the diff now
+matches the oracle on the key events. e2e updated to assert self-in-roster.
+
+## Differential harness now covers: OLS login + chat/channel join. Reusable for
+## whisper, /commands, game-list, friends, and the NLS/SRP-3 path next.
+## RUNNING TOTAL: ~41 distinct bugs across 13 waves.
