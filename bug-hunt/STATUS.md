@@ -143,3 +143,39 @@ final pass found no further fixable implemented bugs — remaining items are:
    - game-type enum: restore the full clienttag-dependent table vs keep the
      simplified 5-value set.
 Both are documented with the original behavior in their findings files.
+
+## Waves 7-8 (LANDED) + final discovery — 30+ distinct bugs fixed
+Wave 7 (commit 3814d54): SQL injection (channel repo, CRIT), 4 SQL repos broken
+vs schema (clans/friends/ladder/ip_bans, HIGH) + new real-DB integration tests,
+timestamp attribute keys. Wave 8 (commit 6727834): legacy .plain account-file
+read/write (CRIT — migration imported zero accounts).
+
+Final discovery (file-storage-legacy, mysql-pg-schema, nls-auth-flow deep):
+- file-storage: FIXED (wave 8).
+- MySQL/PostgreSQL: NOT-IMPLEMENTED — no schema, only accounts persisted, rest
+  in-memory stubs; production uses the SQLite UoW factory directly. Feature work,
+  documented in findings/mysql-pg-schema.md.
+- OLS login (CRIT): DEFERRED with a byte-exact FIX PLAN in findings/nls-auth-flow.md.
+  Confirmed the FSM calls the wrong LoginUser overload AND no production
+  IPasswordHasher is wired. Fixing it breaks the e2e (which passes only because of
+  the bug: the Python client sends raw words, not a real double-hash). Needs a
+  hasher adapter + composition wiring + an e2e crypto rewrite — part of the auth
+  decision below.
+
+## FINAL CONCLUSION (~40 subsystems compared, 30+ bugs fixed, 8 clean commits)
+The clearly-fixable *implemented-but-wrong* bug surface is exhausted. asan/ubsan
+clean; unit+functional+integration green after every wave. Remaining work is two
+buckets, both needing a decision rather than a bug-fix:
+
+1. **Auth subsystem (one coherent decision).** WAR3 login uses SRP-6a not legacy
+   SRP-3; OLS login calls the wrong hash overload; no production password-hasher
+   is wired; version-check always passes. ALL of this hinges on one question:
+   **must stock Blizzard clients connect?** If yes, it's the top priority and the
+   plans are recorded (nls-auth-flow.md FIX PLAN + crypto-hash.md). If v3 targets
+   its own client, much of it is intentional. NEEDS USER DECISION.
+
+2. **Unimplemented features** (stubbed FSM handlers + MySQL/PG persistence): news/
+   MOTD, version-check, userdata r/w, realm-list, friends/watch, mail, telnet-auth,
+   squelch/quota, matchmaking, d2gs routing, WOL chat/lobby, Lua hook data,
+   anongame result-agreement. Codecs/use-cases mostly exist and are byte-faithful;
+   they just aren't wired. Feature work, each documented with original behavior.
