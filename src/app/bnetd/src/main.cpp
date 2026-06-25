@@ -121,6 +121,8 @@
 #include "application/social/add_friend.hpp"
 #include "application/social/remove_friend.hpp"
 #include "application/social/list_friends.hpp"
+#include "application/game/start_game.hpp"
+#include "application/game/list_public_games.hpp"
 #include "infra/inmemory/unit_of_work_factory.hpp"
 #include "services/bnetd/bnetd_service.hpp"
 
@@ -436,6 +438,18 @@ int main(int argc, char* argv[]) {
             use_cases.list_friends =
                 std::make_shared<application::social::ListFriends>(
                     no_delete_friends, no_delete_sessions, no_delete_reader);
+
+            // Hosted-game advertisement (SID_STARTADVEX3 0x1C) + game list
+            // (SID_GETADVLISTEX 0x09), over the shared game repository so a game
+            // hosted on one connection is visible to others.
+            auto no_delete_games =
+                std::shared_ptr<domain::gameplay::IGameRepository>(
+                    &game_repo,
+                    [](domain::gameplay::IGameRepository*) noexcept {});
+            use_cases.start_game =
+                std::make_shared<application::game::StartGame>(game_repo);
+            use_cases.list_public_games =
+                std::make_shared<application::game::ListPublicGames>(no_delete_games);
         }
         LOG_INFO("bnetd", "auth use-cases wired: login + OLS account creation + W3 SRP-3");
 

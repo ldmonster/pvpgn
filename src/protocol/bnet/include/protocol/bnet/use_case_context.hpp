@@ -38,6 +38,7 @@ namespace pvpgn::application::game {
 class StartGame;
 class JoinGame;
 class LeaveGame;
+class ListPublicGames;
 }  // namespace pvpgn::application::game
 
 namespace pvpgn::application::moderation {
@@ -59,6 +60,7 @@ struct BnetUseCaseContext {
     std::shared_ptr<application::game::StartGame> start_game;
     std::shared_ptr<application::game::JoinGame> join_game;
     std::shared_ptr<application::game::LeaveGame> leave_game;
+    std::shared_ptr<application::game::ListPublicGames> list_public_games;
     std::shared_ptr<application::moderation::CheckIpBan> check_ip_ban;
     std::shared_ptr<domain::identity::IAccountRepository> account_repo;
     std::shared_ptr<application::ports::ICommandRegistry> command_registry;

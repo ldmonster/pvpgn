@@ -489,6 +489,58 @@ def friends_remove(client, name):
     chat_command(client, f"/friends remove {name}")
 
 
+def advertise_game(client, name, info="map\r\nx", status=0x10, gametype=0x02,
+                   option=0x01, password=""):
+    """SID_STARTADVEX3 (0x1C): host/advertise a game so GETADVLISTEX can find it.
+    status 0x10 satisfies the original's INIT_VALID mask (public, open, not full).
+    Returns the u32 ack (0 == OK)."""
+    body = struct.pack("<HHIHHII", status, 0, 0, gametype, option, 0, 0)
+    body += cstring(name) + cstring(password) + cstring(info)
+    client.send(SID_STARTADVEX3, body)
+    res = _drain_until(client, SID_STARTADVEX3)
+    return first_result_u32(res)
+
+
+def game_list(client, gametype=0x0000, name="", settle=0.4):
+    """SID_GETADVLISTEX (0x09): list advertised games. gametype 0 == ALL.
+    Returns a sorted list of advertised game names."""
+    import time
+    # The original reads TWO trailing cstrings: game name + password (it aborts
+    # without replying if the password field is missing). v3 reads only the name
+    # and ignores the trailing password, so sending both satisfies both servers.
+    body = struct.pack("<HHIII", gametype, 0, 0, 0, 0) + cstring(name) + cstring("")
+    client.send(SID_GETADVLISTEX, body)
+    time.sleep(settle)
+    reply = _drain_until(client, SID_GETADVLISTEX)
+    out = []
+    if reply is None or len(reply) < 8:
+        return out
+    count = struct.unpack_from("<I", reply, 0)[0]
+    # sstatus at [4:8]; entries follow.
+    pos = 8
+    for i in range(count):
+        if i > 0:
+            pos += 4  # 4-byte spacer before entries 2..n
+        pos += 28     # fixed entry header (gametype..unknown6)
+        if pos > len(reply):
+            break
+        nul = reply.find(b"\x00", pos)            # game_name
+        if nul < 0:
+            break
+        gname = reply[pos:nul].decode("latin-1", "replace")
+        pos = nul + 1
+        nul = reply.find(b"\x00", pos)            # password
+        if nul < 0:
+            break
+        pos = nul + 1
+        nul = reply.find(b"\x00", pos)            # info
+        if nul < 0:
+            break
+        pos = nul + 1
+        out.append(gname)
+    return sorted(out, key=str.lower)
+
+
 def full_login(host, port, username, password, product=b"SEXP"):
     """Connect + OLS create + login + enter chat. Returns (client, unique_name)."""
     c = BncsClient(host, port)

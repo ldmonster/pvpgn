@@ -36,6 +36,7 @@
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
 #include "application/chat/whisper_use_case.hpp"
+#include "application/game/list_public_games.hpp"
 #include "application/social/add_friend.hpp"
 #include "application/social/list_friends.hpp"
 #include "application/social/remove_friend.hpp"
@@ -491,12 +492,26 @@ core::Status<> BnetFsm::on(const GameListRequest& m) {
         return reject("bnet fsm: GETADVLISTEX before login");
     }
 
-    // TODO: implement game list query via IGameRepository
-    // For now, send empty game list reply
     GameListReply reply;
-    reply.sstatus = 0;  // Success
-    reply.entries.clear();
-
+    reply.sstatus = 0;  // success
+    if (use_cases_.list_public_games) {
+        application::game::ListPublicGamesRequest req;
+        req.max_results = (m.max_games == 0) ? 50u : m.max_games;
+        auto result = use_cases_.list_public_games->execute(req);
+        if (result) {
+            for (const auto& g : result.value()) {
+                // Optionally filter by the requested game name (specific-game
+                // lookup); empty name = list all.
+                if (!m.game_name.empty() && g.name != m.game_name) continue;
+                GameListEntry e;
+                e.gametype  = m.gametype;     // echo the requested type filter
+                e.status    = 0x04u;          // GAME_STATUS_OPEN
+                e.game_name = g.name;
+                e.info      = g.map_name;     // statstring / map
+                reply.entries.push_back(std::move(e));
+            }
+        }
+    }
     return ctx_->send(ServerMessage{reply});
 }
 

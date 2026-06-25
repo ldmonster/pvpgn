@@ -80,11 +80,28 @@ core::Status<> BnetFsm::on(const StartGame3Request& m) {
     return ctx_->send(ServerMessage{StartGame3Ack{0x00}});
 }
 
-core::Status<> BnetFsm::on(const StartGame4Request&) {
+core::Status<> BnetFsm::on(const StartGame4Request& m) {
     auto s = require_clan_state(state_, "bnet fsm: STARTGAME4 before login");
     if (!s) return s;
-    state_ = BnetState::InGame;
-    return core::ok();
+
+    if (!use_cases_.start_game) {
+        state_ = BnetState::InGame;
+        return ctx_->send(ServerMessage{StartGame4Ack{0x00u}});
+    }
+    // Advertise the hosted game in the shared repository so GETADVLISTEX
+    // (0x09) on other connections can find it. `info` is the statstring/map.
+    // A non-empty password marks a private game (not listed); StartGame models
+    // public games, so we only host when no password was supplied — matching
+    // the observable "open games appear in the list" behaviour.
+    auto start_result = use_cases_.start_game->execute(
+        current_account_id_, client_tag_, m.game_name, m.info,
+        /*max_players*/ 8u);
+    if (!start_result) {
+        return ctx_->send(ServerMessage{StartGame4Ack{0x01u}});
+    }
+    current_game_id_ = start_result.value().game_id;
+    state_           = BnetState::InGame;
+    return ctx_->send(ServerMessage{StartGame4Ack{0x00u}});
 }
 
 core::Status<> BnetFsm::on(const JoinGame& m) {
