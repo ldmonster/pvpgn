@@ -33,6 +33,8 @@ SID_AUTH_CHECK = 0x51
 SID_AUTH_ACCOUNTCREATE = 0x52
 SID_AUTH_ACCOUNTLOGON = 0x53
 SID_AUTH_ACCOUNTLOGONPROOF = 0x54
+SID_AUTH_ACCOUNTCHANGE = 0x55
+SID_AUTH_ACCOUNTCHANGEPROOF = 0x56
 
 # Chat event ids (canonical BNCS).
 EID_SHOWUSER = 0x01
@@ -318,6 +320,62 @@ def login_w3(client, username, password, salt=_W3_SALT, client_priv=None):
         m2_wire = preply[4:4 + 20]
         m2_matches = (m2_wire == _srp.proof_to_wire(M2_expected))
     return {"login_msg": login_msg, "proof_response": response,
+            "m2_matches": m2_matches}
+
+
+def passchange_w3(client, username, old_password, new_password,
+                  salt=_W3_SALT, new_salt=None, client_priv=None):
+    """SID_AUTH_ACCOUNTCHANGE (0x55) + ...PROOF (0x56): change a WAR3 account's
+    password. Step A is the same SRP-3 challenge as login (prove the OLD
+    password); step B sends M1 + the NEW salt + NEW verifier. Returns:
+       {change_msg, proof_response, m2_matches}.
+
+    m2_matches confirms mutual auth on the change proof (the server returned the
+    M2 the client independently derives from the OLD credentials)."""
+    if new_salt is None:
+        new_salt = salt
+    # Challenge against the OLD password.
+    c = _srp.BnetSrp3(username, old_password)
+    c.set_salt(salt)
+    c.set_client_private_key(
+        client_priv if client_priv is not None else
+        int("b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0", 16))
+    A = c.client_session_public_key()
+
+    # 0x55: send A + username, receive {message, salt, B}.
+    client.send(SID_AUTH_ACCOUNTCHANGE, _srp.pubkey_A_to_wire(A) + cstring(username))
+    reply = _drain_until(client, SID_AUTH_ACCOUNTCHANGE)
+    if reply is None or len(reply) < 4:
+        return {"change_msg": None, "proof_response": None, "m2_matches": False}
+    change_msg = struct.unpack_from("<I", reply, 0)[0]
+    if change_msg != 0 or len(reply) < 4 + 32 + 32:
+        return {"change_msg": change_msg, "proof_response": None,
+                "m2_matches": False}
+    B = _srp.pubkey_B_from_wire(reply[4 + 32:4 + 32 + 32])
+
+    K = c.hashed_client_secret(B)
+    M1 = c.client_password_proof(A, B, K)
+    M2_expected = c.server_password_proof(A, M1, K)
+
+    # Derive the NEW salt + verifier from the new password.
+    nc = _srp.BnetSrp3(username, new_password)
+    nc.set_salt(new_salt)
+    new_verifier = nc.verifier()
+
+    # 0x56: send M1 + new salt + new verifier, receive {response, M2}.
+    body = (_srp.proof_to_wire(M1)
+            + _srp.salt_to_wire(new_salt)
+            + _srp.verifier_to_wire(new_verifier))
+    client.send(SID_AUTH_ACCOUNTCHANGEPROOF, body)
+    preply = _drain_until(client, SID_AUTH_ACCOUNTCHANGEPROOF)
+    if preply is None or len(preply) < 4:
+        return {"change_msg": change_msg, "proof_response": None,
+                "m2_matches": False}
+    response = struct.unpack_from("<I", preply, 0)[0]
+    m2_matches = False
+    if len(preply) >= 4 + 20:
+        m2_matches = (preply[4:4 + 20] == _srp.proof_to_wire(M2_expected))
+    return {"change_msg": change_msg, "proof_response": response,
             "m2_matches": m2_matches}
 
 

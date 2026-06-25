@@ -290,3 +290,113 @@ TEST_CASE("fsm W3: login for an unknown account fails",
     REQUIRE(reply != nullptr);
     CHECK(reply->message == kLoginW3MessageFailure);
 }
+
+TEST_CASE("fsm W3: NLS password change proves old, stores new, new pass logs in",
+          "[protocol][bnet][auth][w3][srp][passchange]") {
+    W3Harness h;
+    auto fsm = h.make_fsm();
+    const std::string user = "w3pc";
+    const std::string oldp = "oldpass1", newp = "newpass2";
+
+    std::array<std::uint8_t, 32> salt_wire{};
+    for (std::size_t i = 0; i < salt_wire.size(); ++i)
+        salt_wire[i] = static_cast<std::uint8_t>(0x05 * (i + 1));
+    const BigUInt salt = BigUInt::from_bytes_legacy(salt_wire, kBlkSalt, false);
+
+    // AUTH_INFO + create the account with the OLD password.
+    AuthInfo ai; ai.game_id = domain::tags::kWarcraft3.packed_be();
+    REQUIRE(fsm.handle(ClientMessage{ai}).has_value());
+    BnetSrp3 oldc{user, oldp}; oldc.set_salt(salt);
+    CreateAccount2Request create;
+    create.salt = salt_wire;
+    create.password_verifier = le32(oldc.verifier());
+    create.account_name = user;
+    REQUIRE(fsm.handle(ClientMessage{create}).has_value());
+
+    // 0x55: challenge proves the OLD password.
+    const BigUInt A = oldc.client_session_public_key();
+    PassChangeRequest pc;
+    pc.client_public_key = le32(A);
+    pc.account_name = user;
+    REQUIRE(fsm.handle(ClientMessage{pc}).has_value());
+    const auto* preply = h.last_as<PassChangeReply>();
+    REQUIRE(preply != nullptr);
+    CHECK(preply->message == kPassChangeMessageAccept);
+
+    const BigUInt B = BigUInt::from_bytes(preply->server_public_key, false);
+    const BigUInt K = oldc.hashed_client_secret(B);
+    const BigUInt M1 = oldc.client_password_proof(A, B, K);
+    const BigUInt M2_expected = oldc.server_password_proof(A, M1, K);
+
+    // New salt+verifier derived from the NEW password.
+    std::array<std::uint8_t, 32> nsalt_wire{};
+    for (std::size_t i = 0; i < nsalt_wire.size(); ++i)
+        nsalt_wire[i] = static_cast<std::uint8_t>(0x09 * (i + 2));
+    const BigUInt nsalt = BigUInt::from_bytes_legacy(nsalt_wire, kBlkSalt, false);
+    BnetSrp3 newc{user, newp}; newc.set_salt(nsalt);
+
+    // 0x56: proof + new salt + new verifier → Ok, M2 matches.
+    PassChangeProofRequest pp;
+    pp.client_password_proof = to_wire<20>(M1, kBlkProof);
+    pp.salt = nsalt_wire;
+    pp.password_verifier = le32(newc.verifier());
+    REQUIRE(fsm.handle(ClientMessage{pp}).has_value());
+    const auto* pproof = h.last_as<PassChangeProofReply>();
+    REQUIRE(pproof != nullptr);
+    CHECK(pproof->response == kPassChangeProofResponseOk);
+    CHECK(pproof->server_password_proof == to_wire<20>(M2_expected, kBlkProof));
+
+    // The NEW password must now log in (proves the verifier was replaced).
+    LoginW3Request login;
+    login.client_public_key = le32(newc.client_session_public_key());
+    login.account_name = user;
+    REQUIRE(fsm.handle(ClientMessage{login}).has_value());
+    const auto* lr = h.last_as<LoginW3Reply>();
+    REQUIRE(lr != nullptr);
+    CHECK(lr->message == kLoginW3MessageSuccess);
+    const BigUInt nA = newc.client_session_public_key();
+    const BigUInt nB = BigUInt::from_bytes(lr->server_public_key, false);
+    const BigUInt nK = newc.hashed_client_secret(nB);
+    const BigUInt nM1 = newc.client_password_proof(nA, nB, nK);
+    LogonProofW3Request lp;
+    lp.client_password_proof = to_wire<20>(nM1, kBlkProof);
+    REQUIRE(fsm.handle(ClientMessage{lp}).has_value());
+    const auto* lpr = h.last_as<LogonProofW3Reply>();
+    REQUIRE(lpr != nullptr);
+    CHECK((lpr->response == kLogonProofW3ResponseOk ||
+           lpr->response == kLogonProofW3ResponseEmail));
+}
+
+TEST_CASE("fsm W3: NLS password change with wrong old proof is rejected",
+          "[protocol][bnet][auth][w3][srp][passchange]") {
+    W3Harness h;
+    auto fsm = h.make_fsm();
+    const std::string user = "w3pcbad";
+
+    std::array<std::uint8_t, 32> salt_wire{}; salt_wire.fill(0x33);
+    const BigUInt salt = BigUInt::from_bytes_legacy(salt_wire, kBlkSalt, false);
+    AuthInfo ai; ai.game_id = domain::tags::kWarcraft3.packed_be();
+    REQUIRE(fsm.handle(ClientMessage{ai}).has_value());
+    BnetSrp3 oldc{user, "realpass"}; oldc.set_salt(salt);
+    CreateAccount2Request create;
+    create.salt = salt_wire;
+    create.password_verifier = le32(oldc.verifier());
+    create.account_name = user;
+    REQUIRE(fsm.handle(ClientMessage{create}).has_value());
+
+    PassChangeRequest pc;
+    pc.client_public_key = le32(oldc.client_session_public_key());
+    pc.account_name = user;
+    REQUIRE(fsm.handle(ClientMessage{pc}).has_value());
+    REQUIRE(h.last_as<PassChangeReply>() != nullptr);
+
+    // Garbage proof → BadPass.
+    PassChangeProofRequest pp;
+    pp.client_password_proof.fill(0xCD);
+    pp.salt.fill(0x77);
+    pp.password_verifier.fill(0x88);
+    REQUIRE(fsm.handle(ClientMessage{pp}).has_value());
+    const auto* pproof = h.last_as<PassChangeProofReply>();
+    REQUIRE(pproof != nullptr);
+    CHECK(pproof->response == kPassChangeProofResponseBadPass);
+}

@@ -303,13 +303,67 @@ core::Status<> BnetFsm::on(const LogonProofW3Request& m) {
         LogonProofW3Reply{response, w3_server_m2_, ""}});
 }
 
-core::Status<> BnetFsm::on(const PassChangeRequest&) {
-    // NLS password-change step A; runs before the user is fully logged in.
-    return core::ok();
+// SID_AUTH_ACCOUNTCHANGE (0x55) — NLS password-change step A. Identical SRP-3
+// challenge to login (0x53): prove knowledge of the CURRENT password before the
+// new salt/verifier (carried in the 0x56 proof) are accepted. Mirrors the
+// original `_client_passchangereq` (a copy of `_client_loginreqw3`).
+core::Status<> BnetFsm::on(const PassChangeRequest& m) {
+    if (state_ != BnetState::AuthInfoReceived && state_ != BnetState::Init) {
+        return reject("bnet fsm: PASSCHANGEREQ out of order");
+    }
+    w3_challenge_ready_ = false;
+
+    if (!use_cases_.login_user_w3) {
+        return ctx_->send(ServerMessage{
+            PassChangeReply{kPassChangeMessageReject, {}, {}}});
+    }
+    auto challenge = use_cases_.login_user_w3->challenge(
+        m.account_name,
+        std::span<const std::uint8_t, 32>{m.client_public_key});
+    if (!challenge) {
+        return ctx_->send(ServerMessage{
+            PassChangeReply{kPassChangeMessageReject, {}, {}}});
+    }
+    const auto& c = challenge.value();
+    w3_expected_m1_      = c.expected_client_proof;
+    w3_server_m2_        = c.server_proof;
+    w3_pending_account_  = c.account_id;
+    w3_pending_username_ = m.account_name;
+    w3_challenge_ready_  = true;
+    return ctx_->send(ServerMessage{
+        PassChangeReply{kPassChangeMessageAccept, c.salt, c.server_public_key}});
 }
-core::Status<> BnetFsm::on(const PassChangeProofRequest&) {
-    // NLS password-change step B; runs before the user is fully logged in.
-    return core::ok();
+
+// SID_AUTH_ACCOUNTCHANGEPROOF (0x56) — NLS password-change step B. Verify the
+// M1 proof of the CURRENT password; on success replace the stored salt+verifier
+// with the new ones the client supplied, then return M2. Mirrors the original
+// `_client_passchangeproofreq`. (Unlike login, there is no e-mail prompt here.)
+core::Status<> BnetFsm::on(const PassChangeProofRequest& m) {
+    if (!w3_challenge_ready_) {
+        return ctx_->send(ServerMessage{
+            PassChangeProofReply{kPassChangeProofResponseBadPass, {}}});
+    }
+    w3_challenge_ready_ = false;  // single-shot
+
+    if (m.client_password_proof != w3_expected_m1_) {
+        return ctx_->send(ServerMessage{
+            PassChangeProofReply{kPassChangeProofResponseBadPass, {}}});
+    }
+    // Proof of the old password is valid — persist the new credentials. Without
+    // a store we cannot honour the change, so report BadPass rather than ACK a
+    // change that did not happen.
+    if (!use_cases_.srp3_store) {
+        return ctx_->send(ServerMessage{
+            PassChangeProofReply{kPassChangeProofResponseBadPass, {}}});
+    }
+    application::auth::Srp3Credentials creds;
+    creds.salt       = m.salt;
+    creds.verifier   = m.password_verifier;
+    creds.account_id = w3_pending_account_;
+    use_cases_.srp3_store->store(w3_pending_username_, creds);
+
+    return ctx_->send(ServerMessage{
+        PassChangeProofReply{kPassChangeProofResponseOk, w3_server_m2_}});
 }
 
 // SID_AUTH_ACCOUNTCREATE (0x52) — WarCraft III SRP-3 account creation. The
