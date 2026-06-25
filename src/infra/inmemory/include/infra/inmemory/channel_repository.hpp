@@ -57,9 +57,18 @@ public:
     core::Status<>
     save(const domain::chat::Channel& channel) override {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        auto copy = std::make_unique<domain::chat::Channel>(channel);
-        by_name_[name_key(channel.name())] = channel.id().value();
-        by_id_[channel.id().value()] = std::move(copy);
+        // Channels are created with the id-0 "assign on persist" sentinel
+        // (JoinChannel: ChannelId{0}). Allocate a fresh monotonic id on first
+        // save so distinct channels never collide in by_id_ and 0 stays free as
+        // the FSM's "not in a channel" marker. An already-persisted channel
+        // arrives with its non-zero id and keeps it.
+        domain::ChannelId id = channel.id();
+        if (id.value() == 0) {
+            id = domain::ChannelId{next_id_++};
+        }
+        auto copy = std::make_unique<domain::chat::Channel>(channel.with_id(id));
+        by_name_[name_key(copy->name())] = id.value();
+        by_id_[id.value()] = std::move(copy);
         return core::ok();
     }
 
@@ -104,6 +113,8 @@ private:
     std::unordered_map<std::uint32_t,
                        std::unique_ptr<domain::chat::Channel>> by_id_;
     std::unordered_map<std::string, std::uint32_t> by_name_;
+    /// Next channel id to hand out (0 is reserved as the no-channel sentinel).
+    std::uint32_t next_id_ = 1;
 };
 
 }  // namespace pvpgn::infra::inmemory

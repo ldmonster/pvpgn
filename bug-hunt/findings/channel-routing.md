@@ -371,7 +371,7 @@ EID_LEAVE to the remaining member; disconnect-not-in-channel broadcasts nothing.
 
 ## F-W16b — in-memory channel repo never assigns ids: ALL channels get id 0
 **Severity:** HIGH (latent) — multiple simultaneous channels collide
-**Classification:** REAL BUG — found wave 16, FIX PENDING (next scenario)
+**Classification:** REAL BUG — fixed (wave 17)
 
 JoinChannel creates a channel as `Channel::create(ChannelId{0}, …)` with the
 comment "ID will be assigned by repo", but InMemoryChannelRepository::save stores
@@ -386,3 +386,17 @@ channel, but a two-distinct-channel scenario will collide. The proper fix is for
 the repository (or a domain id allocator) to assign monotonic ids starting at 1,
 reserving 0 as the no-channel sentinel, and for JoinChannel to propagate the
 assigned id back into its result. Tracked as the next differential scenario.
+
+**Fix (wave 17):** InMemoryChannelRepository::save now allocates a fresh
+monotonic id (>= 1) for any channel arriving with the id-0 sentinel, stamping it
+on via the new domain helper Channel::with_id; an already-persisted channel keeps
+its non-zero id. JoinChannel already re-reads the channel by name after save, so
+the assigned id propagates to current_channel_id_ unchanged. 0 is now reserved as
+the FSM's "not in a channel" marker.
+
+**Verified:** tests/diff/diff_multichannel.py — Alice in RED, Bob in BLUE, Carol
+joins RED and sees exactly {alice, carol} (never bob), matching the oracle.
+Unit guards in tests/unit/infra/inmemory/in_memory_channel_repository_test.cpp:
+non-zero id on first save, distinct ids for distinct channels, id preserved on
+re-save. NOTE: the SQL/persistence channel repos assign ids via the DB layer and
+are out of scope here; only the in-memory backend had the verbatim-id-0 defect.

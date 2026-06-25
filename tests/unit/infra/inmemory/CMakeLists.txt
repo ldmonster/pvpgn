@@ -17,6 +17,7 @@ pvpgn_v3_add_test(test_infra_inmemory
         in_memory_message_broadcaster_test.cpp
         in_memory_permission_checker_test.cpp
         in_memory_channel_store_test.cpp
+        in_memory_channel_repository_test.cpp
     DEPS
         infra_inmemory
         application_ports

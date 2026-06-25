@@ -78,6 +78,16 @@ public:
         return c;
     }
 
+    /// Return a copy of this channel with a different id. Used by repositories
+    /// to stamp a freshly-allocated id onto a channel that was created with the
+    /// id-0 "assign on persist" sentinel. Preserves all other state (members,
+    /// banlist, topic, policy, pending events).
+    [[nodiscard]] Channel with_id(ChannelId new_id) const {
+        Channel c{*this};
+        c.id_ = new_id;
+        return c;
+    }
+
     // --- Queries --------------------------------------------------------
 
     ChannelId           id()           const noexcept { return id_; }

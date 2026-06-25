@@ -324,3 +324,18 @@ scenario: assign monotonic channel ids (reserve 0) + propagate through JoinChann
 ## Differential harness now covers: OLS login + chat/channel join + two-client
 ## TALK + private WHISPER + channel part-on-disconnect (EID_LEAVE).
 ## RUNNING TOTAL: ~45 distinct bugs across 16 waves.
+
+## Wave 17: channel id assignment — distinct channels no longer collide
+Fixed finding F-W16b (uncovered in wave 16). InMemoryChannelRepository stored
+each channel verbatim under channel.id().value(); since JoinChannel creates
+channels with the id-0 "assign on persist" sentinel, every new channel landed in
+by_id_[0] -- "RED" and "BLUE" collided and a user joining one resolved to the
+other's object. Fix: the repo now allocates a monotonic id (>=1) for any channel
+saved with id 0 (new domain helper Channel::with_id stamps it on), reserving 0 as
+the FSM no-channel sentinel; JoinChannel's existing re-read-by-name propagates the
+assigned id. diff_multichannel.py matches the oracle (Carol joining RED sees
+{alice,carol}, never bob in BLUE). Unit guards added for the repo.
+
+## Differential harness now covers: OLS login + chat/channel join + two-client
+## TALK + private WHISPER + part-on-disconnect + multi-channel isolation.
+## RUNNING TOTAL: ~45 distinct bugs across 17 waves (F-W16b now closed).
