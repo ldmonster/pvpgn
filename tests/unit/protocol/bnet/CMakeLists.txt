@@ -87,7 +87,8 @@ pvpgn_v3_add_test(test_protocol_bnet_fsm_golden
 # driven with the genuine LoginUser/CreateAccount use-cases over in-memory repos.
 pvpgn_v3_add_test(test_protocol_bnet_fsm_auth_create_login
     SOURCES fsm_auth_create_login_test.cpp capturing_session_context.cpp
-    DEPS    protocol_bnet application_auth infra_inmemory)
+    DEPS    protocol_bnet application_auth infra_inmemory
+            infra_crypto infra_crypto_session_hasher)
 
 pvpgn_v3_add_test(test_protocol_bnet_anongame
     SOURCES anongame_test.cpp

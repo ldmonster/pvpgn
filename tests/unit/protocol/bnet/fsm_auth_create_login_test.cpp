@@ -17,8 +17,10 @@
 //      login). We assert success is *sent* and the context is *not* closed.
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <variant>
 
 #include <catch2/catch_test_macros.hpp>
@@ -26,6 +28,8 @@
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
 #include "core/clock.hpp"
+#include "infra/crypto/bnet_hash.hpp"
+#include "infra/crypto/bnet_session_hasher.hpp"
 #include "domain/shared/ids.hpp"
 #include "infra/inmemory/account_repository.hpp"
 #include "infra/inmemory/event_bus.hpp"
@@ -60,10 +64,12 @@ struct Harness {
     std::shared_ptr<CapturingSessionContext> ctx =
         std::make_shared<CapturingSessionContext>();
 
+    infra::crypto::BnetSessionHasher hasher;
+
     BnetUseCaseContext make_ctx(bool with_create) {
         BnetUseCaseContext uc;
         uc.login_user = std::make_shared<application::auth::LoginUser>(
-            accounts, sessions, bus, clock);
+            accounts, sessions, bus, clock, hasher);
         if (with_create) {
             uc.create_account = std::make_shared<application::auth::CreateAccount>(
                 accounts, ip_bans, bus, clock);
@@ -88,12 +94,36 @@ CreateAccount1Request create_req(const char* name,
     return m;
 }
 
+/// Compute the OLS hash2 the way a real client does: the broken-SHA-1 of
+/// client_token ‖ server_token ‖ hash1 (all little-endian). The resulting
+/// digest words, packed LE on the wire, are exactly what the server's
+/// BnetSessionHasher re-derives from the stored hash1 + tokens.
+std::array<std::uint32_t, 5> compute_hash2(std::array<std::uint32_t, 5> hash1,
+                                           std::uint32_t client_token,
+                                           std::uint32_t server_token) {
+    std::array<std::byte, 28> buf{};
+    auto put_le32 = [&buf](std::size_t off, std::uint32_t v) {
+        buf[off + 0] = static_cast<std::byte>(v & 0xFFu);
+        buf[off + 1] = static_cast<std::byte>((v >> 8) & 0xFFu);
+        buf[off + 2] = static_cast<std::byte>((v >> 16) & 0xFFu);
+        buf[off + 3] = static_cast<std::byte>((v >> 24) & 0xFFu);
+    };
+    put_le32(0, client_token);
+    put_le32(4, server_token);
+    for (std::size_t i = 0; i < hash1.size(); ++i) put_le32(8 + i * 4, hash1[i]);
+    return pvpgn::v3::infra::crypto::blizzard_hash(std::span<const std::byte>{buf});
+}
+
+constexpr std::uint32_t kClientToken = 0xDEADBEEFu;
+constexpr std::uint32_t kServerToken = 0u;
+
 LogonResponse2 logon_req(const char* name,
                          std::array<std::uint32_t, 5> words = kPassword) {
     LogonResponse2 m;
-    m.client_token  = 0xDEADBEEFu;
-    m.server_token  = 0;
-    m.password_hash = words;
+    m.client_token  = kClientToken;
+    m.server_token  = kServerToken;
+    // The client sends hash2 (the double-hash), not the stored hash1.
+    m.password_hash = compute_hash2(words, kClientToken, kServerToken);
     m.username      = name;
     return m;
 }

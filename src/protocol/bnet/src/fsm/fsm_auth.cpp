@@ -101,20 +101,28 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
         return ctx_->send(ServerMessage{LogonResponse2Reply{0x01u, "Invalid username"}});
     }
 
-    auto password_hash_result = domain::BNHash::from_bytes(password_hash);
-    if (!password_hash_result) {
+    // `m.password_hash` is the client's hash2 (the double-hash
+    // `bnet_hash(client_token ‖ server_token ‖ stored_hash1)`), NOT hash1. The
+    // server recomputes the same double-hash from the stored hash1 + the tokens
+    // (via the injected IPasswordHasher) and compares — so we route through the
+    // session-hash overload, passing the tokens, rather than comparing the
+    // client's hash2 against the stored hash1 directly.
+    auto password_hash2_result = domain::BNHash::from_bytes(password_hash);
+    if (!password_hash2_result) {
         return ctx_->send(ServerMessage{LogonResponse2Reply{0x02u, "Invalid password hash"}});
     }
 
-    application::auth::LoginRequest login_req{
-        .name               = username_result.value(),
-        .password_candidate = password_hash_result.value(),
-        .tag                = client_tag_,
-        .ip                 = domain::IpAddress{},
+    application::auth::LoginWithSessionHashRequest login_req{
+        .name           = username_result.value(),
+        .password_hash2 = password_hash2_result.value(),
+        .ticks          = m.client_token,   // original `ticks`
+        .sessionkey     = m.server_token,   // original `sessionkey`
+        .tag            = client_tag_,
+        .ip             = domain::IpAddress{},
         // LoginUser enforces the single-session policy by attaching this
         // session itself — pass the real id (not a default 0) so the right
         // session is registered and we do NOT attach again below.
-        .session            = session_id_
+        .session        = session_id_
     };
 
     auto login_result = use_cases_.login_user->execute(login_req);

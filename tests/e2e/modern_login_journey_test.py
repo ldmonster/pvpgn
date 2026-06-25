@@ -67,8 +67,8 @@ SID_CREATE_ACCT1    = 0x2A   # CLIENT_CREATEACCTREQ1 / SERVER_CREATEACCTREPLY1 (
 CREATE_ACCT1_NO = 0          # creation refused
 CREATE_ACCT1_OK = 1          # creation accepted
 
-EID_CHANNEL = 3              # ChatEvent.event_id for a channel name
-EID_INFO    = 4              # ChatEvent.event_id for an info/error line
+EID_CHANNEL = 7              # ChatEvent.event_id for a channel name (canonical BNCS)
+EID_INFO    = 0x12           # ChatEvent.event_id for an info/error line
 
 # OLS "hash1" — 5 u32 words. The same words are used to create the account and
 # to log in, so the 20-byte BNHash matches end to end. (No real crypto here:
@@ -135,9 +135,69 @@ def build_auth_info() -> bytes:
     return fields + cstring("USA") + cstring("United States")
 
 
+def _rotl32(v: int, n: int) -> int:
+    v &= 0xFFFFFFFF
+    n &= 31
+    return ((v << n) | (v >> (32 - n))) & 0xFFFFFFFF
+
+
+def blizzard_hash(data: bytes) -> "list[int]":
+    """Port of the legacy Battle.net "broken SHA-1" (infra/crypto/bnet_hash.cpp).
+
+    The message schedule uses ROTL32(1, mix) instead of ROTL32(mix, 1) (the
+    famous Blizzard bug), and there is NO length/0x80 padding — input words are
+    packed little-endian and the rest of the block is zero-filled.
+    Returns the 5 host-order digest words.
+    """
+    digest = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0]
+    pos, size = 0, len(data)
+    while size > 0:
+        inc = 64 if size > 64 else size
+        block = data[pos:pos + inc]
+        tmp = [0] * 80
+        for i in range(16):
+            word = 0
+            for b in range(4):
+                idx = i * 4 + b
+                if idx < inc:
+                    word |= block[idx] << (8 * b)
+            tmp[i] = word & 0xFFFFFFFF
+        for i in range(64):
+            mix = (tmp[i] ^ tmp[i + 8] ^ tmp[i + 2] ^ tmp[i + 13]) & 0xFFFFFFFF
+            tmp[i + 16] = _rotl32(1, mix)
+        a, bb, c, d, e = digest
+        g = 0
+        for i in range(20):
+            g = (tmp[i] + _rotl32(a, 5) + e + ((bb & c) | (~bb & 0xFFFFFFFF & d)) + 0x5A827999) & 0xFFFFFFFF
+            e, d, c, bb, a = d, c, _rotl32(bb, 30), a, g
+        for i in range(20, 40):
+            g = ((d ^ c ^ bb) + e + _rotl32(g, 5) + tmp[i] + 0x6ED9EBA1) & 0xFFFFFFFF
+            e, d, c, bb, a = d, c, _rotl32(bb, 30), a, g
+        for i in range(40, 60):
+            g = (tmp[i] + _rotl32(g, 5) + e + ((c & bb) | (d & c) | (d & bb)) - 0x70E44324) & 0xFFFFFFFF
+            e, d, c, bb, a = d, c, _rotl32(bb, 30), a, g
+        for i in range(60, 80):
+            g = ((d ^ c ^ bb) + e + _rotl32(g, 5) + tmp[i] - 0x359D3E2A) & 0xFFFFFFFF
+            e, d, c, bb, a = d, c, _rotl32(bb, 30), a, g
+        digest[0] = (digest[0] + g) & 0xFFFFFFFF
+        digest[1] = (digest[1] + bb) & 0xFFFFFFFF
+        digest[2] = (digest[2] + c) & 0xFFFFFFFF
+        digest[3] = (digest[3] + d) & 0xFFFFFFFF
+        digest[4] = (digest[4] + e) & 0xFFFFFFFF
+        pos += inc
+        size -= inc
+    return digest
+
+
 def build_logon_response2(username: str, words=PASSWORD_WORDS) -> bytes:
-    # client_token, server_token, 5x u32 password hash words, username cstr.
-    return struct.pack("<2I5I", 0xDEADBEEF, 0, *words) + cstring(username)
+    # OLS login: the client sends hash2 = blizzard_hash(client_token ‖
+    # server_token ‖ hash1), NOT the raw hash1. The server re-derives the same
+    # double-hash from the stored hash1 + tokens and compares.
+    client_token, server_token = 0xDEADBEEF, 0
+    buf = struct.pack("<7I", client_token, server_token, *words)
+    hash2 = blizzard_hash(buf)
+    return struct.pack("<2I", client_token, server_token) + \
+        struct.pack("<5I", *hash2) + cstring(username)
 
 
 def build_create_account1(username: str, words=PASSWORD_WORDS) -> bytes:

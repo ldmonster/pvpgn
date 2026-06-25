@@ -122,6 +122,7 @@
 // enforces credentials and a real account_id flows into the chat path.
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
+#include "infra/crypto/bnet_session_hasher.hpp"
 #include "core/clock.hpp"
 // Durable file-backed account store (used when backend="file").
 #include "infra/file/account_repository.hpp"
@@ -385,8 +386,11 @@ int main(int argc, char* argv[]) {
 
             use_cases.account_repo     = no_delete_accounts;
             use_cases.session_registry = no_delete_sessions;
+            // Stateless, thread-safe production hasher for the OLS session-hash
+            // (double-hash) login path; outlives the use-cases.
+            static const infra::crypto::BnetSessionHasher session_hasher;
             use_cases.login_user = std::make_shared<application::auth::LoginUser>(
-                account_repo, session_reg, event_bus, auth_clock);
+                account_repo, session_reg, event_bus, auth_clock, session_hasher);
             use_cases.create_account = std::make_shared<application::auth::CreateAccount>(
                 account_repo, ip_ban_repo, event_bus, auth_clock);
         }

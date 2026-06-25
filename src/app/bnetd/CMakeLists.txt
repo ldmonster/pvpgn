@@ -67,6 +67,7 @@ target_link_libraries(bnetd
         protocol_wol
         infra_net
         infra_inmemory
+        infra_crypto_session_hasher
         pvpgn_infra_file
         services_bnetd
         Boost::system

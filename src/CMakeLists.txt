@@ -993,6 +993,23 @@ pvpgn_v3_add_library(infra_crypto_nls_adapter
         application_auth
 )
 
+# ---- infra/crypto/bnet_session_hasher -----------------------------------
+#
+# Concrete `domain::identity::IPasswordHasher` for the OLS login flow,
+# backed by `infra::crypto::blizzard_hash` (the broken-SHA-1 of
+# ticks ‖ sessionkey ‖ hash1). Bridges the hash primitive to the domain port.
+pvpgn_v3_add_library(infra_crypto_session_hasher
+    STATIC
+    SOURCES
+        infra/crypto/src/bnet_session_hasher.cpp
+    PUBLIC_INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}/infra/crypto/include
+    PUBLIC_DEPS
+        core
+        infra_crypto
+        domain_identity
+)
+
 
 # ---- application/realm (CharacterLock, GameServerQueue) --------------------
 
