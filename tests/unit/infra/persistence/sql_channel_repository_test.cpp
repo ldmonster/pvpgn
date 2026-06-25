@@ -76,6 +76,73 @@ TEST_CASE("SqlChannelRepository::save issues a bound upsert preserving casing",
     REQUIRE(driver->calls.size() == 1);
     const auto& call = driver->last();
     CHECK(call.sql.find("INSERT OR REPLACE INTO channels") != std::string::npos);
-    // The stored display name keeps its original casing.
-    CHECK(call.sql.find("'War3'") != std::string::npos);
+    // The statement must use bound placeholders, never the literal value
+    // concatenated into the SQL text.
+    CHECK(call.sql.find("VALUES (?, ?, ?, ?, ?)") != std::string::npos);
+    CHECK(call.sql.find("'War3'") == std::string::npos);
+    // Columns: id, name, topic, flags, max_members — name is bound, casing kept.
+    REQUIRE(call.params.size() == 5);
+    CHECK(as_int(call.params[0]) == 7);
+    CHECK(as_str(call.params[1]) == "War3");
+    CHECK(as_str(call.params[2]).empty());  // topic
+}
+
+TEST_CASE("SqlChannelRepository::save binds SQL metacharacters instead of "
+          "concatenating them (injection regression)",
+          "[infra][persistence][channel][security]") {
+    // Regression for the CRIT stacked-query SQL injection: a channel whose name
+    // or topic carries SQL metacharacters (quote, semicolon, comment, a full
+    // `'); DROP TABLE x;--` payload) used to be concatenated raw into an
+    // INSERT run through sqlite3_exec, allowing arbitrary stacked DDL/DML.
+    // The fix passes both values as bound parameters; this test pins that the
+    // payload never appears in the emitted SQL text and round-trips intact as a
+    // single bound param.
+    auto driver = make_driver();
+    SqlChannelRepository repo{driver};
+
+    const std::string evil_name  = "x'); DROP TABLE accounts;--";
+    const std::string evil_topic =
+        "gg', 0, 0); UPDATE accounts SET command_groups='1,2' "
+        "WHERE name='attacker';--";
+
+    // rehydrate lets us seed a topic directly (create() takes no topic).
+    auto ch = Channel::rehydrate(ChannelId{13}, evil_name, evil_topic,
+                                 pvpgn::domain::chat::ChannelPolicy{}, {}, {});
+    REQUIRE(repo.save(ch).has_value());
+
+    REQUIRE(driver->calls.size() == 1);
+    const auto& call = driver->last();
+
+    // (a) The SQL text is exactly the parameterized statement — no fragment of
+    //     the malicious payload (and none of its metacharacters) is present.
+    CHECK(call.sql.find("VALUES (?, ?, ?, ?, ?)") != std::string::npos);
+    CHECK(call.sql.find("DROP TABLE") == std::string::npos);
+    CHECK(call.sql.find("UPDATE accounts") == std::string::npos);
+    CHECK(call.sql.find(";--") == std::string::npos);
+    // No quote/semicolon leaked from a value into the statement. The only
+    // semicolons that could exist would come from the payload; the placeholder
+    // statement has none.
+    CHECK(call.sql.find('\'') == std::string::npos);
+    CHECK(call.sql.find(';') == std::string::npos);
+
+    // (b) The malicious values round-trip intact as bound parameters, in order:
+    //     id, name, topic, flags, max_members.
+    REQUIRE(call.params.size() == 5);
+    CHECK(as_int(call.params[0]) == 13);
+    CHECK(as_str(call.params[1]) == evil_name);   // quote/`;`/`--` preserved
+    CHECK(as_str(call.params[2]) == evil_topic);
+}
+
+TEST_CASE("SqlChannelRepository::remove binds the id (no concatenation)",
+          "[infra][persistence][channel][security]") {
+    auto driver = make_driver();
+    SqlChannelRepository repo{driver};
+
+    REQUIRE(repo.remove(ChannelId{99}).has_value());
+
+    REQUIRE(driver->calls.size() == 1);
+    const auto& call = driver->last();
+    CHECK(call.sql.find("DELETE FROM channels WHERE id = ?") != std::string::npos);
+    REQUIRE(call.params.size() == 1);
+    CHECK(as_int(call.params[0]) == 99);
 }

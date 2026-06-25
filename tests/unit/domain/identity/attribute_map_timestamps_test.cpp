@@ -62,11 +62,39 @@ TEST_CASE("AttributeMap: created_at round-trips through set_created_at",
 TEST_CASE("AttributeMap: malformed timestamps yield nullopt (catch path)",
           "[domain][identity]") {
     auto map = fresh();
-    map.set("BNET\\acct\\lastlogin", "not-a-number");
-    map.set("BNET\\acct\\createtime", "");
+    map.set("BNET\\acct\\lastlogin_time", "not-a-number");
+    map.set("BNET\\acct\\ctime", "");
 
     CHECK_FALSE(map.last_login().has_value());
     CHECK_FALSE(map.created_at().has_value());
+}
+
+TEST_CASE("AttributeMap: reads timestamps from the legacy original keys",
+          "[domain][identity]") {
+    // Interop: the keys the accessors read must match what the original
+    // PvPGN writes — BNET\acct\ctime (account.cpp:167) and
+    // BNET\acct\lastlogin_time (account_wrap.cpp:612). A legacy account blob
+    // populated under those keys must round-trip into created_at()/last_login().
+    auto map = fresh();
+    map.set("BNET\\acct\\ctime", "1234567890");
+    map.set("BNET\\acct\\lastlogin_time", "1700000000");
+
+    REQUIRE(map.created_at().has_value());
+    CHECK(std::chrono::duration_cast<std::chrono::seconds>(
+              map.created_at().value().time_since_epoch())
+              .count() == 1'234'567'890);
+
+    REQUIRE(map.last_login().has_value());
+    CHECK(std::chrono::duration_cast<std::chrono::seconds>(
+              map.last_login().value().time_since_epoch())
+              .count() == 1'700'000'000);
+
+    // The renamed-away keys must NOT be consulted.
+    auto stale = fresh();
+    stale.set("BNET\\acct\\createtime", "999");
+    stale.set("BNET\\acct\\lastlogin", "999");
+    CHECK_FALSE(stale.created_at().has_value());
+    CHECK_FALSE(stale.last_login().has_value());
 }
 
 TEST_CASE("AttributeMap: stat getters fall back to 0 on non-numeric values",

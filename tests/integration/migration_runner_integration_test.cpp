@@ -108,9 +108,9 @@ std::int64_t recorded_migration_count(
 
 // Tables the embedded migrations must create (001 initial schema + 002 channels).
 constexpr std::string_view kExpectedTables[] = {
-    "accounts",     "account_attributes", "account_bans", "ip_bans",
-    "clans",        "clan_members",       "friend_lists", "ladder_entries",
-    "realms",       "channels",
+    "accounts", "account_attributes", "account_bans", "ip_bans",
+    "ip_ban_ranges", "clans", "clan_members", "friends", "ladder", "realms",
+    "channels",
 };
 
 }  // namespace

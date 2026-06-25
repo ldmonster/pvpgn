@@ -19,7 +19,11 @@ CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL COLLATE NOCASE,
     locale TEXT NOT NULL DEFAULT 'enUS',
-    password_hash BLOB NOT NULL,
+    -- 40-char lowercase hex of the 20-byte BNHash (see SqlAccountRepository).
+    -- Declared TEXT to match what the writer binds and the reader (get_text)
+    -- expects; a BLOB-affinity column would misrepresent the stored ASCII hex on
+    -- stricter backends (Postgres BYTEA / MySQL BLOB).
+    password_hash TEXT NOT NULL,
     locked INTEGER NOT NULL DEFAULT 0,
     must_change_password INTEGER NOT NULL DEFAULT 0,
     command_groups TEXT NOT NULL DEFAULT '',
@@ -43,24 +47,37 @@ CREATE TABLE IF NOT EXISTS account_bans (
     expires_at INTEGER
 );
 
+-- Exact-host IP bans. Column names mirror SqlIpBanRepository's INSERT/SELECT
+-- (ip, reason, issuer, issued_at, expires_at); `ip` is the primary key the repo
+-- upserts/deletes on.
 CREATE TABLE IF NOT EXISTS ip_bans (
-    id INTEGER PRIMARY KEY,
-    ip_address TEXT NOT NULL,
-    is_range INTEGER NOT NULL DEFAULT 0,
-    banner_account_id INTEGER,
+    ip TEXT PRIMARY KEY,
     reason TEXT NOT NULL DEFAULT '',
-    banned_at INTEGER NOT NULL,
+    issuer INTEGER NOT NULL,
+    issued_at INTEGER NOT NULL,
     expires_at INTEGER
 );
-CREATE INDEX IF NOT EXISTS ip_bans_address ON ip_bans(ip_address);
+CREATE INDEX IF NOT EXISTS ip_bans_address ON ip_bans(ip);
 
+-- CIDR range bans — the second table SqlIpBanRepository's add_range_ban /
+-- remove_range_ban / is_banned(CIDR path) require. Keyed by (network, bits).
+CREATE TABLE IF NOT EXISTS ip_ban_ranges (
+    network TEXT NOT NULL,
+    prefix_bits INTEGER NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    issuer INTEGER NOT NULL,
+    issued_at INTEGER NOT NULL,
+    expires_at INTEGER,
+    PRIMARY KEY (network, prefix_bits)
+);
+
+-- Clans: parent row (id, tag, name, client_tag) + ordered membership. Columns
+-- mirror SqlClanRepository's INSERT/SELECT exactly.
 CREATE TABLE IF NOT EXISTS clans (
     id INTEGER PRIMARY KEY,
     tag TEXT NOT NULL,
     name TEXT NOT NULL,
-    founder_id INTEGER NOT NULL,
-    motd TEXT NOT NULL DEFAULT '',
-    created_at INTEGER NOT NULL
+    client_tag TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS clans_tag ON clans(tag COLLATE NOCASE);
 
@@ -68,36 +85,42 @@ CREATE TABLE IF NOT EXISTS clan_members (
     clan_id INTEGER NOT NULL REFERENCES clans(id) ON DELETE CASCADE,
     account_id INTEGER NOT NULL,
     rank INTEGER NOT NULL DEFAULT 0,
-    joined_at INTEGER NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (clan_id, account_id)
 );
 
-CREATE TABLE IF NOT EXISTS friend_lists (
+-- Friend lists (unidirectional, ordered). SqlFriendListRepository reads/writes
+-- table `friends` with a 0-based `position` for ordering.
+CREATE TABLE IF NOT EXISTS friends (
     owner_id INTEGER NOT NULL,
     friend_id INTEGER NOT NULL,
-    added_at INTEGER NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (owner_id, friend_id)
 );
 
-CREATE TABLE IF NOT EXISTS ladder_entries (
+-- Ladder. SqlLadderRepository keys by account_id alone and writes
+-- (account_id, rating, wins, losses, disconnects). `client_tag` defaults to ''
+-- so the repo's account-keyed INSERT satisfies the composite primary key.
+CREATE TABLE IF NOT EXISTS ladder (
     account_id INTEGER NOT NULL,
-    client_tag TEXT NOT NULL,
+    client_tag TEXT NOT NULL DEFAULT '',
+    rating INTEGER NOT NULL DEFAULT 1000,
     wins INTEGER NOT NULL DEFAULT 0,
     losses INTEGER NOT NULL DEFAULT 0,
     disconnects INTEGER NOT NULL DEFAULT 0,
-    rating INTEGER NOT NULL DEFAULT 1000,
-    rank INTEGER NOT NULL DEFAULT 0,
-    updated_at INTEGER NOT NULL,
     PRIMARY KEY (account_id, client_tag)
 );
-CREATE INDEX IF NOT EXISTS ladder_rating ON ladder_entries(client_tag, rating DESC);
+CREATE INDEX IF NOT EXISTS ladder_rating ON ladder(rating DESC);
 
+-- Realms (D2 servers). host/port carry defaults: SqlRealmRepository persists
+-- only (id, name, description, active), so the network address columns must not
+-- be NOT NULL-without-default or the repo's INSERT would fail the constraint.
 CREATE TABLE IF NOT EXISTS realms (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    host TEXT NOT NULL,
-    port INTEGER NOT NULL,
+    host TEXT NOT NULL DEFAULT '',
+    port INTEGER NOT NULL DEFAULT 0,
     active INTEGER NOT NULL DEFAULT 1
 );
 CREATE UNIQUE INDEX IF NOT EXISTS realms_name ON realms(name COLLATE NOCASE);

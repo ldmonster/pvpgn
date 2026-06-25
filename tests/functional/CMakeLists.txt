@@ -11,3 +11,7 @@ pvpgn_v3_add_test(test_functional_plugin_lifecycle
 pvpgn_v3_add_test(test_functional_migrate_config
     SOURCES migrate_config_test.cpp
     DEPS    core)
+
+pvpgn_v3_add_test(test_functional_migrate_accounts_ctime
+    SOURCES migrate_accounts_ctime_test.cpp
+    DEPS    core pvpgn_infra_file)

@@ -307,8 +307,10 @@ int migrate_plain_to_toml(const std::string& src_dir,
             pvpgn::infra::file::get_numeric_field(kv, {"BNET", "acct", "userid"});
         const auto flags =
             pvpgn::infra::file::get_numeric_field(kv, {"BNET", "acct", "auth_command_groups"});
+        // Original PvPGN writes the account create time under BNET\acct\ctime
+        // (src/bnetd/account.cpp:167); there is no BNET\acct\created key.
         const auto created_at =
-            pvpgn::infra::file::get_numeric_field(kv, {"BNET", "acct", "created"});
+            pvpgn::infra::file::get_numeric_field(kv, {"BNET", "acct", "ctime"});
         const auto last_login =
             pvpgn::infra::file::get_numeric_field(kv, {"BNET", "acct", "lastlogin_time"});
         const std::string last_login_ip =

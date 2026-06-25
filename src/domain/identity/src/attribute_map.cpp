@@ -39,7 +39,7 @@ std::optional<std::string> AttributeMap::description() const {
 }
 
 std::optional<core::SystemTime> AttributeMap::last_login() const {
-    auto val = get("BNET\\acct\\lastlogin");
+    auto val = get("BNET\\acct\\lastlogin_time");
     if (!val) return std::nullopt;
     // Parse timestamp from string
     try {
@@ -51,7 +51,7 @@ std::optional<core::SystemTime> AttributeMap::last_login() const {
 }
 
 std::optional<core::SystemTime> AttributeMap::created_at() const {
-    auto val = get("BNET\\acct\\createtime");
+    auto val = get("BNET\\acct\\ctime");
     if (!val) return std::nullopt;
     // Parse timestamp from string
     try {
@@ -80,12 +80,12 @@ void AttributeMap::set_description(std::string_view v) {
 
 void AttributeMap::set_last_login(core::SystemTime t) {
     auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count();
-    set("BNET\\acct\\lastlogin", std::to_string(timestamp));
+    set("BNET\\acct\\lastlogin_time", std::to_string(timestamp));
 }
 
 void AttributeMap::set_created_at(core::SystemTime t) {
     auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count();
-    set("BNET\\acct\\createtime", std::to_string(timestamp));
+    set("BNET\\acct\\ctime", std::to_string(timestamp));
 }
 
 // --- Game statistics per ClientTag ---

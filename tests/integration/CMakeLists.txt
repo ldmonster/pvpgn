@@ -13,6 +13,7 @@ endif()
 set(_INTEGRATION_SOURCES
     main.cpp
     account_repository_integration_test.cpp
+    social_storage_integration_test.cpp
     unit_of_work_integration_test.cpp
     migration_runner_integration_test.cpp
 )

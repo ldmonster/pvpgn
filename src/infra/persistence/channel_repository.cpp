@@ -4,7 +4,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <sstream>
 
 namespace pvpgn::infra::persistence {
 
@@ -91,15 +90,20 @@ core::Status<> SqlChannelRepository::save(const domain::chat::Channel& channel) 
             flags_raw |= static_cast<std::uint8_t>(1u << bit);
         }
     }
-    std::ostringstream sql;
-    sql << "INSERT OR REPLACE INTO channels (id, name, topic, flags, max_members) "
-        << "VALUES ("
-        << static_cast<std::int64_t>(channel.id().value()) << ", '"
-        << channel.name() << "', '"
-        << channel.topic() << "', "
-        << static_cast<int>(flags_raw) << ", "
-        << channel.policy().max_members << ");";
-    return driver_->exec(sql.str());
+    // SECURITY: every value is bound via `?` placeholders, never concatenated
+    // into the SQL text. `channel.name()` and `channel.topic()` are
+    // attacker-controlled free text (channel auto-create on SID_JOINCHANNEL /
+    // SetChannelTopic, no charset restriction); building the statement by string
+    // concatenation was a stacked-query SQL-injection sink via sqlite3_exec.
+    return driver_->query_bind(
+        "INSERT OR REPLACE INTO channels (id, name, topic, flags, max_members) "
+        "VALUES (?, ?, ?, ?, ?)",
+        {static_cast<std::int64_t>(channel.id().value()),
+         channel.name(),
+         channel.topic(),
+         static_cast<std::int64_t>(flags_raw),
+         static_cast<std::int64_t>(channel.policy().max_members)},
+        [](const DbRow&) { return false; });
 }
 
 core::Status<> SqlChannelRepository::remove(domain::ChannelId id) {
@@ -107,10 +111,10 @@ core::Status<> SqlChannelRepository::remove(domain::ChannelId id) {
         return core::fail(core::Error{
             core::StatusCode::Internal, "persistence: driver not available"});
     }
-    std::ostringstream sql;
-    sql << "DELETE FROM channels WHERE id = "
-        << static_cast<std::int64_t>(id.value()) << ";";
-    return driver_->exec(sql.str());
+    return driver_->query_bind(
+        "DELETE FROM channels WHERE id = ?",
+        {static_cast<std::int64_t>(id.value())},
+        [](const DbRow&) { return false; });
 }
 
 void SqlChannelRepository::forEach(
