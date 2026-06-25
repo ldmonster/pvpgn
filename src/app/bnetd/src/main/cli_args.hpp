@@ -10,6 +10,8 @@ namespace pvpgn::app::bnetd {
 struct CliArgs {
     std::string   config_path;
     std::uint16_t bnet_port{0};
+    std::uint16_t wol_port{0};   ///< 0 = use config/default (4000)
+    std::uint16_t irc_port{0};   ///< 0 = use config/default (6667)
     std::string   data_dir;
     std::string   log_level;
     std::uint32_t threads{0};

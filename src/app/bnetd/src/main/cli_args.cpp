@@ -26,6 +26,12 @@ CliArgs parse_args(int argc, char* argv[]) {
         } else if (arg == "--port" || arg == "-p") {
             args.bnet_port = static_cast<std::uint16_t>(
                 std::stoul(std::string(next())));
+        } else if (arg == "--wol-port") {
+            args.wol_port = static_cast<std::uint16_t>(
+                std::stoul(std::string(next())));
+        } else if (arg == "--irc-port") {
+            args.irc_port = static_cast<std::uint16_t>(
+                std::stoul(std::string(next())));
         } else if (arg == "--data-dir" || arg == "-d") {
             args.data_dir = std::string(next());
         } else if (arg == "--log-level" || arg == "-l") {
@@ -38,6 +44,8 @@ CliArgs parse_args(int argc, char* argv[]) {
                 "Usage: pvpgn_v3_bnetd [options]\n"
                 "  --config,    -c <path>   Path to bnetd.toml\n"
                 "  --port,      -p <port>   BNet/BNFTP port (default 6112)\n"
+                "  --wol-port      <port>   Westwood Online port (default 4000)\n"
+                "  --irc-port      <port>   IRC bridge port (default 6667)\n"
                 "  --data-dir,  -d <path>   Data directory (default .)\n"
                 "  --log-level, -l <level>  Log level (default info)\n"
                 "  --threads,   -t <n>      Worker threads (default hw_concurrency)\n"

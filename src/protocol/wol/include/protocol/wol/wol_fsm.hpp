@@ -53,6 +53,8 @@
 // every translation unit that includes wol_fsm.hpp.
 namespace pvpgn::application::auth {
 class LoginUser;
+class CreateAccount;
+class IWolCredentialStore;
 }  // namespace pvpgn::application::auth
 
 namespace pvpgn::application::chat {
@@ -61,7 +63,28 @@ class ListChannels;
 class PostMessage;
 }  // namespace pvpgn::application::chat
 
+namespace pvpgn::domain::identity {
+class IAccountReader;
+class ISessionRegistry;
+}  // namespace pvpgn::domain::identity
+
 namespace pvpgn::protocol::wol {
+
+/// Collaborators the native Westwood Online (APGAR/CVERS) login path needs.
+/// All pointers are non-owning and must outlive the FSM. When a complete set
+/// is supplied the FSM authenticates WOL clients the way the original server
+/// does (auto-create on first login, verbatim APGAR compare thereafter); when
+/// absent the FSM falls back to the legacy IRC NICK/USER/PASS path.
+struct WolAuthDeps {
+    application::auth::CreateAccount*        create_account   = nullptr;
+    domain::identity::IAccountReader*       account_reader   = nullptr;
+    application::auth::IWolCredentialStore*  wol_store        = nullptr;
+    domain::identity::ISessionRegistry*     session_registry = nullptr;
+
+    [[nodiscard]] bool complete() const noexcept {
+        return create_account && account_reader && wol_store;
+    }
+};
 
 /// WOL chat protocol FSM states.
 enum class WolState : std::uint8_t {
@@ -110,6 +133,21 @@ public:
         , join_channel_(std::move(join_channel))
         , post_message_(std::move(post_message)) {}
 
+    /// Construct with the native WOL auth collaborators (production mode). The
+    /// FSM authenticates via the Westwood CVERS/VERCHK/APGAR/NICK/USER flow,
+    /// mirroring the original server. Optionally also wires the chat use-cases.
+    WolFsm(std::shared_ptr<IWolSessionContext> ctx,
+           WolAuthDeps auth,
+           std::shared_ptr<application::chat::ListChannels> list_channels = nullptr,
+           std::shared_ptr<application::chat::JoinChannel>  join_channel = nullptr,
+           std::shared_ptr<application::chat::PostMessage>  post_message = nullptr) noexcept
+        : ctx_(std::move(ctx))
+        , login_user_(nullptr)
+        , list_channels_(std::move(list_channels))
+        , join_channel_(std::move(join_channel))
+        , post_message_(std::move(post_message))
+        , auth_(auth) {}
+
     /// Feed raw bytes from the TCP stream into the FSM.
     /// Returns ok() on success; error causes the session to close.
     core::Status<> on_bytes(std::span<const std::byte> bytes);
@@ -150,6 +188,15 @@ private:
     /// PASS <password>
     core::Status<> on_pass(std::string_view params);
 
+    /// CVERS <oldvernum> <SKU> — sets the WOL client SKU/version.
+    core::Status<> on_cvers(std::string_view params);
+
+    /// VERCHK <SKU> <version> — version check; replies 379 NONREQ.
+    core::Status<> on_verchk(std::string_view params);
+
+    /// APGAR <token> — stores the opaque Westwood password token.
+    core::Status<> on_apgar(std::string_view params);
+
     /// PING <token>
     core::Status<> on_ping(std::string_view params);
 
@@ -176,6 +223,16 @@ private:
     ///   UnknownUser; InvalidCredentials keeps the connection open for retry.
     /// Returns ok() in all cases (auth failure is communicated via IRC numerics).
     core::Status<> try_authenticate(bool close_on_bad_credentials);
+
+    /// Native Westwood Online authentication: auto-create the account on first
+    /// login (storing the APGAR token), or verbatim-compare the stored token on
+    /// subsequent logins, then send the welcome/MOTD. Mirrors the original
+    /// `handle_wol_authenticate`. Used when `auth_.complete()` and the client
+    /// supplied an APGAR token. Returns ok() always (failure → IRC numeric).
+    core::Status<> try_wol_authenticate();
+
+    /// Send the post-auth welcome sequence (001, 002) and MOTD (375 … 376).
+    core::Status<> send_welcome_and_motd();
 
     // -----------------------------------------------------------------------
     // Reply helpers
@@ -204,12 +261,20 @@ private:
     std::shared_ptr<application::chat::JoinChannel>  join_channel_;
     std::shared_ptr<application::chat::PostMessage>  post_message_;
 
+    /// Native WOL auth collaborators (empty in legacy/skeleton mode).
+    WolAuthDeps auth_{};
+
     WolState    state_   = WolState::Connecting;
     std::string nick_;
     std::string user_;
     std::string realname_;
     std::string pass_;
     std::string channel_;
+
+    /// Westwood APGAR password token (from the APGAR command); empty until set.
+    std::string apgar_;
+    /// WOL SKU from CVERS/VERCHK (0 until set); used in the VERCHK reply.
+    int         wol_sku_ = 0;
 
     /// Account ID resolved after successful login (0 until authenticated).
     domain::AccountId account_id_{0};

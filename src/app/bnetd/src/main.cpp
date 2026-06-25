@@ -116,6 +116,7 @@
 #include "infra/inmemory/ip_ban_repository.hpp"
 #include "infra/inmemory/session_registry.hpp"
 #include "infra/inmemory/srp3_credential_store.hpp"
+#include "infra/inmemory/wol_credential_store.hpp"
 #include "infra/inmemory/unit_of_work_factory.hpp"
 #include "services/bnetd/bnetd_service.hpp"
 
@@ -348,6 +349,9 @@ int main(int argc, char* argv[]) {
         // WarCraft III SRP-3 salt/verifier store (SID_AUTH_ACCOUNTCREATE writes,
         // SID_AUTH_ACCOUNTLOGON reads). Lives for the whole run loop.
         infra::inmemory::InMemorySrp3CredentialStore srp3_store;
+        // Westwood Online APGAR token store (WOL CVERS/APGAR login auto-creates
+        // and verifies). Lives for the whole run loop, like srp3_store.
+        infra::inmemory::InMemoryWolCredentialStore  wol_store;
         core::SystemClock                           auth_clock;
         NullNlsCredentialStore                      null_nls_store;
 
@@ -456,11 +460,19 @@ int main(int argc, char* argv[]) {
             LOG_INFO("bnetd", "BNFTP-only listening on {}:{}", cfg.listen_address, cfg.bnftp_port);
         }
 
-        // Port 4000: WOL chat
+        // Port 4000: WOL chat. Wire the native Westwood auth collaborators so
+        // WOL clients log in via the CVERS/APGAR flow (auto-create on first
+        // login, verbatim APGAR compare thereafter) — matching the original.
+        protocol::wol::WolAuthDeps wol_auth{
+            /* create_account   = */ use_cases.create_account.get(),
+            /* account_reader   = */ &account_repo,
+            /* wol_store        = */ &wol_store,
+            /* session_registry = */ &session_reg,
+        };
         TcpListener wol_listener{
             rt,
-            [&cfg](std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
-                make_wol_session(std::move(tcp), cfg);
+            [&cfg, wol_auth](std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
+                make_wol_session(std::move(tcp), cfg, wol_auth);
             },
             wol_idle};
         wol_listener.start(cfg.listen_address, cfg.wol_port);

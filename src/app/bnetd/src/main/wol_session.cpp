@@ -16,11 +16,12 @@ namespace pvpgn::app::bnetd {
 
 void make_wol_session(
     std::shared_ptr<infra::net::TcpSession> tcp,
-    const ServerConfig&                      cfg) {
+    const ServerConfig&                      cfg,
+    protocol::wol::WolAuthDeps               auth) {
 
     auto egress = std::make_shared<TcpSessionEgress>(tcp);
     auto ctx    = std::make_shared<WolEgressContext>(egress, cfg.server_name);
-    auto fsm    = std::make_shared<protocol::wol::WolFsm>(ctx);
+    auto fsm    = std::make_shared<protocol::wol::WolFsm>(ctx, auth);
 
     tcp->set_on_bytes([fsm](core::ByteView bv) {
         auto sp = std::span<const std::byte>(bv.data(), bv.size());

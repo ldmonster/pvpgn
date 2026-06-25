@@ -11,6 +11,11 @@ class V3Bnetd:
     def __init__(self, bnetd_bin: str, port: int):
         self.bin = bnetd_bin
         self.port = port
+        # WOL/IRC listeners default to fixed 4000/6667; derive unique ports from
+        # the BNet port so multiple v3 instances (and parallel test runs) never
+        # collide. Exposed so tests can drive the right WOL/IRC listener.
+        self.wol_port = port + 2
+        self.irc_port = port + 3
         self.proc = None
         self.workdir = None
         self.logf = None
@@ -22,7 +27,9 @@ class V3Bnetd:
             f.write('[persistence]\nbackend = "inmemory"\n')
         self.logf = open(os.path.join(self.workdir, "bnetd.log"), "a+")
         self.proc = subprocess.Popen(
-            [self.bin, "-c", cfg, "-p", str(self.port), "-d", self.workdir, "-l", "info"],
+            [self.bin, "-c", cfg, "-p", str(self.port),
+             "--wol-port", str(self.wol_port), "--irc-port", str(self.irc_port),
+             "-d", self.workdir, "-l", "info"],
             stdout=self.logf, stderr=subprocess.STDOUT)
         deadline = time.time() + timeout
         while time.time() < deadline:

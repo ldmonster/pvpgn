@@ -178,6 +178,9 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "NICK")    return on_nick(params);
     if (cmd == "USER")    return on_user(params);
     if (cmd == "PASS")    return on_pass(params);
+    if (cmd == "CVERS")   return on_cvers(params);
+    if (cmd == "VERCHK")  return on_verchk(params);
+    if (cmd == "APGAR")   return on_apgar(params);
     if (cmd == "PING")    return on_ping(params);
     if (cmd == "PONG")    return core::ok();  // ignore client PONGs
     if (cmd == "QUIT")    return on_quit(params);
@@ -190,7 +193,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     // CVERS, VERCHK, APGAR, SETOPT, SERIAL, GAMEOPT, STARTG, JOINGAME, etc.
     // Return 421 ERR_UNKNOWNCOMMAND for truly unknown commands.
     const std::string_view wol_known[] = {
-        "CVERS", "VERCHK", "APGAR", "SETOPT", "SERIAL",
+        "SETOPT", "SERIAL",
         "GAMEOPT", "STARTG", "JOINGAME", "FINDUSER", "FINDUSEREX",
         "PAGE", "ADVERTR", "ADVERTC", "CHANCHK", "GETBUDDY",
         "ADDBUDDY", "DELBUDDY", "HOST", "INVMSG", "INVDEL",
