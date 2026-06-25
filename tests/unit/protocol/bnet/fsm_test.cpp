@@ -114,7 +114,7 @@ TEST_CASE("BnetFsm: Ping is mirrored verbatim in any state",
     REQUIRE(f.state() == BnetState::Init);
 }
 
-TEST_CASE("BnetFsm: AUTH_INFO transitions to AuthInfoReceived + AuthCheckReply",
+TEST_CASE("BnetFsm: AUTH_INFO transitions to AuthInfoReceived + sends 0x50 seed",
           "[protocol][bnet][fsm]") {
     auto session_ctx = std::make_shared<FakeContext>();
     auto use_case_ctx = make_test_context();
@@ -122,7 +122,9 @@ TEST_CASE("BnetFsm: AUTH_INFO transitions to AuthInfoReceived + AuthCheckReply",
     REQUIRE(f.handle(ClientMessage{AuthInfo{}}).has_value());
     REQUIRE(f.state() == BnetState::AuthInfoReceived);
     REQUIRE(session_ctx->sent.size() == 1);
-    REQUIRE(std::get<AuthCheckReply>(session_ctx->sent[0]).result == 0u);
+    // The server replies with the SID_AUTH_INFO seed (a real client blocks for
+    // it); the AUTH_CHECK result follows the client's 0x51, not AUTH_INFO.
+    REQUIRE(std::get<AuthInfoReply>(session_ctx->sent[0]).server_token != 0u);
 }
 
 TEST_CASE("BnetFsm: AUTH_INFO out of order closes session",
@@ -320,9 +322,9 @@ TEST_CASE("BnetFsm: AUTH_INFO stores client_tag from game_id",
     ai.game_id = 0x53544152u;
     REQUIRE(f.handle(ClientMessage{ai}).has_value());
     REQUIRE(f.state() == BnetState::AuthInfoReceived);
-    // AuthCheckReply is still sent
+    // The 0x50 seed is sent; STAR is an OLS client so logon-type is 0.
     REQUIRE(session_ctx->sent.size() == 1);
-    REQUIRE(std::get<AuthCheckReply>(session_ctx->sent[0]).result == 0u);
+    REQUIRE(std::get<AuthInfoReply>(session_ctx->sent[0]).logontype == 0u);
 }
 
 TEST_CASE("BnetFsm: AUTH_INFO with zero game_id still transitions state",

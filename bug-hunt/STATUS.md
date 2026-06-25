@@ -352,3 +352,25 @@ Also logged F-W18b (deferred): EID_JOIN omits the joiner's statstring/USERFLAGS.
 ## Differential harness now covers: OLS login + chat/channel join + TALK +
 ## WHISPER + part-on-disconnect + multi-channel isolation + /me EMOTE.
 ## RUNNING TOTAL: ~47 distinct bugs across 18 waves.
+
+## Wave 19: faithful AUTH_INFO (0x50) seed — real-client OLS handshake
+Goal (user): make the mock clients faithful to the real "old flow" so they test
+the new flow. Doing so exposed CRITICAL: v3's on(AuthInfo) jumped straight to the
+SID_AUTH_CHECK (0x51) result and NEVER sent the SID_AUTH_INFO (0x50) seed. Our
+adaptive mock hid it, but a real client blocks for that seed (server token for the
+password double-hash + logon-type flag selecting OLS vs W3/NLS). So no real client
+could authenticate.
+
+Fix: on(AuthInfo) now sends the AuthInfoReply seed (logon-type 2 for WAR3/W3XP
+else 0, per-session nonzero server_token, MPQ name + CheckRevision equation);
+on(AuthCheckRequest) now sends the 0x51 result. Mock clients (diff bncs_client +
+both e2e tests) were made strictly faithful (require the seed, use its token).
+diff_ols_login matches on seed_present/server_token_nonzero/logon_type + outcomes;
+both e2e journeys pass; unit guards added/updated (fsm_auth_create_login, fsm_test).
+
+NLS still open (F-W19): the seed now advertises logon-type 2 for WAR3/W3XP but the
+0x53/0x54 SRP handlers are stubbed + no verifier at creation — a real WC3 client
+would stall at 0x53. Wiring bnet_srp3 + LoginUserNls + credential store is next.
+
+## RUNNING TOTAL: ~48 distinct bugs across 19 waves. Real OLS clients can now
+## complete the auth handshake against v3 (verified vs oracle + faithful mocks).

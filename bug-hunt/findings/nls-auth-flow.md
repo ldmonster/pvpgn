@@ -428,3 +428,41 @@ env-gated, separately-verifiable artifact (no local build of the e2e per the
 brief's "do not run any build" constraint). Per the brief — auth path,
 correctness over forcing — this is recorded as a plan rather than a rushed,
 unbuildable, e2e-breaking change.
+
+---
+
+## F-W19 — v3 never sent the SID_AUTH_INFO (0x50) seed → no real client could auth
+**Severity:** CRITICAL (real-client compatibility) — fixed (wave 19) for OLS
+**Classification:** REAL BUG — fixed (OLS) / scopes the NLS work
+
+**Symptom:** v3's `on(AuthInfo)` immediately replied with SID_AUTH_CHECK (0x51,
+result=0) and NEVER sent the SID_AUTH_INFO reply (0x50). Our mock client had an
+adaptive shortcut that masked this. But a REAL Blizzard client follows a fixed
+sequence: after sending SID_AUTH_INFO it BLOCKS for the server's 0x50 reply,
+which carries (a) the server token it folds into the OLS password double-hash and
+(b) the logon-type flag that selects OLS vs WarCraft-3 NLS. Without that packet
+no real client — OLS or W3 — could ever authenticate.
+
+**Original ref:** handle_bnet.cpp builds SERVER_AUTHREQ_109 (logontype:
+2 for WAR3/W3XP else 0; server_token; udpvalue; checkrevision file timestamp +
+filename + equation), THEN the client sends 0x51, THEN the server replies 0x51.
+
+**Fix (OLS):** `BnetFsm::on(AuthInfo)` now sends the `AuthInfoReply` (0x50) seed:
+logon-type 2 for WAR3/W3XP else 0, a per-session nonzero `server_token` (stored in
+`server_token_`), standard MPQ name + a representative CheckRevision equation.
+`on(AuthCheckRequest)` now sends the AUTH_CHECK (0x51) result. The mock clients
+(tests/diff/bncs_client.py + tests/e2e) were made FAITHFUL — they require the
+0x50 seed, read its server_token, send 0x51, then login — so they exercise the
+real client sequence and double as a regression guard for the seed.
+
+**Verified:** diff_ols_login now matches on auth_seed_present=True/True,
+server_token_nonzero=True/True, logon_type, and all login outcomes. Both e2e
+journeys (modern_login_journey, account_persistence) pass with the faithful
+handshake. Unit guards in fsm_auth_create_login_test.cpp (0x50 seed nonzero token,
+OLS logon-type 0, WAR3/W3XP logon-type 2, AUTH_CHECK ack) + updated fsm_test.cpp.
+
+**Still open (NLS):** the 0x50 reply now advertises logon-type 2 for WAR3/W3XP,
+but the SID_AUTH_ACCOUNTLOGON (0x53)/PROOF (0x54) handlers remain stubbed (return
+ok(), send nothing) and there is no SRP verifier at account creation. A real
+WarCraft-3 client would get logon-type 2 and then stall at 0x53. Wiring the
+existing bnet_srp3 + LoginUserNls use-case + a credential store is the next step.

@@ -29,8 +29,12 @@ def run_scenario(host, port, label):
 
     def session_create_login():
         c = bc.BncsClient(host, port)
-        stok, authres, seed = bc.auth_handshake(c, product=b"SEXP", client_token=ctok)
-        out["auth_seed_present"] = seed
+        stok, authres, logon_type = bc.auth_handshake(
+            c, product=b"SEXP", client_token=ctok)
+        # auth_handshake raises if the server omits the 0x50 seed, so reaching
+        # here means it was present.
+        out["auth_seed_present"] = True
+        out["logon_type"] = logon_type
         out["auth_check_result"] = authres
         out["server_token_nonzero"] = (stok != 0)
         out["create_result"] = bc.create_account_ols(c, "diffuser", "secret")
@@ -39,6 +43,7 @@ def run_scenario(host, port, label):
     r = _safe(session_create_login)
     if isinstance(r, str):  # connection died mid-handshake
         out.setdefault("auth_seed_present", "?")
+        out.setdefault("logon_type", "?")
         out.setdefault("auth_check_result", "?")
         out.setdefault("server_token_nonzero", "?")
         out.setdefault("create_result", "?")

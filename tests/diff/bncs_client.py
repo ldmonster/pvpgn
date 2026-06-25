@@ -9,6 +9,11 @@ to exercise post-login behaviour.
 import socket
 import struct
 
+
+class ProtocolError(Exception):
+    """Raised when the server deviates from the expected BNCS wire sequence."""
+
+
 # ---- SID constants ----------------------------------------------------------
 SID_NULL = 0x00
 SID_STARTADVEX3 = 0x1C
@@ -197,39 +202,36 @@ def _drain_until(client, want_sid, max_packets=30):
 
 
 def auth_handshake(client, product=b"SEXP", client_token=0xDEADBEEF):
-    """Adaptive AUTH_INFO handshake that works against BOTH servers.
+    """Faithful OLS AUTH_INFO handshake — the exact sequence a real Blizzard
+    client follows, used to drive BOTH servers identically.
 
-    Real protocol (original): AUTH_INFO -> server sends 0x50 SEED (logon_type +
-    server_token) -> client sends 0x51 AUTH_CHECK -> server 0x51 reply.
-    v3 (simplified): AUTH_INFO -> server sends 0x51 reply directly (no seed,
-    no server_token).
+        client -> SID_AUTH_INFO (0x50)
+        server -> SID_AUTH_INFO (0x50)  SEED: logon_type, server_token, ...
+        client -> SID_AUTH_CHECK (0x51) version + CD-key proof
+        server -> SID_AUTH_CHECK (0x51) result
 
-    Returns (server_token, auth_check_result, seed_present).
+    A real client BLOCKS for the server seed and uses its server_token in the
+    password double-hash; there is no "skip the seed" shortcut. If the server
+    does not send the 0x50 seed first this raises, so the mock doubles as a
+    regression guard for the seed.
+
+    Returns (server_token, auth_check_result, logon_type).
     """
     client.send_auth_info(product=product)
-    # Drain the first non-PING reply; it's either a 0x50 seed or a 0x51 result.
-    for _ in range(30):
-        r = client.recv()
-        if r is None:
-            return 0, None, False
-        sid, body = r
-        if sid == SID_PING:
-            client.send(SID_PING, body[:4])
-            continue
-        if sid == SID_AUTH_INFO and len(body) >= 8:
-            # SERVER_AUTHREQ seed: logon_type(u32), server_token(u32), ...
-            server_token = struct.unpack_from("<I", body, 4)[0]
-            # Real flow: respond with AUTH_CHECK and read its result.
-            chk = struct.pack("<IIIII", client_token, 0xD3, 0, 1, 0)
-            chk += struct.pack("<IIII", 0, 0, 0, 0) + struct.pack("<5I", 0, 0, 0, 0, 0)
-            chk += cstring("Game.exe 01/01/01 00:00:00 1") + cstring("owner")
-            client.send(SID_AUTH_CHECK, chk)
-            res = _drain_until(client, SID_AUTH_CHECK)
-            return server_token, (first_result_u32(res) if res else None), True
-        if sid == SID_AUTH_CHECK:
-            # v3 simplified flow: this IS the check result; no seed/token.
-            return 0, first_result_u32(body), False
-    return 0, None, False
+    seed = _drain_until(client, SID_AUTH_INFO)
+    if seed is None or len(seed) < 8:
+        raise ProtocolError(
+            "server did not send the SID_AUTH_INFO (0x50) seed before AUTH_CHECK")
+    logon_type   = struct.unpack_from("<I", seed, 0)[0]
+    server_token = struct.unpack_from("<I", seed, 4)[0]
+    # Respond with SID_AUTH_CHECK (version byte, checksum, CD-key proof). The
+    # values are dummies — version-check is not enforced under the test config.
+    chk = struct.pack("<IIIII", client_token, 0xD3, 0, 1, 0)
+    chk += struct.pack("<IIII", 0, 0, 0, 0) + struct.pack("<5I", 0, 0, 0, 0, 0)
+    chk += cstring("Game.exe 01/01/01 00:00:00 1") + cstring("owner")
+    client.send(SID_AUTH_CHECK, chk)
+    res = _drain_until(client, SID_AUTH_CHECK)
+    return server_token, (first_result_u32(res) if res else None), logon_type
 
 
 def create_account_ols(client, username, password):

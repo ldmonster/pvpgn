@@ -189,11 +189,13 @@ def blizzard_hash(data: bytes) -> "list[int]":
     return digest
 
 
-def build_logon_response2(username: str, words=PASSWORD_WORDS) -> bytes:
+def build_logon_response2(username: str, server_token: int,
+                          words=PASSWORD_WORDS) -> bytes:
     # OLS login: the client sends hash2 = blizzard_hash(client_token ‖
     # server_token ‖ hash1), NOT the raw hash1. The server re-derives the same
-    # double-hash from the stored hash1 + tokens and compares.
-    client_token, server_token = 0xDEADBEEF, 0
+    # double-hash from the stored hash1 + tokens and compares. server_token is
+    # the value the server issued in its SID_AUTH_INFO (0x50) seed.
+    client_token = 0xDEADBEEF
     buf = struct.pack("<7I", client_token, server_token, *words)
     hash2 = blizzard_hash(buf)
     return struct.pack("<2I", client_token, server_token) + \
@@ -219,9 +221,29 @@ def connect(host: str, port: int, timeout: float = 5.0) -> socket.socket:
     return sock
 
 
-def do_auth_handshake(sock: socket.socket) -> None:
-    """AUTH_INFO -> assert AUTH_CHECK result==0 (first byte 0xFF selects BNet)."""
+def do_auth_handshake(sock: socket.socket) -> int:
+    """Faithful OLS handshake (what a real client does):
+
+        -> SID_AUTH_INFO (0x50)
+        <- SID_AUTH_INFO (0x50)  seed: logon_type, server_token, ...
+        -> SID_AUTH_CHECK (0x51) version + CD-key proof
+        <- SID_AUTH_CHECK (0x51) result == 0
+
+    Returns the server_token from the seed (needed for the login double-hash).
+    """
     send_packet(sock, SID_AUTH_INFO, build_auth_info())
+    code, body = recv_packet(sock)
+    if code != SID_AUTH_INFO:
+        raise AssertionError(
+            f"expected AUTH_INFO seed (0x{SID_AUTH_INFO:02x}), got 0x{code:02x}")
+    if len(body) < 8:
+        raise AssertionError("AUTH_INFO seed too short")
+    server_token = struct.unpack_from("<I", body, 4)[0]
+    # Reply with SID_AUTH_CHECK (dummy version/checksum/cd-key — not enforced).
+    chk = struct.pack("<IIIII", 0xDEADBEEF, 0xD3, 0, 1, 0)
+    chk += struct.pack("<IIII", 0, 0, 0, 0) + struct.pack("<5I", 0, 0, 0, 0, 0)
+    chk += cstring("Game.exe 01/01/01 00:00:00 1") + cstring("owner")
+    send_packet(sock, SID_AUTH_CHECK, chk)
     code, body = recv_packet(sock)
     if code != SID_AUTH_CHECK:
         raise AssertionError(
@@ -230,10 +252,13 @@ def do_auth_handshake(sock: socket.socket) -> None:
     if result != 0:
         raise AssertionError(f"AUTH_CHECK result {result} != 0 (version check failed)")
     print(f"  [client] <- AUTH_CHECK result=0 (version check passed)")
+    return server_token
 
 
-def logon(sock: socket.socket, username: str, words=PASSWORD_WORDS) -> int:
-    send_packet(sock, SID_LOGONRESPONSE2, build_logon_response2(username, words))
+def logon(sock: socket.socket, username: str, server_token: int,
+          words=PASSWORD_WORDS) -> int:
+    send_packet(sock, SID_LOGONRESPONSE2,
+                build_logon_response2(username, server_token, words))
     code, body = recv_packet(sock)
     if code != SID_LOGONRESPONSE2:
         raise AssertionError(
@@ -354,7 +379,7 @@ def main() -> int:
         print("[journey] accept: CREATEACCT1 -> LOGONRESPONSE2 -> PING -> "
               "ENTER_CHAT -> JOIN_CHANNEL")
         with connect("127.0.0.1", port) as sock:
-            do_auth_handshake(sock)
+            stok = do_auth_handshake(sock)
 
             # CREATEACCTREQ1: provision the OLS account the login will use.
             rc = create_account(sock, user, PASSWORD_WORDS)
@@ -364,7 +389,7 @@ def main() -> int:
             print(f"  [client] <- CREATEACCT1 reply OK (account {user!r} created)")
 
             # LOGONRESPONSE2 with the matching password -> accepted (0x00).
-            result = logon(sock, user, PASSWORD_WORDS)
+            result = logon(sock, user, stok, PASSWORD_WORDS)
             if result != 0x00:
                 raise AssertionError(
                     f"expected login accept 0x00, got 0x{result:02x}")
@@ -420,8 +445,8 @@ def main() -> int:
         # --- Journey 2: wrong password on an existing account -> 0x02 -------
         print("[journey] reject: existing account, wrong password -> 0x02")
         with connect("127.0.0.1", port) as sock:
-            do_auth_handshake(sock)
-            result = logon(sock, user, WRONG_WORDS)
+            stok = do_auth_handshake(sock)
+            result = logon(sock, user, stok, WRONG_WORDS)
             if result != 0x02:
                 raise AssertionError(
                     f"expected reject 0x02 (bad password), got 0x{result:02x}")
@@ -430,8 +455,8 @@ def main() -> int:
         # --- Journey 3: unknown account -> 0x01 -----------------------------
         print("[journey] reject: unknown account -> 0x01")
         with connect("127.0.0.1", port) as sock:
-            do_auth_handshake(sock)
-            result = logon(sock, "ghostuser", PASSWORD_WORDS)
+            stok = do_auth_handshake(sock)
+            result = logon(sock, "ghostuser", stok, PASSWORD_WORDS)
             if result != 0x01:
                 raise AssertionError(
                     f"expected reject 0x01 (unknown user), got 0x{result:02x}")
@@ -445,7 +470,7 @@ def main() -> int:
         print("[journey] real-client init byte (0x01) -> create + login accepted")
         with connect("127.0.0.1", port) as sock:
             sock.sendall(b"\x01")          # CLIENT_INITCONN_CLASS_BNET
-            do_auth_handshake(sock)
+            stok = do_auth_handshake(sock)
             # Use a distinct account created on this same connection so the
             # single-session policy (journey 1 already holds e2euser) can't
             # interfere — this journey isolates the 0x01 init-byte handling.
@@ -453,7 +478,7 @@ def main() -> int:
             if rc != CREATE_ACCT1_OK:
                 raise AssertionError(
                     f"real-client (0x01) create: expected OK, got {rc}")
-            result = logon(sock, "rcuser", PASSWORD_WORDS)
+            result = logon(sock, "rcuser", stok, PASSWORD_WORDS)
             if result != 0x00:
                 raise AssertionError(
                     f"real-client (0x01) login: expected 0x00, got 0x{result:02x}")

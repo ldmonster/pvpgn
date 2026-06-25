@@ -63,10 +63,36 @@ core::Status<> BnetFsm::on(const AuthInfo& m) {
         client_tag_ = tag.value();
     }
     state_ = BnetState::AuthInfoReceived;
-    // Phase-5 use-case will plug version-check policy here. For now we
-    // ack with result=0 ("passed") + empty info so a basic client can
-    // proceed and exercise downstream states.
-    return ctx_->send(ServerMessage{AuthCheckReply{0u, ""}});
+
+    // Reply with SID_AUTH_INFO (0x50) — the server seed — exactly as the
+    // original does (handle_bnet.cpp SERVER_AUTHREQ_109). A real client BLOCKS
+    // here waiting for this packet: it needs the server token (folded into the
+    // password double-hash) and the logon-type flag (which selects the OLS vs
+    // W3/NLS login path). Emitting the AUTH_CHECK result directly, as we used
+    // to, left every real client stalled. The follow-up SID_AUTH_CHECK (0x51)
+    // from the client is acked in on(AuthCheckRequest).
+    AuthInfoReply reply;
+    // logon-type: 2 for WarCraft III (WAR3/W3XP) which use the NLS/SRP login;
+    // 0 (standard OLS broken-SHA-1) for every other Blizzard client.
+    reply.logontype = (client_tag_ == domain::tags::kWarcraft3 ||
+                       client_tag_ == domain::tags::kWar3Xp)
+                          ? 2u
+                          : 0u;
+    // Per-session, always-nonzero server token (the client folds it into hash2
+    // and echoes it back in SID_LOGONRESPONSE2). Odd by construction so it can
+    // never collide with the 0 "no token" value a stale client might send.
+    reply.server_token =
+        (static_cast<std::uint32_t>(session_id_.value()) * 2654435761u) | 1u;
+    server_token_ = reply.server_token;
+    reply.session_num = 0u;
+    reply.timestamp   = 0u;
+    // Version-check is not enforced (parity with allow_unknown_version): send a
+    // standard MPQ name + a representative CheckRevision equation so the shape
+    // matches the original. The values are advisory — neither server validates
+    // the returned checksum under the test config.
+    reply.mpq_filename     = "ver-IX86-1.mpq";
+    reply.checksum_formula = "A=1 B=1 C=1 4 A=A^S B=B^C C=C^A A=A^B";
+    return ctx_->send(ServerMessage{reply});
 }
 
 core::Status<> BnetFsm::on(const LogonResponse2& m) {
@@ -174,7 +200,10 @@ core::Status<> BnetFsm::on(const AuthCheckRequest&) {
         state_ != BnetState::Init) {
         return reject("bnet fsm: AUTH_CHECK out of order");
     }
-    return core::ok();
+    // Ack the version/CD-key check as passed (result=0). Version-check policy
+    // is not enforced under the current config; the real client requires this
+    // SID_AUTH_CHECK (0x51) reply before it will send SID_LOGONRESPONSE2.
+    return ctx_->send(ServerMessage{AuthCheckReply{0u, ""}});
 }
 
 core::Status<> BnetFsm::on(const CdKey2Request&) {

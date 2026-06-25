@@ -31,6 +31,7 @@
 #include "infra/crypto/bnet_hash.hpp"
 #include "infra/crypto/bnet_session_hasher.hpp"
 #include "domain/shared/ids.hpp"
+#include "domain/shared/client_tag.hpp"
 #include "infra/inmemory/account_repository.hpp"
 #include "infra/inmemory/event_bus.hpp"
 #include "infra/inmemory/ip_ban_repository.hpp"
@@ -192,6 +193,50 @@ TEST_CASE("fsm auth: unknown account is rejected with 0x01",
     const auto* reply = last_as<LogonResponse2Reply>(h.ctx);
     REQUIRE(reply != nullptr);
     CHECK(reply->result == 0x01u);          // UnknownUser
+}
+
+TEST_CASE("fsm auth: AUTH_INFO replies with the 0x50 seed (nonzero token, OLS logon-type)",
+          "[protocol][bnet][auth]") {
+    Harness h;
+    auto fsm = h.make_fsm();
+
+    AuthInfo m;
+    m.game_id = domain::tags::kBroodWar.packed_be();  // 'SEXP' — OLS client
+    REQUIRE(fsm.handle(ClientMessage{m}).has_value());
+
+    // A real client blocks for this SID_AUTH_INFO reply before proceeding.
+    const auto* seed = last_as<AuthInfoReply>(h.ctx);
+    REQUIRE(seed != nullptr);
+    CHECK(seed->logontype == 0u);          // OLS, not W3/NLS
+    CHECK(seed->server_token != 0u);       // must be usable in the hash2 fold
+}
+
+TEST_CASE("fsm auth: AUTH_INFO for WarCraft III sets logon-type 2 (NLS)",
+          "[protocol][bnet][auth]") {
+    for (const auto tag : {domain::tags::kWarcraft3, domain::tags::kWar3Xp}) {
+        Harness h;
+        auto fsm = h.make_fsm();
+        AuthInfo m;
+        m.game_id = tag.packed_be();
+        REQUIRE(fsm.handle(ClientMessage{m}).has_value());
+        const auto* seed = last_as<AuthInfoReply>(h.ctx);
+        REQUIRE(seed != nullptr);
+        CHECK(seed->logontype == 2u);      // W3/W3XP use the NLS/SRP login
+    }
+}
+
+TEST_CASE("fsm auth: AUTH_CHECK is acked with result 0 (passed)",
+          "[protocol][bnet][auth]") {
+    Harness h;
+    auto fsm = h.make_fsm();
+
+    REQUIRE(fsm.handle(ClientMessage{AuthInfo{}}).has_value());
+    AuthCheckRequest chk;
+    REQUIRE(fsm.handle(ClientMessage{chk}).has_value());
+
+    const auto* reply = last_as<AuthCheckReply>(h.ctx);
+    REQUIRE(reply != nullptr);
+    CHECK(reply->result == 0u);            // version check passed
 }
 
 TEST_CASE("fsm auth: CREATEACCTREQ1 without a use-case refuses (does not ACK)",

@@ -39,8 +39,8 @@ def run_phase(bnetd, port, workdir, fn):
     try:
         mlj.wait_ready(proc, logf, port)
         with mlj.connect("127.0.0.1", port) as sock:
-            mlj.do_auth_handshake(sock)
-            return fn(sock)
+            stok = mlj.do_auth_handshake(sock)
+            return fn(sock, stok)
     finally:
         if proc.poll() is None:
             proc.terminate()
@@ -68,7 +68,7 @@ def main() -> int:
     try:
         # Create the account, then stop bnetd.
         rc = run_phase(bnetd, free_port(), workdir,
-                       lambda s: mlj.create_account(s, USER))
+                       lambda s, stok: mlj.create_account(s, USER))
         if rc != mlj.CREATE_ACCT1_OK:
             raise AssertionError(f"CREATEACCT1 expected OK, got {rc}")
         print(f"[persist] phase 1: created {USER!r} (bnetd #1 stopped)")
@@ -81,7 +81,7 @@ def main() -> int:
 
         # A fresh bnetd in the same workdir must authenticate it.
         result = run_phase(bnetd, free_port(), workdir,
-                           lambda s: mlj.logon(s, USER, mlj.PASSWORD_WORDS))
+                           lambda s, stok: mlj.logon(s, USER, stok, mlj.PASSWORD_WORDS))
         if result != 0x00:
             raise AssertionError(
                 f"post-restart login expected 0x00, got 0x{result:02x}")
@@ -90,7 +90,7 @@ def main() -> int:
         # Negative control: an unknown user is still rejected by the reloaded
         # file repo (it didn't just accept everyone).
         result = run_phase(bnetd, free_port(), workdir,
-                           lambda s: mlj.logon(s, "neverexisted", mlj.PASSWORD_WORDS))
+                           lambda s, stok: mlj.logon(s, "neverexisted", stok, mlj.PASSWORD_WORDS))
         if result != 0x01:
             raise AssertionError(
                 f"unknown user after restart expected 0x01, got 0x{result:02x}")

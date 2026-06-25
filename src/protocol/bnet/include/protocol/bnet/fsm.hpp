@@ -223,6 +223,11 @@ private:
     /// Default-constructed (all-zero) until AUTH_INFO is received.
     domain::ClientTag client_tag_{};
 
+    /// Server token issued in the SID_AUTH_INFO reply (0x50). The client folds
+    /// it into the OLS password double-hash and echoes it back in
+    /// SID_LOGONRESPONSE2. 0 until AUTH_INFO is processed.
+    std::uint32_t server_token_ = 0;
+
     /// Username stored at login time, used in broadcast ChatEvents.
     std::string current_username_;
 };
