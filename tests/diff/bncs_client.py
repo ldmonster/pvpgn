@@ -254,6 +254,73 @@ def login_ols(client, username, password, client_token, server_token):
     return first_result_u32(res)
 
 
+# ---- WarCraft III SRP-3 (NLS) flow ------------------------------------------
+# A faithful WAR3/W3XP client: SID_AUTH_ACCOUNTCREATE (0x52) registers a
+# salt + verifier; SID_AUTH_ACCOUNTLOGON (0x53) / ...PROOF (0x54) do the SRP-3
+# challenge/response. The crypto is bnet_srp3.py (golden-verified bit-for-bit
+# against the C++ implementation the original server uses).
+import bnet_srp3 as _srp  # noqa: E402
+
+# A fixed salt keeps the handshake deterministic across both servers.
+_W3_SALT = int(
+    "0011223344556677" "8899aabbccddeeff" "0011223344556677" "8899aabbccddeeff", 16)
+
+
+def create_account_w3(client, username, password, salt=_W3_SALT):
+    """SID_AUTH_ACCOUNTCREATE (0x52): register salt + SRP-3 verifier.
+    Returns the u32 result (0 == OK)."""
+    c = _srp.BnetSrp3(username, password)
+    c.set_salt(salt)
+    body = _srp.salt_to_wire(salt)
+    body += _srp.verifier_to_wire(c.verifier())
+    body += cstring(username)
+    client.send(SID_AUTH_ACCOUNTLOGON - 1, body)  # 0x52 = ACCOUNTCREATE
+    res = _drain_until(client, SID_AUTH_ACCOUNTLOGON - 1)
+    return first_result_u32(res)
+
+
+def login_w3(client, username, password, salt=_W3_SALT, client_priv=None):
+    """SID_AUTH_ACCOUNTLOGON (0x53) + PROOF (0x54). Returns a dict:
+       {login_msg, proof_response, m2_matches}.
+
+    m2_matches is True iff the server's M2 equals the value the client derives
+    independently — i.e. mutual authentication succeeded."""
+    c = _srp.BnetSrp3(username, password)
+    c.set_salt(salt)
+    # Deterministic client private key (so two servers see identical A).
+    c.set_client_private_key(
+        client_priv if client_priv is not None else
+        int("a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0", 16))
+    A = c.client_session_public_key()
+
+    # 0x53: send A + username, receive {message, salt, B}.
+    client.send(SID_AUTH_ACCOUNTLOGON, _srp.pubkey_A_to_wire(A) + cstring(username))
+    reply = _drain_until(client, SID_AUTH_ACCOUNTLOGON)
+    if reply is None or len(reply) < 4:
+        return {"login_msg": None, "proof_response": None, "m2_matches": False}
+    login_msg = struct.unpack_from("<I", reply, 0)[0]
+    if login_msg != 0 or len(reply) < 4 + 32 + 32:
+        return {"login_msg": login_msg, "proof_response": None, "m2_matches": False}
+    B = _srp.pubkey_B_from_wire(reply[4 + 32:4 + 32 + 32])
+
+    K = c.hashed_client_secret(B)
+    M1 = c.client_password_proof(A, B, K)
+    M2_expected = c.server_password_proof(A, M1, K)
+
+    # 0x54: send M1, receive {response, M2}.
+    client.send(SID_AUTH_ACCOUNTLOGONPROOF, _srp.proof_to_wire(M1))
+    preply = _drain_until(client, SID_AUTH_ACCOUNTLOGONPROOF)
+    if preply is None or len(preply) < 4:
+        return {"login_msg": login_msg, "proof_response": None, "m2_matches": False}
+    response = struct.unpack_from("<I", preply, 0)[0]
+    m2_matches = False
+    if len(preply) >= 4 + 20:
+        m2_wire = preply[4:4 + 20]
+        m2_matches = (m2_wire == _srp.proof_to_wire(M2_expected))
+    return {"login_msg": login_msg, "proof_response": response,
+            "m2_matches": m2_matches}
+
+
 # ---- post-login chat / channel flows ----------------------------------------
 def parse_chat_event(body):
     """SID_CHATEVENT: event_id, flags, ping, ip, acct, reg, username\0, text\0."""

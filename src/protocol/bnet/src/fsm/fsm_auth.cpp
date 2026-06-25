@@ -64,6 +64,10 @@ core::Status<> BnetFsm::on(const AuthInfo& m) {
     if (auto tag = domain::ClientTag::from_packed_be(m.game_id)) {
         client_tag_ = tag.value();
     }
+    // Remember the client version id; the W3 NLS proof step uses it to decide
+    // whether to prompt for an e-mail address (parity with the original's
+    // `versionid >= 0x0D` gate).
+    version_id_ = m.version_id;
     state_ = BnetState::AuthInfoReceived;
 
     // Reply with SID_AUTH_INFO (0x50) — the server seed — exactly as the
@@ -279,8 +283,24 @@ core::Status<> BnetFsm::on(const LogonProofW3Request& m) {
     current_username_   = w3_pending_username_;
     state_              = BnetState::LoggedIn;
 
+    // Mirror the original (_client_loginproofw3): once the proof checks out, a
+    // client at version id >= 0x0D whose account has no e-mail on file is asked
+    // to supply one — the proof reply carries RESPONSE_EMAIL (0x0E) instead of
+    // RESPONSE_OK (0x00). It is still a successful login (the server proof M2 is
+    // returned either way); the code only tells the client to pop the
+    // "register e-mail" dialog.
+    //
+    // The core `Account` aggregate carries no e-mail address, W3 accounts are
+    // created with an empty e-mail, and v3 implements no SETEMAIL flow — so a
+    // W3 account never has an e-mail on file. The gate therefore reduces to the
+    // version check. (If account e-mail becomes part of the aggregate, replace
+    // the `false` below with the real lookup.)
+    const bool has_email = false;
+    const std::uint32_t response = (version_id_ >= 0x0Du && !has_email)
+                                       ? kLogonProofW3ResponseEmail
+                                       : kLogonProofW3ResponseOk;
     return ctx_->send(ServerMessage{
-        LogonProofW3Reply{kLogonProofW3ResponseOk, w3_server_m2_, ""}});
+        LogonProofW3Reply{response, w3_server_m2_, ""}});
 }
 
 core::Status<> BnetFsm::on(const PassChangeRequest&) {

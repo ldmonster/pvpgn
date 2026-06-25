@@ -509,3 +509,74 @@ SRP-3 + the BigUInt legacy block conversions ported to Python, golden-verified
 against bnet_srp3_golden_test vectors). The C++ round-trip already proves interop
 at the message level; the Python mock would add running-server differential
 parity. Password-change over NLS (0x55/0x56) remains stubbed.
+
+---
+
+## F-W21 — WarCraft III SRP-3 (NLS) running-server differential; uncovered a verifier-breaking bug IN THE ORIGINAL + an e-mail-prompt gap in v3
+**Severity:** the v3 mock fix (salt wire) + the v3 e-mail-prompt parity are MEDIUM;
+the original-server bug is HIGH **in the original** (W3 NLS verifier/proof corruption).
+**Classification:** mock bug fixed; v3 feature added; **real BUG found in the oracle**.
+
+Wave 20 proved v3's W3 SRP-3 with a C++ round-trip (v3 client vs v3 server — self
+consistent). Wave 21 builds the running-server differential: a faithful **Python**
+SRP-3 (`tests/diff/bnet_srp3.py`, golden-verified bit-for-bit against
+`bnet_srp3_golden_test.cpp`: v, A, B, K, M1, M2) drives `bncs_client.py`'s new
+`create_account_w3`/`login_w3` through `diff_w3_login.py` against BOTH servers.
+Driving the *running* oracle (not just self-consistent v3) surfaced two divergences:
+
+### (a) Mock salt wire encoding was wrong [mock BUG — fixed]
+`salt_to_wire` serialised the salt with `to_bytes_legacy(.,4,false)` (block-4
+little-endian). The server decodes the stored salt with `BigInt(salt,32,4,false)`
+(== `from_bytes_legacy(.,4,false)`) and derives `raw_salt = getData(32)` (block-1
+big-endian) for the x/proof hash. Block-4 *little* is **not** the inverse of the
+server's block-4 decode, so the salt integer (hence raw_salt, x, and M1) desynced
+and BOTH servers returned proof_response 2. Fix: `to_bytes_legacy(.,4,true)`
+(verified to round-trip exactly through `from_bytes_legacy(.,4,false)`). After it,
+v3 completed mutual auth (m2_matches True), the oracle still failed → (b).
+
+### (b) THE ORIGINAL pvpgn-server scrambles the username/password (UB) → its W3 verifier/proof are corrupt [REAL BUG in the oracle — fixed in the oracle]
+With the mock salt fixed, v3 accepted the proof but the oracle still rejected it.
+A bisecting C++ probe linked against the oracle's own `BnetSRP3`/`BigInt` showed
+its `getVerifier()` for (`w3diff`,`secretpass`,fixed salt) = `0b993edf…`, while a
+faithful re-implementation (and v3/Python) = `095c8e44…`. Instrumenting the
+oracle's `getClientPrivateKey()` revealed it was hashing a **scrambled** username
+(`W3DIFF` → `3IF…`+heap garbage) and password.
+
+Root cause: `BnetSRP3::init` (common/bnetsrp3.cpp) uppercases with
+`*(symbol++) = safe_toupper(*(source++));` but `safe_toupper` is a **macro**
+(`xstring.h`): `(std::islower((unsigned char)X) ? std::toupper((unsigned char)X) : (X))`
+— it evaluates `X` twice, so `*(source++)` advances the source pointer **twice per
+character**. The username/password come out scrambled AND read past the malloc'd
+buffer (undefined behaviour, heap-dependent). Because the verifier and the M1/M2
+proofs hash the (scrambled) username, the oracle's W3 NLS create/login are
+silently corrupt — a real WC3 client (correct username) cannot mutually
+authenticate. v3 has no such bug.
+
+Fix (in the oracle, per user decision to treat it as a genuine upstream bug so the
+oracle is a valid W3 reference): use indexed access — `symbol[i] = safe_toupper(source[i])`
+— in both the username and password loops (no pointer side-effects). Confirmed:
+the oracle's verifier then equals v3/Python bit-for-bit (`095c8e44…`).
+
+### (c) v3 did not send the post-auth "register e-mail" prompt [v3 gap — implemented]
+After both SRP-3 sides matched, the oracle returned proof_response **0x0E**
+(RESPONSE_EMAIL) where v3 returned **0x00**. The original (`_client_loginproofw3`,
+handle_bnet.cpp:2232/2245): on a successful proof, if `versionid >= 0x0D` and the
+account has no e-mail, it returns RESPONSE_EMAIL (still a successful login — the
+server proof M2 is sent regardless; the code only tells the client to pop the
+"register e-mail" dialog). Implemented in v3: `BnetFsm` now stores `version_id_`
+from AUTH_INFO and `on(LogonProofW3Request)` returns `kLogonProofW3ResponseEmail`
+when `version_id_ >= 0x0D` and the account has no e-mail. (The core `Account`
+aggregate carries no e-mail and W3 accounts are created e-mail-less with no
+SETEMAIL flow, so for the W3 path the gate reduces to the version check; the
+lookup point is marked for when account e-mail joins the aggregate.)
+
+**Verified:** `diff_w3_login.py` now matches on all six fields
+(logon_type=2, auth_check=0, create=0, login_msg=0, proof_response=14, m2_matches=True)
+→ "WarCraft III SRP-3 login matches the oracle (mutual auth OK)". New unit case
+`fsm_auth_w3_test.cpp` "version >= 0x0D with no e-mail gets RESPONSE_EMAIL on proof"
+(version_id=0x1A) asserts 0x0E + matching M2 + LoggedIn; the original create+login
+round-trip (version_id default 0) still asserts 0x00. Full unit suite green.
+
+**Still open:** NLS password-change (0x55/0x56) stubbed; the oracle's
+`safe_toupper` macro is a latent multiple-evaluation hazard anywhere it is called
+with a side-effecting argument (only the two BnetSRP3 init loops were fixed here).

@@ -177,6 +177,65 @@ TEST_CASE("fsm W3: SRP-3 create + login round-trips against a BnetSrp3 client",
     CHECK(h.sessions.account_for(domain::SessionId{7}).has_value());
 }
 
+TEST_CASE("fsm W3: version >= 0x0D with no e-mail gets RESPONSE_EMAIL on proof",
+          "[protocol][bnet][auth][w3][srp]") {
+    // Parity with the original _client_loginproofw3: a successful proof from a
+    // client at version id >= 0x0D whose account has no e-mail on file returns
+    // RESPONSE_EMAIL (0x0E) rather than RESPONSE_OK — still a successful login
+    // (M2 is returned), but the client is prompted to register an e-mail. W3
+    // accounts in v3 are always e-mail-less, so the version id alone decides it.
+    W3Harness h;
+    auto fsm = h.make_fsm();
+
+    const std::string user = "w3mailer";
+    const std::string pass = "needsemail1";
+
+    std::array<std::uint8_t, 32> salt_wire{};
+    for (std::size_t i = 0; i < salt_wire.size(); ++i)
+        salt_wire[i] = static_cast<std::uint8_t>(0x07 * (i + 3));
+    const BigUInt salt = BigUInt::from_bytes_legacy(salt_wire, kBlkSalt, false);
+
+    BnetSrp3 client{user, pass};
+    client.set_salt(salt);
+
+    // AUTH_INFO with a WarCraft III version id >= 0x0D (real WC3 builds are 13+).
+    AuthInfo ai;
+    ai.game_id    = domain::tags::kWarcraft3.packed_be();
+    ai.version_id = 0x1Au;
+    REQUIRE(fsm.handle(ClientMessage{ai}).has_value());
+
+    CreateAccount2Request create;
+    create.salt              = salt_wire;
+    create.password_verifier = le32(client.verifier());
+    create.account_name      = user;
+    REQUIRE(fsm.handle(ClientMessage{create}).has_value());
+
+    LoginW3Request login;
+    login.client_public_key = le32(client.client_session_public_key());
+    login.account_name      = user;
+    REQUIRE(fsm.handle(ClientMessage{login}).has_value());
+    const auto* reply = h.last_as<LoginW3Reply>();
+    REQUIRE(reply != nullptr);
+
+    const BigUInt A = client.client_session_public_key();
+    const BigUInt B = BigUInt::from_bytes(reply->server_public_key, /*big_endian=*/false);
+    const BigUInt K = client.hashed_client_secret(B);
+    const BigUInt M1 = client.client_password_proof(A, B, K);
+    const BigUInt M2_expected = client.server_password_proof(A, M1, K);
+
+    LogonProofW3Request proof;
+    proof.client_password_proof = to_wire<20>(M1, kBlkProof);
+    REQUIRE(fsm.handle(ClientMessage{proof}).has_value());
+    const auto* preply = h.last_as<LogonProofW3Reply>();
+    REQUIRE(preply != nullptr);
+    // Login still succeeds (M2 is returned, session attached) but the code asks
+    // the client to register an e-mail.
+    CHECK(preply->response == kLogonProofW3ResponseEmail);
+    CHECK(preply->server_password_proof == to_wire<20>(M2_expected, kBlkProof));
+    CHECK(fsm.state() == BnetState::LoggedIn);
+    CHECK(h.sessions.account_for(domain::SessionId{7}).has_value());
+}
+
 TEST_CASE("fsm W3: wrong password proof is rejected with BadPass",
           "[protocol][bnet][auth][w3][srp]") {
     W3Harness h;

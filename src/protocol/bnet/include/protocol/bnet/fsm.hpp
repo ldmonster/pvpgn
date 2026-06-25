@@ -229,6 +229,12 @@ private:
     /// SID_LOGONRESPONSE2. 0 until AUTH_INFO is processed.
     std::uint32_t server_token_ = 0;
 
+    /// Client version id taken verbatim from SID_AUTH_INFO (0x50). The original
+    /// gates its "no e-mail on file" prompt on `versionid >= 0x0D` after a
+    /// successful W3 NLS proof (handle_bnet.cpp _client_loginproofw3); we mirror
+    /// that gate. 0 until AUTH_INFO is processed.
+    std::uint32_t version_id_ = 0;
+
     /// Username stored at login time, used in broadcast ChatEvents.
     std::string current_username_;
 

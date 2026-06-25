@@ -392,3 +392,46 @@ to Python, golden-verified) for running-server parity; NLS passchange (0x55/0x56
 
 ## RUNNING TOTAL: ~49 distinct bugs/features across 20 waves. OLS real-client
 ## handshake + WarCraft III SRP-3 login now implemented & tested.
+
+## Wave 21: WarCraft III SRP-3 (NLS) running-server differential
+Built the running-server differential for W3 NLS (wave 20 only had a self-
+consistent C++ round-trip). A golden-verified Python SRP-3 (tests/diff/bnet_srp3.py)
+drives bncs_client.py's new create_account_w3/login_w3 through diff_w3_login.py
+against BOTH servers. Driving the *running oracle* exposed three things:
+
+1. [mock BUG, fixed] salt_to_wire used block-4 LITTLE-endian; the server decodes
+   salt block-4 then derives raw_salt block-1 BE for the x/proof hash. Block-4
+   little is not the inverse of the server's block-4 decode → salt/raw_salt/x/M1
+   desynced and BOTH servers returned proof_response 2. Fixed to block-4 BIG-endian
+   (verified to round-trip through from_bytes_legacy(.,4,false)). v3 then completed
+   mutual auth.
+
+2. [REAL BUG in the ORIGINAL, fixed in the oracle] With the mock fixed, v3 passed
+   but the oracle still rejected. A C++ probe against the oracle's own BnetSRP3
+   showed it hashes a SCRAMBLED username/password: BnetSRP3::init does
+   `*(symbol++) = safe_toupper(*(source++))`, but safe_toupper is a MACRO that
+   evaluates its arg twice → `*(source++)` advances 2x/char, scrambling the name
+   AND reading past the malloc buffer (UB). So the oracle's W3 verifier + M1/M2
+   are corrupt; no real WC3 client (correct username) could mutually auth. v3 is
+   correct. Fixed in the oracle (user decision: genuine upstream bug) with indexed
+   access `symbol[i] = safe_toupper(source[i])` in both loops → oracle verifier
+   now equals v3/Python bit-for-bit.
+
+3. [v3 gap, implemented] After both SRP-3 sides matched, the oracle returned
+   proof_response 0x0E (RESPONSE_EMAIL: login OK, please register an e-mail) for
+   versionid >= 0x0D accounts with no e-mail; v3 returned 0x00. Implemented in v3:
+   BnetFsm stores version_id_ from AUTH_INFO; on(LogonProofW3Request) returns
+   kLogonProofW3ResponseEmail when version_id_ >= 0x0D and the account has no
+   e-mail (always true for the W3 path: Account carries no e-mail, no SETEMAIL
+   flow). Still a successful login (M2 returned, session attached, LoggedIn).
+
+Verified: diff_w3_login.py matches on all six fields (logon_type=2, auth_check=0,
+create=0, login_msg=0, proof_response=14, m2_matches=True) → "WarCraft III SRP-3
+login matches the oracle (mutual auth OK)". New unit case in fsm_auth_w3_test.cpp
+(version 0x1A → 0x0E + matching M2 + LoggedIn); wave-20 round-trip (version 0)
+still → 0x00. Full v3 unit suite green (3143 tests). See findings/nls-auth-flow.md
+(F-W21). Oracle fix is a separate commit in /home/cnupt/work/pvpgn-server.
+
+## RUNNING TOTAL: ~51 distinct bugs/features across 21 waves (incl. 1 real bug
+## found IN the original oracle). WarCraft III SRP-3 login now differentially
+## verified against the (now-fixed) running oracle, full mutual auth.
