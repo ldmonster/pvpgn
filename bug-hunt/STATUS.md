@@ -118,3 +118,28 @@ Wave-5 fixes (all with regression tests; unit+functional+integration green):
 - [x] d2cs char screen (CRIT): CHARLISTREPLY/CREATECHAR/CHARLOGIN/DELETECHAR wire layouts
 - [x] icon-req thresholds: seed original defaults (missing config no longer unlocks all)
 - [x] arranged-team id: monotonic next_id() (was std::time → collision overwrite)
+
+## Final discovery wave (deep codec, d2gs, email/finger) — no new fixable bugs
+- deep-codec-w3-gamereport.md: **0 wire bugs** — every variable-length body
+  (GAMELISTREPLY records, GAME_REPORT, STATSREPLY, W3 NLS/SRP, CLANMEMBERLIST,
+  STARTGAME1/3/4) verified byte-faithful field-by-field. Strong negative coverage.
+- d2gs-routing.md: d2cs↔d2gs routing NOT-IMPLEMENTED (no live path); the
+  implemented register/auth bridges are correct byte-ports.
+- email-finger.md: SETEMAIL/GETPASSWORD/CHANGEEMAIL handlers stubbed
+  (NOT-IMPLEMENTED); email key namespace MATCHES (BNET\acct\email); /finger not
+  implemented. No security issue in implemented code.
+
+## CONCLUSION
+~36 subsystems compared against upstream. **22 behavioral bugs fixed** across 6
+clean commits (all unit+functional+integration green; asan/ubsan clean). The deep
+final pass found no further fixable implemented bugs — remaining items are:
+1. **Unimplemented features** (FSM handlers stubbed: news/MOTD, version-check,
+   userdata, realm-list, friends/watch, mail, telnet-auth, squelch/quota, Lua
+   hook data, anongame result-agreement+matchmaking, d2gs routing). Codecs +
+   use-cases mostly exist and are byte-faithful; they just aren't wired. These
+   are feature work, not regressions.
+2. **Product decisions** (would change v3's own client contract / e2e):
+   - auth handshake: AUTH_INFO reply + version-check + SRP-3-vs-SRP-6a login.
+   - game-type enum: restore the full clienttag-dependent table vs keep the
+     simplified 5-value set.
+Both are documented with the original behavior in their findings files.
