@@ -12,6 +12,33 @@ Tracking in `bug-hunt/STATUS.md` + `bug-hunt/findings/*.md`. Tests live in
 old (real) flow to test the new flow; enhance the mocks as needed."**
 Full state memory: `/home/cnupt/.claude/projects/-home-cnupt-work-pvpgn/memory/diff-bug-hunt-state.md`.
 
+## Waves 24-25 — DONE (NLS passchange + friends list)
+
+- W24 `d01bfee`: WarCraft III NLS password change (0x55/0x56) — 0x55 reuses the
+  W3 login challenge against the stored verifier; 0x56 verifies M1 and stores the
+  new salt+verifier. Tests: fsm_auth_w3_test + diff_w3_passchange.py (matches oracle).
+- W25 `5d3aeab`: friends list (SID_FRIENDSLIST 0x65 + /friends add|remove) — wired
+  the existing AddFriend/RemoveFriend/ListFriends use-cases via a run-loop
+  InMemoryFriendListRepository + 3 BnetUseCaseContext fields. diff_friends.py matches.
+  GOTCHA: new context fields must be added to the full designated-init blocks in
+  fsm_test.cpp / fsm_channel_test.cpp (-Werror=missing-field-initializers).
+
+## NEXT (investigated, plans ready) — remaining post-login divergences
+
+1. Game advertise/list (0x1C STARTADVEX3 / 0x09 GETADVLISTEX): codec complete;
+   on(StartGame4Request) + on(GameListRequest) are stubs. WIREABLE like friends —
+   IGameRepository + StartGame + ListPublicGames use-cases exist (start_game ctx
+   field already present, just unwired). Need GameListEntry mapping (BE port/ip,
+   status codes, statstring) + a game registry shared across connections, then a
+   diff_gamelist.py (advertise on one conn, list from another). Biggest remaining.
+2. /who /whois /squelch /users: the CommandRegistry is NOT wired into bnetd
+   (make_use_case_context doesn't set command_registry/permission_checker), so /cmds
+   hit the no-registry fallback. /who needs channel-member-by-name; /whois needs
+   per-account channel/game location; /squelch needs per-session ignore + broadcast
+   filtering. Wire the registry + add the command handlers.
+3. WOL post-login lobby/game commands (LIST/JOIN game model, GAMEOPT, STARTG,
+   matchbot) — still skeleton no-ops (see findings/wol-chat-lobby.md).
+
 ## Wave 23 — DONE (close WOL gap in v3 + harden + remove dead build code)
 
 Commits: `b36c42a` (WOL auth), `cd81a66` (fuzz fix), `a1eb7a5` (dead CMake).

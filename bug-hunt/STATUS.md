@@ -496,3 +496,29 @@ Three threads, all verified:
 ## EVERY supported client family (OLS + NLS + WOL) identically to the oracle;
 ## runtime-hardened (0 sanitizer hits across fuzzing + 54 malformed cases); dead
 ## shadow-CMake graph removed.
+
+## Wave 24: WarCraft III NLS password change (0x55/0x56)
+on(PassChangeRequest)/on(PassChangeProofRequest) were stubs. Implemented mirroring
+the oracle: 0x55 runs the same SRP-3 challenge as login against the stored
+verifier (reuse LoginUserW3::challenge) → ACCEPT+salt+B; 0x56 verifies M1, then
+stores the NEW salt+verifier via ISrp3CredentialStore::store → OK+M2 (BadPass on
+wrong proof; no e-mail prompt on this path). Reuses the w3_* challenge state.
+Tests: fsm_auth_w3_test.cpp (change→relogin-new-pass + wrong-old-proof→BadPass) +
+bncs_client.passchange_w3 + diff_w3_passchange.py (matches oracle: change OK, new
+pass logs in, old pass rejected).
+
+## Wave 25: friends list (SID_FRIENDSLIST 0x65 + /friends add|remove)
+Friends opcodes were decoded but the FSM handlers were stubs and the
+AddFriend/RemoveFriend/ListFriends use-cases (already present) were unwired.
+Wired them via a run-loop InMemoryFriendListRepository + 3 new
+BnetUseCaseContext fields (main.cpp, no BnetdService change). on(FriendsListRequest)
+builds the reply from ListFriends (name + FRIENDSTATUS location); new handle_friends
+intercepts /friends (/f) add|remove → AddFriend/RemoveFriend + SID_FRIENDADD/DEL ack.
+protocol_bnet gains application_social/domain_social deps. Tests: diff_friends.py
+matches oracle (empty→[bob]→empty). Added the 3 fields to the fsm_test/fsm_channel_test
+designated-init sites (-Werror=missing-field-initializers).
+
+## RUNNING TOTAL: ~56 distinct bugs/features across 25 waves. Login (all families)
+## + NLS passchange + friends list now match the oracle. Still stubbed: game
+## advertise/list (0x1C/0x09, needs a game registry), /who /whois /squelch
+## (CommandRegistry not wired in bnetd), WOL post-login lobby/game commands.
