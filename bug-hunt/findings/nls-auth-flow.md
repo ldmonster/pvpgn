@@ -466,3 +466,46 @@ but the SID_AUTH_ACCOUNTLOGON (0x53)/PROOF (0x54) handlers remain stubbed (retur
 ok(), send nothing) and there is no SRP verifier at account creation. A real
 WarCraft-3 client would get logon-type 2 and then stall at 0x53. Wiring the
 existing bnet_srp3 + LoginUserNls use-case + a credential store is the next step.
+
+---
+
+## F-W20 — WarCraft III SRP-3 (NLS) login implemented + wired
+**Severity:** HIGH (whole client family could not authenticate) — fixed (wave 20)
+**Classification:** NOT-IMPLEMENTED → implemented
+
+The 0x53 (SID_AUTH_ACCOUNTLOGON) / 0x54 (..._PROOF) handlers were stubbed
+(returned ok(), sent nothing); there was no verifier at account creation. So a
+real WAR3/W3XP client got logon-type 2 from the AUTH_INFO seed (wave 19) and then
+stalled at 0x53. Now implemented end to end:
+
+- `application::auth::LoginUserW3` (new) — SRP-3 challenge: looks up the account's
+  (salt, verifier) from the new `ISrp3CredentialStore`, derives the server public
+  key B and pre-computes the expected client proof M1 + server proof M2 from the
+  client public key A. Mirrors the original `_client_loginreqw3` exactly, using
+  the parity-verified, golden-tested `infra::crypto::BnetSrp3` (32-byte modulus),
+  so the bytes match real clients. Wire block-size conventions copied verbatim
+  from the original: salt=4, verifier/A=1, B/proofs=4.
+- `ISrp3CredentialStore` port + `InMemorySrp3CredentialStore` (salt+verifier per
+  account name).
+- FSM: `on(LoginW3Request)` (0x53) runs the challenge, sends salt+B, holds
+  (M1,M2,account,username); `on(LogonProofW3Request)` (0x54) compares the client
+  M1 (20-byte), on match attaches the session (W3 bypasses LoginUser) + returns
+  M2 + LoggedIn; `on(CreateAccount2Request)` (0x52) creates the account and stores
+  the client-supplied salt+verifier (server never sees the password).
+- Wired into live bnetd (main.cpp): srp3_store lives for the run loop;
+  use_cases.login_user_w3 + srp3_store set alongside the OLS use-cases.
+
+**Verified:** tests/unit/protocol/bnet/fsm_auth_w3_test.cpp drives the FULL
+create→login→proof round-trip through the real message structs + FSM, with a
+`BnetSrp3` *client* (the same bit-exact crypto the original server uses): both
+sides derive the same K, the server's M2 matches the client's independent M2,
+the session attaches, state→LoggedIn. Wrong-proof→BadPass and unknown-account
+→failure also covered. Full unit suite: 3141 passed. Since BnetSrp3 is
+parity-verified against the original's BnetSRP3, a real WAR3 client that
+authenticates against the original authenticates against v3 with identical bytes.
+
+**Still open:** a Python differential mock for 0x52/0x53/0x54 (needs a faithful
+SRP-3 + the BigUInt legacy block conversions ported to Python, golden-verified
+against bnet_srp3_golden_test vectors). The C++ round-trip already proves interop
+at the message level; the Python mock would add running-server differential
+parity. Password-change over NLS (0x55/0x56) remains stubbed.

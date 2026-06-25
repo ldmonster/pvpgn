@@ -36,6 +36,7 @@
 ///
 /// `Ping` and `Null` are legal in every non-`Closing` state.
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -230,6 +231,16 @@ private:
 
     /// Username stored at login time, used in broadcast ChatEvents.
     std::string current_username_;
+
+    // --- WarCraft III SRP-3 challenge state -----------------------------
+    // Held between SID_AUTH_ACCOUNTLOGON (0x53) and ..._PROOF (0x54). The
+    // challenge step pre-computes the expected client proof M1 and the server
+    // proof M2 (mirroring the original); the proof step is a 20-byte compare.
+    bool                         w3_challenge_ready_ = false;
+    std::array<std::uint8_t, 20> w3_expected_m1_{};
+    std::array<std::uint8_t, 20> w3_server_m2_{};
+    domain::AccountId            w3_pending_account_{0};
+    std::string                  w3_pending_username_;
 };
 
 }  // namespace pvpgn::protocol::bnet

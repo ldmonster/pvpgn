@@ -90,6 +90,11 @@ pvpgn_v3_add_test(test_protocol_bnet_fsm_auth_create_login
     DEPS    protocol_bnet application_auth infra_inmemory
             infra_crypto infra_crypto_session_hasher)
 
+# WarCraft III SRP-3 (NLS) login driven through BnetFsm with a BnetSrp3 client.
+pvpgn_v3_add_test(test_protocol_bnet_fsm_auth_w3
+    SOURCES fsm_auth_w3_test.cpp capturing_session_context.cpp
+    DEPS    protocol_bnet application_auth infra_inmemory infra_crypto)
+
 pvpgn_v3_add_test(test_protocol_bnet_anongame
     SOURCES anongame_test.cpp
     DEPS    protocol_bnet)

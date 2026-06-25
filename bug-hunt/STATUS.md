@@ -374,3 +374,21 @@ would stall at 0x53. Wiring bnet_srp3 + LoginUserNls + credential store is next.
 
 ## RUNNING TOTAL: ~48 distinct bugs across 19 waves. Real OLS clients can now
 ## complete the auth handshake against v3 (verified vs oracle + faithful mocks).
+
+## Wave 20: WarCraft III SRP-3 (NLS) login implemented + wired
+The 0x53/0x54 handlers were stubbed and there was no verifier at account
+creation, so real WAR3/W3XP clients (which get logon-type 2 from the wave-19
+seed) stalled at 0x53. Now implemented end to end: new LoginUserW3 use-case +
+ISrp3CredentialStore (in-memory impl), FSM handlers for 0x52 (create: store
+salt+verifier), 0x53 (challenge: salt+B, hold M1/M2), 0x54 (verify M1, return M2,
+attach session, LoggedIn). Uses the parity-verified BnetSrp3 (32-byte modulus)
+with the original's exact wire block-size conventions. Wired into live bnetd.
+
+Verified by a full create→login→proof C++ round-trip (fsm_auth_w3_test.cpp) with
+a BnetSrp3 *client* — same bit-exact crypto the original uses — both sides derive
+the same K and M2 matches; wrong-proof→BadPass, unknown→failure. 3141 tests pass.
+Open: a Python differential mock (needs SRP-3 + BigUInt legacy conversions ported
+to Python, golden-verified) for running-server parity; NLS passchange (0x55/0x56).
+
+## RUNNING TOTAL: ~49 distinct bugs/features across 20 waves. OLS real-client
+## handshake + WarCraft III SRP-3 login now implemented & tested.

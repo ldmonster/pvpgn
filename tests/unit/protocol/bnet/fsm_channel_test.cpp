@@ -64,6 +64,8 @@ BnetUseCaseContext make_null_ctx() {
         .message_router    = nullptr,
         .permission_checker = nullptr,
         .session_registry  = nullptr,
+        .login_user_w3     = nullptr,
+        .srp3_store        = nullptr,
     };
 }
 

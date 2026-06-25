@@ -26,6 +26,8 @@
 
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
+#include "application/auth/login_user_w3.hpp"
+#include "application/auth/srp3_credential_store.hpp"
 #include "application/moderation/check_ip_ban.hpp"
 #include "domain/identity/ports.hpp"
 #include "core/error.hpp"
@@ -222,15 +224,65 @@ core::Status<> BnetFsm::on(const FileInfoRequest&) {
     return core::ok();
 }
 
-// NLS (SRP-6a) handlers — pre-login, accept in any state.
-core::Status<> BnetFsm::on(const LoginW3Request&) {
-    // NLS step A; pre-login. Accept in any state.
-    return core::ok();
+// WarCraft III SRP-3 (NLS) login — SID_AUTH_ACCOUNTLOGON (0x53) step A.
+core::Status<> BnetFsm::on(const LoginW3Request& m) {
+    // Permitted after the version-check handshake, like LOGONRESPONSE2.
+    if (state_ != BnetState::AuthInfoReceived && state_ != BnetState::Init) {
+        return reject("bnet fsm: LOGINREQ_W3 out of order");
+    }
+    w3_challenge_ready_ = false;
+
+    // No W3 login use-case wired → report a bad account (cannot challenge).
+    if (!use_cases_.login_user_w3) {
+        return ctx_->send(ServerMessage{LoginW3Reply{kLoginW3MessageFailure, {}, {}}});
+    }
+
+    auto challenge = use_cases_.login_user_w3->challenge(
+        m.account_name,
+        std::span<const std::uint8_t, 32>{m.client_public_key});
+    if (!challenge) {
+        // No such account / no SRP-3 credentials.
+        return ctx_->send(ServerMessage{LoginW3Reply{kLoginW3MessageFailure, {}, {}}});
+    }
+
+    const auto& c = challenge.value();
+    w3_expected_m1_     = c.expected_client_proof;
+    w3_server_m2_       = c.server_proof;
+    w3_pending_account_ = c.account_id;
+    w3_pending_username_ = m.account_name;
+    w3_challenge_ready_ = true;
+
+    return ctx_->send(ServerMessage{
+        LoginW3Reply{kLoginW3MessageSuccess, c.salt, c.server_public_key}});
 }
-core::Status<> BnetFsm::on(const LogonProofW3Request&) {
-    // NLS step B; pre-login. Accept in any state.
-    return core::ok();
+
+// SID_AUTH_ACCOUNTLOGONPROOF (0x54) step B — verify M1, return M2, log in.
+core::Status<> BnetFsm::on(const LogonProofW3Request& m) {
+    if (!w3_challenge_ready_) {
+        // 0x54 before a successful 0x53 challenge.
+        return ctx_->send(ServerMessage{
+            LogonProofW3Reply{kLogonProofW3ResponseBadPass, {}, ""}});
+    }
+    w3_challenge_ready_ = false;  // single-shot; force a fresh challenge on retry
+
+    if (m.client_password_proof != w3_expected_m1_) {
+        return ctx_->send(ServerMessage{
+            LogonProofW3Reply{kLogonProofW3ResponseBadPass, {}, ""}});
+    }
+
+    // Proof matched — attach the session (W3 bypasses LoginUser, so do it here)
+    // and transition to LoggedIn before returning the server proof M2.
+    if (use_cases_.session_registry) {
+        (void)use_cases_.session_registry->attach(session_id_, w3_pending_account_);
+    }
+    current_account_id_ = w3_pending_account_;
+    current_username_   = w3_pending_username_;
+    state_              = BnetState::LoggedIn;
+
+    return ctx_->send(ServerMessage{
+        LogonProofW3Reply{kLogonProofW3ResponseOk, w3_server_m2_, ""}});
 }
+
 core::Status<> BnetFsm::on(const PassChangeRequest&) {
     // NLS password-change step A; runs before the user is fully logged in.
     return core::ok();
@@ -239,9 +291,52 @@ core::Status<> BnetFsm::on(const PassChangeProofRequest&) {
     // NLS password-change step B; runs before the user is fully logged in.
     return core::ok();
 }
-core::Status<> BnetFsm::on(const CreateAccount2Request&) {
-    // CREATEACCOUNT2 is part of pre-login NLS account provisioning; accept advisorily.
-    return core::ok();
+
+// SID_AUTH_ACCOUNTCREATE (0x52) — WarCraft III SRP-3 account creation. The
+// client supplies a 32-byte salt + 32-byte verifier; the server never sees the
+// password. We create the account (with a placeholder OLS hash — W3 logs in via
+// SRP, not OLS) and persist the salt/verifier in the SRP-3 credential store.
+core::Status<> BnetFsm::on(const CreateAccount2Request& m) {
+    if (state_ != BnetState::AuthInfoReceived && state_ != BnetState::Init) {
+        return reject("bnet fsm: CREATEACCOUNT2 out of order");
+    }
+    if (!use_cases_.create_account || !use_cases_.srp3_store) {
+        return ctx_->send(
+            ServerMessage{CreateAccount2Reply{kCreateAccount2ResultExists}});
+    }
+    auto username = domain::UserName::parse(m.account_name);
+    if (!username) {
+        return ctx_->send(
+            ServerMessage{CreateAccount2Reply{kCreateAccount2ResultInvalid}});
+    }
+    // W3 accounts have no OLS password; store a fixed placeholder hash.
+    auto password = domain::BNHash::from_bytes(std::string(20, '\0'));
+    if (!password) {
+        return ctx_->send(
+            ServerMessage{CreateAccount2Reply{kCreateAccount2ResultInvalid}});
+    }
+    application::auth::CreateAccountRequest req{
+        .username      = username.value(),
+        .password_hash = password.value(),
+        .email         = "",
+        .locale        = domain::Locale{},
+        .client_tag    = client_tag_,
+        .peer_ip       = domain::IpAddress{},
+    };
+    auto result = use_cases_.create_account->execute(req);
+    if (!result) {
+        return ctx_->send(
+            ServerMessage{CreateAccount2Reply{kCreateAccount2ResultExists}});
+    }
+
+    application::auth::Srp3Credentials creds;
+    creds.salt       = m.salt;
+    creds.verifier   = m.password_verifier;
+    creds.account_id = result.value();
+    use_cases_.srp3_store->store(m.account_name, creds);
+
+    return ctx_->send(
+        ServerMessage{CreateAccount2Reply{kCreateAccount2ResultOk}});
 }
 
 // Legacy / OLS handlers: accept as advisory pre-login messages.

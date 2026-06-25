@@ -17,6 +17,8 @@ namespace pvpgn::application::auth {
 class LoginUser;
 class CreateAccount;
 class ChangePassword;
+class LoginUserW3;
+class ISrp3CredentialStore;
 }  // namespace pvpgn::application::auth
 
 namespace pvpgn::application::chat {
@@ -57,6 +59,10 @@ struct BnetUseCaseContext {
     std::shared_ptr<domain::connection::IMessageRouter> message_router;
     std::shared_ptr<domain::moderation::IPermissionChecker> permission_checker;
     std::shared_ptr<domain::identity::ISessionRegistry> session_registry;
+    /// WarCraft III SRP-3 login (SID_AUTH_ACCOUNTLOGON/PROOF) + its credential
+    /// store (written on SID_AUTH_ACCOUNTCREATE). Null for non-W3 deployments.
+    std::shared_ptr<application::auth::LoginUserW3> login_user_w3;
+    std::shared_ptr<application::auth::ISrp3CredentialStore> srp3_store;
 };
 
 }  // namespace pvpgn::protocol::bnet

@@ -115,6 +115,7 @@
 #include "infra/inmemory/game_repository.hpp"
 #include "infra/inmemory/ip_ban_repository.hpp"
 #include "infra/inmemory/session_registry.hpp"
+#include "infra/inmemory/srp3_credential_store.hpp"
 #include "infra/inmemory/unit_of_work_factory.hpp"
 #include "services/bnetd/bnetd_service.hpp"
 
@@ -122,6 +123,7 @@
 // enforces credentials and a real account_id flows into the chat path.
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
+#include "application/auth/login_user_w3.hpp"
 #include "infra/crypto/bnet_session_hasher.hpp"
 #include "infra/routing/message_router.hpp"
 #include "core/clock.hpp"
@@ -343,6 +345,9 @@ int main(int argc, char* argv[]) {
         infra::inmemory::InMemoryGameRepository     game_repo;
         infra::inmemory::InMemoryEventBus           event_bus;
         infra::inmemory::InMemoryIpBanRepository    ip_ban_repo;
+        // WarCraft III SRP-3 salt/verifier store (SID_AUTH_ACCOUNTCREATE writes,
+        // SID_AUTH_ACCOUNTLOGON reads). Lives for the whole run loop.
+        infra::inmemory::InMemorySrp3CredentialStore srp3_store;
         core::SystemClock                           auth_clock;
         NullNlsCredentialStore                      null_nls_store;
 
@@ -394,8 +399,14 @@ int main(int argc, char* argv[]) {
                 account_repo, session_reg, event_bus, auth_clock, session_hasher);
             use_cases.create_account = std::make_shared<application::auth::CreateAccount>(
                 account_repo, ip_ban_repo, event_bus, auth_clock);
+            // WarCraft III SRP-3 login (SID_AUTH_ACCOUNTLOGON/PROOF) + the
+            // credential store written by SID_AUTH_ACCOUNTCREATE.
+            use_cases.srp3_store = std::shared_ptr<application::auth::ISrp3CredentialStore>(
+                &srp3_store, [](application::auth::ISrp3CredentialStore*) noexcept {});
+            use_cases.login_user_w3 =
+                std::make_shared<application::auth::LoginUserW3>(srp3_store);
         }
-        LOG_INFO("bnetd", "auth use-cases wired: login + OLS account creation");
+        LOG_INFO("bnetd", "auth use-cases wired: login + OLS account creation + W3 SRP-3");
 
         // Cross-session message router: maps SessionId -> egress so chat
         // broadcasts (EID_TALK, EID_JOIN/LEAVE, whispers) actually reach OTHER

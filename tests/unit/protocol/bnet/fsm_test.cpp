@@ -47,6 +47,8 @@ BnetUseCaseContext make_test_context() {
         .message_router    = nullptr,
         .permission_checker = nullptr,
         .session_registry  = nullptr,
+        .login_user_w3     = nullptr,
+        .srp3_store        = nullptr,
     };
 }
 

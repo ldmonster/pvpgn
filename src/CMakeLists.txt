@@ -926,6 +926,7 @@ pvpgn_v3_add_library(application_auth
     SOURCES
         application/auth/src/login_user.cpp
         application/auth/src/login_user_nls.cpp
+        application/auth/src/login_user_w3.cpp
         application/auth/src/login_classifier.cpp
         application/auth/src/password_rotation_observer.cpp
         application/auth/src/change_password.cpp
@@ -946,6 +947,7 @@ pvpgn_v3_add_library(application_auth
         domain_moderation
     PRIVATE_DEPS
         application_chat
+        infra_crypto          # BnetSrp3 for WarCraft III SRP-3 login (login_user_w3)
 )
 
 # ---- application/connection (ConnectionFsm) -----------------------------
