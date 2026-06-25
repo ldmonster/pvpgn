@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+"""A protocol-faithful Westwood Online (WOL) mock client for differential testing.
+
+WOL is an IRC dialect spoken on a dedicated listener (wolv1addrs / wolv2addrs),
+NOT the BNCS port. The login handshake the original pvpgn-server expects
+(src/bnetd/handle_wol.cpp) is:
+
+    -> CVERS <oldvernum> <SKU>     server maps SKU -> clienttag (tag_sku_to_uint)
+    -> VERCHK <SKU> <version>      <- :host 379 user :none none none 1 SKU NONREQ
+    -> APGAR <passhash>            server stores the password hash (opaque)
+    -> NICK  <username>            sets the logged-in user name
+    -> USER  <user> <host> irc.westwood.com :<realname>
+                                   triggers welcome: on success the MOTD
+                                   (375 .. 372 .. 376); on a bad password 378
+                                   (RPL_BAD_LOGIN); if already logged in 433.
+
+The server AUTO-CREATES the account on first login, storing the APGAR verbatim,
+and on later logins compares the stored APGAR against the one sent (plain string
+compare — it does not re-derive the Westwood hash). So a deterministic,
+password-derived token is a faithful stand-in: it is stable across both servers
+and differs for a wrong password, exactly as a real APGAR would behave here.
+
+Lines are CRLF-terminated; server replies are IRC numerics of the form
+``:<servername> <code> <nick> <params>``.
+"""
+import base64
+import hashlib
+import socket
+
+# IRC / WOL numeric replies we care about.
+RPL_WELCOME       = 1
+RPL_MOTD          = 372
+RPL_MOTDSTART     = 375
+RPL_ENDOFMOTD     = 376
+RPL_BAD_LOGIN     = 378   # wrong APGAR (password)
+RPL_VERCHK_NONREQ = 379
+ERR_NICKNAMEINUSE = 433
+
+
+def apgar_for(password: str) -> str:
+    """A deterministic stand-in for the Westwood APGAR password token. The
+    original stores/compares it opaquely, so any stable, password-derived string
+    works; we use base64(sha1(password)) trimmed of '=' padding (APGAR tokens are
+    base64-ish and contain no spaces, which keeps the IRC tokenizer happy)."""
+    digest = hashlib.sha1(password.encode("utf-8")).digest()
+    return base64.b64encode(digest).decode("ascii").rstrip("=")
+
+
+class WolClient:
+    def __init__(self, host: str, port: int, timeout: float = 5.0):
+        self.sock = socket.create_connection((host, port), timeout=timeout)
+        self.sock.settimeout(timeout)
+        self.buf = b""
+
+    def close(self):
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+    def send_line(self, line: str):
+        self.sock.sendall(line.encode("latin-1") + b"\r\n")
+
+    def read_line(self):
+        """Return the next CRLF line as str, or None on close/timeout."""
+        while b"\r\n" not in self.buf:
+            try:
+                chunk = self.sock.recv(4096)
+            except (socket.timeout, OSError):
+                return None
+            if not chunk:
+                return None
+            self.buf += chunk
+        line, self.buf = self.buf.split(b"\r\n", 1)
+        return line.decode("latin-1", "replace")
+
+    @staticmethod
+    def numeric(line: str):
+        """Extract the IRC numeric code from a ':host CODE nick ...' line."""
+        if not line.startswith(":"):
+            return None
+        parts = line.split(" ", 2)
+        if len(parts) < 2:
+            return None
+        try:
+            return int(parts[1])
+        except ValueError:
+            return None
+
+
+def wol_login(host, port, username, password, sku=1000, oldver="1",
+              version="1.0", realname="RealName"):
+    """Drive the full WOL login handshake. Returns a normalized dict:
+       {ok, code, verchk, lines}. ok=True iff the server completed the MOTD
+       welcome (login accepted / account auto-created)."""
+    c = WolClient(host, port)
+    out = {"verchk": None, "lines": [], "code": None, "ok": False}
+    try:
+        c.send_line(f"CVERS {oldver} {sku}")
+        c.send_line(f"VERCHK {sku} {version}")
+        c.send_line(f"APGAR {apgar_for(password)}")
+        c.send_line(f"NICK {username}")
+        c.send_line(
+            f"USER {username} HostName irc.westwood.com :{realname}")
+
+        # Read replies until the welcome MOTD finishes or login is refused.
+        for _ in range(60):
+            line = c.read_line()
+            if line is None:
+                break
+            out["lines"].append(line)
+            code = WolClient.numeric(line)
+            if code == RPL_VERCHK_NONREQ:
+                out["verchk"] = line
+            elif code == RPL_ENDOFMOTD:
+                out["code"] = RPL_ENDOFMOTD
+                out["ok"] = True
+                break
+            elif code in (RPL_BAD_LOGIN, ERR_NICKNAMEINUSE):
+                out["code"] = code
+                out["ok"] = False
+                break
+        return out
+    finally:
+        c.close()
+
+
+if __name__ == "__main__":
+    import sys
+    h = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
+    p = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
+    print(wol_login(h, p, "wolprobe", "secretpass", sku=1000))

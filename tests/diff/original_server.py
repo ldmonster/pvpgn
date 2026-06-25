@@ -19,6 +19,11 @@ class OriginalBnetd:
     def __init__(self, repo: str, port: int):
         self.repo = repo
         self.port = port
+        # Westwood Online listeners (off by default in pvpgn). Enabled on
+        # derived test ports so the WOL mock can drive the oracle. wolv1 is the
+        # "Westwood Chat" era (WCHT/C&C/RA1-2.00); wolv2 the rest.
+        self.wolv1_port = port + 2
+        self.wolv2_port = port + 3
         self.proc = None
         self.home = None
 
@@ -120,6 +125,10 @@ class OriginalBnetd:
                     out.append(line)
             else:
                 out.append(line)
+        # WOL listeners are commented out in the stock conf (default ""), so the
+        # rewrite loop above never sees them — append explicit test-port lines.
+        out.append(f'wolv1addrs = 127.0.0.1:{self.wolv1_port}\n')
+        out.append(f'wolv2addrs = 127.0.0.1:{self.wolv2_port}\n')
         with open(conf_path, "w") as f:
             f.writelines(out)
 

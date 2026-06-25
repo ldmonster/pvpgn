@@ -435,3 +435,30 @@ still → 0x00. Full v3 unit suite green (3143 tests). See findings/nls-auth-flo
 ## RUNNING TOTAL: ~51 distinct bugs/features across 21 waves (incl. 1 real bug
 ## found IN the original oracle). WarCraft III SRP-3 login now differentially
 ## verified against the (now-fixed) running oracle, full mutual auth.
+
+## Wave 22: full supported-client mock matrix + WOL mock
+Built mock clients covering PvPGN's ENTIRE published supported-client matrix and
+a driver that logs each in against the oracle (and v3 where supported):
+
+- tests/diff/clients.py — catalog of every supported product+version (21
+  products / 149 versions / 19 distinct protocol paths) across 3 login families:
+  ols (STAR/SEXP/W2BN/DRTL/D2DV/D2XP), nls (WAR3/W3XP), wol (WCHT/RALT/RAL2/TSUN/
+  TSXP/YURI/RNGD/NOXX/NOXQ/DN2K/EBFD), with tag/arch/SKU + a login() dispatcher.
+- tests/diff/wol_client.py — faithful Westwood Online mock (IRC dialect on the
+  wol listener): CVERS<sku> → VERCHK → APGAR<pwtoken> → NICK → USER → welcome/MOTD,
+  exactly as handle_wol.cpp expects (APGAR opaque + auto-create on first login).
+- tests/diff/original_server.py — enables wolv1addrs/wolv2addrs on derived test
+  ports (WOL is off by default in pvpgn) so the oracle accepts WOL.
+- tests/diff/diff_all_clients.py — boots both servers, drives one representative
+  per protocol path.
+
+Result: all 19 paths log in against the ORACLE (19/19); OLS+NLS match v3 (8/8);
+all 11 WOL paths FAIL against v3 (0/11) — a running confirmation of the existing
+skeleton finding: v3's wol_auth.cpp uses IRC NICK/USER/PASS and ignores the WOL
+APGAR/CVERS flow, so no Westwood client can authenticate. Documented as F-W22 in
+findings/wol-chat-lobby.md (fix = implement WOL auth in wol_auth.cpp; larger
+feature, deferred). The OLS/NLS mocks are now exercised for every supported tag.
+
+## RUNNING TOTAL: ~52 distinct bugs/features across 22 waves. Mock clients now
+## cover the FULL supported-client matrix (OLS + NLS + WOL), all logging in
+## against the oracle; OLS/NLS verified equivalent on v3, WOL gap confirmed.

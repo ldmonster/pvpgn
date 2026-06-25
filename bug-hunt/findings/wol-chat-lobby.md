@@ -379,3 +379,44 @@ reached them) as BUG, and the structural gaps as NOT-IMPLEMENTED.
   (`matchbot`) flow; v3 has **no** counterpart at all (see W-10) — entire
   automatch subsystem NOT-IMPLEMENTED. (The gameres path was out of scope per the
   brief; automatch chat-side entry is in scope and is absent.)
+
+---
+
+## F-W22 — Full supported-client mock matrix; differentially confirms v3 cannot complete the WOL login handshake
+
+**Severity:** the mock catalog + WOL mock are tooling; the v3 WOL-auth gap is
+HIGH (whole Westwood client family cannot authenticate) — confirmed, not fixed.
+**Classification:** tooling added; v3 gap CONFIRMED (matches the skeleton review
+above).
+
+Added mock clients covering PvPGN's entire published supported-client matrix and
+a driver that boots BOTH servers and logs each in with the matching mock:
+
+- `tests/diff/clients.py` — authoritative catalog of every supported product +
+  version (21 products / 149 versions / 19 distinct protocol paths), grouped into
+  three login families (ols / nls / wol) with tag, arch, WOL SKU, and a
+  `login()` dispatcher.
+- `tests/diff/wol_client.py` — a faithful Westwood Online mock: connects to the
+  WOL listener and drives `CVERS <sku>` → `VERCHK` → `APGAR <pwtoken>` → `NICK`
+  → `USER` → welcome/MOTD, exactly as `handle_wol.cpp` expects. The APGAR token
+  is a deterministic password-derived string (the original stores/compares it
+  opaquely and auto-creates the account on first login, so this is faithful).
+- `tests/diff/original_server.py` — now enables `wolv1addrs`/`wolv2addrs` on
+  derived test ports (off by default in pvpgn) so the oracle accepts WOL.
+- `tests/diff/diff_all_clients.py` — drives one representative per protocol path
+  against the oracle (and v3 for ols/nls).
+
+**Result (diff_all_clients.py):** all 19 paths log in against the ORACLE (19/19);
+OLS + NLS match v3 (8/8); every WOL path FAILS against v3 (0/11) — confirming the
+skeleton review above with a running differential. v3's `wol_auth.cpp`
+authenticates via standard IRC `NICK`/`USER`/`PASS` and never processes `APGAR`
+(it `return core::ok()`s for CVERS/VERCHK/APGAR), so the Westwood welcome/MOTD is
+never sent and no WOL client can log in. The OLS/NLS mocks are now exercised for
+every supported tag (STAR/SEXP/W2BN/DRTL/D2DV/D2XP and WAR3/W3XP) in one run.
+
+**To fix the v3 WOL gap (future, larger feature):** implement the WOL auth path
+in `wol_auth.cpp` — store the APGAR token, map CVERS SKU → clienttag, reply to
+VERCHK (379 NONREQ), and on USER (with NICK+APGAR present) auto-create/verify the
+account and send the welcome/MOTD — mirroring `handle_wol_authenticate`. Then the
+WOL rows in `diff_all_clients.py` flip to match and a `diff_wol_login.py` can
+assert it the way `diff_w3_login.py` does for SRP-3.
