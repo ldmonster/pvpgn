@@ -7,7 +7,16 @@ namespace pvpgn::app::bnetd {
 
 ServerConfig build_config(const CliArgs& args) {
     ServerConfig cfg;
-    if (args.bnet_port != 0)     cfg.bnet_port      = args.bnet_port;
+    if (args.bnet_port != 0) {
+        cfg.bnet_port = args.bnet_port;
+        // BNFTP is multiplexed onto the BNet port via first-byte dispatch and
+        // historically shares it (default 6112). The CLI only exposes a single
+        // -p/--port flag, so keep bnftp_port in lock-step; otherwise moving the
+        // BNet port leaves bnftp_port at the default 6112 and spuriously trips
+        // the "dedicated BNFTP listener" path, binding the hard-coded 6112 (and
+        // colliding with any other instance / leftover on that port).
+        cfg.bnftp_port = args.bnet_port;
+    }
     if (args.wol_port != 0)      cfg.wol_port       = args.wol_port;
     if (args.irc_port != 0)      cfg.irc_port       = args.irc_port;
     if (!args.data_dir.empty())  cfg.data_dir        = args.data_dir;
