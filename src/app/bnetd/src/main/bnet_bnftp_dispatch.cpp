@@ -40,7 +40,20 @@ void BnetBnftpDispatchFactory::operator()(
 
         const std::byte first = (*pbuf)[0];
 
-        if (first == static_cast<std::byte>(0xFF)) {
+        // A real Battle.net client opens with a single protocol-select octet:
+        //   0x01 = CLIENT_INITCONN_CLASS_BNET  (the standard BNCS login stream)
+        //   0x02 = CLIENT_INITCONN_CLASS_FILE  (BNFTP)
+        // The original consumes this byte in handle_init before any packet
+        // parsing. So a BNet connection is identified by EITHER a leading 0x01
+        // init byte (real clients) OR a bare 0xFF packet marker (a client that
+        // already stripped the init byte). Strip the 0x01 before replaying so
+        // the framer sees the 0xFF packet stream cleanly.
+        const bool   is_bnet   = (first == static_cast<std::byte>(0xFF)) ||
+                                 (first == static_cast<std::byte>(0x01));
+        const std::size_t bnet_skip =
+            (first == static_cast<std::byte>(0x01)) ? 1u : 0u;
+
+        if (is_bnet) {
             // BNet protocol — rewire callbacks and replay buffered bytes.
             //
             // Wiring:
@@ -88,9 +101,10 @@ void BnetBnftpDispatchFactory::operator()(
                 bnet_ctx, use_cases_, sid);
             auto framer = std::make_shared<BnetFramer>();
 
-            // Replay buffered bytes through both FSMs
+            // Replay buffered bytes through both FSMs (past any consumed
+            // 0x01 BNET init byte).
             framer->feed(
-                core::ByteView{pbuf->data(), pbuf->size()},
+                core::ByteView{pbuf->data() + bnet_skip, pbuf->size() - bnet_skip},
                 [&fsm, &adapter](protocol::bnet::ClientMessage msg) {
                     // Feed to BnetFsm (wire-level)
                     (void)fsm->handle(msg);

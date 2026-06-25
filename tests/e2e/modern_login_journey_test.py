@@ -422,6 +422,28 @@ def main() -> int:
                     f"expected reject 0x01 (unknown user), got 0x{result:02x}")
             print(f"  [client] <- LOGONRESPONSE2 result=0x01 (unknown user) OK")
 
+        # --- Journey 4: REAL-CLIENT init byte (0x01 CLIENT_INITCONN_CLASS_BNET)
+        # A stock Battle.net client opens the stream with a single 0x01
+        # protocol-select octet BEFORE the first 0xFF packet (the original
+        # server requires it). This journey sends that byte like a real client
+        # and logs into the account created in journey 1 -> must be accepted.
+        print("[journey] real-client init byte (0x01) -> create + login accepted")
+        with connect("127.0.0.1", port) as sock:
+            sock.sendall(b"\x01")          # CLIENT_INITCONN_CLASS_BNET
+            do_auth_handshake(sock)
+            # Use a distinct account created on this same connection so the
+            # single-session policy (journey 1 already holds e2euser) can't
+            # interfere — this journey isolates the 0x01 init-byte handling.
+            rc = create_account(sock, "rcuser", PASSWORD_WORDS)
+            if rc != CREATE_ACCT1_OK:
+                raise AssertionError(
+                    f"real-client (0x01) create: expected OK, got {rc}")
+            result = logon(sock, "rcuser", PASSWORD_WORDS)
+            if result != 0x00:
+                raise AssertionError(
+                    f"real-client (0x01) login: expected 0x00, got 0x{result:02x}")
+            print(f"  [client] <- LOGONRESPONSE2 result=0x00 (0x01 init byte accepted) OK")
+
         print("[harness] modern login journey PASSED")
         return 0
     except Exception as exc:

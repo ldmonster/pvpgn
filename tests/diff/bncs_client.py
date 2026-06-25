@@ -1,0 +1,252 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+"""A protocol-faithful Battle.net (BNCS) mock client for differential testing.
+
+The same client drives BOTH the original pvpgn-server (the oracle) and the v3
+rewrite, so their responses can be diffed. Implements the OLS login flow
+(broken-SHA-1 double-hash) and the NLS/SRP-3 flow (WAR3/W3XP), plus enough chat
+to exercise post-login behaviour.
+"""
+import socket
+import struct
+
+# ---- SID constants ----------------------------------------------------------
+SID_NULL = 0x00
+SID_STARTADVEX3 = 0x1C
+SID_CLIENTID = 0x05
+SID_LOGONRESPONSE = 0x29
+SID_GETADVLISTEX = 0x09
+SID_ENTERCHAT = 0x0A
+SID_JOINCHANNEL = 0x0C
+SID_CHATCOMMAND = 0x0E
+SID_CHATEVENT = 0x0F
+SID_PING = 0x25
+SID_LOGONRESPONSE2 = 0x3A
+SID_CREATEACCOUNT2 = 0x3D
+SID_CREATE_ACCT1 = 0x2A   # CLIENT_CREATEACCTREQ1 (reply result: 1 = OK, 0 = NO)
+SID_AUTH_INFO = 0x50
+SID_AUTH_CHECK = 0x51
+SID_AUTH_ACCOUNTCREATE = 0x52
+SID_AUTH_ACCOUNTLOGON = 0x53
+SID_AUTH_ACCOUNTLOGONPROOF = 0x54
+
+# Chat event ids (canonical BNCS).
+EID_SHOWUSER = 0x01
+EID_JOIN = 0x02
+EID_CHANNEL = 0x07
+EID_INFO = 0x12
+EID_ERROR = 0x13
+
+
+# ---- broken-SHA-1 (Blizzard "xsha1") ----------------------------------------
+def _rotl32(v, n):
+    v &= 0xFFFFFFFF
+    n &= 31
+    return ((v << n) | (v >> (32 - n))) & 0xFFFFFFFF
+
+
+def blizzard_hash(data: bytes):
+    """The legacy broken-SHA-1: ROTL32(1, mix) message schedule, no padding.
+    Returns 5 host-order digest words."""
+    digest = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0]
+    pos, size = 0, len(data)
+    while size > 0:
+        inc = 64 if size > 64 else size
+        block = data[pos:pos + inc]
+        tmp = [0] * 80
+        for i in range(16):
+            word = 0
+            for b in range(4):
+                idx = i * 4 + b
+                if idx < inc:
+                    word |= block[idx] << (8 * b)
+            tmp[i] = word & 0xFFFFFFFF
+        for i in range(64):
+            mix = (tmp[i] ^ tmp[i + 8] ^ tmp[i + 2] ^ tmp[i + 13]) & 0xFFFFFFFF
+            tmp[i + 16] = _rotl32(1, mix)
+        a, bb, c, d, e = digest
+        g = 0
+        for i in range(20):
+            g = (tmp[i] + _rotl32(a, 5) + e + ((bb & c) | (~bb & 0xFFFFFFFF & d)) + 0x5A827999) & 0xFFFFFFFF
+            e, d, c, bb, a = d, c, _rotl32(bb, 30), a, g
+        for i in range(20, 40):
+            g = ((d ^ c ^ bb) + e + _rotl32(g, 5) + tmp[i] + 0x6ED9EBA1) & 0xFFFFFFFF
+            e, d, c, bb, a = d, c, _rotl32(bb, 30), a, g
+        for i in range(40, 60):
+            g = (tmp[i] + _rotl32(g, 5) + e + ((c & bb) | (d & c) | (d & bb)) - 0x70E44324) & 0xFFFFFFFF
+            e, d, c, bb, a = d, c, _rotl32(bb, 30), a, g
+        for i in range(60, 80):
+            g = ((d ^ c ^ bb) + e + _rotl32(g, 5) + tmp[i] - 0x359D3E2A) & 0xFFFFFFFF
+            e, d, c, bb, a = d, c, _rotl32(bb, 30), a, g
+        digest[0] = (digest[0] + g) & 0xFFFFFFFF
+        digest[1] = (digest[1] + bb) & 0xFFFFFFFF
+        digest[2] = (digest[2] + c) & 0xFFFFFFFF
+        digest[3] = (digest[3] + d) & 0xFFFFFFFF
+        digest[4] = (digest[4] + e) & 0xFFFFFFFF
+        pos += inc
+        size -= inc
+    return digest
+
+
+def hash_password(password: str):
+    """hash1 = xsha1(lowercase password bytes) -> 5 words."""
+    return blizzard_hash(password.lower().encode("latin-1"))
+
+
+def double_hash(hash1_words, client_token, server_token):
+    """hash2 = xsha1(client_token ‖ server_token ‖ hash1)."""
+    buf = struct.pack("<7I", client_token, server_token, *hash1_words)
+    return blizzard_hash(buf)
+
+
+def cstring(s: str) -> bytes:
+    return s.encode("latin-1") + b"\x00"
+
+
+# ---- the client -------------------------------------------------------------
+class BncsClient:
+    def __init__(self, host: str, port: int, timeout: float = 5.0):
+        self.sock = socket.create_connection((host, port), timeout=timeout)
+        self.sock.settimeout(timeout)
+        self.buf = b""
+        # Battle.net protocol-select byte.
+        self.sock.sendall(b"\x01")
+
+    def close(self):
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+    def send(self, sid: int, body: bytes = b""):
+        pkt = struct.pack("<BBH", 0xFF, sid, len(body) + 4) + body
+        self.sock.sendall(pkt)
+
+    def _fill(self, n: int):
+        while len(self.buf) < n:
+            chunk = self.sock.recv(4096)
+            if not chunk:
+                raise ConnectionError("server closed the connection")
+            self.buf += chunk
+
+    def recv(self):
+        """Return (sid, body) of the next BNCS packet, or None on close/timeout."""
+        try:
+            self._fill(4)
+        except (socket.timeout, ConnectionError):
+            return None
+        marker, sid, length = struct.unpack_from("<BBH", self.buf, 0)
+        if marker != 0xFF or length < 4:
+            raise ValueError(f"bad BNCS header marker={marker:#x} len={length}")
+        try:
+            self._fill(length)
+        except (socket.timeout, ConnectionError):
+            return None
+        body = self.buf[4:length]
+        self.buf = self.buf[length:]
+        return sid, body
+
+    def recv_sid(self, want_sid: int, max_packets: int = 20):
+        """Drain packets until one with want_sid arrives; return its body."""
+        for _ in range(max_packets):
+            r = self.recv()
+            if r is None:
+                return None
+            sid, body = r
+            if sid == want_sid:
+                return body
+        return None
+
+    # ---- handshake builders -------------------------------------------------
+    def send_auth_info(self, product=b"SEXP"):
+        # SID_AUTH_INFO: protocol id, platform 'IX86', product, verbyte, lang,
+        # local ip, tz bias, locale id, lang id, country abbrev, country.
+        body = struct.pack("<I", 0)            # protocol id
+        body += b"68XI"                        # platform 'IX86' (LE)
+        body += product[::-1]                  # product tag (LE)
+        body += struct.pack("<I", 0xD3)        # version byte
+        body += struct.pack("<I", 0)           # product language
+        body += struct.pack("<I", 0)           # local ip
+        body += struct.pack("<i", 0)           # tz bias
+        body += struct.pack("<I", 0)           # locale id
+        body += struct.pack("<I", 0)           # language id
+        body += cstring("USA")                 # country abbreviation
+        body += cstring("United States")       # country
+        self.send(SID_AUTH_INFO, body)
+
+
+def first_result_u32(body):
+    if body is None or len(body) < 4:
+        return None
+    return struct.unpack_from("<I", body, 0)[0]
+
+
+# ---- higher-level flows (shared by the differential scenarios) ---------------
+def _drain_until(client, want_sid, max_packets=30):
+    """Drain packets, auto-echoing server PINGs, until want_sid arrives."""
+    for _ in range(max_packets):
+        r = client.recv()
+        if r is None:
+            return None
+        sid, body = r
+        if sid == SID_PING:
+            client.send(SID_PING, body[:4])   # echo the latency cookie
+            continue
+        if sid == want_sid:
+            return body
+    return None
+
+
+def auth_handshake(client, product=b"SEXP", client_token=0xDEADBEEF):
+    """Adaptive AUTH_INFO handshake that works against BOTH servers.
+
+    Real protocol (original): AUTH_INFO -> server sends 0x50 SEED (logon_type +
+    server_token) -> client sends 0x51 AUTH_CHECK -> server 0x51 reply.
+    v3 (simplified): AUTH_INFO -> server sends 0x51 reply directly (no seed,
+    no server_token).
+
+    Returns (server_token, auth_check_result, seed_present).
+    """
+    client.send_auth_info(product=product)
+    # Drain the first non-PING reply; it's either a 0x50 seed or a 0x51 result.
+    for _ in range(30):
+        r = client.recv()
+        if r is None:
+            return 0, None, False
+        sid, body = r
+        if sid == SID_PING:
+            client.send(SID_PING, body[:4])
+            continue
+        if sid == SID_AUTH_INFO and len(body) >= 8:
+            # SERVER_AUTHREQ seed: logon_type(u32), server_token(u32), ...
+            server_token = struct.unpack_from("<I", body, 4)[0]
+            # Real flow: respond with AUTH_CHECK and read its result.
+            chk = struct.pack("<IIIII", client_token, 0xD3, 0, 1, 0)
+            chk += struct.pack("<IIII", 0, 0, 0, 0) + struct.pack("<5I", 0, 0, 0, 0, 0)
+            chk += cstring("Game.exe 01/01/01 00:00:00 1") + cstring("owner")
+            client.send(SID_AUTH_CHECK, chk)
+            res = _drain_until(client, SID_AUTH_CHECK)
+            return server_token, (first_result_u32(res) if res else None), True
+        if sid == SID_AUTH_CHECK:
+            # v3 simplified flow: this IS the check result; no seed/token.
+            return 0, first_result_u32(body), False
+    return 0, None, False
+
+
+def create_account_ols(client, username, password):
+    """Create an account via SID_CREATE_ACCT1 (hash1 = xsha1(password))."""
+    h1 = hash_password(password)
+    body = struct.pack("<5I", *h1) + cstring(username)
+    client.send(SID_CREATE_ACCT1, body)
+    res = _drain_until(client, SID_CREATE_ACCT1)
+    return first_result_u32(res)
+
+
+def login_ols(client, username, password, client_token, server_token):
+    """SID_LOGONRESPONSE2 with hash2 = xsha1(client_token ‖ server_token ‖ hash1)."""
+    h1 = hash_password(password)
+    h2 = double_hash(h1, client_token, server_token)
+    body = struct.pack("<2I", client_token, server_token)
+    body += struct.pack("<5I", *h2) + cstring(username)
+    client.send(SID_LOGONRESPONSE2, body)
+    res = _drain_until(client, SID_LOGONRESPONSE2)
+    return first_result_u32(res)
