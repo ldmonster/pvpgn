@@ -80,6 +80,12 @@ public:
     /// state (the caller should close the session).
     core::Status<> handle(const ClientMessage& msg);
 
+    /// Called by the transport when the connection closes. If the client is
+    /// still in a channel, notify the remaining members with EID_LEAVE (the
+    /// original broadcasts a channel part on disconnect, not just on an
+    /// explicit SID_LEAVECHANNEL).
+    void on_disconnect();
+
     // Visitor handlers — public so a custom dispatcher can call them.
     core::Status<> on(const Null&);
     core::Status<> on(const Ping&);

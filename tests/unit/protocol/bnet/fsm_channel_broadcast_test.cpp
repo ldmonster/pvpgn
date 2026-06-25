@@ -31,6 +31,7 @@
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
 #include "application/chat/join_channel.hpp"
+#include "application/chat/leave_channel.hpp"
 #include "application/chat/post_message.hpp"
 #include "core/clock.hpp"
 #include "domain/shared/ids.hpp"
@@ -143,6 +144,8 @@ struct Harness {
         uc.join_channel = std::make_shared<application::chat::JoinChannel>(
             channels, accounts, sessions);
         uc.post_message = std::make_shared<application::chat::PostMessage>(
+            channels, sessions);
+        uc.leave_channel = std::make_shared<application::chat::LeaveChannel>(
             channels, sessions);
         uc.account_repo = std::shared_ptr<domain::identity::IAccountRepository>(
             &accounts, [](domain::identity::IAccountRepository*) noexcept {});
@@ -309,4 +312,55 @@ TEST_CASE("fsm whisper: target offline yields EID_ERROR, no broadcast",
     const auto* ev = last_chat_event(alice_ctx);
     REQUIRE(ev != nullptr);
     CHECK(ev->event_id == 0x13u);  // EID_ERROR
+}
+
+TEST_CASE("fsm disconnect: leaving a channel notifies the remaining members",
+          "[protocol][bnet][channel][broadcast]") {
+    Harness h;
+
+    auto alice_ctx = std::make_shared<CapturingSessionContext>();
+    auto bob_ctx   = std::make_shared<CapturingSessionContext>();
+    BnetFsm alice{alice_ctx, h.make_ctx(), domain::SessionId{1}};
+    BnetFsm bob{bob_ctx, h.make_ctx(), domain::SessionId{2}};
+
+    h.bring_into_channel(alice, "alice", "test");
+    h.bring_into_channel(bob, "bob", "test");
+
+    h.router->broadcasts.clear();
+
+    // Alice's transport drops — the disconnect must broadcast EID_LEAVE to bob.
+    alice.on_disconnect();
+
+    REQUIRE(h.router->broadcasts.size() == 1u);
+    const auto& bcast = h.router->broadcasts.front();
+    REQUIRE(bcast.sessions.size() == 1u);
+    CHECK(bcast.sessions.front().value() == 2u);  // bob
+    auto fp = protocol::parse_packet(
+        core::ByteView{bcast.bytes.data(), bcast.bytes.size()});
+    REQUIRE(fp.has_value());
+    auto decoded = decode_server(fp.value().packet);
+    REQUIRE(decoded.has_value());
+    const auto* ev = std::get_if<ChatEvent>(&decoded.value());
+    REQUIRE(ev != nullptr);
+    CHECK(ev->event_id == 0x03u);  // EID_LEAVE
+    CHECK(ev->username == "alice");
+}
+
+TEST_CASE("fsm disconnect: a user not in any channel broadcasts nothing",
+          "[protocol][bnet][channel][broadcast]") {
+    Harness h;
+    auto alice_ctx = std::make_shared<CapturingSessionContext>();
+    BnetFsm alice{alice_ctx, h.make_ctx(), domain::SessionId{1}};
+
+    // Log in + enter chat but never join a channel.
+    REQUIRE(alice.handle(ClientMessage{AuthInfo{}}).has_value());
+    REQUIRE(alice.handle(ClientMessage{create_req("alice")}).has_value());
+    REQUIRE(alice.handle(ClientMessage{logon_req("alice")}).has_value());
+    REQUIRE(alice.handle(ClientMessage{EnterChatRequest{"alice", "PXES"}})
+                .has_value());
+
+    h.router->broadcasts.clear();
+    alice.on_disconnect();
+
+    CHECK(h.router->broadcasts.empty());
 }

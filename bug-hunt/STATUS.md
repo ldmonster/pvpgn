@@ -303,3 +303,24 @@ the oracle byte-for-byte. Unit guards added (routing, all 4 aliases, offline pat
 ## Differential harness now covers: OLS login + chat/channel join + two-client
 ## TALK + private WHISPER. Reusable for /commands, game-list, friends, NLS/SRP-3.
 ## RUNNING TOTAL: ~43 distinct bugs across 15 waves.
+
+## Wave 16: differential channel-part-on-disconnect + EID_LEAVE fix
+Extended the harness (tests/diff/diff_leave.py) to channel part on disconnect.
+Found HIGH: when a user dropped their connection v3 broadcast no EID_LEAVE, so
+the remaining members kept a ghost roster entry (the original announces the part).
+
+Root cause: EID_LEAVE was only emitted from the explicit SID_LEAVECHAT handler; the
+disconnect path went through LogoutUser, which does the membership cleanup but
+`(void)`-discards the members_to_notify. Fix: new BnetFsm::on_disconnect() invoked
+from the dispatch on_close before LogoutUser, reusing the on(LeaveChannel) path so
+remaining members get EID_LEAVE (LogoutUser then no-ops -> single broadcast).
+diff_leave.py matches the oracle (bob: [(3,'alice','')]); unit guards added.
+
+Also UNCOVERED (finding F-W16b, fix pending): InMemoryChannelRepository never
+assigns channel ids, so every created channel keeps id 0 -> distinct channels
+collide in by_id_[0], and 0 is ambiguous vs the FSM's no-channel sentinel. Next
+scenario: assign monotonic channel ids (reserve 0) + propagate through JoinChannel.
+
+## Differential harness now covers: OLS login + chat/channel join + two-client
+## TALK + private WHISPER + channel part-on-disconnect (EID_LEAVE).
+## RUNNING TOTAL: ~45 distinct bugs across 16 waves.

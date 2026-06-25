@@ -341,3 +341,48 @@ so even a correct `broadcast_chat_event` had a null router. Both were fixed:
 the oracle. Regression locked by tests/unit/protocol/bnet/fsm_channel_broadcast_test.cpp
 (two real logins into one channel; asserts the router receives a parseable
 EID_TALK packet addressed to the other client's session) + the diff harness.
+
+---
+
+## F-W16 — no EID_LEAVE broadcast on disconnect (ghost members)
+**Severity:** HIGH (remaining members never see a disconnected user leave)
+**Classification:** REAL BUG — fixed (wave 16)
+
+**Symptom (differential, tests/diff/diff_leave.py):** Alice and Bob share a
+channel; Alice drops her connection. The original broadcasts EID_LEAVE (0x03,
+username=alice) to Bob; v3 broadcast nothing, so Alice lingered as a ghost in
+Bob's roster.
+
+**Root cause:** v3 only emitted EID_LEAVE from the explicit on(LeaveChannel)
+(SID_LEAVECHAT) path. A disconnect was handled purely by LogoutUser, which calls
+`leave_channel_->execute(...)` for membership cleanup but `(void)`-discards the
+returned members_to_notify — so the part was never announced.
+
+**Fix:** new BnetFsm::on_disconnect(), invoked from the bnetd dispatch on_close
+(bnet_bnftp_dispatch.cpp) before LogoutUser. It reuses the on(LeaveChannel) path
+so the remaining members get EID_LEAVE; LogoutUser's subsequent cleanup then
+finds nothing to remove (no double broadcast).
+
+**Verified:** diff_leave.py matches the oracle (bob: [(3,'alice','')]). Unit
+guards in fsm_channel_broadcast_test.cpp: disconnect-in-channel broadcasts
+EID_LEAVE to the remaining member; disconnect-not-in-channel broadcasts nothing.
+
+---
+
+## F-W16b — in-memory channel repo never assigns ids: ALL channels get id 0
+**Severity:** HIGH (latent) — multiple simultaneous channels collide
+**Classification:** REAL BUG — found wave 16, FIX PENDING (next scenario)
+
+JoinChannel creates a channel as `Channel::create(ChannelId{0}, …)` with the
+comment "ID will be assigned by repo", but InMemoryChannelRepository::save stores
+the channel under `channel.id().value()` verbatim and never allocates an id. So
+every freshly-created channel keeps id 0: `by_id_[0]` is overwritten each time
+two differently-named channels are created, and the FSM's use of
+`current_channel_id_ == 0` as a "not in a channel" sentinel becomes ambiguous
+(it tripped the first cut of the wave-16 on_disconnect guard).
+
+Single-channel differential scenarios pass because find_by_id(0) returns the one
+channel, but a two-distinct-channel scenario will collide. The proper fix is for
+the repository (or a domain id allocator) to assign monotonic ids starting at 1,
+reserving 0 as the no-channel sentinel, and for JoinChannel to propagate the
+assigned id back into its result. Tracked as the next differential scenario.

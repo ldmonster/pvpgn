@@ -549,6 +549,21 @@ core::Status<> BnetFsm::on(const LeaveChannel&) {
     return core::ok();
 }
 
+void BnetFsm::on_disconnect() {
+    // A disconnect while in a channel is a channel part: reuse the LEAVECHANNEL
+    // path so the remaining members get EID_LEAVE. We deliberately do NOT guard
+    // on current_channel_id_ != 0 — the in-memory repo assigns channel id 0 to
+    // the first channel, so 0 is a *valid* id and cannot double as a "no
+    // channel" sentinel. on(LeaveChannel) is safe to call unconditionally: its
+    // leave_channel use-case validates membership and silently no-ops when the
+    // account is not actually in the (resolved) channel. LogoutUser performs the
+    // same membership cleanup afterwards; once we've left here it finds nothing
+    // to remove, so there is no double broadcast.
+    if (state_ == BnetState::InChat || state_ == BnetState::InGame) {
+        (void)on(LeaveChannel{});
+    }
+}
+
 core::Status<> BnetFsm::on(const ProfileRequest&) {
     return require_clan_state(state_, "bnet fsm: PROFILEREQ before login");
 }

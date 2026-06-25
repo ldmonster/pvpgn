@@ -139,8 +139,16 @@ void BnetBnftpDispatchFactory::operator()(
             // bnetd_svc_ is a member of BnetBnftpDispatchFactory;
             // captured via `this` for LogoutUser cleanup on disconnect.
             session->set_on_close(
-                [self, sid, adapter, tcp_conn_ctx, lua_ctx, logging_ctx](
+                [self, sid, fsm, adapter, tcp_conn_ctx, lua_ctx, logging_ctx](
                     const boost::system::error_code&) {
+                    // A disconnect while in a channel is a channel part: let the
+                    // BnetFsm notify the remaining members with EID_LEAVE before
+                    // any membership teardown (must run while this session's
+                    // peers are still routable and before LogoutUser strips the
+                    // membership). Matches the original's conn_destroy ->
+                    // channel part broadcast.
+                    if (fsm) fsm->on_disconnect();
+
                     // Call LogoutUser to clean up channel membership
                     // before unregistering the session. Use `self` (the
                     // snapshotted factory) rather than `this`: see the
