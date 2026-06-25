@@ -17,6 +17,7 @@
 #include "protocol/bnet/use_case_context.hpp"
 #include "protocol/file/bnftp_fsm.hpp"
 #include "infra/net/tcp_session.hpp"
+#include "infra/routing/message_router.hpp"
 #include "application/auth/logout_user.hpp"
 
 #include "app/bnetd/bnet_connection_adapter.hpp"
@@ -45,12 +46,14 @@ extern infra::lua::LuaRuntime g_lua_runtime;
 ///   other → BnftpFsm (file-transfer protocol)
 class BnetBnftpDispatchFactory {
 public:
-    BnetBnftpDispatchFactory(const ServerConfig&                       cfg,
-                              SessionManager&                           session_mgr,
-                              const protocol::bnet::BnetUseCaseContext& use_cases,
-                              services::bnetd::BnetdService&            bnetd_svc)
+    BnetBnftpDispatchFactory(
+        const ServerConfig&                       cfg,
+        SessionManager&                           session_mgr,
+        const protocol::bnet::BnetUseCaseContext& use_cases,
+        services::bnetd::BnetdService&            bnetd_svc,
+        std::shared_ptr<infra::routing::MessageRouterImpl> router = nullptr)
         : cfg_(cfg), session_mgr_(session_mgr), use_cases_(use_cases)
-        , bnetd_svc_(bnetd_svc) {}
+        , bnetd_svc_(bnetd_svc), router_(std::move(router)) {}
 
     void operator()(std::shared_ptr<infra::net::TcpSession> tcp);
 
@@ -59,6 +62,7 @@ private:
     SessionManager&                           session_mgr_;
     protocol::bnet::BnetUseCaseContext        use_cases_;
     services::bnetd::BnetdService&            bnetd_svc_;
+    std::shared_ptr<infra::routing::MessageRouterImpl> router_;
 };
 
 } // namespace pvpgn::app::bnetd

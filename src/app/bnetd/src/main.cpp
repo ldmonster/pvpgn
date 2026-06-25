@@ -123,6 +123,7 @@
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
 #include "infra/crypto/bnet_session_hasher.hpp"
+#include "infra/routing/message_router.hpp"
 #include "core/clock.hpp"
 // Durable file-backed account store (used when backend="file").
 #include "infra/file/account_repository.hpp"
@@ -396,6 +397,18 @@ int main(int argc, char* argv[]) {
         }
         LOG_INFO("bnetd", "auth use-cases wired: login + OLS account creation");
 
+        // Cross-session message router: maps SessionId -> egress so chat
+        // broadcasts (EID_TALK, EID_JOIN/LEAVE, whispers) actually reach OTHER
+        // connected clients. Without it broadcast_chat_event is a no-op and
+        // channel messages are delivered to nobody. Sessions register their
+        // egress with it in the dispatch (below); PostMessage/JoinChannel emit
+        // the recipient SessionIds via session_reg.
+        auto router_session_reg = std::shared_ptr<domain::identity::ISessionRegistry>(
+            &session_reg, [](domain::identity::ISessionRegistry*) noexcept {});
+        auto message_router =
+            std::make_shared<infra::routing::MessageRouterImpl>(router_session_reg);
+        use_cases.message_router = message_router;
+
         // 7. Create listeners
         //
         // Per-protocol idle-read deadlines from [net.timeouts].
@@ -419,7 +432,7 @@ int main(int argc, char* argv[]) {
         // Port 6112: BNet + BNFTP (shared port, first-byte dispatch)
         TcpListener bnet_listener{
             rt,
-            BnetBnftpDispatchFactory{cfg, session_mgr, use_cases, bnetd_svc},
+            BnetBnftpDispatchFactory{cfg, session_mgr, use_cases, bnetd_svc, message_router},
             bnet_idle};
         bnet_listener.start(cfg.listen_address, cfg.bnet_port);
         LOG_INFO("bnetd", "BNet/BNFTP listening on {}:{}", cfg.listen_address, cfg.bnet_port);

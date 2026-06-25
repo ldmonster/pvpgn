@@ -268,3 +268,21 @@ matches the oracle on the key events. e2e updated to assert self-in-roster.
 ## Differential harness now covers: OLS login + chat/channel join. Reusable for
 ## whisper, /commands, game-list, friends, and the NLS/SRP-3 path next.
 ## RUNNING TOTAL: ~41 distinct bugs across 13 waves.
+
+## Wave 14: differential talk harness + cross-session broadcast fix
+Extended the mock-client harness (tests/diff/diff_talk.py) to two-client channel
+TALK. It found CRITICAL: Alice's SID_CHATCOMMAND reached Bob on the oracle but
+v3 delivered nothing — channel chat between clients was entirely broken.
+
+Root cause: BnetFsm::broadcast_chat_event double-wrapped the SID_CHATEVENT packet
+(encode(ChatEvent) already begins+finalizes), so the redundant finalize failed
+and the early-return dropped EVERY broadcast before the router was called. A
+second latent gap: bnetd never constructed/wired a MessageRouterImpl, so the FSM
+context had a null router. Fixed both — encode() is now called directly, and
+main.cpp builds + wires MessageRouterImpl with per-session egress register/unregister
+in the BNet dispatch. diff_talk.py now matches the oracle (Bob gets EID_TALK).
+Regression locked by fsm_channel_broadcast_test.cpp (2 real logins, asserts the
+router receives a parseable EID_TALK packet for the other session).
+
+## Differential harness now covers: OLS login + chat/channel join + two-client TALK.
+## RUNNING TOTAL: ~42 distinct bugs across 14 waves.

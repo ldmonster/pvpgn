@@ -308,3 +308,36 @@ correct member set and assigned events).
 4. **F6** case-insensitive name lookup — MEDIUM
 5. **F8** membership persistence / post-join snapshot — MEDIUM
 6. **F3 / F7** documented-but-fine / minor validation divergence — LOW
+
+---
+
+## F-W14 — cross-session channel TALK silently dropped (double-finalize)
+**Severity:** CRITICAL (channel chat between clients was completely broken)
+**Classification:** REAL BUG — fixed (wave 14)
+
+**Symptom (differential, tests/diff/diff_talk.py):** two clients join the same
+channel; Alice sends `SID_CHATCOMMAND`. The original delivers an `EID_TALK`
+chat event to Bob; v3 delivered **nothing**. The channel was effectively mute —
+no client ever saw another client's messages.
+
+**Root cause:** `BnetFsm::broadcast_chat_event` (src/protocol/bnet/src/fsm.cpp)
+wrapped `encode(Writer&, ChatEvent)` in its OWN
+`begin_bnet_packet(0x0F)` / `finalize_bnet_packet()` pair. But
+`encode(ChatEvent)` (src/protocol/bnet/src/codec/codec_chat.cpp) already begins
+AND finalizes its own `SID_CHATEVENT` packet. So the outer `finalize_bnet_packet`
+hit "no open bnet packet" (FailedPrecondition); the `if (!w.finalize…) return;`
+guard then returned early — the `message_router->broadcast(...)` call was NEVER
+reached. Every channel/whisper/emote fan-out was dropped at the last step.
+
+A second, latent defect masked it during diagnosis: the bnetd composition root
+never constructed a `MessageRouterImpl` nor put it in the FSM use-case context,
+so even a correct `broadcast_chat_event` had a null router. Both were fixed:
+  - main.cpp now builds `MessageRouterImpl` (shared session registry) and sets
+    `use_cases.message_router`; the BNet dispatch registers each session's egress
+    on connect and unregisters on close (bnet_bnftp_dispatch.*).
+  - broadcast_chat_event now calls `encode(w, ev)` directly (no redundant wrap).
+
+**Verified:** diff_talk.py — Bob now receives `[(5,'alice','hi bob')]`, matching
+the oracle. Regression locked by tests/unit/protocol/bnet/fsm_channel_broadcast_test.cpp
+(two real logins into one channel; asserts the router receives a parseable
+EID_TALK packet addressed to the other client's session) + the diff harness.

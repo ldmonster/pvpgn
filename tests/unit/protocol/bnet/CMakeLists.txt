@@ -105,3 +105,10 @@ pvpgn_v3_add_test(test_protocol_bnet_golden_replay
 pvpgn_v3_add_test(test_protocol_bnet_fsm_channel
     SOURCES fsm_channel_test.cpp
     DEPS    protocol_bnet)
+
+# wave 14: cross-session channel-talk broadcast (regression for the
+# double-finalize bug that silently dropped every EID_TALK fan-out).
+pvpgn_v3_add_test(test_protocol_bnet_fsm_channel_broadcast
+    SOURCES fsm_channel_broadcast_test.cpp capturing_session_context.cpp
+    DEPS    protocol_bnet application_auth application_chat infra_inmemory
+            infra_crypto infra_crypto_session_hasher)

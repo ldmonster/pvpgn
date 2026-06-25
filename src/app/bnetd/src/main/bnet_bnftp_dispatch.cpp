@@ -80,6 +80,13 @@ void BnetBnftpDispatchFactory::operator()(
                 protocol::bnet::BnetSessionContextImpl>(sid, egress);
             session_mgr_.register_session(sid, bnet_ctx);
 
+            // Register this session's egress with the cross-session router so
+            // chat broadcasts (EID_TALK / EID_JOIN / EID_LEAVE / whispers) from
+            // OTHER clients are delivered here. Unregistered on close (below).
+            if (router_) {
+                router_->register_session(sid, egress);
+            }
+
             // Domain-level transport context
             auto tcp_conn_ctx = std::make_shared<TcpConnectionContext>(
                 egress, /*remote_addr=*/"", sid32);
@@ -147,6 +154,9 @@ void BnetBnftpDispatchFactory::operator()(
                         (void)self->bnetd_svc_.logout_user().execute(req);
                     }
                     self->session_mgr_.unregister_session(sid);
+                    if (self->router_) {
+                        self->router_->unregister_session(sid);
+                    }
                     adapter->connection_fsm().close();
                     (void)tcp_conn_ctx;
                     (void)lua_ctx;

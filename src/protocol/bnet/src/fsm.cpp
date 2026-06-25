@@ -50,10 +50,12 @@ core::Status<> BnetFsm::reject(const char* reason) {
 void BnetFsm::broadcast_chat_event(const ChatEvent& ev,
                                    std::span<const domain::SessionId> sessions) {
     if (!use_cases_.message_router || sessions.empty()) return;
+    // encode(ChatEvent) emits a complete SID_CHATEVENT packet (it calls
+    // begin_bnet_packet/finalize_bnet_packet itself). Do NOT wrap it in a
+    // second begin/finalize here — the redundant finalize would fail and
+    // silently drop every broadcast.
     Writer w;
-    w.begin_bnet_packet(0x0F);  // SID_CHATEVENT
     if (!encode(w, ev)) return;
-    if (!w.finalize_bnet_packet()) return;
     auto bytes = w.take();
     (void)use_cases_.message_router->broadcast(
         sessions,
