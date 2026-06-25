@@ -36,6 +36,9 @@
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
 #include "application/chat/whisper_use_case.hpp"
+#include "application/social/add_friend.hpp"
+#include "application/social/list_friends.hpp"
+#include "application/social/remove_friend.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/user_name.hpp"
 #include "domain/chat/ports/command_registry.hpp"
@@ -255,6 +258,12 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
                     body.remove_prefix(1);
                 }
                 return handle_emote(body);
+            }
+            // --- /friends (and alias /f) add|remove ---
+            // Mutating the friends list routes to the social use-cases and
+            // acknowledges with SID_FRIENDADD/FRIENDDEL, not reply text.
+            if (cmd == "friends" || cmd == "f") {
+                return handle_friends(rest, cmd_end);
             }
         }
 
@@ -498,18 +507,134 @@ core::Status<> BnetFsm::on(const LadderSearchRequest&) {
     return core::ok();
 }
 
+namespace {
+// FRIENDSTATUS_* location byte (handle_bnet.cpp): 0 offline, 1 online (in
+// chat/elsewhere), 2 in a channel. FRIEND_TYPE_* status byte: bit0 = mutual.
+constexpr std::uint8_t kFriendLocOffline = 0x00;
+constexpr std::uint8_t kFriendLocOnline  = 0x01;
+constexpr std::uint8_t kFriendLocChannel = 0x02;
+constexpr std::uint8_t kFriendTypeMutual = 0x01;
+
+FriendsListEntry friend_to_entry(const application::social::FriendInfo& f) {
+    FriendsListEntry e;
+    e.name = std::string{f.name.display()};
+    // Mutual-ness is not modelled per-entry here; report 0 (the differential
+    // compares names + online state, which is the stable observable).
+    e.status = 0;
+    if (!f.is_online) {
+        e.location = kFriendLocOffline;
+    } else if (f.current_channel.has_value()) {
+        e.location = kFriendLocChannel;
+    } else {
+        e.location = kFriendLocOnline;
+    }
+    e.client_tag    = 0;
+    e.location_name = "";  // channel/game name not resolved here
+    return e;
+}
+}  // namespace
+
 core::Status<> BnetFsm::on(const FriendsListRequest&) {
     if (state_ != BnetState::InChat && state_ != BnetState::LoggedIn) {
         return reject("bnet fsm: FRIENDSLIST before login");
     }
-    return core::ok();
+    FriendsListReply reply;
+    if (use_cases_.list_friends) {
+        auto result = use_cases_.list_friends->execute(current_account_id_);
+        if (result) {
+            for (const auto& f : result.value()) {
+                reply.entries.push_back(friend_to_entry(f));
+            }
+        }
+    }
+    return ctx_->send(ServerMessage{reply});
 }
 
-core::Status<> BnetFsm::on(const FriendInfoRequest&) {
+core::Status<> BnetFsm::handle_friends(std::string_view rest,
+                                       std::size_t cmd_end) {
+    // rest = "friends <sub> <name>" / "f <sub> <name>"
+    std::string_view args =
+        (cmd_end == std::string_view::npos) ? std::string_view{}
+                                            : rest.substr(cmd_end + 1);
+    while (!args.empty() && args.front() == ' ') args.remove_prefix(1);
+    const auto sub_end = args.find(' ');
+    const std::string_view sub =
+        (sub_end == std::string_view::npos) ? args : args.substr(0, sub_end);
+    std::string_view name =
+        (sub_end == std::string_view::npos) ? std::string_view{}
+                                            : args.substr(sub_end + 1);
+    while (!name.empty() && name.front() == ' ') name.remove_prefix(1);
+    while (!name.empty() && name.back() == ' ')  name.remove_suffix(1);
+
+    auto info = [&](std::string_view text) {
+        return ctx_->send(ServerMessage{ChatEvent{
+            kEidInfo, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+            "Battle.net", std::string{text}}});
+    };
+
+    const bool is_add = (sub == "add" || sub == "a");
+    const bool is_del = (sub == "remove" || sub == "del" || sub == "r");
+    if (!is_add && !is_del) {
+        return info("Usage: /friends add|remove <name>");
+    }
+    if (name.empty() || !use_cases_.account_repo) {
+        return info("That account does not exist.");
+    }
+    auto parsed = domain::UserName::parse(std::string{name});
+    if (!parsed) return info("That account does not exist.");
+    auto target = use_cases_.account_repo->find_by_name(parsed.value());
+    if (!target) return info("That account does not exist.");
+    const domain::AccountId target_id = target.value().id();
+
+    if (is_add) {
+        if (!use_cases_.add_friend) return info("Friends are not available.");
+        auto r = use_cases_.add_friend->execute(current_account_id_, target_id);
+        if (!r) return info("Could not add that friend.");
+        FriendAddAck ack;
+        ack.name = std::string{parsed.value().display()};
+        ack.status = 0;
+        ack.location = 0;
+        ack.client_tag = 0;
+        ack.location_name = "";
+        return ctx_->send(ServerMessage{ack});
+    }
+    // remove: compute the slot index (for the ack) from the current list.
+    std::uint8_t slot = 0;
+    if (use_cases_.list_friends) {
+        auto lst = use_cases_.list_friends->execute(current_account_id_);
+        if (lst) {
+            for (std::size_t i = 0; i < lst.value().size(); ++i) {
+                if (lst.value()[i].id == target_id) {
+                    slot = static_cast<std::uint8_t>(i);
+                    break;
+                }
+            }
+        }
+    }
+    if (!use_cases_.remove_friend) return info("Friends are not available.");
+    auto r = use_cases_.remove_friend->execute(current_account_id_, target_id);
+    if (!r) return info("That user is not on your friends list.");
+    return ctx_->send(ServerMessage{FriendDelAck{slot}});
+}
+
+core::Status<> BnetFsm::on(const FriendInfoRequest& m) {
     if (state_ != BnetState::InChat && state_ != BnetState::LoggedIn) {
         return reject("bnet fsm: FRIENDINFO before login");
     }
-    return core::ok();
+    FriendInfoReply reply;
+    reply.friend_num = m.friend_num;
+    if (use_cases_.list_friends) {
+        auto result = use_cases_.list_friends->execute(current_account_id_);
+        if (result && m.friend_num < result.value().size()) {
+            const auto& f = result.value()[m.friend_num];
+            const auto e  = friend_to_entry(f);
+            reply.type       = e.status;     // FRIEND_TYPE_*
+            reply.status     = e.location;   // FRIENDSTATUS_* (location code)
+            reply.client_tag = e.client_tag;
+            reply.game_name  = e.location_name;
+        }
+    }
+    return ctx_->send(ServerMessage{reply});
 }
 
 core::Status<> BnetFsm::on(const ClanInfoRequest&) {

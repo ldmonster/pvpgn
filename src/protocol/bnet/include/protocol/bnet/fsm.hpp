@@ -208,6 +208,12 @@ private:
     /// in a channel or the body is empty.
     core::Status<> handle_emote(std::string_view body);
 
+    /// Handle the /friends (and /f) command: add/remove the named account from
+    /// the caller's friends list and acknowledge (SID_FRIENDADD/FRIENDDEL).
+    /// `rest` is the line past the leading '/', `cmd_end` the offset of the
+    /// space after the command word (npos if none).
+    core::Status<> handle_friends(std::string_view rest, std::size_t cmd_end);
+
     std::shared_ptr<ISessionContext> ctx_;
     BnetUseCaseContext use_cases_;
     BnetState state_ = BnetState::Init;

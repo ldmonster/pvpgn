@@ -49,6 +49,9 @@ BnetUseCaseContext make_test_context() {
         .session_registry  = nullptr,
         .login_user_w3     = nullptr,
         .srp3_store        = nullptr,
+        .add_friend        = nullptr,
+        .remove_friend     = nullptr,
+        .list_friends      = nullptr,
     };
 }
 

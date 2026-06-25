@@ -117,6 +117,10 @@
 #include "infra/inmemory/session_registry.hpp"
 #include "infra/inmemory/srp3_credential_store.hpp"
 #include "infra/inmemory/wol_credential_store.hpp"
+#include "infra/inmemory/friend_list_repository.hpp"
+#include "application/social/add_friend.hpp"
+#include "application/social/remove_friend.hpp"
+#include "application/social/list_friends.hpp"
 #include "infra/inmemory/unit_of_work_factory.hpp"
 #include "services/bnetd/bnetd_service.hpp"
 
@@ -352,6 +356,9 @@ int main(int argc, char* argv[]) {
         // Westwood Online APGAR token store (WOL CVERS/APGAR login auto-creates
         // and verifies). Lives for the whole run loop, like srp3_store.
         infra::inmemory::InMemoryWolCredentialStore  wol_store;
+        // Friends list store (SID_FRIENDSLIST + /friends add|remove). Run-loop
+        // scoped like the credential stores above.
+        infra::inmemory::InMemoryFriendListRepository friend_repo;
         core::SystemClock                           auth_clock;
         NullNlsCredentialStore                      null_nls_store;
 
@@ -409,6 +416,26 @@ int main(int argc, char* argv[]) {
                 &srp3_store, [](application::auth::ISrp3CredentialStore*) noexcept {});
             use_cases.login_user_w3 =
                 std::make_shared<application::auth::LoginUserW3>(srp3_store);
+
+            // Friends list (SID_FRIENDSLIST/FRIENDINFO + /friends add|remove).
+            auto no_delete_friends =
+                std::shared_ptr<domain::social::IFriendListRepository>(
+                    &friend_repo,
+                    [](domain::social::IFriendListRepository*) noexcept {});
+            auto no_delete_bus = std::shared_ptr<application::ports::IEventBus>(
+                &event_bus, [](application::ports::IEventBus*) noexcept {});
+            auto no_delete_reader =
+                std::shared_ptr<domain::identity::IAccountReader>(
+                    &account_repo,
+                    [](domain::identity::IAccountReader*) noexcept {});
+            use_cases.add_friend = std::make_shared<application::social::AddFriend>(
+                no_delete_accounts, no_delete_friends, no_delete_bus);
+            use_cases.remove_friend =
+                std::make_shared<application::social::RemoveFriend>(
+                    no_delete_friends, no_delete_bus);
+            use_cases.list_friends =
+                std::make_shared<application::social::ListFriends>(
+                    no_delete_friends, no_delete_sessions, no_delete_reader);
         }
         LOG_INFO("bnetd", "auth use-cases wired: login + OLS account creation + W3 SRP-3");
 

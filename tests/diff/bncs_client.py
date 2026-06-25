@@ -35,6 +35,8 @@ SID_AUTH_ACCOUNTLOGON = 0x53
 SID_AUTH_ACCOUNTLOGONPROOF = 0x54
 SID_AUTH_ACCOUNTCHANGE = 0x55
 SID_AUTH_ACCOUNTCHANGEPROOF = 0x56
+SID_FRIENDSLIST = 0x65
+SID_FRIENDINFO = 0x66
 
 # Chat event ids (canonical BNCS).
 EID_SHOWUSER = 0x01
@@ -442,6 +444,49 @@ def chat_command(client, text, collect=8, settle=0.4):
             if ev:
                 events.append(ev)
     return events
+
+
+def request_friends_list(client, settle=0.4):
+    """SID_FRIENDSLIST (0x65): request the friends list and parse the reply.
+    Wire: count(u8) then per friend: name\\0, status(u8), location(u8),
+    client_tag(u32 LE), location_name\\0. Returns a list of dicts sorted by name:
+    [{name, status, location}]."""
+    import time
+    client.send(SID_FRIENDSLIST, b"")
+    time.sleep(settle)
+    body = _drain_until(client, SID_FRIENDSLIST)
+    out = []
+    if body is None or len(body) < 1:
+        return out
+    count = body[0]
+    pos = 1
+    for _ in range(count):
+        nul = body.find(b"\x00", pos)
+        if nul < 0:
+            break
+        name = body[pos:nul].decode("latin-1", "replace")
+        pos = nul + 1
+        if pos + 1 + 1 + 4 > len(body):
+            break
+        status = body[pos]
+        location = body[pos + 1]
+        pos += 1 + 1 + 4  # status, location, client_tag
+        nul2 = body.find(b"\x00", pos)
+        if nul2 < 0:
+            break
+        pos = nul2 + 1
+        out.append({"name": name, "status": status, "location": location})
+    return sorted(out, key=lambda f: f["name"].lower())
+
+
+def friends_add(client, name):
+    """/friends add <name> via SID_CHATCOMMAND (drains the resulting ack)."""
+    chat_command(client, f"/friends add {name}")
+
+
+def friends_remove(client, name):
+    """/friends remove <name> via SID_CHATCOMMAND (drains the resulting ack)."""
+    chat_command(client, f"/friends remove {name}")
 
 
 def full_login(host, port, username, password, product=b"SEXP"):

@@ -584,10 +584,12 @@ pvpgn_v3_add_library(protocol_bnet
         application_chat
         application_game
         application_moderation
+        application_social
         domain_identity
         domain_connection
         domain_moderation
         domain_chat
+        domain_social
         domain_shared
 )
 
