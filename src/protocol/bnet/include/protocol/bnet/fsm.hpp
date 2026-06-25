@@ -36,10 +36,12 @@
 ///
 /// `Ping` and `Null` are legal in every non-`Closing` state.
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 
 #include "core/result.hpp"
 #include "domain/shared/client_tag.hpp"
@@ -186,6 +188,13 @@ private:
     /// Ignores send errors (best-effort broadcast).
     void broadcast_chat_event(const ChatEvent& ev,
                               std::span<const domain::SessionId> sessions);
+
+    /// Handle the /whisper command family (/w /msg /m). `rest` is the command
+    /// line past the leading '/', `cmd_end` the offset of the space after the
+    /// command word (npos if none). Routes EID_WHISPER to the target session
+    /// and EID_WHISPERSENT back to the sender.
+    core::Status<> handle_whisper(std::string_view rest,
+                                  std::size_t cmd_end);
 
     std::shared_ptr<ISessionContext> ctx_;
     BnetUseCaseContext use_cases_;

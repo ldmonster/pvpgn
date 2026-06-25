@@ -286,3 +286,20 @@ router receives a parseable EID_TALK packet for the other session).
 
 ## Differential harness now covers: OLS login + chat/channel join + two-client TALK.
 ## RUNNING TOTAL: ~42 distinct bugs across 14 waves.
+
+## Wave 15: differential whisper harness + /whisper implementation
+Extended the harness (tests/diff/diff_whisper.py) to private messaging. Found
+HIGH: v3 never implemented the /whisper command family (/w /msg /m /whisper) —
+`/w` fell through to the generic command dispatch and returned "Unknown command",
+so private messages were silently dropped while the oracle delivered them.
+
+Implemented whisper in BnetFsm::on(ChatCommand) (intercepted before the generic
+dispatch, since it routes to another session rather than returning reply text):
+new handle_whisper resolves target by name->account->session and routes
+EID_WHISPER(0x04) to the target via the message router + EID_WHISPERSENT(0x0a)
+ack to the sender; offline target -> EID_ERROR(0x13). diff_whisper.py now matches
+the oracle byte-for-byte. Unit guards added (routing, all 4 aliases, offline path).
+
+## Differential harness now covers: OLS login + chat/channel join + two-client
+## TALK + private WHISPER. Reusable for /commands, game-list, friends, NLS/SRP-3.
+## RUNNING TOTAL: ~43 distinct bugs across 15 waves.

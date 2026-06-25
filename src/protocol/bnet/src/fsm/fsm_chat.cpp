@@ -37,6 +37,7 @@
 #include "application/chat/post_message.hpp"
 #include "application/chat/whisper_use_case.hpp"
 #include "domain/identity/ports.hpp"
+#include "domain/shared/user_name.hpp"
 #include "domain/chat/ports/command_registry.hpp"
 #include "domain/moderation/ports.hpp"
 
@@ -52,8 +53,11 @@ constexpr std::uint32_t kEidJoin     = chat::kServerMessageTypeJoin;     // 0x02
 constexpr std::uint32_t kEidLeave    = chat::kServerMessageTypePart;     // 0x03
 constexpr std::uint32_t kEidTalk     = chat::kServerMessageTypeTalk;     // 0x05
 constexpr std::uint32_t kEidChannel  = chat::kServerMessageTypeChannel;  // 0x07
+constexpr std::uint32_t kEidWhisper  = chat::kServerMessageTypeWhisper;  // 0x04
 constexpr std::uint32_t kEidUserFlags = chat::kServerMessageTypeUserFlags; // 0x09
+constexpr std::uint32_t kEidWhisperSent = chat::kServerMessageTypeWhisperAck; // 0x0a
 constexpr std::uint32_t kEidInfo     = chat::kServerMessageTypeInfo;     // 0x12
+constexpr std::uint32_t kEidError    = chat::kServerMessageTypeError;    // 0x13
 }  // namespace
 
 core::Status<> BnetFsm::on(const EnterChatRequest& m) {
@@ -226,6 +230,21 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
         std::string_view rest{m.text};
         rest.remove_prefix(1);  // drop '/'
 
+        // --- /whisper (and aliases /w /msg /m) ---
+        // Whisper is not a text-returning command: it routes a private message
+        // to ANOTHER online session, so it cannot go through the generic
+        // CommandRegistry (which only returns reply text). Intercept it here and
+        // deliver EID_WHISPER to the target + EID_WHISPERSENT to the sender,
+        // matching the original (command.cpp do_whisper / message.cpp EID map).
+        {
+            const auto cmd_end = rest.find(' ');
+            const std::string_view cmd =
+                (cmd_end == std::string_view::npos) ? rest : rest.substr(0, cmd_end);
+            if (cmd == "w" || cmd == "whisper" || cmd == "msg" || cmd == "m") {
+                return handle_whisper(rest, cmd_end);
+            }
+        }
+
         std::string result_text;
 
         if (use_cases_.command_registry && use_cases_.permission_checker) {
@@ -334,6 +353,71 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
     }
 
     return core::ok();
+}
+
+core::Status<> BnetFsm::handle_whisper(std::string_view rest,
+                                       std::size_t cmd_end) {
+    // Helper: send an EID_ERROR (0x13) line back to the sender.
+    auto error_to_self = [this](std::string text) -> core::Status<> {
+        return ctx_->send(ServerMessage{ChatEvent{
+            kEidError, 0, 0, 0, 0, 0, "", std::move(text)}});
+    };
+
+    // Parse "<cmd> <target> <message...>". `rest` starts at the command word.
+    if (cmd_end == std::string_view::npos) {
+        // No target/message at all — usage hint (original calls describe_command).
+        return error_to_self("Usage: /w <user> <message>");
+    }
+    std::string_view after_cmd = rest.substr(cmd_end + 1);
+    // Skip any extra spaces between the command and the target name.
+    while (!after_cmd.empty() && after_cmd.front() == ' ') {
+        after_cmd.remove_prefix(1);
+    }
+    const auto target_end = after_cmd.find(' ');
+    if (target_end == std::string_view::npos) {
+        // Target but no message body.
+        return error_to_self("Usage: /w <user> <message>");
+    }
+    const std::string_view target_name = after_cmd.substr(0, target_end);
+    std::string_view message = after_cmd.substr(target_end + 1);
+    while (!message.empty() && message.front() == ' ') {
+        message.remove_prefix(1);
+    }
+    if (target_name.empty() || message.empty()) {
+        return error_to_self("Usage: /w <user> <message>");
+    }
+
+    // Resolve the target account + its active session. Without the account
+    // repo or session registry we cannot route a whisper.
+    if (!use_cases_.account_repo || !use_cases_.session_registry ||
+        !use_cases_.message_router) {
+        return error_to_self("That user is not logged on.");
+    }
+    auto parsed = domain::UserName::parse(std::string{target_name});
+    if (!parsed) {
+        return error_to_self("That user is not logged on.");
+    }
+    auto account = use_cases_.account_repo->find_by_name(parsed.value());
+    if (!account) {
+        return error_to_self("That user is not logged on.");
+    }
+    auto target_session =
+        use_cases_.session_registry->session_for(account.value().id());
+    if (!target_session) {
+        return error_to_self("That user is not logged on.");
+    }
+
+    const std::string message_str{message};
+
+    // Deliver EID_WHISPER (0x04) to the target: username = sender.
+    const domain::SessionId one[1] = {target_session.value()};
+    broadcast_chat_event(
+        ChatEvent{kEidWhisper, 0, 0, 0, 0, 0, current_username_, message_str},
+        std::span<const domain::SessionId>{one, 1});
+
+    // Acknowledge to the sender with EID_WHISPERSENT (0x0a): username = target.
+    return ctx_->send(ServerMessage{ChatEvent{
+        kEidWhisperSent, 0, 0, 0, 0, 0, std::string{target_name}, message_str}});
 }
 
 core::Status<> BnetFsm::on(const GameListRequest& m) {

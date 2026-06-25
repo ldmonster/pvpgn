@@ -216,3 +216,97 @@ TEST_CASE("fsm channel: a solo speaker broadcasts to nobody",
     // Only member in the channel -> no recipients -> no broadcast at all.
     CHECK(h.router->broadcasts.empty());
 }
+
+namespace {
+
+// Find the last ChatEvent the capturing context received.
+const ChatEvent* last_chat_event(
+    const std::shared_ptr<CapturingSessionContext>& ctx) {
+    const ChatEvent* result = nullptr;
+    for (const auto& m : ctx->all_sent()) {
+        if (const auto* ev = std::get_if<ChatEvent>(&m)) result = ev;
+    }
+    return result;
+}
+
+}  // namespace
+
+TEST_CASE("fsm whisper: /w routes EID_WHISPER to target + EID_WHISPERSENT to sender",
+          "[protocol][bnet][whisper]") {
+    Harness h;
+
+    auto alice_ctx = std::make_shared<CapturingSessionContext>();
+    auto bob_ctx   = std::make_shared<CapturingSessionContext>();
+    BnetFsm alice{alice_ctx, h.make_ctx(), domain::SessionId{1}};
+    BnetFsm bob{bob_ctx, h.make_ctx(), domain::SessionId{2}};
+
+    h.bring_into_channel(alice, "alice", "test");
+    h.bring_into_channel(bob, "bob", "test");
+
+    h.router->broadcasts.clear();
+    alice_ctx->clear_sent();
+
+    REQUIRE(alice.handle(ClientMessage{ChatCommand{"/w bob hey there"}})
+                .has_value());
+
+    // Target gets EID_WHISPER (0x04, username=sender) via the router...
+    REQUIRE(h.router->broadcasts.size() == 1u);
+    const auto& bcast = h.router->broadcasts.front();
+    REQUIRE(bcast.sessions.size() == 1u);
+    CHECK(bcast.sessions.front().value() == 2u);  // bob's session
+    auto fp = protocol::parse_packet(
+        core::ByteView{bcast.bytes.data(), bcast.bytes.size()});
+    REQUIRE(fp.has_value());
+    auto decoded = decode_server(fp.value().packet);
+    REQUIRE(decoded.has_value());
+    const auto* wev = std::get_if<ChatEvent>(&decoded.value());
+    REQUIRE(wev != nullptr);
+    CHECK(wev->event_id == 0x04u);     // EID_WHISPER
+    CHECK(wev->username == "alice");
+    CHECK(wev->text == "hey there");
+
+    // ...and the sender gets EID_WHISPERSENT (0x0a, username=target).
+    const auto* ack = last_chat_event(alice_ctx);
+    REQUIRE(ack != nullptr);
+    CHECK(ack->event_id == 0x0au);     // EID_WHISPERSENT
+    CHECK(ack->username == "bob");
+    CHECK(ack->text == "hey there");
+}
+
+TEST_CASE("fsm whisper: aliases /msg /m /whisper all route",
+          "[protocol][bnet][whisper]") {
+    for (const char* line : {"/msg bob hi", "/m bob hi", "/whisper bob hi"}) {
+        Harness h;
+        auto alice_ctx = std::make_shared<CapturingSessionContext>();
+        auto bob_ctx   = std::make_shared<CapturingSessionContext>();
+        BnetFsm alice{alice_ctx, h.make_ctx(), domain::SessionId{1}};
+        BnetFsm bob{bob_ctx, h.make_ctx(), domain::SessionId{2}};
+        h.bring_into_channel(alice, "alice", "test");
+        h.bring_into_channel(bob, "bob", "test");
+        h.router->broadcasts.clear();
+
+        REQUIRE(alice.handle(ClientMessage{ChatCommand{line}}).has_value());
+        INFO("alias line: " << line);
+        REQUIRE(h.router->broadcasts.size() == 1u);
+    }
+}
+
+TEST_CASE("fsm whisper: target offline yields EID_ERROR, no broadcast",
+          "[protocol][bnet][whisper]") {
+    Harness h;
+    auto alice_ctx = std::make_shared<CapturingSessionContext>();
+    BnetFsm alice{alice_ctx, h.make_ctx(), domain::SessionId{1}};
+    h.bring_into_channel(alice, "alice", "test");
+
+    h.router->broadcasts.clear();
+    alice_ctx->clear_sent();
+
+    // "ghost" was never created/logged in.
+    REQUIRE(alice.handle(ClientMessage{ChatCommand{"/w ghost hello"}})
+                .has_value());
+
+    CHECK(h.router->broadcasts.empty());
+    const auto* ev = last_chat_event(alice_ctx);
+    REQUIRE(ev != nullptr);
+    CHECK(ev->event_id == 0x13u);  // EID_ERROR
+}

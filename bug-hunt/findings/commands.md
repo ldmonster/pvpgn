@@ -204,3 +204,32 @@ have no bnet handler at all (F6); and the bnet `/cmd` dispatch path doesn't use 
 whisper-aware parser and registers no concrete commands, so reimplemented commands aren't
 actually reachable as wired (F7). Reply-text parity is broken in several spots (F8). Most legacy
 info/read-only commands are intentionally bridged to legacy code, not reimplemented (not bugs).
+
+---
+
+## F-W15 — /whisper (/w /msg /m) not implemented; private messages dropped
+**Severity:** HIGH (a core chat feature was entirely missing)
+**Classification:** NOT-IMPLEMENTED — fixed (wave 15)
+
+**Symptom (differential, tests/diff/diff_whisper.py):** Alice sends
+`/w bob <msg>`. The original delivers `EID_WHISPER` (0x04, username=alice) to
+Bob and `EID_WHISPERSENT` (0x0a, username=bob) back to Alice. v3 routed `/w`
+through the generic CommandRegistry, which didn't know the command, so Alice got
+`EID_INFO "Unknown command…"` and Bob received nothing.
+
+**Original ref:** src/bnetd/command.cpp `do_whisper` + the `/msg /whisper /w /m`
+alias table; src/bnetd/message.cpp maps message_type_whisper→EID_WHISPER(0x04),
+message_type_whisperack→EID_WHISPERSENT(0x0a), message_type_error→EID_ERROR(0x13).
+
+**Fix:** BnetFsm::on(ChatCommand) now intercepts the whisper alias family
+*before* the generic dispatch (whisper isn't a text-returning command — it routes
+to another online session). New BnetFsm::handle_whisper parses `<target> <msg>`,
+resolves the target via account_repo->find_by_name + session_registry->session_for,
+routes EID_WHISPER to the target's session through the message router, and sends
+EID_WHISPERSENT back to the sender. Offline/unknown target → EID_ERROR
+"That user is not logged on." (matches the original's message_type_error).
+
+**Verified:** diff_whisper.py — both clients now match the oracle byte-for-byte
+(`bob:[(4,'alice','hey there')] alice:[(10,'bob','hey there')]`). Unit guards in
+tests/unit/protocol/bnet/fsm_channel_broadcast_test.cpp: routing of EID_WHISPER +
+EID_WHISPERSENT, all four aliases, and the offline-target EID_ERROR path.
