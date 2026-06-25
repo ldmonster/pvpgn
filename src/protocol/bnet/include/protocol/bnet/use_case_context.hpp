@@ -36,6 +36,7 @@ class JoinChannel;
 class PostMessage;
 class LeaveChannel;
 class ListChannels;
+class IIgnoreStore;
 }  // namespace pvpgn::application::chat
 
 namespace pvpgn::application::game {
@@ -69,6 +70,9 @@ struct BnetUseCaseContext {
     /// user's current channel). Null when not wired (those commands then report
     /// "channel does not exist" / offline).
     std::shared_ptr<domain::chat::IChannelReader> channel_reader;
+    /// Per-account squelch/ignore list (/squelch /unsquelch). Null when not
+    /// wired (squelch then no-ops and nothing is filtered).
+    std::shared_ptr<application::chat::IIgnoreStore> ignore_store;
     std::shared_ptr<application::moderation::CheckIpBan> check_ip_ban;
     std::shared_ptr<domain::identity::IAccountRepository> account_repo;
     std::shared_ptr<application::ports::ICommandRegistry> command_registry;

@@ -35,6 +35,7 @@
 #include "application/chat/leave_channel.hpp"
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
+#include "application/chat/ignore_store.hpp"
 #include "application/chat/whisper_use_case.hpp"
 #include "application/game/list_public_games.hpp"
 #include "application/social/add_friend.hpp"
@@ -278,6 +279,10 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "whois" || cmd == "where" || cmd == "whereis")
                 return handle_whois(info_args);
             if (cmd == "users" || cmd == "status") return handle_users();
+            if (cmd == "squelch" || cmd == "ignore")
+                return handle_squelch(info_args, /*add=*/true);
+            if (cmd == "unsquelch" || cmd == "unignore")
+                return handle_squelch(info_args, /*add=*/false);
         }
 
         std::string result_text;
@@ -372,19 +377,24 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             /*text*/        "Failed to post message"}});
     }
 
-    // Broadcast EID_TALK to all recipients via message_router
+    // Broadcast EID_TALK to all recipients via message_router, minus anyone who
+    // has squelched the sender (broadcast-side ignore filter).
     if (!post_result.value().recipients.empty()) {
-        broadcast_chat_event(
-            ChatEvent{
-                /*event_id*/    kEidTalk,   // EID_TALK (0x05)
-                /*flags*/       0,
-                /*ping_ms*/     0,
-                /*user_ip*/     0,
-                /*acct_number*/ 0,
-                /*registration*/0,
-                /*username*/    current_username_,
-                /*text*/        std::string{m.text}},
-            post_result.value().recipients);
+        auto recipients = filter_squelched(post_result.value().recipients,
+                                           current_account_id_);
+        if (!recipients.empty()) {
+            broadcast_chat_event(
+                ChatEvent{
+                    /*event_id*/    kEidTalk,   // EID_TALK (0x05)
+                    /*flags*/       0,
+                    /*ping_ms*/     0,
+                    /*user_ip*/     0,
+                    /*acct_number*/ 0,
+                    /*registration*/0,
+                    /*username*/    current_username_,
+                    /*text*/        std::string{m.text}},
+                recipients);
+        }
     }
 
     return core::ok();
@@ -494,7 +504,11 @@ core::Status<> BnetFsm::handle_emote(std::string_view body) {
     // fan out to the other channel members.
     (void)ctx_->send(ServerMessage{emote});
     if (!post_result.value().recipients.empty()) {
-        broadcast_chat_event(emote, post_result.value().recipients);
+        auto recipients = filter_squelched(post_result.value().recipients,
+                                           current_account_id_);
+        if (!recipients.empty()) {
+            broadcast_chat_event(emote, recipients);
+        }
     }
     return core::ok();
 }
@@ -742,6 +756,57 @@ core::Status<> BnetFsm::handle_users() {
     return ctx_->send(ServerMessage{ChatEvent{
         kEidInfo, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
         "Battle.net", std::move(text)}});
+}
+
+core::Status<> BnetFsm::handle_squelch(std::string_view args, bool add) {
+    auto info = [&](std::uint32_t eid, std::string text) {
+        return ctx_->send(ServerMessage{ChatEvent{
+            eid, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+            "Battle.net", std::move(text)}});
+    };
+    const std::string who{rtrim_sv(args)};
+    auto parsed = who.empty() ? std::nullopt
+                              : std::optional{domain::UserName::parse(who)};
+    if (!parsed || !*parsed || !use_cases_.account_repo) {
+        return info(kEidError, "No such user.");
+    }
+    auto acct = use_cases_.account_repo->find_by_name(parsed->value());
+    if (!acct) return info(kEidError, "No such user.");
+    const domain::AccountId target = acct.value().id();
+    const std::string name{acct.value().name().display()};
+
+    if (add && target.value() == current_account_id_.value()) {
+        return info(kEidError, "You can't squelch yourself.");
+    }
+    if (!use_cases_.ignore_store) {
+        return info(kEidError, "No such user.");
+    }
+    if (add) {
+        use_cases_.ignore_store->squelch(current_account_id_, target);
+        return info(kEidInfo, name + " has been squelched.");
+    }
+    const bool removed =
+        use_cases_.ignore_store->unsquelch(current_account_id_, target);
+    return info(kEidInfo,
+                removed ? "No longer ignoring." : "User was not being ignored.");
+}
+
+std::vector<domain::SessionId> BnetFsm::filter_squelched(
+    std::span<const domain::SessionId> recipients,
+    domain::AccountId sender) const {
+    if (!use_cases_.ignore_store || !use_cases_.session_registry) {
+        return {recipients.begin(), recipients.end()};
+    }
+    std::vector<domain::SessionId> out;
+    out.reserve(recipients.size());
+    for (const auto& s : recipients) {
+        auto acct = use_cases_.session_registry->account_for(s);
+        if (acct && use_cases_.ignore_store->ignores(acct.value(), sender)) {
+            continue;  // recipient ignores the sender — drop
+        }
+        out.push_back(s);
+    }
+    return out;
 }
 
 core::Status<> BnetFsm::on(const FriendInfoRequest& m) {

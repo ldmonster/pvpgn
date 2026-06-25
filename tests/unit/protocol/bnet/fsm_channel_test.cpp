@@ -60,6 +60,7 @@ BnetUseCaseContext make_null_ctx() {
         .leave_game        = nullptr,
         .list_public_games = nullptr,
         .channel_reader    = nullptr,
+        .ignore_store      = nullptr,
         .check_ip_ban      = nullptr,
         .account_repo      = nullptr,
         .command_registry  = nullptr,

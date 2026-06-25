@@ -224,6 +224,16 @@ private:
     /// Handle /users (alias /status) — server population stats.
     core::Status<> handle_users();
 
+    /// Handle /squelch <user> (alias /ignore) — add to the ignore list.
+    core::Status<> handle_squelch(std::string_view args, bool add);
+
+    /// Drop, from `recipients`, any session whose account currently ignores
+    /// `sender` — the broadcast-side squelch filter (mirrors the original MF_X
+    /// delivery check). Returns the surviving recipients.
+    std::vector<domain::SessionId> filter_squelched(
+        std::span<const domain::SessionId> recipients,
+        domain::AccountId sender) const;
+
     std::shared_ptr<ISessionContext> ctx_;
     BnetUseCaseContext use_cases_;
     BnetState state_ = BnetState::Init;

@@ -118,6 +118,7 @@
 #include "infra/inmemory/srp3_credential_store.hpp"
 #include "infra/inmemory/wol_credential_store.hpp"
 #include "infra/inmemory/friend_list_repository.hpp"
+#include "infra/inmemory/ignore_store.hpp"
 #include "application/social/add_friend.hpp"
 #include "application/social/remove_friend.hpp"
 #include "application/social/list_friends.hpp"
@@ -361,6 +362,9 @@ int main(int argc, char* argv[]) {
         // Friends list store (SID_FRIENDSLIST + /friends add|remove). Run-loop
         // scoped like the credential stores above.
         infra::inmemory::InMemoryFriendListRepository friend_repo;
+        // Per-account squelch/ignore lists (/squelch /unsquelch + broadcast
+        // filtering). Run-loop scoped like the stores above.
+        infra::inmemory::InMemoryIgnoreStore         ignore_store;
         core::SystemClock                           auth_clock;
         NullNlsCredentialStore                      null_nls_store;
 
@@ -450,6 +454,12 @@ int main(int argc, char* argv[]) {
                 std::make_shared<application::game::StartGame>(game_repo);
             use_cases.list_public_games =
                 std::make_shared<application::game::ListPublicGames>(no_delete_games);
+
+            // Squelch/ignore list (/squelch /unsquelch + broadcast filtering).
+            use_cases.ignore_store =
+                std::shared_ptr<application::chat::IIgnoreStore>(
+                    &ignore_store,
+                    [](application::chat::IIgnoreStore*) noexcept {});
         }
         LOG_INFO("bnetd", "auth use-cases wired: login + OLS account creation + W3 SRP-3");
 

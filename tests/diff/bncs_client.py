@@ -479,6 +479,33 @@ def request_friends_list(client, settle=0.4):
     return sorted(out, key=lambda f: f["name"].lower())
 
 
+def drain_chat(client, settle=0.5):
+    """Collect any pending SID_CHATEVENTs on a client's socket (answers PINGs).
+    Returns a list of (event_id, username, text). Used to observe what another
+    client's actions delivered to this client."""
+    import time
+    time.sleep(settle)
+    old = client.sock.gettimeout()
+    client.sock.settimeout(0.4)
+    events = []
+    try:
+        while True:
+            r = client.recv()
+            if r is None:
+                break
+            sid, body = r
+            if sid == SID_PING:
+                client.send(SID_PING, body[:4])
+                continue
+            if sid == SID_CHATEVENT:
+                ev = parse_chat_event(body)
+                if ev:
+                    events.append(ev)
+    finally:
+        client.sock.settimeout(old)
+    return events
+
+
 def friends_add(client, name):
     """/friends add <name> via SID_CHATCOMMAND (drains the resulting ack)."""
     chat_command(client, f"/friends add {name}")
