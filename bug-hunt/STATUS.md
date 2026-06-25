@@ -339,3 +339,16 @@ assigned id. diff_multichannel.py matches the oracle (Carol joining RED sees
 ## Differential harness now covers: OLS login + chat/channel join + two-client
 ## TALK + private WHISPER + part-on-disconnect + multi-channel isolation.
 ## RUNNING TOTAL: ~45 distinct bugs across 17 waves (F-W16b now closed).
+
+## Wave 18: /me (/emote) channel emotes + TALK/EMOTE self-echo asymmetry
+Extended the harness (tests/diff/diff_emote.py) to emotes. Found v3 never
+implemented /me — it was rejected as an unknown command, dropping the emote.
+Implemented handle_emote (broadcast EID_EMOTE to others + echo to self). Key
+nuance verified against the oracle: the server suppresses the speaker only for
+TALK (channel.cpp:734); EMOTE/WHISPER are echoed back to the sender. v3's TALK
+already excludes self (correct); emote now echoes to self. diff_emote matches.
+Also logged F-W18b (deferred): EID_JOIN omits the joiner's statstring/USERFLAGS.
+
+## Differential harness now covers: OLS login + chat/channel join + TALK +
+## WHISPER + part-on-disconnect + multi-channel isolation + /me EMOTE.
+## RUNNING TOTAL: ~47 distinct bugs across 18 waves.
