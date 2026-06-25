@@ -50,6 +50,14 @@
 
 namespace pvpgn::app::bnetd {
 
+/// Maximum number of bytes that may accumulate in the line buffer before a
+/// complete (CRLF-terminated) line is seen. IRC lines are bounded to 512 bytes
+/// by RFC 1459; we allow a generous factor (mirroring `wol_fsm.cpp`'s
+/// `kMaxLineLen * 4`) before treating the peer as hostile. An unauthenticated
+/// client that streams bytes without ever sending a newline would otherwise
+/// grow `rx_buf_` without bound (remote OOM / DoS).
+inline constexpr std::size_t kIrcMaxLineLen = 512 * 4;  // 2048 bytes
+
 /// Owns one IRC connection: TcpSession + IrcFsm.
 ///
 /// Implements `protocol::irc::ISessionContext` so it can be passed
@@ -126,25 +134,7 @@ public:
         auto self = shared_from_this();
 
         tcp_->set_on_bytes([self](core::ByteView bv) {
-            // Accumulate bytes into the line buffer
-            self->rx_buf_.append(
-                reinterpret_cast<const char*>(bv.data()), bv.size());
-
-            // Extract and process complete lines
-            while (true) {
-                auto frame_result =
-                    protocol::irc::try_parse_line(self->rx_buf_);
-                if (!frame_result) break;  // NeedMore
-
-                const auto& frame = frame_result.value();
-                const std::string line{frame.line};
-                self->rx_buf_.erase(0, frame.consumed);
-
-                auto msg_result = protocol::irc::decode(line);
-                if (!msg_result) continue;  // malformed line — skip
-
-                (void)self->fsm_->handle(msg_result.value());
-            }
+            self->on_bytes(bv);
         });
 
         tcp_->set_on_close([self](const boost::system::error_code&) {
@@ -168,6 +158,54 @@ public:
     /// Expose the configured server name.
     [[nodiscard]] const std::string& server_name_str() const noexcept {
         return server_name_;
+    }
+
+    /// Expose the current line-accumulation buffer size (for testing).
+    [[nodiscard]] std::size_t rx_buf_size() const noexcept {
+        return rx_buf_.size();
+    }
+
+    /// Accumulate inbound bytes and dispatch every complete CRLF-terminated
+    /// line to the FSM.
+    ///
+    /// Guards against runaway clients: if the buffer grows past
+    /// `kIrcMaxLineLen` without a newline being seen, the peer is treated as
+    /// hostile — the buffer is cleared and the connection is closed, rather
+    /// than allowing `rx_buf_` to grow without bound (remote OOM / DoS).
+    ///
+    /// Returns `false` if the session was closed due to overflow, `true`
+    /// otherwise. Exposed (non-virtual) so tests can drive the framing path
+    /// without a live Asio transport.
+    bool on_bytes(core::ByteView bv) {
+        // Accumulate bytes into the line buffer.
+        rx_buf_.append(reinterpret_cast<const char*>(bv.data()), bv.size());
+
+        // Extract and process complete lines.
+        while (true) {
+            auto frame_result = protocol::irc::try_parse_line(rx_buf_);
+            if (!frame_result) break;  // NeedMore
+
+            const auto& frame = frame_result.value();
+            const std::string line{frame.line};
+            rx_buf_.erase(0, frame.consumed);
+
+            auto msg_result = protocol::irc::decode(line);
+            if (!msg_result) continue;  // malformed line — skip
+
+            (void)fsm_->handle(msg_result.value());
+        }
+
+        // After draining every complete line, whatever remains in `rx_buf_`
+        // is an incomplete (unterminated) line. If it has grown past the cap
+        // the peer is streaming bytes without ever sending a newline — treat
+        // it as hostile and close rather than letting `rx_buf_` grow without
+        // bound (remote OOM / DoS).
+        if (rx_buf_.size() > kIrcMaxLineLen) {
+            rx_buf_.clear();
+            close();
+            return false;
+        }
+        return true;
     }
 
 private:

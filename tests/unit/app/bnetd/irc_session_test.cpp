@@ -20,6 +20,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/bnetd/irc_session_factory.hpp"
+#include "app/bnetd/irc_tcp_session.hpp"
+#include "core/bytes.hpp"
 #include "core/result.hpp"
 #include "protocol/irc/codec.hpp"
 #include "protocol/irc/fsm.hpp"
@@ -266,4 +268,71 @@ TEST_CASE("IRC codec: try_parse_line returns NeedMore for incomplete line",
     const std::string buf = "NICK foo";  // no CRLF
     auto result = try_parse_line(buf);
     CHECK(!result.has_value());
+}
+
+// ===========================================================================
+// TEST SUITE 4: IrcTcpSession line-buffer cap (remote-DoS regression)
+// ===========================================================================
+//
+// An IrcTcpSession is constructed with a null TcpSession: on_bytes() drives
+// the framing/accumulation path without needing a live Asio transport, and
+// close() is a no-op guard on a null tcp_ (so the cap path is observable via
+// the return value and rx_buf_size()).
+
+TEST_CASE("IrcTcpSession: unterminated flood past cap closes the session",
+          "[irc_session][dos]") {
+    auto session =
+        std::make_shared<IrcTcpSession>(nullptr, std::string{"pvpgn.server"});
+
+    // Stream printable bytes with no CRLF, far exceeding the cap.
+    const std::string flood(kIrcMaxLineLen * 4, 'A');
+    const bool alive = session->on_bytes(core::as_byte_view(flood));
+
+    // The runaway client is rejected and the buffer reset — not grown.
+    CHECK(alive == false);
+    CHECK(session->rx_buf_size() == 0);
+}
+
+TEST_CASE("IrcTcpSession: rx_buf never grows past the cap across many chunks",
+          "[irc_session][dos]") {
+    auto session =
+        std::make_shared<IrcTcpSession>(nullptr, std::string{"pvpgn.server"});
+
+    const std::string chunk(256, 'B');  // no CRLF
+    bool alive = true;
+    std::size_t fed = 0;
+    while (alive && fed < kIrcMaxLineLen * 8) {
+        alive = session->on_bytes(core::as_byte_view(chunk));
+        fed += chunk.size();
+        // Until it trips the cap, the buffer must stay bounded by it.
+        CHECK(session->rx_buf_size() <= kIrcMaxLineLen);
+    }
+    // It must have tripped the cap rather than looping forever.
+    CHECK(alive == false);
+}
+
+TEST_CASE("IrcTcpSession: normal CRLF-terminated line still parses after cap",
+          "[irc_session][dos]") {
+    auto session =
+        std::make_shared<IrcTcpSession>(nullptr, std::string{"pvpgn.server"});
+
+    // A well-formed NICK line is consumed entirely — buffer drains to empty
+    // and the session stays alive.
+    const bool alive = session->on_bytes(core::as_byte_view("NICK testnick\r\n"));
+    CHECK(alive == true);
+    CHECK(session->rx_buf_size() == 0);
+}
+
+TEST_CASE("IrcTcpSession: long-but-terminated line under cap is accepted",
+          "[irc_session][dos]") {
+    auto session =
+        std::make_shared<IrcTcpSession>(nullptr, std::string{"pvpgn.server"});
+
+    // A line just under the cap, properly terminated, parses without tripping
+    // the guard (decode may reject it as malformed, but it must not close).
+    std::string line(kIrcMaxLineLen - 2, 'x');
+    line += "\r\n";
+    const bool alive = session->on_bytes(core::as_byte_view(line));
+    CHECK(alive == true);
+    CHECK(session->rx_buf_size() == 0);
 }

@@ -40,8 +40,12 @@ SqlChannelRepository::find_by_name(const std::string& name) const {
             core::StatusCode::Internal, "persistence: driver not available"});
     }
     std::optional<domain::chat::Channel> found;
+    // Channel names match case-insensitively (original uses strcasecmp). COLLATE
+    // NOCASE on the comparison keeps the lookup robust even against rows in a
+    // pre-existing DB whose `name` column lacks the column-level collation.
     auto qr = driver_->query_bind(
-        "SELECT id, name, topic, flags, max_members FROM channels WHERE name = ?",
+        "SELECT id, name, topic, flags, max_members FROM channels "
+        "WHERE name = ? COLLATE NOCASE",
         {name},
         [&found](const DbRow& row) { found = channel_from_row(row); return false; });
     if (!qr.has_value()) {

@@ -107,10 +107,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS realms_name ON realms(name COLLATE NOCASE);
 constexpr std::string_view migration_001_down = "";
 
 // Embedded migration SQL (002_channels.sql)
+// Channel names match case-insensitively (original uses strcasecmp); COLLATE
+// NOCASE makes both lookups and the UNIQUE constraint case-folding so "War3"
+// and "war3" resolve to the same row.
 constexpr std::string_view migration_002_up = R"(
 CREATE TABLE IF NOT EXISTS channels (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
     topic TEXT NOT NULL DEFAULT '',
     flags INTEGER NOT NULL DEFAULT 0,
     max_members INTEGER NOT NULL DEFAULT 0,

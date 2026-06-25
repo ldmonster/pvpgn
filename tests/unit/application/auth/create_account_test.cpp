@@ -153,6 +153,96 @@ TEST_CASE("CreateAccount: rejects request from banned IP",
     REQUIRE(r.error() == CreateAccountError::IpBanned);
 }
 
+TEST_CASE("CreateAccount: assigns sequential ids starting at 1",
+          "[application][auth][create]") {
+    // Mirrors the original server's maxuserid+1 allocation: the first-ever
+    // account gets uid 1, then 2, 3, ... (sequential, monotonic, never reused).
+    Fixture f;
+    auto uc = f.make_use_case();
+
+    auto r1 = uc.execute(f.make_request("Alice"));
+    auto r2 = uc.execute(f.make_request("Bob"));
+    auto r3 = uc.execute(f.make_request("Carol"));
+
+    REQUIRE(r1);
+    REQUIRE(r2);
+    REQUIRE(r3);
+
+    REQUIRE(r1.value().value() == 1u);
+    REQUIRE(r2.value().value() == 2u);
+    REQUIRE(r3.value().value() == 3u);
+}
+
+TEST_CASE("CreateAccount: never overwrites a different-named account (id collision regression)",
+          "[application][auth][create]") {
+    // Regression for Finding F1: the old implementation derived the account id
+    // from a 31-bit hash of the username, so two distinct usernames could
+    // collide on the same id and the second create would SILENTLY OVERWRITE
+    // the first account's row (both repos key on id). The username-taken check
+    // can't catch this because the names differ. With sequential max+1
+    // allocation, both accounts must persist with distinct ids and both must
+    // remain findable by name.
+    Fixture f;
+    auto uc = f.make_use_case();
+
+    auto r1 = uc.execute(f.make_request("Alice"));
+    auto r2 = uc.execute(f.make_request("Bob"));
+    REQUIRE(r1);
+    REQUIRE(r2);
+
+    // Distinct ids — no clobber.
+    REQUIRE(r1.value() != r2.value());
+
+    // Both accounts still exist and are independently retrievable by name.
+    REQUIRE(f.accounts.size() == 2u);
+
+    auto alice = f.accounts.find_by_name(make_name("Alice"));
+    auto bob = f.accounts.find_by_name(make_name("Bob"));
+    REQUIRE(alice);
+    REQUIRE(bob);
+
+    REQUIRE(alice.value().name() == make_name("Alice"));
+    REQUIRE(bob.value().name() == make_name("Bob"));
+
+    // The id reported on creation matches the persisted account (no in-place
+    // overwrite of an existing, differently-named row).
+    REQUIRE(alice.value().id() == r1.value());
+    REQUIRE(bob.value().id() == r2.value());
+
+    // And each id resolves back to the account that was created under it.
+    auto by_id_alice = f.accounts.find_by_id(r1.value());
+    auto by_id_bob = f.accounts.find_by_id(r2.value());
+    REQUIRE(by_id_alice);
+    REQUIRE(by_id_bob);
+    REQUIRE(by_id_alice.value().name() == make_name("Alice"));
+    REQUIRE(by_id_bob.value().name() == make_name("Bob"));
+}
+
+TEST_CASE("CreateAccount: id allocation continues after the current max",
+          "[application][auth][create]") {
+    // After accounts already exist (e.g. loaded from storage), a new account
+    // must take max(existing id)+1, never reusing or colliding with an id in
+    // use — even if intermediate accounts were removed.
+    Fixture f;
+    auto uc = f.make_use_case();
+
+    auto r1 = uc.execute(f.make_request("Alice"));   // id 1
+    auto r2 = uc.execute(f.make_request("Bob"));     // id 2
+    auto r3 = uc.execute(f.make_request("Carol"));   // id 3
+    REQUIRE(r1);
+    REQUIRE(r2);
+    REQUIRE(r3);
+
+    // Remove the lowest id; the next allocation must still advance past the
+    // current max (3), not refill the gap at 1.
+    auto removed = f.accounts.remove(r1.value());
+    REQUIRE(removed);
+
+    auto r4 = uc.execute(f.make_request("Dave"));
+    REQUIRE(r4);
+    REQUIRE(r4.value().value() == 4u);
+}
+
 TEST_CASE("CreateAccount: publishes domain events",
           "[application][auth][create]") {
     Fixture f;

@@ -81,6 +81,16 @@ core::Result<Report> decode(core::ByteView buf) {
         e.type = static_cast<DataType>(type.value());
         e.data.assign(data.value().begin(), data.value().end());
         out.entries.push_back(std::move(e));
+
+        // WOL gameres records are padded so each value advance lands on a
+        // 4-byte boundary (original: `datalen = 4*((datalen+3)/4)`). Skip
+        // the trailing pad bytes so the TLV walk stays aligned. Tolerate a
+        // final record whose pad bytes are missing because the buffer ends
+        // exactly on the value (don't error on a truncated final pad).
+        const std::size_t pad = (4u - (len.value() & 3u)) & 3u;
+        if (pad != 0) {
+            (void)r.skip(std::min<std::size_t>(pad, r.remaining()));
+        }
     }
 
     return out;
@@ -103,6 +113,12 @@ core::Status<> encode(Writer& w, const Report& r) {
         body.write_be<std::uint16_t>(
             static_cast<std::uint16_t>(e.data.size()));
         body.write_bytes(core::ByteView{e.data.data(), e.data.size()});
+
+        // Pad the value out to a 4-byte boundary to match the original wire
+        // layout (`datalen = 4*((datalen+3)/4)`) and keep encode/decode
+        // symmetric with the alignment skip above.
+        const std::size_t pad = (4u - (e.data.size() & 3u)) & 3u;
+        for (std::size_t i = 0; i < pad; ++i) body.write_u8(0u);
     }
     const auto total = body.view().size() + Header::kSize;
     if (total > 0xFFFFu) {

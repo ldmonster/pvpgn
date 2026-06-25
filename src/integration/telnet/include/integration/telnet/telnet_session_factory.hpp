@@ -15,6 +15,14 @@
 
 namespace pvpgn::integration::telnet {
 
+// Maximum number of bytes that may accumulate in the line buffer before a
+// line terminator (CR/LF) is seen. An unauthenticated client that streams
+// printable bytes without ever sending a newline would otherwise grow
+// `line_buffer_` without bound (remote OOM / DoS). The cap mirrors the WOL
+// FSM's `kMaxLineLen * 4` guard; 1024 bytes is far above any legitimate
+// telnet command line.
+inline constexpr std::size_t kTelnetMaxLineLen = 1024;
+
 // Telnet protocol session for text-based BNet access
 class TelnetSession {
 public:

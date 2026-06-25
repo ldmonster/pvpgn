@@ -106,4 +106,59 @@ TEST_F(TelnetSessionTest, QuitCommand) {
     EXPECT_TRUE(output_buffer_.find("Goodbye") != std::string::npos);
 }
 
+// Regression: an unauthenticated client that streams printable bytes without
+// ever sending a newline must NOT be able to grow the line buffer without
+// bound. The session caps the buffer at kTelnetMaxLineLen and disconnects.
+TEST_F(TelnetSessionTest, OverlongUnterminatedLineDisconnects) {
+    output_buffer_.clear();
+
+    // Far exceed the cap: stream printable ASCII with no CR/LF.
+    std::vector<uint8_t> flood(kTelnetMaxLineLen * 4, static_cast<uint8_t>('A'));
+    auto result = session_->feed(core::as_byte_view(flood.data(), flood.size()));
+
+    EXPECT_TRUE(result.has_value());
+    // The runaway client is disconnected rather than accumulating unboundedly.
+    EXPECT_EQ(session_->state(), TelnetSession::State::disconnected);
+}
+
+TEST_F(TelnetSessionTest, OverlongLineFedInChunksDisconnects) {
+    output_buffer_.clear();
+
+    // Feed the flood in many small chunks (as a real socket would deliver it)
+    // to ensure the cap is enforced across feed() calls, not just within one.
+    const std::vector<uint8_t> chunk(64, static_cast<uint8_t>('B'));
+    for (std::size_t sent = 0; sent < kTelnetMaxLineLen * 4;
+         sent += chunk.size()) {
+        session_->feed(core::as_byte_view(chunk.data(), chunk.size()));
+    }
+
+    EXPECT_EQ(session_->state(), TelnetSession::State::disconnected);
+}
+
+// A normal newline-terminated line still parses exactly as before — the cap
+// must not break legitimate traffic.
+TEST_F(TelnetSessionTest, NormalLineStillParsesAfterCapAdded) {
+    output_buffer_.clear();
+    std::string username = "alice\r\n";
+    std::vector<uint8_t> data(username.begin(), username.end());
+
+    auto result = session_->feed(core::as_byte_view(data.data(), data.size()));
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(session_->state(), TelnetSession::State::authenticating);
+    EXPECT_TRUE(output_buffer_.find("Password") != std::string::npos);
+}
+
+// A line just under the cap, properly terminated, is still accepted.
+TEST_F(TelnetSessionTest, LongButTerminatedLineAccepted) {
+    output_buffer_.clear();
+    std::string line(kTelnetMaxLineLen - 1, 'x');
+    line += "\r\n";
+    std::vector<uint8_t> data(line.begin(), line.end());
+
+    auto result = session_->feed(core::as_byte_view(data.data(), data.size()));
+    EXPECT_TRUE(result.has_value());
+    // Username accepted → moved on to password prompt, not disconnected.
+    EXPECT_EQ(session_->state(), TelnetSession::State::authenticating);
+}
+
 }  // namespace pvpgn::integration::telnet::test

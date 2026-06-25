@@ -96,6 +96,76 @@ TEST_CASE("wolgameres: round-trip mixed TLVs", "[protocol][wolgameres]") {
     REQUIRE(b.value() == 0x01);
 }
 
+namespace {
+
+// Build an Entry whose value is exactly `n` raw bytes (0x01, 0x02, ...),
+// independent of the NUL-appending `bytes_of` helper, so the value length
+// can be a genuine odd (non-multiple-of-4) number.
+Entry raw_entry(std::uint32_t tag, DataType type, std::size_t n) {
+    Entry e;
+    e.tag  = tag;
+    e.type = type;
+    e.data.resize(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        e.data[i] = std::byte{static_cast<std::uint8_t>(i + 1)};
+    }
+    return e;
+}
+
+}  // namespace
+
+// Regression for the 4-byte record-alignment bug (finding F3): an odd-length
+// value must be followed on the wire by pad bytes that round its advance up to
+// a 4-byte boundary. If decode does not skip that padding, the TLV walk
+// desyncs and every subsequent record is misread.
+TEST_CASE("wolgameres: odd-length record stays 4-byte aligned",
+          "[protocol][wolgameres]") {
+    for (std::size_t odd_len : {std::size_t{1}, std::size_t{3},
+                                std::size_t{5}, std::size_t{7}}) {
+        // First record has an odd-length value; a second record follows.
+        Entry first  = raw_entry(0x4F444431u /* 'ODD1' */,
+                                 DataType::kString, odd_len);
+        Entry second = raw_entry(0x4E455854u /* 'NEXT' */,
+                                 DataType::kInt, 4);
+
+        Report in{};
+        in.header.rngd_size = 0;
+        in.entries.emplace_back(first);
+        in.entries.emplace_back(second);
+
+        protocol::Writer w;
+        REQUIRE(encode(w, in).has_value());
+
+        auto r = decode(w.view());
+        REQUIRE(r.has_value());
+        const auto& out = r.value();
+        // Both records decode correctly => the walk re-aligned after the
+        // odd-length value's padding.
+        REQUIRE(out.entries.size() == 2);
+        REQUIRE(out.entries[0] == first);
+        REQUIRE(out.entries[1] == second);
+    }
+}
+
+// Encode -> decode round-trip of an odd-length value must preserve it exactly.
+TEST_CASE("wolgameres: odd-length value round-trips",
+          "[protocol][wolgameres]") {
+    Entry odd = raw_entry(0x4F444456u /* 'ODDV' */, DataType::kString, 5);
+
+    Report in{};
+    in.header.rngd_size = 0;
+    in.entries.emplace_back(odd);
+
+    protocol::Writer w;
+    REQUIRE(encode(w, in).has_value());
+
+    auto r = decode(w.view());
+    REQUIRE(r.has_value());
+    REQUIRE(r.value().entries.size() == 1);
+    REQUIRE(r.value().entries[0] == odd);
+    REQUIRE(r.value().entries[0].data.size() == 5u);
+}
+
 TEST_CASE("wolgameres: rejects unknown data_type",
           "[protocol][wolgameres]") {
     // Header (size=14, rngd=0) + tag 'XXXX' + type 0x0099 + len 0

@@ -39,10 +39,19 @@ core::Result<void, core::Error> TelnetSession::feed(core::ByteView data) {
         
         // Accumulate printable characters
         if (byte >= 32 && byte < 127) {
+            // Guard against a runaway client that streams bytes without ever
+            // sending a line terminator: cap the buffer and disconnect rather
+            // than letting `line_buffer_` grow without bound (remote OOM / DoS).
+            if (line_buffer_.size() >= kTelnetMaxLineLen) {
+                line_buffer_.clear();
+                state_ = State::disconnected;
+                send("Line too long; disconnecting.\r\n");
+                return core::Result<void, core::Error>{};
+            }
             line_buffer_ += static_cast<char>(byte);
         }
     }
-    
+
     return core::Result<void, core::Error>{};
 }
 

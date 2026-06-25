@@ -4,11 +4,14 @@
 /// @file channel_repository.hpp
 /// Test fixture for channel repository with auto-incrementing ID generation.
 
+#include <algorithm>
+#include <cctype>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "domain/chat/ports.hpp"
@@ -32,7 +35,9 @@ public:
     core::Result<domain::chat::Channel>
     find_by_name(const std::string& name) const override {
         std::shared_lock<std::shared_mutex> lock(mutex_);
-        auto it = by_name_.find(name);
+        // Case-insensitive lookup (original uses strcasecmp); keyed on the
+        // lowercased name while the Channel keeps its original-cased display name.
+        auto it = by_name_.find(name_key(name));
         if (it == by_name_.end()) {
             return core::fail(core::Error{
                 core::StatusCode::NotFound, "channel: name not found"});
@@ -66,7 +71,7 @@ public:
         }
         
         auto copy = std::make_unique<domain::chat::Channel>(ch);
-        by_name_[ch.name()] = ch.id().value();
+        by_name_[name_key(ch.name())] = ch.id().value();
         by_id_[ch.id().value()] = std::move(copy);
         return core::ok();
     }
@@ -78,7 +83,7 @@ public:
             return core::fail(core::Error{
                 core::StatusCode::NotFound, "channel: id not found"});
         }
-        by_name_.erase(it->second->name());
+        by_name_.erase(name_key(it->second->name()));
         by_id_.erase(it);
         return core::ok();
     }
@@ -97,6 +102,16 @@ public:
     }
 
 private:
+    /// Lowercased lookup key for case-insensitive channel-name matching.
+    static std::string name_key(std::string_view name) {
+        std::string key{name};
+        std::transform(key.begin(), key.end(), key.begin(),
+                       [](unsigned char c) {
+                           return static_cast<char>(std::tolower(c));
+                       });
+        return key;
+    }
+
     mutable std::shared_mutex mutex_;
     std::unordered_map<std::uint32_t,
                        std::unique_ptr<domain::chat::Channel>> by_id_;

@@ -101,6 +101,44 @@ TEST_CASE("JoinChannel: result contains channel snapshot with member list",
     REQUIRE(r.value().channel.member_count() > 0);
 }
 
+TEST_CASE("JoinChannel: channel name lookup is case-insensitive (F6)",
+          "[application][chat][join]") {
+    // Regression for channel-routing F6: the original server matches channel
+    // names with strcasecmp, so joining "War3" then "war3" must land in the
+    // SAME channel instead of spawning a duplicate. The stored display name
+    // must keep its original ("War3") casing.
+    Fixture f;
+    f.seed_account(f.alice_id, "Alice");
+    f.seed_account(f.bob_id, "Bob");
+
+    auto uc = f.make_use_case();
+
+    // Alice creates "War3".
+    auto r1 = uc.execute(f.alice_id, "War3", f.star_tag);
+    REQUIRE(r1);
+    REQUIRE(r1.value().channel.name() == "War3");
+    const auto created_id = r1.value().channel.id().value();
+
+    // Bob joins "war3" (different case) — must resolve to the same channel.
+    auto r2 = uc.execute(f.bob_id, "war3", f.star_tag);
+    REQUIRE(r2);
+
+    // Same channel id, no duplicate created.
+    REQUIRE(r2.value().channel.id().value() == created_id);
+    REQUIRE(f.channels.size() == 1);
+
+    // Display name preserves the original "War3" casing (not lowercased).
+    REQUIRE(r2.value().channel.name() == "War3");
+
+    // Lookups via either casing return the same id.
+    auto a = f.channels.find_by_name("WAR3");
+    auto b = f.channels.find_by_name("war3");
+    REQUIRE(a);
+    REQUIRE(b);
+    REQUIRE(a.value().id().value() == created_id);
+    REQUIRE(b.value().id().value() == created_id);
+}
+
 TEST_CASE("JoinChannel: account not found returns error",
           "[application][chat][join]") {
     Fixture f;

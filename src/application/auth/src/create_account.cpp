@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/auth/create_account.hpp"
 
+#include <cstdint>
 #include <functional>
 
 namespace pvpgn::application::auth {
@@ -21,12 +22,36 @@ CreateAccount::Result CreateAccount::execute(const CreateAccountRequest& req) {
         return core::fail(CreateAccountError::UsernameTaken);
     }
 
-    // 3. Create the account aggregate. This emits AccountCreated.
-    // ID generation: use a simple hash of the canonical username to ensure
-    // determinism in tests. In production, this would use a proper ID generator.
-    std::string canonical_str(req.username.canonical());
-    unsigned int id_value = std::hash<std::string>{}(canonical_str) & 0x7FFFFFFFu;
-    auto new_id = domain::AccountId(id_value);
+    // 3. Allocate the new account id as (max existing id) + 1, or 1 if the
+    // repository is empty. This mirrors the original server's strictly
+    // sequential, monotonic, never-reused uid allocation (maxuserid + 1,
+    // seeded from storage; first-ever account gets uid 1 — see
+    // bnetd/account.cpp:157,686 in the original).
+    //
+    // Rationale: the previous implementation derived the id from a 31-bit
+    // hash of the canonical username. That was non-portable (std::hash is
+    // implementation-defined) and, critically, two distinct usernames could
+    // collide on the same id. Because both account repositories key on id
+    // (SQL: ON CONFLICT(id) DO UPDATE; in-memory: by_id_[id] = ...), a
+    // collision would SILENTLY OVERWRITE an existing, differently-named
+    // account — data loss / account takeover. max+1 guarantees a fresh,
+    // unique id and never clobbers an existing row.
+    //
+    // NOTE: a persistent, atomic monotonic counter (an IAccountIdAllocator
+    // port seeded once from max(uid) at startup) would be the
+    // production-grade approach. max+1 computed via forEach is O(n) per
+    // create but yields the same observable result (sequential ids starting
+    // at 1) and is correct at the current scale.
+    std::uint32_t max_id = 0;
+    accounts_.forEach([&](const domain::identity::Account& acc) {
+        if (acc.id().value() > max_id) {
+            max_id = acc.id().value();
+        }
+        return true;  // keep iterating over every account
+    });
+    auto new_id = domain::AccountId(max_id + 1);
+
+    // 4. Create the account aggregate. This emits AccountCreated.
     auto account_result =
         domain::identity::Account::create(new_id, req.username, req.password_hash, req.locale);
     if (!account_result) {
