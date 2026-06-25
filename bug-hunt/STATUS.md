@@ -84,3 +84,32 @@ parallel flake (anongame_infos/maplists, icon_req, multilocale, TOML) — they
 share a working directory / temp path and race under `-j`; all 40 pass 100%
 serially. That flake is a test-harness issue, not a product bug (worth fixing the
 loader tests to use isolated temp dirs in a future pass).
+
+## Wave-4 discovery (8 more subsystems) + Wave-5 fixes (LANDED, commit eb122f4)
+Discovery: w3-protocol, arranged-teams, anongame-matchmaking, wol-gameres,
+cdkey-authcheck, malformed-input-safety, account-login-edges, channel-routing,
+timer-connection-mgmt, d2cs-charlist, icons-ads-files. Most remaining gaps are
+NOT-IMPLEMENTED features or the auth-handshake redesign.
+
+Wave-5 fixes (all with regression tests; unit+functional+integration green):
+- [x] DoS: unbounded IRC/telnet line buffers → capped + close (remote OOM)
+- [x] Data loss: CreateAccount UID via std::hash → sequential max+1 (collision overwrite)
+- [x] Channel name lookup case-sensitive → COLLATE NOCASE + folded in-memory key
+- [x] WOL gameres TLV codec missing 4-byte record padding → desync fixed
+
+## Running tally: 19 bugs fixed (waves 1-5).
+
+## Notable CONFIRMED bugs still open (implemented-but-wrong, fixable)
+- **d2cs char screen (CRIT)**: the LIVE d2cs path (FSM → d2cs_session_handler →
+  make_char_list_reply) emits count+names instead of maxchar/currchar/portrait
+  blocks; CREATECHARREQ/CHARLOGINREQ/DELETECHARREQ parse wrong offsets (phantom
+  seqno). A byte-accurate encoder + correct structs exist but are unwired. D2
+  realm character screen broken for real clients. (findings/d2cs-charlist.md)
+- **icon-req loader (MED)**: no built-in default thresholds; missing/malformed
+  config → all thresholds 0 → every icon unlocked (icon-switch protection
+  defeated). Original always seeds defaults. (findings/icons-ads-files.md F8)
+- **cdkey-authcheck (HIGH)**: AUTH_INFO sends AuthCheckReply(0x51) instead of the
+  AuthInfoReply(0x50) seed; AUTH_CHECK sends no reply. Correct codecs exist,
+  wrong ones wired. Tangled with the auth-handshake/SRP redesign — DEFERRED.
+- **arranged-team id (MED)**: team id from std::time(nullptr) → same-second
+  collisions overwrite (teams not yet wired; low live impact).
