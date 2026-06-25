@@ -179,3 +179,36 @@ buckets, both needing a decision rather than a bug-fix:
    squelch/quota, matchmaking, d2gs routing, WOL chat/lobby, Lua hook data,
    anongame result-agreement. Codecs/use-cases mostly exist and are byte-faithful;
    they just aren't wired. Feature work, each documented with original behavior.
+
+## Waves 9-10: new bug CLASSES (races) + the auth headline fix
+Pivoted from subsystem-comparison to two classes comparison can't find:
+
+Wave 9 (concurrency, commit c173062): bnetd runs asio on N worker threads.
+Fixed 1 CRIT + 2 HIGH races — shared SQLite connection across threads (→ per-UoW
+connections + busy_timeout), unsynchronized InMemorySessionRegistry (→ shared_mutex)
+and InMemoryEventBus (→ mutex, handlers invoked outside the lock). Each with a
+concurrency smoke test.
+
+Wave 10 (commit a9144a7): **fixed the CRITICAL OLS login bug — stock Battle.net
+clients can now log in.** BnetSessionHasher (real broken-SHA-1 double-hash) +
+FSM session-hash overload + main.cpp wiring + e2e Python broken-SHA-1 port.
+Verified end-to-end: all 3 e2e journeys pass through the real bnetd, check-all 18/0/0.
+
+## Domain-invariant findings (fixable, not yet applied)
+From invariants-game-channel.md + invariants-clan-account-ladder.md:
+- Clan: promote accepts any rank → can reach TWO or ZERO chieftains (should clamp
+  Peon..Shaman + atomic crown transfer); IClanRepository has no find_by_account so
+  a member can join two clans.
+- Channel: JoinChannel never leaves the previous channel → user in two channels at
+  once; no per-channel operator model (creator isn't made operator; moderated flag
+  ignored); max==0 means unlimited in v3 vs admin-only in original.
+- Ladder: LadderEntry.rating is signed with no floor → a losing streak can drive it
+  negative (original clamps to ≥1); but the apply path is unwired so latent.
+- Game: a 1-player InProgress game isn't reported+destroyed (original drops <2).
+
+## REMAINING auth piece: SRP-3 NLS (WAR3/W3XP)
+The OLS path (StarCraft/Diablo II/classic) is DONE. WAR3/W3XP use SID_AUTH_ACCOUNTLOGON
+/PROOF, which v3 wires to OpenSSL SRP-6a (nls.cpp) instead of the legacy SRP-3 (a
+faithful bnet_srp3.cpp exists, unconnected). Routing the WAR3 opcodes through SRP-3
+is the remaining auth work (no e2e harness for NLS yet — verify via SRP-3 protocol
+unit vectors). See crypto-hash.md.
