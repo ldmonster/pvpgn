@@ -29,15 +29,26 @@ over the shared game repo. diff_gamelist.py matches the oracle (advertise on one
 conn, visible to another). GOTCHA: GETADVLISTEX request has TWO trailing cstrings
 (name+password) — the oracle aborts without the password.
 
-## NEXT (investigated, plans ready) — remaining post-login divergences
+## Wave 27 — DONE (/who, /whois, /users — commit e2052d7)
+Implemented as FSM interceptors via a new channel_reader. diff_channelcmds.py:
+/who member set matches the oracle. HARNESS NOTE: the oracle localize()s +
+charset-converts INFO replies; with the mock (no codepage) the localized text is
+garbled, so only /who's (non-localized) member names are byte-comparable; v3's
+clean /whois is verified v3-side. /squelch still open (needs broadcast filtering).
 
-1. /who /whois /squelch /users: the CommandRegistry is NOT wired into bnetd
-   (make_use_case_context doesn't set command_registry/permission_checker), so /cmds
-   hit the no-registry fallback. /who needs channel-member-by-name; /whois needs
-   per-account channel/game location; /squelch needs per-session ignore + broadcast
-   filtering. Wire the registry + add the command handlers.
-3. WOL post-login lobby/game commands (LIST/JOIN game model, GAMEOPT, STARTG,
+## NEXT — remaining post-login divergences
+
+1. /squelch /unsquelch: per-session ignore list + filtering squelched senders'
+   messages out of channel broadcasts (the IgnoreList aggregate exists). Larger
+   than /who-/whois because it mutates per-session state and the broadcast path.
+2. WOL post-login lobby/game commands (LIST/JOIN game model, GAMEOPT, STARTG,
    matchbot) — still skeleton no-ops (see findings/wol-chat-lobby.md).
+3. JOINGAME password enforcement (noted while wiring game create).
+
+Note: the CommandRegistry is still NOT wired into bnetd (make_use_case_context
+doesn't set command_registry/permission_checker); the implemented chat commands
+(/whisper, /me, /friends, /who, /whois, /users) are FSM interceptors instead.
+Wiring the registry would be the place to add admin/operator commands later.
 
 ## Wave 23 — DONE (close WOL gap in v3 + harden + remove dead build code)
 

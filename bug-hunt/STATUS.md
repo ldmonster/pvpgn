@@ -530,7 +530,20 @@ Faithfulness fix: GETADVLISTEX carries TWO trailing cstrings (name+password); th
 original aborts without the password (v3 reads only name, tolerates trailing).
 Added list_public_games to the two designated-init test sites.
 
-## RUNNING TOTAL: ~57 distinct bugs/features across 26 waves. Login (all families)
-## + NLS passchange + friends list + game advertise/list now match the oracle.
-## Still stubbed: /who /whois /squelch (CommandRegistry not wired in bnetd), WOL
-## post-login lobby/game commands, JOINGAME password enforcement.
+## Wave 27: /who, /whois, /users channel info commands
+/who hit a "no registry" stub; /whois and /users did nothing. Implemented as FSM
+interceptors (like /whisper, /me, /friends) via a new channel_reader
+(IChannelReader, wired in make_use_case_context from the shared channel repo):
+/who <channel> lists members; /whois <user> reports the user's current channel (or
+offline); /users gives population stats. diff_channelcmds.py: /who member set
+matches the oracle (alice, bob). NOTE: the original localize()s + charset-converts
+its INFO replies; in the harness (mock, no codepage) i18n_convert garbles the
+LOCALIZED text — the /who prefix and the whole /whois come back mangled. The /who
+member names are sprintf'd outside localize so they survive and are the comparable
+observable; v3's clean /whois is verified v3-side. Fixed the R306 /who test
+contract (no-arg → EID_INFO usage, matching the oracle's describe_command).
+
+## RUNNING TOTAL: ~58 distinct bugs/features across 27 waves. Login (all families)
+## + NLS passchange + friends + game advertise/list + /who/whois/users now match
+## the oracle. Still open: /squelch (per-session ignore + broadcast filtering),
+## WOL post-login lobby/game commands, JOINGAME password enforcement.
