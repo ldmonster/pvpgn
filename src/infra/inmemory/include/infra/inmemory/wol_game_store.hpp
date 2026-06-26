@@ -52,6 +52,17 @@ public:
         by_name_.erase(key(name));
     }
 
+    void remove_player(std::string_view name,
+                       domain::AccountId player) override {
+        std::unique_lock lock(mutex_);
+        auto it = by_name_.find(key(name));
+        if (it == by_name_.end()) return;
+        auto& players = it->second.players;
+        players.erase(std::remove(players.begin(), players.end(), player),
+                      players.end());
+        if (players.empty()) by_name_.erase(it);  // empty game closes
+    }
+
 private:
     static std::string key(std::string_view name) {
         std::string k{name};

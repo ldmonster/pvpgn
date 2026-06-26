@@ -64,6 +64,10 @@ public:
 
     /// Remove the named game (e.g. when it closes). No-op if unknown.
     virtual void remove(std::string_view name) = 0;
+
+    /// Remove @p player from the named game (e.g. on disconnect). If the game
+    /// becomes empty it is erased. No-op if the game/player is unknown.
+    virtual void remove_player(std::string_view name, domain::AccountId player) = 0;
 };
 
 }  // namespace pvpgn::application::game

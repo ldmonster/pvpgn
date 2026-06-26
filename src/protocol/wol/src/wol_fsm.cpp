@@ -24,6 +24,8 @@
 #include <optional>
 #include <string>
 
+#include "application/chat/leave_channel.hpp"
+#include "application/game/wol_game_store.hpp"
 #include "application/game/wol_user_flags_store.hpp"
 #include "core/error.hpp"
 #include "domain/connection/peer_address_store.hpp"
@@ -144,6 +146,28 @@ void WolFsm::on_close() {
     }
     if (user_flags_store_ && account_id_.value() != 0) {
         user_flags_store_->remove(account_id_);
+    }
+    // Leave the current channel + game so disconnecting clients don't ghost in
+    // the roster / game (the BNCS path does this via on_disconnect; the WOL path
+    // previously did not). Notify the remaining members with an IRC PART.
+    if (account_id_.value() != 0 && channel_id_.value() != 0 && !channel_.empty()) {
+        if (leave_channel_) {
+            auto result = leave_channel_->execute(channel_id_, account_id_);
+            if (result) {
+                std::string line = ":";
+                line += nick_;
+                line += '!';
+                line += nick_;
+                line += "@Battle.net PART ";
+                line += channel_;
+                route_irc_line(line, result.value().members_to_notify);
+            }
+        }
+        if (wol_game_store_) {
+            std::string game_name = channel_;
+            if (!game_name.empty() && game_name[0] == '#') game_name.erase(0, 1);
+            wol_game_store_->remove_player(game_name, account_id_);
+        }
     }
 }
 

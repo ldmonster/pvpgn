@@ -61,6 +61,7 @@ namespace pvpgn::application::chat {
 class JoinChannel;
 class ListChannels;
 class PostMessage;
+class LeaveChannel;
 }  // namespace pvpgn::application::chat
 
 namespace pvpgn::domain::identity {
@@ -181,6 +182,13 @@ public:
         session_id_     = session_id;
         message_router_ = router;
         channel_reader_ = channel_reader;
+    }
+
+    /// Wire the LeaveChannel use-case so on_close can remove this client from
+    /// its channel on disconnect (and notify the remaining members). Non-owning;
+    /// null in test/stub mode (disconnect then leaves a ghost member).
+    void set_leave_channel(application::chat::LeaveChannel* lc) noexcept {
+        leave_channel_ = lc;
     }
 
     /// Wire the WOL game-channel registry so JOINGAME can create/find games.
@@ -430,6 +438,10 @@ private:
     std::shared_ptr<application::chat::ListChannels> list_channels_;
     std::shared_ptr<application::chat::JoinChannel>  join_channel_;
     std::shared_ptr<application::chat::PostMessage>  post_message_;
+
+    /// LeaveChannel use-case for disconnect cleanup. Non-owning; null in stub
+    /// mode.
+    application::chat::LeaveChannel* leave_channel_ = nullptr;
 
     /// Native WOL auth collaborators (empty in legacy/skeleton mode).
     WolAuthDeps auth_{};

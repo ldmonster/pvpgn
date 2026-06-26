@@ -170,6 +170,30 @@ def wol_join(client, channel):
     return lines
 
 
+def wol_list_count(client, channel):
+    """LIST; return the member count the 327 RPL_CHANNEL reports for `channel`
+    ('#'-normalized), or None if the channel is not listed."""
+    target = channel.lstrip("#").lower()
+    client.send_line("LIST")
+    result = None
+    for _ in range(80):
+        line = client.read_line()
+        if line is None:
+            break
+        code = WolClient.numeric(line)
+        if code == RPL_LISTEND:
+            break
+        if code == RPL_CHANNEL:
+            parts = line.split()
+            # ":server 327 nick <name> <count> <flag> 388"
+            if len(parts) >= 5 and parts[3].lstrip("#").lower() == target:
+                try:
+                    result = int(parts[4])
+                except ValueError:
+                    result = None
+    return result
+
+
 def wol_list(client):
     """LIST; collect RPL_CHANNEL (327) entries until RPL_LISTEND (323). Returns
     the channel names (first token of each 327 reply, '#'-normalized)."""
