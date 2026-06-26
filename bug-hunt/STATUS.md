@@ -731,6 +731,15 @@ ADVERTR <channel> replies ":<server> ADVERTR 5 <channel>" (461 with no param).
 diff_wol_advertr.py matches the oracle ("5 #adroom"); hardened under ASan.
 ADVERTC remains a no-op (as in the original). (commit 0354fe0)
 
+## Full regression sweep (post-session): 29/29 diff scenarios PASS
+Ran the ENTIRE differential suite against the oracle after this session's changes
+(every diff_*.py with --v3-bnetd + unique ports): all 13 BNCS scenarios (OLS/W3
+login, W3 passchange, chat/talk/whisper/emote/leave/multichannel/channelcmds/
+squelch, friends, gamelist), all 15 WOL scenarios, and diff_all_clients (full
+supported-client matrix) — 29/29 PASS, 0 regressions. Confirms the wave-32
+cross-protocol TcpSession leak fix and all WOL waves left the whole bug-hunt
+intact. Runner: scratchpad/run_all_diffs.sh.
+
 ## RUNNING TOTAL: ~77 distinct bugs/features across 44 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
