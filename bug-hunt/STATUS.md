@@ -740,7 +740,17 @@ supported-client matrix) — 29/29 PASS, 0 regressions. Confirms the wave-32
 cross-protocol TcpSession leak fix and all WOL waves left the whole bug-hunt
 intact. Runner: scratchpad/run_all_diffs.sh.
 
-## RUNNING TOTAL: ~77 distinct bugs/features across 44 waves. Login (all families)
+## Wave 45: BNCS READUSERDATA/WRITEUSERDATA (account profile)
+The 0x26/0x27 handlers were stubs (no reply). Implemented via a new
+application::auth::IUserProfileStore (+ InMemoryUserProfileStore, run-loop scoped,
+per-account string attributes, in BnetUseCaseContext): WRITEUSERDATA stores
+"profile\\" keys on the caller's own account; READUSERDATA replies with
+name-major/key-minor values (or "" unset; "BNET\\" hidden cross-account).
+diff_userdata.py: write profile\\sex/age/location, read back -> ["m","99","NY",""],
+matches the oracle. Hardened: matches under both sanitizer binaries; the codec
+already caps cell counts. (commit 7974ade)
+
+## RUNNING TOTAL: ~78 distinct bugs/features across 45 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
