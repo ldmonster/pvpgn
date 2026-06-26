@@ -1005,6 +1005,15 @@ void BnetFsm::on_disconnect() {
         (void)use_cases_.leave_game->execute(current_game_id_, current_account_id_);
         current_game_id_ = domain::GameId{0};
     }
+    // The ignore/squelch list is per-connection in the original (conn_destroy
+    // frees it). Our store is account-keyed and run-loop-scoped, so without this
+    // a squelch would survive a disconnect/reconnect — diverging from the oracle,
+    // which starts every fresh connection with an empty ignore list. kick-old
+    // (w49/w50/w53) guarantees a single live session per account, so clearing on
+    // this session's disconnect is safe.
+    if (use_cases_.ignore_store && current_account_id_.value() != 0) {
+        use_cases_.ignore_store->clear_owner(current_account_id_);
+    }
 }
 
 core::Status<> BnetFsm::on(const ProfileRequest& m) {

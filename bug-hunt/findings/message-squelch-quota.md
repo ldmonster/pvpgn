@@ -278,3 +278,11 @@ keep a single source of truth for the emitted event.
 | 5 | No max-line cap/truncation on talk path | MED | NOT-IMPLEMENTED |
 | 6 | Emote compose mapping | LOW | MATCHES (live wiring UNSURE) |
 | 7 | PostMessage discards drained events | LOW | BUG (minor) |
+
+## Wave 54: squelch is per-connection (cleared on disconnect)
+Verified differentially (tests/diff/diff_squelch_reconnect.py): the oracle clears
+a user's ignore list when their connection is destroyed; a reconnect starts empty.
+v3's account-keyed InMemoryIgnoreStore persisted the squelch across reconnect.
+Fixed with IIgnoreStore::clear_owner(account) called from BnetFsm::on_disconnect
+(alongside the channel- and game-leave cleanup). Safe because kick-old-login
+keeps a single live session per account.

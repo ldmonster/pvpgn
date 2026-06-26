@@ -36,6 +36,11 @@ public:
         return it->second.count(target.value()) > 0;
     }
 
+    void clear_owner(domain::AccountId owner) override {
+        std::unique_lock lock(mutex_);
+        by_owner_.erase(owner.value());
+    }
+
 private:
     mutable std::shared_mutex mutex_;
     std::unordered_map<std::uint64_t, std::unordered_set<std::uint64_t>> by_owner_;

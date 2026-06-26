@@ -859,3 +859,15 @@ KICKED BNCS session leaves its channel (other members see EID_LEAVE) — the kic
 cascade (router disconnect -> close -> on_disconnect -> LeaveChannel) works; no
 bug, regression guard only.
 6th consecutive lifecycle bug fix (w48-53, minus the no-bug kick_channel probe).
+
+## Wave 54: /squelch must be per-connection (cleared on disconnect)
+The original's ignore list lives on the connection (conn_destroy frees it), so a
+squelch must not survive a disconnect/reconnect — a fresh connection starts with
+an empty ignore list. v3's InMemoryIgnoreStore is account-keyed + run-loop-scoped
+and had no disconnect cleanup, so a squelch persisted across reconnect.
+diff_squelch_reconnect.py: after alice reconnects, the oracle delivers bob's
+message again (squelch cleared) but v3 still suppressed it. Fix: add
+IIgnoreStore::clear_owner (default no-op; InMemory erases the owner's set) and
+call it from BnetFsm::on_disconnect. kick-old (w49/50/53) guarantees a single
+live session per account, so clearing on disconnect is safe. Now matches the
+oracle. 7th lifecycle/cleanup fix in the w48-54 run.

@@ -30,6 +30,12 @@ public:
     /// True if `owner` is currently ignoring `target`.
     [[nodiscard]] virtual bool
     ignores(domain::AccountId owner, domain::AccountId target) const = 0;
+
+    /// Clear all of `owner`'s ignore entries. The original's ignore list lives on
+    /// the connection (conn_destroy frees it), so it must NOT survive a
+    /// disconnect/reconnect; the FSM calls this on disconnect. Default no-op so
+    /// stub/test stores need not implement it.
+    virtual void clear_owner(domain::AccountId owner) { (void)owner; }
 };
 
 }  // namespace pvpgn::application::chat
