@@ -1005,3 +1005,20 @@ floods. The hardening directive is substantially met on the malformed-input axis
 Added diff_robustness.py (a fleet-derived battery + post-battery liveness check)
 as a permanent regression guard; no code change needed. Documented behavioral
 (non-fatal) DoS-resistance divergences in findings/malformed-input-safety.md.
+
+## Wave 62: dead-code audit + remove superseded leftovers
+Two fleet agents audited the whole tree for genuinely-unreferenced code (grep
+evidence of zero references). Removed the unambiguous superseded leftovers (zero
+build footprint, confirmed by "ninja: no work to do" + 3199/3199 unit tests):
+  - protocol/bnet codec_extended.{cpp,hpp} (duplicate codec, never compiled,
+    included nowhere; live codec is codec.cpp).
+  - app/bnetd bnet_session_factory.hpp (never included; superseded by
+    BnetBnftpDispatchFactory).
+The rest is catalogued in findings/dead-code-audit.md and deliberately NOT purged:
+it is dominated by intentional unwired-but-tested application-layer API and
+per-context scaffolding (NOT rot), plus duplicate/superseded subsystems
+(event_dispatcher, irc bridge_fsm, wolgameres, infra/plugin vs scripting/plugin,
+infra/scripting/lua vs infra/lua, several built-but-unlinked infra libs, core
+legacy modules) where the "which is canonical" call needs confirmation against the
+composition roots — best done in a dedicated cleanup pass with build+test per
+batch. The codebase is largely clean (-Werror, heavily tested).
