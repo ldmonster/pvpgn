@@ -1047,3 +1047,18 @@ lookup path always reports "no clan", matching the oracle's behavior for the onl
 role v3 models). diff_wol_squadinfo.py now passes. The ladder verbs LISTSEARCH/
 RUNGSEARCH/HIGHSCORE + GAMERES (a separate binary listener, port 4807) need a
 stats/ladder backend and are not cleanly diffable in this harness.
+
+## Wave 69: implement WOL NAMES <channel> (353 roster + 366)
+Following the BNFTP pattern (probe an untested verb -> find a gap), the WOL NAMES
+command was a silent no-op in v3 (wol_known[]) where the oracle replies 353
+RPL_NAMREPLY (channel roster, operator prefixed with '@') + 366 RPL_ENDOFNAMES.
+Implemented WolFsm::on_names: resolves the channel via channel_reader_, lists
+members by nick (auth_.account_reader->find_by_id) with '@' on the operator
+(channel.operator_id() from wave 58), sends 353 + 366. Also fixes the latent
+on_join roster which used numeric account-IDs as placeholders — NAMES now resolves
+real nicks. diff_wol_names.py uses ORDERED joins (operator assignment is otherwise
+a probe race: the oracle's run loop is single-threaded, v3's joins are async per-
+connection) and compares the member SET + operator marking (353 order is
+unordered-map-dependent). Matches the oracle. 3199/3199 units.
+Note: bare NAMES (no channel) lists every channel on the oracle — config-dependent,
+not differentially meaningful — so v3 returns just the 366 terminator.

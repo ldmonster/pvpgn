@@ -283,6 +283,10 @@ private:
     /// LIST
     core::Status<> on_list(std::string_view params);
 
+    /// NAMES <channel> — RPL_NAMREPLY (353) listing the channel's members (the
+    /// operator prefixed with '@') + RPL_ENDOFNAMES (366). Mirrors the original.
+    core::Status<> on_names(std::string_view params);
+
     /// JOIN #<channel>
     core::Status<> on_join(std::string_view params);
 

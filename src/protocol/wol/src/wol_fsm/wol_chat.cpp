@@ -104,6 +104,54 @@ core::Status<> WolFsm::on_list(std::string_view /*params*/) {
     return send_numeric(323, nick_, "End of LIST command");
 }
 
+core::Status<> WolFsm::on_names(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    auto chan_sv = trim(first_token(params));
+    if (chan_sv.empty()) {
+        // Bare NAMES lists every channel on the original; that set is config-
+        // dependent and not differentially meaningful here. Just end the list.
+        return send_numeric(366, std::string(nick_) + " *", "End of NAMES list");
+    }
+
+    std::string chan_disp{chan_sv};                 // keep the '#' for display
+    std::string chan_name{chan_sv};
+    if (!chan_name.empty() && chan_name[0] == '#') chan_name.erase(0, 1);
+
+    // Build the member roster; the channel operator (tmpOP) gets an '@' prefix.
+    std::string members;
+    if (channel_reader_) {
+        if (auto ch = channel_reader_->find_by_name(chan_name)) {
+            const auto op = ch.value().operator_id();
+            bool first = true;
+            for (const auto& mid : ch.value().member_ids()) {
+                std::string nm;
+                if (auth_.account_reader) {
+                    if (auto a = auth_.account_reader->find_by_id(mid)) {
+                        nm = std::string(a.value().name().display());
+                    }
+                }
+                if (nm.empty()) nm = std::to_string(mid.value());
+                if (!first) members += ' ';
+                first = false;
+                if (op && op->value() == mid.value()) members += '@';
+                members += nm;
+            }
+        }
+    }
+
+    // 353 RPL_NAMREPLY: ":server 353 <nick> * <channel> :<members>"
+    if (auto s = send_numeric(353, std::string(nick_) + " * " + chan_disp,
+                              members); !s) {
+        return s;
+    }
+    // 366 RPL_ENDOFNAMES: ":server 366 <nick> <channel> :End of NAMES list"
+    return send_numeric(366, std::string(nick_) + " " + chan_disp,
+                        "End of NAMES list");
+}
+
 core::Status<> WolFsm::on_join(std::string_view params) {
     if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
         return send_numeric(451, nick_.empty() ? "*" : nick_,
