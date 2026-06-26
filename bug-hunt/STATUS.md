@@ -795,7 +795,16 @@ on(LogonResponse2) closes the kicked connection. diff_concurrent_login.py: oracl
 & v3 both rc=0 now. Updated the 2 duplicate-session unit tests to assert kick-old.
 (commit 8dd8187)
 
-## RUNNING TOTAL: ~82 distinct bugs/features across 49 waves. Login (all families)
+## Wave 50: kick-old-login for W3/NLS + ignored-attach-failure fix
+on(LogonProofW3Request) attached the session with `(void)attach()` — ignoring the
+failure — so a concurrent W3 login left the OLD session attached and the NEW one
+UNREGISTERED (ghost), with no kick. Fix: mirror w49 — detach the existing session
++ close the old connection via the router, then attach the new.
+diff_concurrent_login_w3.py (observable: old connection dropped; W3 proof reply is
+"success" either way): both logins succeed + old kicked, matching the oracle.
+(commit a6a01bb) The lifecycle bug-hunt (drive 2 connections + diff) found w48/49/50.
+
+## RUNNING TOTAL: ~83 distinct bugs/features across 50 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
