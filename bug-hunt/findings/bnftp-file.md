@@ -182,3 +182,14 @@ Original `SERVER_FILE_REPLY.filelen` carries the **full** file size (`file.cpp:2
 - MEDIUM/NOT-IMPL: Finding 3 (REQ2/REQ3 W3 two-step), Finding 4 (localized/alias files).
 - LOW: Finding 5 (128 vs 2048 cap + misleading comment), Secondary note (resume `filelen` value).
 - MATCHES: header order, REQ/REPLY layouts, FILETIME math+byte order, file-not-found size-0, offset past-EOF, **path traversal protection (no security hole)**.
+
+## Wave 67: BNFTP body-drop fixed (graceful close)
+A BNFTP mock client (tests/diff/bnftp_client.py, diff_bnftp.py) found v3 served the
+reply header but ZERO body bytes (downloads broken). Root cause: BnftpFsm::
+try_dispatch closed the connection synchronously after queueing header+body writes;
+TcpSession close()/send() post onto the strand FIFO so close ran before the body
+write. Fix: TcpSession graceful close — close() defers (close_after_flush_) when
+writes are pending; the write-completion handler runs deliver_close once the queue
+drains (idle timer = stall backstop). v3 now delivers full bodies 1..65536 bytes,
+matching the oracle. Minor accepted diff: v3 closes after serving one file; the
+oracle lingers (multi-file-per-connection). Wire format documented in diff_bnftp.py.

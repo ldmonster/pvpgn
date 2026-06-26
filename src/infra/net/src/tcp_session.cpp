@@ -107,6 +107,13 @@ void TcpSession::do_write_locked() {
             }
             if (self->closed_ || self->write_q_.empty()) {
                 self->writing_ = false;
+                // A graceful close was requested and the queue has now drained —
+                // perform the deferred shutdown (posted so it runs outside this
+                // locked completion handler; deliver_close is idempotent).
+                if (self->close_after_flush_ && !self->closed_) {
+                    asio::post(self->strand_,
+                               [self] { self->deliver_close(error_code{}); });
+                }
                 return;
             }
             self->do_write_locked();
@@ -116,13 +123,21 @@ void TcpSession::do_write_locked() {
 void TcpSession::close() {
     auto self = shared_from_this();
     asio::post(strand_, [self] {
-        if (self->closed_) return;
-        self->closed_ = true;
-        self->idle_timer_.cancel();
-        error_code ignored;
-        self->socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored);
-        self->socket_.close(ignored);
-        self->fire_close_and_release(error_code{});
+        bool defer = false;
+        {
+            std::scoped_lock lk{self->mu_};
+            if (self->closed_ || self->close_after_flush_) return;
+            // If a write is in flight or queued, close gracefully: mark the
+            // session for shutdown and let the write-completion handler tear it
+            // down once the queue drains, so the final response (e.g. a BNFTP
+            // file body) is actually delivered. The idle timer stays armed as the
+            // backstop if the flush stalls (slow/blocked reader).
+            if (self->writing_ || !self->write_q_.empty()) {
+                self->close_after_flush_ = true;
+                defer = true;
+            }
+        }
+        if (!defer) self->deliver_close(error_code{});
     });
 }
 

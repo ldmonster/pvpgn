@@ -94,6 +94,10 @@ private:
     std::deque<std::vector<std::byte>>                          write_q_;
     bool                                                        writing_ = false;
     bool                                                        closed_  = false;
+    // Graceful close: when close() is called with writes still pending, defer the
+    // socket shutdown until the write queue drains so the final response (e.g. a
+    // BNFTP file body) is actually delivered before the connection is torn down.
+    bool                                                        close_after_flush_ = false;
     std::mutex                                                  mu_;
     OnBytes                                                     on_bytes_;
     OnClose                                                     on_close_;

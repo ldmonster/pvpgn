@@ -250,6 +250,19 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "STARTG") return on_startg(params);
     if (cmd == "SETOPT") return on_setopt(params);
     if (cmd == "ADVERTR") return on_advertr(params);
+    if (cmd == "SQUADINFO" || cmd == "CLANBYNAME") {
+        // The original (_handle_squadinfo_command / _handle_clanbyname_command)
+        // requires a parameter — 461 ERR_NEEDMOREPARAMS when missing — and then
+        // looks up the clan, which a freshly-created account never has, yielding
+        // 439 ERR_IDNOEXIST. v3 has no clan backend, so the lookup path always
+        // reports "no clan". (Previously these were silent no-ops in wol_known[].)
+        if (first_token(params).empty()) {
+            return send_numeric(461, nick_.empty() ? "*" : nick_,
+                                std::string(cmd) + " :Not enough parameters");
+        }
+        return send_numeric(439, nick_.empty() ? "*" : nick_,
+                            std::string(cmd) + " :ID does not exist");
+    }
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
     // CVERS, VERCHK, APGAR, SERIAL, etc. (ADVERTC is a no-op in the original too.)
@@ -258,7 +271,6 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         "SERIAL",
         "ADVERTC",
         "INVDEL",
-        "SQUADINFO", "CLANBYNAME",
         "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE", "NAMES",
         "TOPIC", "TIME", "KICK", "MODE",
     };

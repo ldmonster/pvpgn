@@ -1022,3 +1022,28 @@ infra/scripting/lua vs infra/lua, several built-but-unlinked infra libs, core
 legacy modules) where the "which is canonical" call needs confirmation against the
 composition roots — best done in a dedicated cleanup pass with build+test per
 batch. The codebase is largely clean (-Werror, heavily tested).
+
+## Wave 67: fix BNFTP body-drop (graceful close-after-flush in TcpSession)
+NEW client coverage: a fleet agent wrote a BNFTP mock client (init byte 0x02 +
+CLIENT_FILE_REQ) and found a SERIOUS v3 bug — BNFTP served the reply header but
+ZERO file body for every file (downloads completely broken). Root cause:
+BnftpFsm::try_dispatch calls ctx_->close() synchronously right after queueing the
+header+body writes; TcpSession::close()/send() both post onto the strand FIFO, so
+close() shut the socket down before the body write dispatched. Fix: graceful close
+in TcpSession — close() now defers when writes are pending (sets close_after_flush_)
+and the write-completion handler runs deliver_close once the queue drains; the idle
+timer remains the stall backstop. This is a general transport improvement (every
+protocol that closes after a final write now flushes first). diff_bnftp.py: v3 now
+delivers the full body for sizes 1..65536, matching the oracle byte-for-byte.
+Full unit suite 3199/3199; the transport change is exercised by the kick/concurrent
+-login/disconnect diffs in the sweep.
+
+## Wave 68: WOL SQUADINFO/CLANBYNAME error replies (461/439)
+Fleet WOL-verb coverage diff found SQUADINFO + CLANBYNAME silently no-op'd in v3
+(listed in wol_known[]) where the oracle returns 461 ERR_NEEDMOREPARAMS (no param)
+and 439 ERR_IDNOEXIST (param given but the freshly-created account has no clan).
+Implemented the 461/439 replies in dispatch_line (v3 has no clan backend, so the
+lookup path always reports "no clan", matching the oracle's behavior for the only
+role v3 models). diff_wol_squadinfo.py now passes. The ladder verbs LISTSEARCH/
+RUNGSEARCH/HIGHSCORE + GAMERES (a separate binary listener, port 4807) need a
+stats/ladder backend and are not cleanly diffable in this harness.
