@@ -689,11 +689,22 @@ finduser/buddy/userinfo/page/chanchk_host) match the oracle against BOTH sanitiz
 binaries; leak driver (all commands, graceful SIGTERM) 0 leaks; edge/invalid-UTF-8
 fuzzing of the whole surface clean. WOL unit 63/63; full suite green.
 
-## RUNNING TOTAL: ~72 distinct bugs/features across 39 waves. Login (all families)
+## Wave 40: peer-IP registry + WOL USERIP
+Added domain::connection::IPeerAddressStore + InMemoryPeerAddressStore (run-loop
+scoped, AccountId -> peer IP). make_wol_session captures TcpSession::
+remote_endpoint(); WOL login registers it, on_close removes it. USERIP <nick>
+resolves target -> account -> IP and replies ":<nick>!<nick>@Battle.net USERIP
+<nick> <ip>" (401 if offline/unknown). diff_wol_userip.py: online -> 127.0.0.1,
+unknown -> 401, matches the oracle. Hardened: USERIP matches under both sanitizer
+binaries; leak driver (incl. the peer-IP set/remove lifecycle) 0 leaks. This
+registry also UNBLOCKS STARTG (the per-player IP list). (commit a47e519)
+
+## RUNNING TOTAL: ~73 distinct bugs/features across 40 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + WOL
 ## (login, lobby LIST/JOIN, cross-session chat, GAMEOPT, JOINGAME, FINDUSER, buddy
-## list, codepage/locale, GETINSIDER, PAGE, CHANCHK, HOST) all match the oracle &
-## are runtime-hardened (ASan+UBSan clean, leak-clean; 10 WOL differentials). Still
-## open: WOL STARTG + USERIP (need peer-IP infra), SETOPT (cross-session findme/
-## pageme gating), INVMSG, SQUADINFO/CLANBYNAME, ladder, matchbot/anongame.
+## list, codepage/locale, GETINSIDER, PAGE, CHANCHK, HOST, USERIP) all match the
+## oracle & are runtime-hardened (ASan+UBSan clean, leak-clean; 11 WOL
+## differentials). Still open: WOL STARTG (now unblocked by the peer-IP registry;
+## gameNumber/time_t need a tolerant diff), SETOPT (cross-session findme/pageme
+## gating), INVMSG, SQUADINFO/CLANBYNAME, ladder, matchbot/anongame.
 ## See findings/wol-chat-lobby.md.

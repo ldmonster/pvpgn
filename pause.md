@@ -118,17 +118,31 @@ etc. between runs. clang not on PATH (fuzzer reuses build/v3-fuzz from wave 23).
 
 The full WOL command surface (10 differentials) is now oracle-matched + hardened.
 
+## Wave 40 — DONE (peer-IP registry + WOL USERIP) + hardened
+
+- W40 `a47e519`: domain::connection::IPeerAddressStore + InMemoryPeerAddressStore
+  (run-loop scoped, AccountId -> peer IP, set on login / removed on close, IP from
+  TcpSession::remote_endpoint() in make_wol_session). USERIP <nick> reports the
+  target's IP (401 if offline). diff_wol_userip.py matches (127.0.0.1 / 401).
+  Hardened under both sanitizers + leak driver (0 leaks). UNBLOCKS STARTG.
+
 ## NEXT — remaining divergences
 
-1. **WOL STARTG** (handle_wol.cpp:1264) — game model now EXISTS (W34) but STARTG
-   is BLOCKED on peer-IP tracking: its payload is per-player IPs (P2P setup) +
-   gameNumber + time_t. v3 has no SessionId/account -> peer-IP map (TcpSession
-   knows its own remote_endpoint, but WolFsm can't reach another session's IP),
-   and the gameNumber/time_t fields make a byte-exact differential impossible.
-   Needs a peer-IP registry first (infra disproportionate to one verb). Control
-   flow (mark started + route STARTG to named players) is trivial on the W31
-   router once IPs exist. See findings/wol-chat-lobby.md item 3.
-2. **matchbot / anongame automatch** — entire WOL automatch chat subsystem still
+1. **WOL STARTG** (handle_wol.cpp:1264) — game model EXISTS (W34) AND peer IPs now
+   available (W40 IPeerAddressStore). Remaining friction: the per-player STARTG
+   payload ends with `gameNumber time_t`, which differ per server/run, so a
+   byte-exact differential is impossible — needs a TOLERANT diff (assert each
+   named player receives a STARTG line containing the expected peer IP(s); ignore
+   the trailing id/time). Also needs a game id (use channel_id_) and a start time
+   (no clock in WolFsm — pass one in or use a placeholder the diff ignores). The
+   control flow (mark started + route STARTG to the named players with their peer
+   IPs from IPeerAddressStore) is trivial on the W31 router. See
+   findings/wol-chat-lobby.md item 3.
+2. **Smaller WOL stubs**: SETOPT (cross-session findme/pageme gating — needs a
+   shared registry, no direct reply), INVMSG (channel-invite relay — doable via
+   the router like HOST), SQUADINFO/CLANBYNAME (clan), ladder
+   LISTSEARCH/RUNGSEARCH/HIGHSCORE.
+3. **matchbot / anongame automatch** — entire WOL automatch chat subsystem still
    NOT-IMPLEMENTED (oracle anongame_wol.cpp, ~615 lines). Large separate feature.
 
 The WOL game lobby is now functional end-to-end for the common path: native
