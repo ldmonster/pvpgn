@@ -1213,3 +1213,25 @@ NOTE: lengths 224..255 are NOT cleanly diffable — the original gates those via
 flood/quota (config + rate dependent) which v3 does not implement; left as a
 known quota gap (see findings/message-squelch-quota.md). The WOL/IRC chat paths
 still use ChatMessage::create directly (reject empty); not exercised here.
+
+## Wave 77 (LANDED) — WOL 461 ERR_NEEDMOREPARAMS wire-format fix
+HARDENING/divergence: a logged-in WOL client sending a parameter-requiring
+command with NO params got a MALFORMED 461 from v3. `WolFsm::send_numeric()`
+unconditionally injects " :" before its `text` arg, and every 461 call site
+passed "<CMD> :Not enough parameters" *as* that text, producing a stray colon:
+  v3:     :pvpgn.v3 461 alice :JOIN :Not enough parameters   (WRONG)
+  oracle: :host     461 alice JOIN :Not enough parameters
+The extra colon collapses "<CMD> :Not enough parameters" into a single trailing
+parameter, so a real client sees the command token glued into the message text.
+Fix: added `WolFsm::send_needmoreparams(cmd)` that puts the command name in the
+middle-parameter (target) field — matching the codebase's existing convention
+(e.g. 353 puts middle params in `target`). Replaced all ~22 461 call sites across
+wol_fsm.cpp / wol_auth.cpp / wol_chat.cpp with it. Pure wire-format correction;
+no behavioral/state change. New guard tests/diff/diff_wol_needmoreparams.py
+(JOIN/MODE/TOPIC/KICK/GAMEOPT/STARTG/PAGE/ADDBUDDY/DELBUDDY/GETINSIDER/ADVERTR/
+FINDUSER/FINDUSEREX) — all 13 match the oracle byte-for-byte (server-name
+stripped). 3199/3199 units green; WOL diff regression set (login/squadinfo/chat/
+kick/topic/part) + robustness battery all still match.
+Remaining 461-adjacent divergences left as-is (different code paths, deferred):
+PRIVMSG no-param -> oracle 461 vs v3 411 ERR_NORECIPIENT; NOTICE/WHO/NAMES verb
+surface differs (documented in findings/malformed-input-safety.md).

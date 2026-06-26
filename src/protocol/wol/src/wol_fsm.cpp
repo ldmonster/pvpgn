@@ -262,8 +262,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         // 439 ERR_IDNOEXIST. v3 has no clan backend, so the lookup path always
         // reports "no clan". (Previously these were silent no-ops in wol_known[].)
         if (first_token(params).empty()) {
-            return send_numeric(461, nick_.empty() ? "*" : nick_,
-                                std::string(cmd) + " :Not enough parameters");
+            return send_needmoreparams(cmd);
         }
         return send_numeric(439, nick_.empty() ? "*" : nick_,
                             std::string(cmd) + " :ID does not exist");
@@ -311,6 +310,16 @@ core::Status<> WolFsm::send_numeric(int code,
     line += text;
 
     return send_raw(line);
+}
+
+core::Status<> WolFsm::send_needmoreparams(std::string_view cmd) {
+    // Wire form: ":<server> 461 <nick> <CMD> :Not enough parameters".
+    // The command name is a middle parameter, so it goes into the `target`
+    // field (send_numeric injects the ':' only before the trailing text).
+    std::string target = nick_.empty() ? std::string("*") : nick_;
+    target += ' ';
+    target += cmd;
+    return send_numeric(461, target, "Not enough parameters");
 }
 
 core::Status<> WolFsm::send_raw(std::string_view line) {

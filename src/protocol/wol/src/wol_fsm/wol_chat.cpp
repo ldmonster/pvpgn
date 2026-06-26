@@ -176,7 +176,7 @@ core::Status<> WolFsm::on_mode(std::string_view params) {
     }
     auto target = trim(first_token(params));
     if (target.empty()) {
-        return send_numeric(461, nick_, "MODE :Not enough parameters");
+        return send_needmoreparams("MODE");
     }
     // Channel mode query. The original returns a fixed "+tns" for a plain query
     // and an empty ban list (368) for "MODE #chan b". Mode *changes* route
@@ -221,7 +221,7 @@ core::Status<> WolFsm::on_kick(std::string_view params) {
     }
     auto victim_sv = trim(first_token(rest));
     if (chan_sv.empty() || victim_sv.empty()) {
-        return send_numeric(461, nick_, "KICK :Not enough parameters");
+        return send_needmoreparams("KICK");
     }
     // Reason: trailing text after the victim, ':' stripped; default "Bye".
     std::string reason;
@@ -290,7 +290,7 @@ core::Status<> WolFsm::on_topic(std::string_view params) {
     }
     auto chan_sv = trim(first_token(params));
     if (chan_sv.empty()) {
-        return send_numeric(461, nick_, "TOPIC :Not enough parameters");
+        return send_needmoreparams("TOPIC");
     }
     const std::string chan_disp{chan_sv};  // keep '#'
 
@@ -336,7 +336,7 @@ core::Status<> WolFsm::on_join(std::string_view params) {
 
     auto chan_sv = trim(first_token(params));
     if (chan_sv.empty()) {
-        return send_numeric(461, nick_, "JOIN :Not enough parameters");
+        return send_needmoreparams("JOIN");
     }
 
     // Strip leading '#' for the domain channel name.
@@ -582,13 +582,13 @@ core::Status<> WolFsm::on_gameopt(std::string_view params) {
     // GAMEOPT <target> :<gameOptions>
     auto sp = params.find(' ');
     if (sp == std::string_view::npos) {
-        return send_numeric(461, nick_, "GAMEOPT :Not enough parameters");
+        return send_needmoreparams("GAMEOPT");
     }
     std::string_view target  = params.substr(0, sp);
     std::string_view message = params.substr(sp + 1);
     if (!message.empty() && message[0] == ':') message.remove_prefix(1);
     if (target.empty() || message.empty()) {
-        return send_numeric(461, nick_, "GAMEOPT :Not enough parameters");
+        return send_needmoreparams("GAMEOPT");
     }
 
     // The relayed line carries the sender's identity and the opaque options
@@ -652,7 +652,7 @@ core::Status<> WolFsm::on_joingame(std::string_view params) {
 
     auto tok = split_ws(params);
     if (tok.empty()) {
-        return send_numeric(461, nick_, "JOINGAME :Not enough parameters");
+        return send_needmoreparams("JOINGAME");
     }
 
     // The first token is the game/channel name (kept with '#' for the wire ack,
@@ -661,7 +661,7 @@ core::Status<> WolFsm::on_joingame(std::string_view params) {
     std::string game_name = raw_name;
     if (!game_name.empty() && game_name[0] == '#') game_name.erase(0, 1);
     if (game_name.empty() || !join_channel_) {
-        return send_numeric(461, nick_, "JOINGAME :Not enough parameters");
+        return send_needmoreparams("JOINGAME");
     }
 
     auto joingame_prefix = [&](std::string_view text) {
@@ -770,7 +770,7 @@ core::Status<> WolFsm::on_joingame(std::string_view params) {
         return core::ok();
     }
 
-    return send_numeric(461, nick_, "JOINGAME :Not enough parameters");
+    return send_needmoreparams("JOINGAME");
 }
 
 core::Status<> WolFsm::on_finduser(std::string_view params, bool ex) {
@@ -781,9 +781,7 @@ core::Status<> WolFsm::on_finduser(std::string_view params, bool ex) {
 
     auto target = trim(first_token(params));
     if (target.empty()) {
-        return send_numeric(461, nick_,
-                            std::string(ex ? "FINDUSEREX" : "FINDUSER") +
-                                " :Not enough parameters");
+        return send_needmoreparams(ex ? "FINDUSEREX" : "FINDUSER");
     }
 
     // Default: not found / not findable.  Found ("0") iff the target account is
@@ -866,7 +864,7 @@ core::Status<> WolFsm::on_addbuddy(std::string_view params) {
     }
     auto target = trim(first_token(params));
     if (target.empty()) {
-        return send_numeric(461, nick_, "ADDBUDDY :Not enough parameters");
+        return send_needmoreparams("ADDBUDDY");
     }
     if (add_friend_ && auth_.account_reader) {
         auto name = domain::UserName::parse(std::string{target});
@@ -889,7 +887,7 @@ core::Status<> WolFsm::on_delbuddy(std::string_view params) {
     }
     auto target = trim(first_token(params));
     if (target.empty()) {
-        return send_numeric(461, nick_, "DELBUDDY :Not enough parameters");
+        return send_needmoreparams("DELBUDDY");
     }
     if (remove_friend_ && auth_.account_reader) {
         auto name = domain::UserName::parse(std::string{target});
@@ -965,7 +963,7 @@ core::Status<> WolFsm::on_getlocale(std::string_view params) {
 core::Status<> WolFsm::on_getinsider(std::string_view params) {
     auto target = trim(first_token(params));
     if (target.empty()) {
-        return send_numeric(461, nick_, "GETINSIDER :Not enough parameters");
+        return send_needmoreparams("GETINSIDER");
     }
     return send_raw_cmd(399, std::string{target} + "`0");
 }
@@ -978,13 +976,13 @@ core::Status<> WolFsm::on_page(std::string_view params) {
     // PAGE <target> :<message>
     auto sp = params.find(' ');
     if (sp == std::string_view::npos) {
-        return send_numeric(461, nick_, "PAGE :Not enough parameters");
+        return send_needmoreparams("PAGE");
     }
     std::string_view target  = params.substr(0, sp);
     std::string_view message = params.substr(sp + 1);
     if (!message.empty() && message[0] == ':') message.remove_prefix(1);
     if (target.empty() || message.empty()) {
-        return send_numeric(461, nick_, "PAGE :Not enough parameters");
+        return send_needmoreparams("PAGE");
     }
 
     // Deliver the page to the target if it resolves to an online account
@@ -1172,7 +1170,7 @@ core::Status<> WolFsm::on_advertr(std::string_view params) {
     }
     auto chan = trim(first_token(params));
     if (chan.empty()) {
-        return send_numeric(461, nick_, "ADVERTR :Not enough parameters");
+        return send_needmoreparams("ADVERTR");
     }
     // ":<server> ADVERTR 5 <channel>" (no nick — the original uses a null source).
     std::string line = ":";
@@ -1211,7 +1209,7 @@ core::Status<> WolFsm::on_startg(std::string_view params) {
     // STARTG <channel> <nick1,nick2,...>
     auto tok = split_ws(params);
     if (tok.size() < 2) {
-        return send_numeric(461, nick_, "STARTG :Not enough parameters");
+        return send_needmoreparams("STARTG");
     }
 
     // The sender must own a game; resolve it from the game store by channel name.

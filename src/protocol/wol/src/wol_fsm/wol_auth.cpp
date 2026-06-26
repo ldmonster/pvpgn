@@ -49,8 +49,7 @@ core::Status<> WolFsm::on_user(std::string_view params) {
     // USER <username> <hostname> <servername> :<realname>
     auto sp1 = params.find(' ');
     if (sp1 == std::string_view::npos) {
-        return send_numeric(461, nick_.empty() ? "*" : nick_,
-                            "USER :Not enough parameters");
+        return send_needmoreparams("USER");
     }
     user_ = std::string(params.substr(0, sp1));
 
@@ -177,8 +176,7 @@ core::Status<> WolFsm::on_cvers(std::string_view params) {
     auto p = trim(params);
     auto sp = p.find(' ');
     if (sp == std::string_view::npos) {
-        return send_numeric(461, nick_.empty() ? "*" : nick_,
-                            "CVERS :Not enough parameters");
+        return send_needmoreparams("CVERS");
     }
     auto sku_str = first_token(trim(p.substr(sp + 1)));
     wol_sku_ = std::atoi(std::string(sku_str).c_str());
@@ -190,8 +188,7 @@ core::Status<> WolFsm::on_verchk(std::string_view params) {
     auto p = trim(params);
     auto sp = p.find(' ');
     if (sp == std::string_view::npos) {
-        return send_numeric(461, nick_.empty() ? "*" : nick_,
-                            "VERCHK :Not enough parameters");
+        return send_needmoreparams("VERCHK");
     }
     int sku = std::atoi(std::string(first_token(p)).c_str());
     if (sku != 0) wol_sku_ = sku;
@@ -205,8 +202,7 @@ core::Status<> WolFsm::on_verchk(std::string_view params) {
 core::Status<> WolFsm::on_apgar(std::string_view params) {
     auto token = trim(first_token(trim(params)));
     if (token.empty()) {
-        return send_numeric(461, nick_.empty() ? "*" : nick_,
-                            "APGAR :Not enough parameters");
+        return send_needmoreparams("APGAR");
     }
     apgar_ = std::string(token);
     return core::ok();

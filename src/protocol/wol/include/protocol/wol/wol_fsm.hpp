@@ -445,6 +445,12 @@ private:
                                 std::string_view target,
                                 std::string_view text);
 
+    /// Send a 461 ERR_NEEDMOREPARAMS reply for command @p cmd, matching the
+    /// original's wire form ":<server> 461 <nick> <CMD> :Not enough parameters"
+    /// (the command name is a middle parameter, NOT part of the trailing text —
+    /// it must not carry a leading ':').
+    core::Status<> send_needmoreparams(std::string_view cmd);
+
     /// Send a raw line (appends \r\n).
     core::Status<> send_raw(std::string_view line);
 
