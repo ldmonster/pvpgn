@@ -785,7 +785,17 @@ Re-ran the entire suite (13 BNCS + userdata + profile + 15 WOL + diff_all_client
 after the W48 close-path change (LogoutUser now runs on BNCS disconnect): 31/31
 PASS, 0 regressions — incl. diff_leave/diff_chat which exercise the close path.
 
-## RUNNING TOTAL: ~81 distinct bugs/features across 48 waves. Login (all families)
+## Wave 49: kick-old-login (concurrent same-account login)
+Lifecycle bug-hunt found: a concurrent login of an already-online account was
+REJECTED by v3 (rc=0x02), but the original defaults to kick_old_login=true (drops
+the old connection, lets the new in). Fix: LoginUser detaches the existing session
++ reports it via LoginResponse::kicked_session (both arms); new
+IMessageRouter::disconnect (default no-op; MessageRouterImpl closes the egress);
+on(LogonResponse2) closes the kicked connection. diff_concurrent_login.py: oracle
+& v3 both rc=0 now. Updated the 2 duplicate-session unit tests to assert kick-old.
+(commit 8dd8187)
+
+## RUNNING TOTAL: ~82 distinct bugs/features across 49 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
