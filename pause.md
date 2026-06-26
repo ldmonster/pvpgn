@@ -108,6 +108,16 @@ etc. between runs. clang not on PATH (fuzzer reuses build/v3-fuzz from wave 23).
   both "HARDENED 100% / 0 defects"; all 8 WOL diffs match both sanitizer binaries;
   leak drivers 0 leaks; edge fuzz clean.
 
+## Wave 39 — DONE (WOL CHANCHK + HOST) + hardened
+
+- W39 `b9934d4`: CHANCHK <channel> (":<server> CHANCHK <channel>" if exists else
+  403) + HOST <nick> :<text> (relay to online target via router else 401).
+  diff_wol_chanchk_host.py matches. USERIP left stubbed (peer-IP, like STARTG).
+- Re-hardened W38-39: ASan + UBSan fleet over the full WOL surface → both "HARDENED
+  100% / 0 defects"; all 10 WOL diffs match both sanitizer binaries; leak-clean.
+
+The full WOL command surface (10 differentials) is now oracle-matched + hardened.
+
 ## NEXT — remaining divergences
 
 1. **WOL STARTG** (handle_wol.cpp:1264) — game model now EXISTS (W34) but STARTG

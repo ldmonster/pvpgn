@@ -675,10 +675,25 @@ insider/page rounds) report 0 leaks; hostile edge fuzzing (out-of-range atoi,
 invalid-UTF-8/200-char nicks, case-flipped self, malformed PAGE) clean. PAGE
 additionally verified leak-clean + oracle-matching against the ASan binary.
 
-## RUNNING TOTAL: ~70 distinct bugs/features across 38 waves. Login (all families)
+## Wave 39: WOL CHANCHK + HOST
+CHANCHK <channel> replies ":<server> CHANCHK <channel>" if the channel exists
+(channel_reader->find_by_name) else 403. HOST <nick> :<text> relays
+":<nick>!<nick>@Battle.net HOST : <text>" to an online target via the router else
+401. diff_wol_chanchk_host.py matches the oracle. (commit b9934d4) USERIP left
+stubbed (needs peer-IP tracking like STARTG).
+
+## Hardening (waves 38-39): re-hardened the full WOL command surface to 100%
+ASan + UBSan fleet over PAGE/CHANCHK/HOST + the whole surface → both "HARDENED
+100% / 0 defects": ALL 10 WOL differentials (login/lobby/chat/gameopt/joingame/
+finduser/buddy/userinfo/page/chanchk_host) match the oracle against BOTH sanitizer
+binaries; leak driver (all commands, graceful SIGTERM) 0 leaks; edge/invalid-UTF-8
+fuzzing of the whole surface clean. WOL unit 63/63; full suite green.
+
+## RUNNING TOTAL: ~72 distinct bugs/features across 39 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + WOL
 ## (login, lobby LIST/JOIN, cross-session chat, GAMEOPT, JOINGAME, FINDUSER, buddy
-## list, codepage/locale, GETINSIDER, PAGE) all match the oracle; runtime-hardened
-## (ASan+UBSan clean, leak-clean). Still open: WOL STARTG (needs peer-IP infra),
-## SETOPT (cross-session findme/pageme gating), SQUADINFO/CLANBYNAME, CHANCHK,
-## HOST/INVMSG/USERIP, ladder, matchbot/anongame. See findings/wol-chat-lobby.md.
+## list, codepage/locale, GETINSIDER, PAGE, CHANCHK, HOST) all match the oracle &
+## are runtime-hardened (ASan+UBSan clean, leak-clean; 10 WOL differentials). Still
+## open: WOL STARTG + USERIP (need peer-IP infra), SETOPT (cross-session findme/
+## pageme gating), INVMSG, SQUADINFO/CLANBYNAME, ladder, matchbot/anongame.
+## See findings/wol-chat-lobby.md.
