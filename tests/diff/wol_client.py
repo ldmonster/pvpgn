@@ -284,6 +284,20 @@ def wol_getbuddy(client, tries=20):
     return None
 
 
+def wol_cmd_reply(client, sendline, code, tries=20):
+    """Send a raw command line and return the payload of the first reply with
+    numeric `code` (everything after ':server CODE nick '), or None."""
+    client.send_line(sendline)
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        parts = line.split(" ", 3)
+        if len(parts) >= 2 and parts[1] == str(code):
+            return parts[3] if len(parts) >= 4 else ""
+    return None
+
+
 def wol_gameopt(client, target, options):
     """Send GAMEOPT <target> :<options> (channel '#...' or a nick)."""
     client.send_line(f"GAMEOPT {target} :{options}")

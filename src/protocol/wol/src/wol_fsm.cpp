@@ -205,6 +205,11 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "GETBUDDY") return on_getbuddy();
     if (cmd == "ADDBUDDY") return on_addbuddy(params);
     if (cmd == "DELBUDDY") return on_delbuddy(params);
+    if (cmd == "SETCODEPAGE") return on_setcodepage(params);
+    if (cmd == "GETCODEPAGE") return on_getcodepage(params);
+    if (cmd == "SETLOCALE") return on_setlocale(params);
+    if (cmd == "GETLOCALE") return on_getlocale(params);
+    if (cmd == "GETINSIDER") return on_getinsider(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
     // CVERS, VERCHK, APGAR, SETOPT, SERIAL, STARTG, etc.
@@ -214,8 +219,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         "STARTG",
         "PAGE", "ADVERTR", "ADVERTC", "CHANCHK",
         "HOST", "INVMSG", "INVDEL",
-        "USERIP", "SQUADINFO", "CLANBYNAME", "SETCODEPAGE",
-        "GETCODEPAGE", "SETLOCALE", "GETLOCALE", "GETINSIDER",
+        "USERIP", "SQUADINFO", "CLANBYNAME",
         "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE", "NAMES",
         "TOPIC", "TIME", "KICK", "MODE",
     };

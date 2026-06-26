@@ -11,6 +11,7 @@
 
 #include "protocol/wol/wol_fsm.hpp"
 
+#include <cctype>
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -561,20 +562,28 @@ core::Status<> WolFsm::on_finduser(std::string_view params, bool ex) {
         }
     }
 
-    // Wire form mirrors irc_send_cmd: ":<server> <code> <nick> <payload>" with
-    // the payload verbatim (it already contains its own ':' separator), so this
-    // is built raw rather than via send_numeric (which would inject an extra ':').
-    std::string line = ":";
-    line += std::string(ctx_->server_name());
-    line += ex ? " 398 " : " 388 ";
-    line += nick_;
-    line += ' ';
-    line += payload;
-    return send_raw(line);
+    // Wire form mirrors irc_send_cmd (payload verbatim, carries its own ':').
+    return send_raw_cmd(ex ? 398 : 388, payload);
 }
 
 // Build ":<server> <code> <nick> <params>" — the irc_send_cmd framing, with the
-// params verbatim (no injected ':'). Used by the WOL buddy replies (333/334/335).
+// params copied verbatim (no injected ':').
+core::Status<> WolFsm::send_raw_cmd(int code, std::string_view params) {
+    char code_str[3];
+    code_str[0] = static_cast<char>('0' + (code / 100) % 10);
+    code_str[1] = static_cast<char>('0' + (code / 10) % 10);
+    code_str[2] = static_cast<char>('0' + code % 10);
+    std::string line = ":";
+    line += std::string(ctx_->server_name());
+    line += ' ';
+    line.append(code_str, 3);
+    line += ' ';
+    line += nick_;
+    line += ' ';
+    line += params;
+    return send_raw(line);
+}
+
 core::Status<> WolFsm::on_getbuddy() {
     if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
         return send_numeric(451, nick_.empty() ? "*" : nick_,
@@ -591,13 +600,7 @@ core::Status<> WolFsm::on_getbuddy() {
             }
         }
     }
-    std::string line = ":";
-    line += std::string(ctx_->server_name());
-    line += " 333 ";
-    line += nick_;
-    line += ' ';
-    line += list;
-    return send_raw(line);
+    return send_raw_cmd(333, list);
 }
 
 core::Status<> WolFsm::on_addbuddy(std::string_view params) {
@@ -615,13 +618,7 @@ core::Status<> WolFsm::on_addbuddy(std::string_view params) {
             auto acct = auth_.account_reader->find_by_name(name.value());
             if (acct) {
                 (void)add_friend_->execute(account_id_, acct.value().id());
-                std::string line = ":";
-                line += std::string(ctx_->server_name());
-                line += " 334 ";
-                line += nick_;
-                line += ' ';
-                line += std::string(target);
-                return send_raw(line);
+                return send_raw_cmd(334, target);
             }
         }
     }
@@ -648,13 +645,73 @@ core::Status<> WolFsm::on_delbuddy(std::string_view params) {
         }
     }
     // The original echoes 335 with the name regardless of whether it was present.
-    std::string line = ":";
-    line += std::string(ctx_->server_name());
-    line += " 335 ";
-    line += nick_;
-    line += ' ';
-    line += std::string(target);
-    return send_raw(line);
+    return send_raw_cmd(335, target);
+}
+
+namespace {
+/// Case-insensitive equality for nick comparison.
+bool iequals(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
+core::Status<> WolFsm::on_setcodepage(std::string_view params) {
+    auto cp = trim(first_token(params));
+    if (cp.empty()) return core::ok();  // original: no reply without a param
+    codepage_ = std::atoi(std::string{cp}.c_str());
+    return send_raw_cmd(329, cp);
+}
+
+core::Status<> WolFsm::on_getcodepage(std::string_view params) {
+    auto tok = split_ws(params);
+    if (tok.empty()) return core::ok();  // original: no reply without a param
+    // "<nick>`<cp>`<nick>`<cp>" — own codepage for our nick, 0 for others
+    // (v3 has no cross-session codepage registry).
+    std::string payload;
+    for (std::size_t i = 0; i < tok.size(); ++i) {
+        if (i) payload += '`';
+        const int cp = iequals(tok[i], nick_) ? codepage_ : 0;
+        payload += std::string{tok[i]};
+        payload += '`';
+        payload += std::to_string(cp);
+    }
+    return send_raw_cmd(328, payload);
+}
+
+core::Status<> WolFsm::on_setlocale(std::string_view params) {
+    auto loc = trim(first_token(params));
+    if (loc.empty()) return core::ok();
+    locale_ = std::atoi(std::string{loc}.c_str());
+    return send_raw_cmd(310, loc);
+}
+
+core::Status<> WolFsm::on_getlocale(std::string_view params) {
+    auto tok = split_ws(params);
+    if (tok.empty()) return core::ok();
+    std::string payload;
+    for (std::size_t i = 0; i < tok.size(); ++i) {
+        if (i) payload += '`';
+        const int loc = iequals(tok[i], nick_) ? locale_ : 0;
+        payload += std::string{tok[i]};
+        payload += '`';
+        payload += std::to_string(loc);
+    }
+    return send_raw_cmd(309, payload);
+}
+
+core::Status<> WolFsm::on_getinsider(std::string_view params) {
+    auto target = trim(first_token(params));
+    if (target.empty()) {
+        return send_numeric(461, nick_, "GETINSIDER :Not enough parameters");
+    }
+    return send_raw_cmd(399, std::string{target} + "`0");
 }
 
 }  // namespace pvpgn::protocol::wol

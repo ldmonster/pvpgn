@@ -374,8 +374,20 @@ use-cases into WolFsm (set_social) + make_wol_session; protocol_wol now deps
 application_social. diff_wol_buddy.py: ADD shows the buddy (334), DEL removes it
 (335), matching the oracle.
 
-Remaining W-11 stubs: SETOPT, PAGE, codepage/locale, GETINSIDER,
-SQUADINFO/CLANBYNAME, CHANCHK, HOST/INVMSG/USERIP, ladder LISTSEARCH/etc.
+## W-11 progress: codepage / locale / GETINSIDER — DONE (wave 37)
+
+SETCODEPAGE (329) / GETCODEPAGE (328), SETLOCALE (310) / GETLOCALE (309), and
+GETINSIDER (399). codepage/locale are stored per-session (codepage_/locale_) and
+echoed back; the GET forms emit the original's backtick "<nick>`<value>`..."
+payload (own value for this session's nick, 0 for others — v3 has no
+cross-session codepage/locale registry, a documented simplification). GETINSIDER
+echoes "<nick>`0". All built via a new send_raw_cmd() helper (irc_send_cmd
+framing; the existing finduser/buddy raw replies were refactored onto it).
+diff_wol_userinfo.py: all five replies match the oracle (self-query).
+
+Remaining W-11 stubs: SETOPT (effect is cross-session FINDUSER/PAGE gating — needs
+a shared findme/pageme registry), PAGE (389 + delivery), SQUADINFO/CLANBYNAME
+(clan), CHANCHK, HOST/INVMSG/USERIP, ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE.
 
 ## What MATCHES (or is acceptably close)
 

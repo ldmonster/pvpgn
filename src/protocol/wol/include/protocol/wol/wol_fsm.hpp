@@ -285,6 +285,18 @@ private:
     /// `_handle_finduser_command` / `_handle_finduserex_command`.
     core::Status<> on_finduser(std::string_view params, bool ex);
 
+    /// SETCODEPAGE <cp> — store this session's codepage; reply 329 <cp>.
+    core::Status<> on_setcodepage(std::string_view params);
+    /// GETCODEPAGE <nick...> — reply 328 "<nick>`<cp>`..." (own codepage for
+    /// this session's nick, 0 for others — v3 has no cross-session codepage map).
+    core::Status<> on_getcodepage(std::string_view params);
+    /// SETLOCALE <locale> — store this session's locale; reply 310 <locale>.
+    core::Status<> on_setlocale(std::string_view params);
+    /// GETLOCALE <nick...> — reply 309 "<nick>`<locale>`...".
+    core::Status<> on_getlocale(std::string_view params);
+    /// GETINSIDER <nick> — reply 399 "<nick>`0" (461 with no param).
+    core::Status<> on_getinsider(std::string_view params);
+
     /// GETBUDDY — reply 333 with the backtick-terminated buddy (friend) list.
     core::Status<> on_getbuddy();
 
@@ -338,6 +350,11 @@ private:
     /// Send a raw line (appends \r\n).
     core::Status<> send_raw(std::string_view line);
 
+    /// Send ":<server> <code> <nick> <params>" — the irc_send_cmd framing, with
+    /// @p params copied verbatim (no injected ':'). Used by WOL replies whose
+    /// payload carries its own structure (codepage/locale/insider/buddy lists).
+    core::Status<> send_raw_cmd(int code, std::string_view params);
+
     // -----------------------------------------------------------------------
     // Members
     // -----------------------------------------------------------------------
@@ -367,6 +384,10 @@ private:
     std::string apgar_;
     /// WOL SKU from CVERS/VERCHK (0 until set); used in the VERCHK reply.
     int         wol_sku_ = 0;
+
+    /// This session's codepage / locale (SETCODEPAGE / SETLOCALE; 0 until set).
+    int         codepage_ = 0;
+    int         locale_   = 0;
 
     /// Account ID resolved after successful login (0 until authenticated).
     domain::AccountId account_id_{0};
