@@ -758,7 +758,25 @@ wave-45 profile store. No timestamps in the reply -> byte-exact diff.
 diff_profile.py matches the oracle; hardened under both sanitizer binaries.
 (commit 646f7f5)
 
-## RUNNING TOTAL: ~79 distinct bugs/features across 46 waves. Login (all families)
+## Wave 47: BNCS SID_CHANGEPASSWORD (0x31, OLS) — password rotation
+on(ChangePasswordRequest) was a stub. Wired to the unit-tested
+ChangePasswordUseCase (session-hash arm): decode ticks/sessionkey/old-hash2/
+new-hash1 -> execute (re-derives old hash2 from stored hash1 + ticks/sessionkey,
+rotates on match) -> reply SERVER_CHANGEPASSACK. Fixed a stale forward-decl
+(change_password field was typed `ChangePassword`, the real class is
+`ChangePasswordUseCase`) + wired it in main with the login session hasher.
+NO oracle differential: the original gates change-password on a random
+per-connection sessionkey (anti-tamper) carried by OLS-session internals v3
+doesn't model. Rotation verified by the use-case unit tests + ack=1 end-to-end;
+331 bnet/auth unit tests pass under ASan. (commit 9312f8a)
+
+## NOTE (found while verifying W47): v3 may not detach an OLS session on BNCS
+## disconnect — re-login of the same account on a fresh connection hit the
+## single-session policy (rc=0x02). Not a change-password bug; flagged for a
+## future look (WOL got detach-on-close in W32; the BNCS/OLS close path wasn't
+## re-checked here).
+
+## RUNNING TOTAL: ~80 distinct bugs/features across 47 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
