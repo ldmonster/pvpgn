@@ -20,6 +20,7 @@ void make_wol_session(
     const ServerConfig&                      cfg,
     domain::SessionId                        session_id,
     std::shared_ptr<infra::routing::MessageRouterImpl> router,
+    domain::chat::IChannelReader*            channel_reader,
     protocol::wol::WolAuthDeps               auth,
     std::shared_ptr<application::chat::ListChannels> list_channels,
     std::shared_ptr<application::chat::JoinChannel>   join_channel,
@@ -35,7 +36,7 @@ void make_wol_session(
     // router so channel chat from other members is delivered to this client.
     // The router holds a weak_ptr to the egress; `egress` is kept alive by the
     // WolEgressContext owned by the FSM (captured in the callbacks below).
-    fsm->set_routing(session_id, router.get());
+    fsm->set_routing(session_id, router.get(), channel_reader);
     if (router) {
         router->register_session(session_id, egress);
     }

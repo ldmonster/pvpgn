@@ -16,10 +16,15 @@
 #include "application/chat/join_channel.hpp"
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
+#include "domain/chat/channel.hpp"
+#include "domain/chat/ports.hpp"
 #include "domain/connection/ports.hpp"
+#include "domain/identity/account.hpp"
+#include "domain/identity/ports.hpp"
 #include "domain/shared/chat_message.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
+#include "domain/shared/user_name.hpp"
 #include "wol_fsm/wol_internal.hpp"
 
 namespace pvpgn::protocol::wol {
@@ -256,25 +261,18 @@ core::Status<> WolFsm::on_privmsg(std::string_view params) {
             // expect the standard IRC form, with the sender's hostmask prefix:
             //   :<nick>!<nick>@<host> PRIVMSG <#channel> :<message>
             // The line is identical for all recipients (it carries the
-            // sender's identity), so encode once and route to each SessionId.
-            // The sender gets no echo (matches the original WOL server).
-            if (message_router_) {
-                std::string line = ":";
-                line += nick_;
-                line += '!';
-                line += nick_;
-                line += "@Battle.net PRIVMSG ";
-                line += std::string(target);
-                line += " :";
-                line += std::string(message);
-                line += "\r\n";
-                const auto* bytes =
-                    reinterpret_cast<const std::byte*>(line.data());
-                std::span<const std::byte> payload{bytes, line.size()};
-                for (const auto& sid : post_result.value().recipients) {
-                    (void)message_router_->send(sid, payload);
-                }
-            }
+            // sender's identity), so encode once and route to each SessionId
+            // PostMessage resolved. The sender gets no echo (matches the
+            // original WOL server).
+            std::string line = ":";
+            line += nick_;
+            line += '!';
+            line += nick_;
+            line += "@Battle.net PRIVMSG ";
+            line += std::string(target);
+            line += " :";
+            line += std::string(message);
+            route_irc_line(line, post_result.value().recipients);
             return core::ok();
         }
         // No use-case wired — silently accept (stub mode).
@@ -282,6 +280,91 @@ core::Status<> WolFsm::on_privmsg(std::string_view params) {
     }
 
     // Private message to a user; send 401 ERR_NOSUCHNICK.
+    std::string tgt{target};
+    return send_numeric(401, nick_, tgt + " :No such nick");
+}
+
+void WolFsm::route_irc_line(const std::string& line,
+                            const std::vector<domain::SessionId>& recipients) {
+    if (!message_router_ || recipients.empty()) return;
+    std::string buf = line;
+    buf += "\r\n";
+    const auto* bytes = reinterpret_cast<const std::byte*>(buf.data());
+    std::span<const std::byte> payload{bytes, buf.size()};
+    for (const auto& sid : recipients) {
+        (void)message_router_->send(sid, payload);
+    }
+}
+
+std::vector<domain::SessionId>
+WolFsm::current_channel_member_sessions(bool exclude_self) const {
+    std::vector<domain::SessionId> sessions;
+    if (!channel_reader_ || !auth_.session_registry || channel_id_.value() == 0) {
+        return sessions;
+    }
+    auto channel = channel_reader_->find_by_id(channel_id_);
+    if (!channel) return sessions;
+    for (const auto& mid : channel.value().member_ids()) {
+        if (exclude_self && mid.value() == account_id_.value()) continue;
+        if (auto sid = auth_.session_registry->session_for(mid)) {
+            sessions.push_back(sid.value());
+        }
+    }
+    return sessions;
+}
+
+core::Status<> WolFsm::on_gameopt(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+
+    // GAMEOPT <target> :<gameOptions>
+    auto sp = params.find(' ');
+    if (sp == std::string_view::npos) {
+        return send_numeric(461, nick_, "GAMEOPT :Not enough parameters");
+    }
+    std::string_view target  = params.substr(0, sp);
+    std::string_view message = params.substr(sp + 1);
+    if (!message.empty() && message[0] == ':') message.remove_prefix(1);
+    if (target.empty() || message.empty()) {
+        return send_numeric(461, nick_, "GAMEOPT :Not enough parameters");
+    }
+
+    // The relayed line carries the sender's identity and the opaque options
+    // text, exactly like the original `message_type_gameopt_*`:
+    //   :<nick>!<nick>@<host> GAMEOPT <target> :<gameOptions>
+    std::string line = ":";
+    line += nick_;
+    line += '!';
+    line += nick_;
+    line += "@Battle.net GAMEOPT ";
+    line += std::string(target);
+    line += " :";
+    line += std::string(message);
+
+    if (target[0] == '#') {
+        // Channel game-options: broadcast to the current channel's members
+        // (the original keys off conn_get_channel, not the target name). No
+        // self-echo. Mirrors channel_message_send(message_type_gameopt_talk).
+        route_irc_line(line, current_channel_member_sessions(/*exclude_self=*/true));
+        return core::ok();
+    }
+
+    // User game-options: whisper to a single nick. Resolve nick -> account ->
+    // session; 401 if the target is not a known/online user.
+    if (auth_.account_reader && auth_.session_registry) {
+        auto name = domain::UserName::parse(std::string{target});
+        if (name) {
+            auto acct = auth_.account_reader->find_by_name(name.value());
+            if (acct) {
+                if (auto sid = auth_.session_registry->session_for(acct.value().id())) {
+                    route_irc_line(line, {sid.value()});
+                    return core::ok();
+                }
+            }
+        }
+    }
     std::string tgt{target};
     return send_numeric(401, nick_, tgt + " :No such nick");
 }

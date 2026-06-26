@@ -196,6 +196,31 @@ def wol_privmsg(client, target, message):
     client.send_line(f"PRIVMSG {target} :{message}")
 
 
+def wol_gameopt(client, target, options):
+    """Send GAMEOPT <target> :<options> (channel '#...' or a nick)."""
+    client.send_line(f"GAMEOPT {target} :{options}")
+
+
+def wol_read_verb(client, verb, tries=20):
+    """Read lines until one of the form ":<src>!.. <VERB> <target> :<text>" is
+    seen, returning (sender, target, text), or None. Generic over PRIVMSG,
+    GAMEOPT, STARTG, etc."""
+    tok = f" {verb} "
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        if tok not in line:
+            continue
+        prefix, _, after = line.partition(tok)
+        sender = prefix[1:].split("!", 1)[0] if prefix.startswith(":") else prefix
+        target, _, text = after.partition(" ")
+        if text.startswith(":"):
+            text = text[1:]
+        return (sender, target, text)
+    return None
+
+
 def wol_read_privmsg(client, want_channel=None, tries=20):
     """Read lines until a PRIVMSG is received, returning (sender, target, text)
     or None if none arrives. Filters to want_channel when given."""

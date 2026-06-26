@@ -490,20 +490,20 @@ green; the null-router stub path (unit tests) is unchanged.
 
 ### Next increment plan — GAMEOPT / STARTG / JOINGAME (the remaining game lobby)
 
-Now unblocked by F-W31. The oracle reference is `handle_wol.cpp`
-`_handle_gameopt_command` (1130), `_handle_startg_command` (1264),
-`_handle_joingame_command` (908). Faithful scope, smallest-first:
+Unblocked by F-W31. Oracle ref: `handle_wol.cpp` `_handle_gameopt_command` (1130),
+`_handle_startg_command` (1264), `_handle_joingame_command` (908).
 
-1. **GAMEOPT channel-talk** (smallest, reuses the router): oracle does
-   `channel_message_send(channel, message_type_gameopt_talk, conn, text)` — a
-   pure broadcast of the opaque options text to the *current channel*'s members,
-   **no game model required**. v3: resolve the current channel's member sessions
-   (needs a member→session list the WolFsm can reach — either thread the existing
-   `channel_reader` + `session_registry` into WolFsm, or add a small
-   "list channel member sessions" use-case) and route
-   `:<nick>!<nick>@Battle.net GAMEOPT <#chan> :<text>`. Also GAMEOPT-whisper to a
-   single nick (resolve nick→session). Diff: two clients, A GAMEOPTs, B receives.
-2. **JOINGAME create/join**: needs the game-as-channel model — a game *is* a
+1. **GAMEOPT channel-talk — DONE (wave 33).** `on_gameopt` now relays the opaque
+   options text: channel mode (`#...`) broadcasts
+   `:<nick>!<nick>@Battle.net GAMEOPT <#chan> :<text>` to the current channel's
+   members (resolved via a `channel_reader` threaded into WolFsm +
+   `auth_.session_registry`, excluding self — mirrors
+   `channel_message_send(message_type_gameopt_talk)`); whisper mode resolves
+   nick→account→session via `auth_.account_reader` (401 if offline). Shared
+   `route_irc_line()` helper (on_privmsg now uses it too). `diff_wol_gameopt.py`:
+   B receives A's options on both oracle and v3. `make_wol_session`/`set_routing`
+   now carry the channel reader (`&channel_repo`).
+2. **JOINGAME create/join** (NEXT): needs the game-as-channel model — a game *is* a
    channel with min/max players, channelType (tag), tournament flag,
    gameExtension, optional password. Create (numparams>=7) makes the channel+game
    and acks `message_wol_joingame`; Join (numparams 2|3) finds an available game,

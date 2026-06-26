@@ -72,6 +72,10 @@ namespace pvpgn::domain::connection {
 class IMessageRouter;
 }  // namespace pvpgn::domain::connection
 
+namespace pvpgn::domain::chat {
+class IChannelReader;
+}  // namespace pvpgn::domain::chat
+
 namespace pvpgn::protocol::wol {
 
 /// Collaborators the native Westwood Online (APGAR/CVERS) login path needs.
@@ -155,12 +159,16 @@ public:
     /// Assign the cross-session identity for this connection. Must be called
     /// before authentication so the session registry attaches the account to
     /// the right SessionId and the message router can deliver to it. @p router
-    /// is non-owning and must outlive the FSM (may be null in test mode, in
-    /// which case channel messages are accepted but not relayed).
+    /// and @p channel_reader are non-owning and must outlive the FSM (both may
+    /// be null in test mode, in which case channel messages are accepted but
+    /// not relayed). @p channel_reader resolves a channel's current members for
+    /// GAMEOPT/STARTG-style broadcasts.
     void set_routing(domain::SessionId session_id,
-                     domain::connection::IMessageRouter* router) noexcept {
+                     domain::connection::IMessageRouter* router,
+                     domain::chat::IChannelReader* channel_reader = nullptr) noexcept {
         session_id_     = session_id;
         message_router_ = router;
+        channel_reader_ = channel_reader;
     }
 
     /// Feed raw bytes from the TCP stream into the FSM.
@@ -229,6 +237,22 @@ private:
 
     /// PRIVMSG <target> :<message>
     core::Status<> on_privmsg(std::string_view params);
+
+    /// GAMEOPT <target> :<gameOptions> — relay opaque game-option text to the
+    /// current channel's members (target "#...") or whisper it to a single nick.
+    /// Mirrors the original `_handle_gameopt_command` (channel-talk / whisper).
+    core::Status<> on_gameopt(std::string_view params);
+
+    /// Route a fully-formed IRC line (CRLF appended here) to each recipient
+    /// SessionId via the message router. Best-effort; null router → no-op.
+    void route_irc_line(const std::string& line,
+                        const std::vector<domain::SessionId>& recipients);
+
+    /// Resolve the current channel's member SessionIds (optionally excluding
+    /// this session) via the channel reader + session registry. Empty when the
+    /// collaborators are absent or the channel is unknown.
+    std::vector<domain::SessionId>
+    current_channel_member_sessions(bool exclude_self) const;
 
     /// Attempt authentication with the current nick_/user_/pass_ credentials.
     /// Called from on_pass() and on_user() once all three are available.
@@ -304,6 +328,10 @@ private:
     /// connections. Non-owning; null in test/stub mode (messages still post to
     /// the channel but are not delivered to peers).
     domain::connection::IMessageRouter* message_router_ = nullptr;
+
+    /// Channel reader for resolving a channel's current members (GAMEOPT/STARTG
+    /// broadcasts). Non-owning; null in test/stub mode.
+    domain::chat::IChannelReader* channel_reader_ = nullptr;
 
     /// Accumulation buffer for partial lines.
     std::string line_buf_;
