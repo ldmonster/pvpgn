@@ -26,6 +26,10 @@ namespace pvpgn::domain::chat {
 class IChannelReader;
 }  // namespace pvpgn::domain::chat
 
+namespace pvpgn::application::game {
+class IWolGameStore;
+}  // namespace pvpgn::application::game
+
 namespace pvpgn::app::bnetd {
 
 /// Wire up a WolFsm for the given TCP session and start it.
@@ -35,6 +39,8 @@ namespace pvpgn::app::bnetd {
 ///   and unregistered on close. May be null (test/standalone mode).
 /// @param channel_reader  Resolves a channel's current members for GAMEOPT-style
 ///   broadcasts. Non-owning; may be null.
+/// @param wol_game_store  WOL game-channel registry for JOINGAME. Non-owning;
+///   may be null.
 /// @param auth  Native Westwood Online auth collaborators (CVERS/APGAR flow).
 ///              When incomplete the FSM falls back to the legacy IRC path.
 /// @param list_channels/join_channel/post_message  Chat use-cases for the
@@ -45,6 +51,7 @@ void make_wol_session(
     domain::SessionId                        session_id,
     std::shared_ptr<infra::routing::MessageRouterImpl> router,
     domain::chat::IChannelReader*            channel_reader,
+    application::game::IWolGameStore*        wol_game_store,
     protocol::wol::WolAuthDeps               auth,
     std::shared_ptr<application::chat::ListChannels> list_channels,
     std::shared_ptr<application::chat::JoinChannel>   join_channel,

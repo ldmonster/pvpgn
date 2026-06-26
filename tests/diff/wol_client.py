@@ -196,6 +196,35 @@ def wol_privmsg(client, target, message):
     client.send_line(f"PRIVMSG {target} :{message}")
 
 
+def wol_joingame_create(client, name, minp, maxp, gtype, tournament=0):
+    """CREATE a WOL game-channel (WOLv1: 7 params)."""
+    client.send_line(f"JOINGAME {name} {minp} {maxp} {gtype} 1 1 {tournament}")
+
+
+def wol_joingame_join(client, name, password=None):
+    """JOIN an existing WOL game-channel (2 params, or 3 with a password)."""
+    if password is None:
+        client.send_line(f"JOINGAME {name} 1")
+    else:
+        client.send_line(f"JOINGAME {name} 1 {password}")
+
+
+def wol_read_after_verb(client, verb, tries=20):
+    """Read until a ":<src>!.. <VERB> <rest>" line; return (sender, rest) or None.
+    `rest` is the full payload after the verb (for JOINGAME acks etc.)."""
+    tok = f" {verb} "
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        if tok not in line:
+            continue
+        prefix, _, after = line.partition(tok)
+        sender = prefix[1:].split("!", 1)[0] if prefix.startswith(":") else prefix
+        return (sender, after)
+    return None
+
+
 def wol_gameopt(client, target, options):
     """Send GAMEOPT <target> :<options> (channel '#...' or a nick)."""
     client.send_line(f"GAMEOPT {target} :{options}")

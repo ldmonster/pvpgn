@@ -21,6 +21,7 @@ void make_wol_session(
     domain::SessionId                        session_id,
     std::shared_ptr<infra::routing::MessageRouterImpl> router,
     domain::chat::IChannelReader*            channel_reader,
+    application::game::IWolGameStore*        wol_game_store,
     protocol::wol::WolAuthDeps               auth,
     std::shared_ptr<application::chat::ListChannels> list_channels,
     std::shared_ptr<application::chat::JoinChannel>   join_channel,
@@ -37,6 +38,7 @@ void make_wol_session(
     // The router holds a weak_ptr to the egress; `egress` is kept alive by the
     // WolEgressContext owned by the FSM (captured in the callbacks below).
     fsm->set_routing(session_id, router.get(), channel_reader);
+    fsm->set_game_store(wol_game_store);
     if (router) {
         router->register_session(session_id, egress);
     }

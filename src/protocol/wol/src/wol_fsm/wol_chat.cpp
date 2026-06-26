@@ -11,11 +11,14 @@
 
 #include "protocol/wol/wol_fsm.hpp"
 
+#include <cstdlib>
 #include <string>
+#include <vector>
 
 #include "application/chat/join_channel.hpp"
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
+#include "application/game/wol_game_store.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/chat/ports.hpp"
 #include "domain/connection/ports.hpp"
@@ -367,6 +370,150 @@ core::Status<> WolFsm::on_gameopt(std::string_view params) {
     }
     std::string tgt{target};
     return send_numeric(401, nick_, tgt + " :No such nick");
+}
+
+namespace {
+/// Split on runs of spaces into non-empty tokens (IRC-style param list).
+std::vector<std::string_view> split_ws(std::string_view s) {
+    std::vector<std::string_view> out;
+    std::size_t i = 0;
+    while (i < s.size()) {
+        while (i < s.size() && s[i] == ' ') ++i;
+        std::size_t start = i;
+        while (i < s.size() && s[i] != ' ') ++i;
+        if (i > start) out.push_back(s.substr(start, i - start));
+    }
+    return out;
+}
+}  // namespace
+
+core::Status<> WolFsm::on_joingame(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+
+    auto tok = split_ws(params);
+    if (tok.empty()) {
+        return send_numeric(461, nick_, "JOINGAME :Not enough parameters");
+    }
+
+    // The first token is the game/channel name (kept with '#' for the wire ack,
+    // stripped for the domain channel/game name).
+    std::string raw_name{tok[0]};
+    std::string game_name = raw_name;
+    if (!game_name.empty() && game_name[0] == '#') game_name.erase(0, 1);
+    if (game_name.empty() || !join_channel_) {
+        return send_numeric(461, nick_, "JOINGAME :Not enough parameters");
+    }
+
+    auto joingame_prefix = [&](std::string_view text) {
+        std::string line = ":";
+        line += nick_;
+        line += '!';
+        line += nick_;
+        line += "@Battle.net JOINGAME ";
+        line += text;
+        return line;
+    };
+
+    // ----- CREATE mode: JOINGAME #name min max type a b tournament [ext] [pass]
+    if (tok.size() >= 7) {
+        auto u = [&](std::size_t i) -> std::uint32_t {
+            return i < tok.size()
+                       ? static_cast<std::uint32_t>(
+                             std::strtoul(std::string{tok[i]}.c_str(), nullptr, 10))
+                       : 0u;
+        };
+        auto join_result = join_channel_->execute(account_id_, game_name,
+                                                  domain::ClientTag{});
+        if (!join_result) {
+            return send_numeric(478, nick_, raw_name + " :JOINGAME failed");
+        }
+        channel_      = raw_name;
+        channel_id_   = join_result.value().channel.id();
+        state_        = WolState::InChannel;
+
+        if (wol_game_store_) {
+            application::game::WolGameInfo info;
+            info.name           = game_name;
+            info.min_players    = u(1);
+            info.max_players    = u(2);
+            info.game_type      = u(3);
+            info.tournament     = u(6);
+            info.game_extension = tok.size() >= 8 ? std::string{tok[7]} : "0";
+            info.password       = tok.size() >= 9 ? std::string{tok[8]} : "";
+            info.host           = account_id_;
+            info.channel_id     = channel_id_;
+            info.players        = {account_id_};
+            wol_game_store_->create(info);
+        }
+
+        // WOLv1 create ack (numparams==7): "<min> <max> <type> <p4> 0 <tourn> :#name"
+        std::string text;
+        text += std::string{tok[1]};
+        text += ' ';
+        text += std::string{tok[2]};
+        text += ' ';
+        text += std::string{tok[3]};
+        text += ' ';
+        text += std::string{tok[4]};
+        text += " 0 ";
+        text += std::string{tok[6]};
+        text += " :";
+        text += raw_name;
+        // CREATE acks the host only.
+        return send_raw(joingame_prefix(text));
+    }
+
+    // ----- JOIN mode: JOINGAME #name <something> [password]
+    if (tok.size() == 2 || tok.size() == 3) {
+        if (!wol_game_store_) {
+            return send_numeric(478, nick_, raw_name + " :Game channel has closed");
+        }
+        auto game = wol_game_store_->find(game_name);
+        if (!game) {
+            return send_numeric(478, nick_, raw_name + " :Game channel has closed");
+        }
+        if (game->is_full()) {
+            return send_numeric(471, nick_, raw_name + " :Channel is full.");
+        }
+        if (!game->password.empty()) {
+            std::string supplied = tok.size() == 3 ? std::string{tok[2]} : "";
+            if (supplied != game->password) {
+                return send_numeric(475, nick_, raw_name + " :Bad password");
+            }
+        }
+
+        auto join_result = join_channel_->execute(account_id_, game_name,
+                                                  domain::ClientTag{});
+        if (!join_result) {
+            return send_numeric(478, nick_, raw_name + " :JOINGAME failed");
+        }
+        channel_    = raw_name;
+        channel_id_ = join_result.value().channel.id();
+        state_      = WolState::InChannel;
+        (void)wol_game_store_->add_player(game_name, account_id_);
+
+        // WOLv1 join ack: "<min> <max> <type> 1 1 <tourn> :#channel".
+        std::string text;
+        text += std::to_string(game->min_players);
+        text += ' ';
+        text += std::to_string(game->max_players);
+        text += ' ';
+        text += std::to_string(game->game_type);
+        text += " 1 1 ";
+        text += std::to_string(game->tournament);
+        text += " :";
+        text += raw_name;
+        // JOIN acks every channel member (the original channel_message_sends it),
+        // so the host learns a player joined and the joiner gets its ack.
+        route_irc_line(joingame_prefix(text),
+                       current_channel_member_sessions(/*exclude_self=*/false));
+        return core::ok();
+    }
+
+    return send_numeric(461, nick_, "JOINGAME :Not enough parameters");
 }
 
 }  // namespace pvpgn::protocol::wol

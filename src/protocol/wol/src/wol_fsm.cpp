@@ -199,13 +199,14 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "PART")    return on_part(params);
     if (cmd == "PRIVMSG") return on_privmsg(params);
     if (cmd == "GAMEOPT") return on_gameopt(params);
+    if (cmd == "JOINGAME") return on_joingame(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
-    // CVERS, VERCHK, APGAR, SETOPT, SERIAL, STARTG, JOINGAME, etc.
+    // CVERS, VERCHK, APGAR, SETOPT, SERIAL, STARTG, etc.
     // Return 421 ERR_UNKNOWNCOMMAND for truly unknown commands.
     const std::string_view wol_known[] = {
         "SETOPT", "SERIAL",
-        "STARTG", "JOINGAME", "FINDUSER", "FINDUSEREX",
+        "STARTG", "FINDUSER", "FINDUSEREX",
         "PAGE", "ADVERTR", "ADVERTC", "CHANCHK", "GETBUDDY",
         "ADDBUDDY", "DELBUDDY", "HOST", "INVMSG", "INVDEL",
         "USERIP", "SQUADINFO", "CLANBYNAME", "SETCODEPAGE",

@@ -117,6 +117,7 @@
 #include "infra/inmemory/session_registry.hpp"
 #include "infra/inmemory/srp3_credential_store.hpp"
 #include "infra/inmemory/wol_credential_store.hpp"
+#include "infra/inmemory/wol_game_store.hpp"
 #include "infra/inmemory/friend_list_repository.hpp"
 #include "infra/inmemory/ignore_store.hpp"
 #include "application/social/add_friend.hpp"
@@ -359,6 +360,10 @@ int main(int argc, char* argv[]) {
         // Westwood Online APGAR token store (WOL CVERS/APGAR login auto-creates
         // and verifies). Lives for the whole run loop, like srp3_store.
         infra::inmemory::InMemoryWolCredentialStore  wol_store;
+        // Westwood Online game-channel registry (WOL JOINGAME create/join).
+        // Run-loop scoped like the stores above, shared across WOL sessions so a
+        // game hosted on one connection is joinable from another.
+        infra::inmemory::InMemoryWolGameStore        wol_game_store;
         // Friends list store (SID_FRIENDSLIST + /friends add|remove). Run-loop
         // scoped like the credential stores above.
         infra::inmemory::InMemoryFriendListRepository friend_repo;
@@ -525,12 +530,12 @@ int main(int argc, char* argv[]) {
         auto wol_post_message  = use_cases.post_message;
         TcpListener wol_listener{
             rt,
-            [&cfg, &channel_repo, message_router, wol_auth, wol_list_channels,
-             wol_join_channel, wol_post_message]
+            [&cfg, &channel_repo, &wol_game_store, message_router, wol_auth,
+             wol_list_channels, wol_join_channel, wol_post_message]
             (std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
                 make_wol_session(std::move(tcp), cfg, next_session_id(),
-                                 message_router, &channel_repo, wol_auth,
-                                 wol_list_channels, wol_join_channel,
+                                 message_router, &channel_repo, &wol_game_store,
+                                 wol_auth, wol_list_channels, wol_join_channel,
                                  wol_post_message);
             },
             wol_idle};

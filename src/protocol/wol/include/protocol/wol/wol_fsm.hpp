@@ -76,6 +76,10 @@ namespace pvpgn::domain::chat {
 class IChannelReader;
 }  // namespace pvpgn::domain::chat
 
+namespace pvpgn::application::game {
+class IWolGameStore;
+}  // namespace pvpgn::application::game
+
 namespace pvpgn::protocol::wol {
 
 /// Collaborators the native Westwood Online (APGAR/CVERS) login path needs.
@@ -171,6 +175,13 @@ public:
         channel_reader_ = channel_reader;
     }
 
+    /// Wire the WOL game-channel registry so JOINGAME can create/find games.
+    /// Non-owning; null in test/stub mode (JOINGAME then falls back to a local
+    /// channel join without game tracking).
+    void set_game_store(application::game::IWolGameStore* store) noexcept {
+        wol_game_store_ = store;
+    }
+
     /// Feed raw bytes from the TCP stream into the FSM.
     /// Returns ok() on success; error causes the session to close.
     core::Status<> on_bytes(std::span<const std::byte> bytes);
@@ -242,6 +253,13 @@ private:
     /// current channel's members (target "#...") or whisper it to a single nick.
     /// Mirrors the original `_handle_gameopt_command` (channel-talk / whisper).
     core::Status<> on_gameopt(std::string_view params);
+
+    /// JOINGAME — create a game-channel (>= 7 params) or join an existing one
+    /// (2-3 params). Tracks the game in the WOL game store, joins the backing
+    /// chat channel, and emits the WOLv1 JOINGAME acknowledgement (create acks
+    /// the host; join acks every channel member). Mirrors the original
+    /// `_handle_joingame_command`.
+    core::Status<> on_joingame(std::string_view params);
 
     /// Route a fully-formed IRC line (CRLF appended here) to each recipient
     /// SessionId via the message router. Best-effort; null router → no-op.
@@ -332,6 +350,10 @@ private:
     /// Channel reader for resolving a channel's current members (GAMEOPT/STARTG
     /// broadcasts). Non-owning; null in test/stub mode.
     domain::chat::IChannelReader* channel_reader_ = nullptr;
+
+    /// WOL game-channel registry (JOINGAME create/join). Non-owning; null in
+    /// test/stub mode.
+    application::game::IWolGameStore* wol_game_store_ = nullptr;
 
     /// Accumulation buffer for partial lines.
     std::string line_buf_;

@@ -503,15 +503,18 @@ Unblocked by F-W31. Oracle ref: `handle_wol.cpp` `_handle_gameopt_command` (1130
    `route_irc_line()` helper (on_privmsg now uses it too). `diff_wol_gameopt.py`:
    B receives A's options on both oracle and v3. `make_wol_session`/`set_routing`
    now carry the channel reader (`&channel_repo`).
-2. **JOINGAME create/join** (NEXT): needs the game-as-channel model — a game *is* a
-   channel with min/max players, channelType (tag), tournament flag,
-   gameExtension, optional password. Create (numparams>=7) makes the channel+game
-   and acks `message_wol_joingame`; Join (numparams 2|3) finds an available game,
-   checks full/banned/password, joins its channel, acks WOLv1/WOLv2 layout
-   `<min> <max> <gameType> 1 [1|clanID] [clanID|longIP] <tournament> :<#chan>`.
-   This is the large piece (game repo already exists for BNCS GETADVLISTEX; needs
-   WOL-specific channel-game fields + the ack encoder).
-3. **STARTG**: `game_set_status(started)` + per-player STARTG with the IP list;
+2. **JOINGAME create/join — DONE (wave 34).** New WOL game-channel registry
+   (`application::game::IWolGameStore` + `InMemoryWolGameStore`, run-loop scoped,
+   shared across WOL sessions) holds the WOL-specific metadata (min/max players,
+   game type, tournament, gameExtension, password, host, channel id, players) —
+   kept apart from the BNCS IGameRepository. `on_joingame`: CREATE (>=7 params)
+   registers the game + creates the backing channel (JoinChannel) + acks the host
+   `<min> <max> <type> <p4> 0 <tourn> :#name` (WOLv1); JOIN (2-3 params) finds the
+   game (478 if closed), checks full (471) / password (475), joins the channel,
+   and acks **every channel member** `<min> <max> <type> 1 1 <tourn> :#chan` via
+   the router (so the host learns a player joined). `diff_wol_joingame.py`: A
+   creates #wolgame, B joins, B's ack `2 8 1 1 1 0` matches the oracle.
+3. **STARTG** (NOW UNBLOCKED by #2): `game_set_status(started)` + per-player STARTG with the IP list;
    WOLv2 `:<owner>!WWOL@host STARTG u :user1 ip user2 ip :gameNumber time_t`,
    WOLv1 the owner-IP form. Broadcasts to the named players via the router.
 
