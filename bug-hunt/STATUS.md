@@ -1181,3 +1181,35 @@ infra/discovery (KEEP — used by services/combined + has a test) and infra/metr
 infra/webui_json (KEEP — have tests). Removed the CMake block + src/infra/health/.
 Reconfigure clean, full relink + 3199/3199 units green; diff_chat still matches the
 oracle (pure build-level removal, bnetd binary unchanged — it never linked the lib).
+
+## Wave 76: BNCS channel-talk edge cases (empty body, over-long body)
+Deeper divergence in the already-tested channel-talk path (BnetFsm::on(ChatCommand),
+fsm_chat.cpp). The original (handle_bnet.cpp _client_message + message.cpp
+message_format) handles two malformed channel-text inputs with WELL-DEFINED,
+notice-free behavior, whereas v3 invented an EID_INFO "Invalid chat message"
+reply at the ChatMessage::create boundary:
+  - EMPTY body: the original replaces empty text with a single space
+    (message.cpp:993-994 "empty messages crash some clients, just send
+    whitespace") and STILL broadcasts an EID_TALK (" ") to the rest of the
+    channel; the sender gets nothing. v3 rejected it -> sent the sender
+    "Invalid chat message" EID_INFO and broadcast NOTHING.
+  - OVER-LONG body (> MAX_MESSAGE_LEN 255): packet_get_str_const returns NULL,
+    the handler returns -1, NOTHING is sent to anyone (silent discard). v3 again
+    replied "Invalid chat message" to the sender.
+The original NEVER sends a synthetic invalid/failed-message notice for channel
+text. Fix (localized to the BNCS protocol boundary, mirroring where the original
+does it — no domain change, no cross-protocol/test churn): in on(ChatCommand)'s
+regular-message path, map empty -> " " before ChatMessage::create, and on
+create/post failure return core::ok() (silent discard) instead of the EID_INFO
+notice; broadcast the validated ChatMessage text. The domain ChatMessage value
+object stays strict (empty/over-long rejected) — the empty->space and silent-drop
+transforms live at the protocol edge exactly like the original.
+diff_chat_edges.py verifies vs the oracle: empty -> bob sees one EID_TALK " ",
+sender silent; 300-byte -> nobody receives anything, sender silent. Both match
+exactly. 3199/3199 units (8 load_anongame temp-file flakes pass -j1); chat/channel
+diff regression set (chat, talk, whisper, emote, multichannel, leave, squelch,
+chat_edges) all match the oracle.
+NOTE: lengths 224..255 are NOT cleanly diffable — the original gates those via
+flood/quota (config + rate dependent) which v3 does not implement; left as a
+known quota gap (see findings/message-squelch-quota.md). The WOL/IRC chat paths
+still use ChatMessage::create directly (reject empty); not exercised here.

@@ -389,7 +389,22 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             /*text*/        result_text}});
     }
 
-    // Regular channel message
+    // Regular channel message.
+    //
+    // Faithfulness to the original (handle_bnet.cpp _client_message +
+    // message.cpp message_format): the server NEVER sends a synthetic
+    // "invalid/failed message" notice back to the sender for malformed channel
+    // text. Two well-defined transforms apply:
+    //   - an EMPTY body is replaced with a single space (message.cpp:993-994:
+    //     "empty messages crash some clients, just send whitespace"), so an
+    //     empty SID_CHATCOMMAND still broadcasts a one-space EID_TALK; and
+    //   - over-long / otherwise-unrepresentable text is SILENTLY discarded
+    //     (handle_bnet returns -1 with nothing sent).
+    std::string text{m.text};
+    if (text.empty()) {
+        text = " ";
+    }
+
     if (!use_cases_.post_message) {
         // No post_message use-case available - echo the message back
         return ctx_->send(ServerMessage{ChatEvent{
@@ -400,36 +415,21 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             /*acct_number*/ 0,
             /*registration*/0,
             /*username*/    "",
-            /*text*/        m.text}});
+            /*text*/        text}});
     }
 
-    // Create chat message using factory method
-    auto chat_msg_result = domain::ChatMessage::create(m.text);
+    // Create chat message using factory method. On failure (over-long or
+    // control characters) the original silently drops the line — no reply.
+    auto chat_msg_result = domain::ChatMessage::create(text);
     if (!chat_msg_result) {
-        return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    kEidInfo,  // EID_INFO (0x12)
-            /*flags*/       0,
-            /*ping_ms*/     0,
-            /*user_ip*/     0,
-            /*acct_number*/ 0,
-            /*registration*/0,
-            /*username*/    "",
-            /*text*/        "Invalid chat message"}});
+        return core::ok();
     }
 
     auto post_result = use_cases_.post_message->execute(
         current_channel_id_, current_account_id_, chat_msg_result.value());
 
     if (!post_result) {
-        return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    kEidInfo,  // EID_INFO (0x12)
-            /*flags*/       0,
-            /*ping_ms*/     0,
-            /*user_ip*/     0,
-            /*acct_number*/ 0,
-            /*registration*/0,
-            /*username*/    "",
-            /*text*/        "Failed to post message"}});
+        return core::ok();
     }
 
     // Broadcast EID_TALK to all recipients via message_router, minus anyone who
@@ -447,7 +447,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
                     /*acct_number*/ 0,
                     /*registration*/0,
                     /*username*/    current_username_,
-                    /*text*/        std::string{m.text}},
+                    /*text*/        std::string{chat_msg_result.value().text()}},
                 recipients);
         }
     }
