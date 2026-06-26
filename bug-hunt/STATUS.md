@@ -726,13 +726,20 @@ diff_wol_setopt.py: across two clients, default 0/0 -> SETOPT 16,32 -> 1/1 ->
 SETOPT 17,33 -> 0/0, matching the oracle. Hardened under both sanitizers +
 leak-clean. (commit 113c563)
 
-## RUNNING TOTAL: ~76 distinct bugs/features across 43 waves. Login (all families)
+## Wave 44: WOL ADVERTR game-ad refresh ack
+ADVERTR <channel> replies ":<server> ADVERTR 5 <channel>" (461 with no param).
+diff_wol_advertr.py matches the oracle ("5 #adroom"); hardened under ASan.
+ADVERTC remains a no-op (as in the original). (commit 0354fe0)
+
+## RUNNING TOTAL: ~77 distinct bugs/features across 44 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
-## GETINSIDER, PAGE, CHANCHK, HOST, USERIP, INVMSG, SETOPT — all match the oracle
-## & are runtime-hardened (ASan+UBSan clean, leak-clean; 14 WOL differentials).
-## Remaining WOL: SQUADINFO/CLANBYNAME (clan, setup-heavy), ladder LISTSEARCH/
-## RUNGSEARCH/HIGHSCORE, ADVERTR/ADVERTC (niche), matchbot/anongame (large).
-## See findings/wol-chat-lobby.md. The cleanly-diffable WOL surface is essentially
-## complete.
+## GETINSIDER, PAGE, CHANCHK, HOST, USERIP, INVMSG, SETOPT, ADVERTR — all match
+## the oracle & are runtime-hardened (ASan+UBSan clean, leak-clean; 15 WOL
+## differentials). The differentially-verifiable WOL command surface is COMPLETE.
+## Remaining WOL items are NOT amenable to the differential harness without heavy
+## setup or are large subsystems: SQUADINFO/CLANBYNAME (clan — needs clan
+## membership to test beyond the degenerate no-clan case), ladder LISTSEARCH/
+## RUNGSEARCH/HIGHSCORE (needs a ladder backend with data), matchbot/anongame
+## automatch (~615-line subsystem). See findings/wol-chat-lobby.md.

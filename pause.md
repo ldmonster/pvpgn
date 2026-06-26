@@ -151,7 +151,17 @@ The full WOL command surface (10 differentials) is now oracle-matched + hardened
   target pageme. diff_wol_setopt.py matches the oracle (0/0 -> 1/1 -> 0/0).
   Hardened under both sanitizers + leak-clean. 14 WOL differentials.
 
-## NEXT — remaining divergences (all niche or large)
+## Wave 44 — DONE (WOL ADVERTR) + hardened
+
+- W44 `0354fe0`: ADVERTR <channel> -> ":<server> ADVERTR 5 <channel>" (461 no
+  param). diff_wol_advertr.py matches; hardened under ASan. ADVERTC stays a no-op
+  (as in the original). 15 WOL differentials.
+
+The DIFFERENTIALLY-VERIFIABLE WOL command surface is now COMPLETE. The items below
+are NOT amenable to the differential harness without heavy setup, or are large
+separate subsystems — documented rather than rushed:
+
+## NEXT — remaining divergences (need infra/setup or are large subsystems)
 
 1. **SQUADINFO / CLANBYNAME** (358 RPL_BATTLECLAN) — clan info. v3 has a clan
    domain but wiring it into WOL + creating clan membership in the mock is
