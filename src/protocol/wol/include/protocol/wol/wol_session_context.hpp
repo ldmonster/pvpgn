@@ -17,7 +17,7 @@
 namespace pvpgn::protocol::wol {
 
 /// Abstract session context for the WOL chat FSM.
-/// Concrete implementations live in infra/session (Asio) and
+/// Concrete implementations live in src/app/bnetd (Asio session factories) and
 /// tests/unit (FakeWolContext).
 class IWolSessionContext {
 public:

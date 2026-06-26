@@ -109,3 +109,13 @@ NOTE corrections from precise verification (substring grep gave false positives)
 - core/net/addr_list referenced by addr_core.cpp — verify symbol use before removing.
 Dead-code removal paused here: remaining items need per-symbol / lib-dependency
 care (error-prone via grep) and are best done in a focused pass with build+test.
+
+## UPDATE wave 66: removed dead infra/session + IrcBridgeFsm cluster
+Removed the infra_session INTERFACE library (src/CMakeLists.txt block) and its 4
+protocol session-factory headers (src/infra/session/), confirmed linked by nothing
+(production wires session factories from src/app/bnetd). Its only consumer-side
+reference to protocol/irc IrcBridgeFsm made bridge_fsm.{cpp,hpp} dead too (a
+superseded duplicate of the live IrcFsm) — removed file + protocol_irc compile
+line. wolgameres was EXCLUDED (it has live refs: bnet_packet_pump/conn_class.hpp
++ a test). Fixed 2 stale doc-comments that pointed at the deleted infra/session.
+Reconfigure + full relink (incl. protocol_irc tests + bnetd) + suite: 3199/3199.

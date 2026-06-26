@@ -16,7 +16,7 @@
 namespace pvpgn::protocol::file {
 
 /// Abstract session context for the BNFTP file-transfer FSM.
-/// Concrete implementations live in infra/session (Asio) and
+/// Concrete implementations live in src/app/bnetd (Asio session factories) and
 /// tests/unit (FakeFileContext).
 class IFileSessionContext {
 public:

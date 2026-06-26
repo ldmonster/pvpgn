@@ -607,7 +607,6 @@ pvpgn_v3_add_library(protocol_irc
         # R-split: fsm.cpp (717 LOC) split by concern into focused sub-TUs
         protocol/irc/src/fsm/irc_registration.cpp  # try_complete_registration, on_pass/nick/user
         protocol/irc/src/fsm/irc_commands.cpp       # on_ping/quit/motd/join/part/privmsg/notice/away/whois/who/mode/topic/names/kick/list
-        protocol/irc/src/bridge_fsm.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/irc/include
     PRIVATE_INCLUDES
@@ -1509,26 +1508,11 @@ pvpgn_v3_add_library(infra_routing
         application_ports
 )
 
-# ---- infra/session (protocol-specific session factories) -----------------
-
-pvpgn_v3_add_library(infra_session
-    INTERFACE
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/infra/session/include
-    PUBLIC_DEPS
-        core
-        application_ports
-        application_auth
-        infra_net
-        infra_routing
-        protocol_bnet
-        protocol_irc
-        protocol_file
-        protocol_telnet
-        protocol_wolgameres
-        domain_shared
-        domain_connection
-)
+# ---- infra/session: DELETED (wave 66, dead-code cleanup) -----------------
+# The infra_session INTERFACE library (4 protocol session-factory headers) was
+# linked by nothing — production wires session factories from src/app/bnetd
+# instead. Removed along with its only consumer-side reference to the dead
+# protocol/irc IrcBridgeFsm (superseded by the live IrcFsm).
 
 # ---- infra/legacy_crypto: DELETED (Plan 08, 2026-06-02) -----------------
 #
