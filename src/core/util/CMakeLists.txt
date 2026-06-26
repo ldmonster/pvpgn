@@ -5,8 +5,6 @@ pvpgn_v3_add_library(core_util
         util_file.cpp
         token.cpp
         trans.cpp
-        proginfo.cpp
-        peerchat.cpp
         rcm.cpp
         list.cpp
     PUBLIC_INCLUDES

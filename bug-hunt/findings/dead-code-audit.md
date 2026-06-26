@@ -94,3 +94,18 @@ the infra/session stub factories + protocol/irc bridge_fsm + protocol/wolgameres
 cluster (interdependent — bridge_fsm/wolgameres referenced only by the dead session
 factories); core legacy modules. Confirm canonical + build BOTH Lua-on/off before
 touching the scripting items.
+
+## UPDATE wave 65: removed core/util peerchat + proginfo
+Removed src/core/util/{peerchat,proginfo}.{cpp,h} (zero #include anywhere; the
+only "peerchat" include hits a DISTINCT infra/crypto/peerchat). core_util retains
+util_file/token/trans/rcm/list. Build relinked + 3199/3199.
+NOTE corrections from precise verification (substring grep gave false positives):
+- core/util/rcm is USED (bniutils tools + trans/util_string/conf) — KEEP.
+- core/error/systemerror: removing it would empty the core_error STATIC lib (its
+  only source) — needs core_error dependency analysis first; LEFT for now.
+- core/debug/hexdump + tests/unit/core/hexdump_test.cpp reference each other —
+  verify the test targets the legacy .cpp vs the header-only core/hexdump.hpp
+  before removing.
+- core/net/addr_list referenced by addr_core.cpp — verify symbol use before removing.
+Dead-code removal paused here: remaining items need per-symbol / lib-dependency
+care (error-prone via grep) and are best done in a focused pass with build+test.
