@@ -19,6 +19,7 @@ class CreateAccount;
 class ChangePassword;
 class LoginUserW3;
 class ISrp3CredentialStore;
+class IUserProfileStore;
 }  // namespace pvpgn::application::auth
 
 namespace pvpgn::application::social {
@@ -83,6 +84,9 @@ struct BnetUseCaseContext {
     /// store (written on SID_AUTH_ACCOUNTCREATE). Null for non-W3 deployments.
     std::shared_ptr<application::auth::LoginUserW3> login_user_w3;
     std::shared_ptr<application::auth::ISrp3CredentialStore> srp3_store;
+    /// Per-account profile attributes (SID_READUSERDATA / WRITEUSERDATA). Null
+    /// when not wired (the FSM then replies with empty profile values).
+    std::shared_ptr<application::auth::IUserProfileStore> user_profile_store;
     /// Friends list (SID_FRIENDSLIST/FRIENDINFO + /friends add|remove). Null when
     /// not wired (the FSM then replies with an empty friends list).
     std::shared_ptr<application::social::AddFriend>    add_friend;

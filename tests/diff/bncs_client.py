@@ -37,6 +37,8 @@ SID_AUTH_ACCOUNTCHANGE = 0x55
 SID_AUTH_ACCOUNTCHANGEPROOF = 0x56
 SID_FRIENDSLIST = 0x65
 SID_FRIENDINFO = 0x66
+SID_READUSERDATA = 0x26
+SID_WRITEUSERDATA = 0x27
 
 # Chat event ids (canonical BNCS).
 EID_SHOWUSER = 0x01
@@ -580,3 +582,39 @@ def full_login(host, port, username, password, product=b"SEXP"):
         raise RuntimeError(f"login failed rc={rc}")
     uniq = enter_chat(c, username)
     return c, uniq
+
+
+def write_userdata(client, account, kv):
+    """SID_WRITEUSERDATA (0x27): name_count, key_count, name, keys[], values[].
+    kv is an ordered dict of profile keys -> values."""
+    keys = list(kv.keys())
+    body = struct.pack("<II", 1, len(keys))
+    body += cstring(account)
+    for k in keys:
+        body += cstring(k)
+    for k in keys:
+        body += cstring(kv[k])
+    client.send(SID_WRITEUSERDATA, body)
+
+
+def read_userdata(client, account, keys, request_id=1, max_packets=30):
+    """SID_READUSERDATA (0x26): request name x keys for one account; return the
+    list of values (parallel to keys), or None."""
+    body = struct.pack("<III", 1, len(keys), request_id)
+    body += cstring(account)
+    for k in keys:
+        body += cstring(k)
+    client.send(SID_READUSERDATA, body)
+    rbody = client.recv_sid(SID_READUSERDATA, max_packets)
+    if rbody is None or len(rbody) < 12:
+        return None
+    name_count, key_count, _rid = struct.unpack_from("<III", rbody, 0)
+    off = 12
+    values = []
+    for _ in range(name_count * key_count):
+        end = rbody.find(b"\x00", off)
+        if end < 0:
+            break
+        values.append(rbody[off:end].decode("latin-1", "replace"))
+        off = end + 1
+    return values

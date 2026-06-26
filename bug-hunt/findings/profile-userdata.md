@@ -321,3 +321,22 @@ use-case and ensure the name rules match Finding 6.
 | 5 | CreateAccount use-case declares but never returns validation errors | MEDIUM | BUG |
 | 6 | Username validation rules diverge (leading letter, symbol set, non-configurable) | MEDIUM | BUG |
 | 7 | LOOKUPACCOUNT not wired | LOW | NOT-IMPLEMENTED |
+
+---
+
+## RESOLVED (wave 45): READUSERDATA / WRITEUSERDATA implemented
+
+The 0x26/0x27 handlers were stubs that returned ok() with no reply, so a client
+reading its profile got nothing. Implemented against the original
+_client_statsreq / _client_statsupdate:
+- New IUserProfileStore (application/auth) + InMemoryUserProfileStore (run-loop
+  scoped, per-account string attributes), wired into BnetUseCaseContext.
+- on(UserDataWriteRequest): stores `profile\*` keys on the CALLER's own account
+  (mirrors the original, which ignores non-profile keys + only mutates self).
+- on(UserDataReadRequest): replies SID_READUSERDATA with name_count/key_count/
+  request_id echoed + name-major/key-minor values (stored value or "" if unset;
+  "BNET\" keys hidden cross-account).
+- diff_userdata.py: write profile\sex/age/location, read them back (+ an unset
+  key) -> ["m","99","NY",""], matching the oracle. bncs_client.py helpers
+  write_userdata / read_userdata. Unit suite green (the new BnetUseCaseContext
+  field was added to the fsm_test / fsm_channel_test designated-init blocks).

@@ -117,6 +117,7 @@
 #include "infra/inmemory/session_registry.hpp"
 #include "infra/inmemory/srp3_credential_store.hpp"
 #include "infra/inmemory/peer_address_store.hpp"
+#include "infra/inmemory/user_profile_store.hpp"
 #include "infra/inmemory/wol_credential_store.hpp"
 #include "infra/inmemory/wol_game_store.hpp"
 #include "infra/inmemory/wol_user_flags_store.hpp"
@@ -359,6 +360,9 @@ int main(int argc, char* argv[]) {
         // WarCraft III SRP-3 salt/verifier store (SID_AUTH_ACCOUNTCREATE writes,
         // SID_AUTH_ACCOUNTLOGON reads). Lives for the whole run loop.
         infra::inmemory::InMemorySrp3CredentialStore srp3_store;
+        // Per-account profile attributes (SID_READUSERDATA / WRITEUSERDATA).
+        // Run-loop scoped, shared so one account can read another's profile.
+        infra::inmemory::InMemoryUserProfileStore    user_profile_store;
         // Westwood Online APGAR token store (WOL CVERS/APGAR login auto-creates
         // and verifies). Lives for the whole run loop, like srp3_store.
         infra::inmemory::InMemoryWolCredentialStore  wol_store;
@@ -433,6 +437,10 @@ int main(int argc, char* argv[]) {
             // credential store written by SID_AUTH_ACCOUNTCREATE.
             use_cases.srp3_store = std::shared_ptr<application::auth::ISrp3CredentialStore>(
                 &srp3_store, [](application::auth::ISrp3CredentialStore*) noexcept {});
+            use_cases.user_profile_store =
+                std::shared_ptr<application::auth::IUserProfileStore>(
+                    &user_profile_store,
+                    [](application::auth::IUserProfileStore*) noexcept {});
             use_cases.login_user_w3 =
                 std::make_shared<application::auth::LoginUserW3>(srp3_store);
 

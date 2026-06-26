@@ -26,11 +26,14 @@
 
 #include "fsm/fsm_internal.hpp"
 
+#include <cctype>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "protocol/bnet/chat_wire_types.hpp"
 
+#include "application/auth/user_profile_store.hpp"
 #include "application/chat/join_channel.hpp"
 #include "application/chat/leave_channel.hpp"
 #include "application/chat/list_channels.hpp"
@@ -55,6 +58,18 @@ namespace pvpgn::protocol::bnet {
 // the numeric values (the source of finding F1: hand-typed literals whose
 // comments named the right EID but whose numbers were wrong).
 namespace {
+/// Case-insensitive ASCII equality (for account names / attribute key prefixes).
+bool ieq_ascii(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 constexpr std::uint32_t kEidShowUser = chat::kServerMessageTypeAddUser;  // 0x01
 constexpr std::uint32_t kEidJoin     = chat::kServerMessageTypeJoin;     // 0x02
 constexpr std::uint32_t kEidLeave    = chat::kServerMessageTypePart;     // 0x03
@@ -836,16 +851,60 @@ core::Status<> BnetFsm::on(const ClanInfoRequest&) {
     return core::ok();
 }
 
-core::Status<> BnetFsm::on(const UserDataReadRequest&) {
+core::Status<> BnetFsm::on(const UserDataReadRequest& m) {
     if (state_ != BnetState::InChat && state_ != BnetState::LoggedIn) {
         return reject("bnet fsm: READUSERDATA before login");
     }
-    return core::ok();
+    // SID_READUSERDATA (0x26): for each requested name x key, return the stored
+    // attribute value (or "" if unset). Mirrors the original _client_statsreq:
+    // the reply echoes name_count/key_count/request_id and carries
+    // names.size()*keys.size() values, name-major then key-minor. A "BNET\"-
+    // prefixed key is hidden when reading another account's profile.
+    UserDataReadReply reply;
+    reply.request_id = m.request_id;
+    reply.name_count = static_cast<std::uint32_t>(m.names.size());
+    reply.key_count  = static_cast<std::uint32_t>(m.keys.size());
+    for (const auto& name : m.names) {
+        const bool is_self =
+            !current_username_.empty() &&
+            ieq_ascii(name, current_username_);
+        for (const auto& key : m.keys) {
+            std::string value;
+            const bool hidden =
+                !is_self && key.size() >= 4 && ieq_ascii(key.substr(0, 4), "BNET");
+            if (!hidden && use_cases_.user_profile_store) {
+                if (auto v = use_cases_.user_profile_store->get(name, key)) {
+                    value = std::move(v.value());
+                }
+            }
+            reply.values.push_back(std::move(value));
+        }
+    }
+    return ctx_->send(ServerMessage{std::move(reply)});
 }
 
-core::Status<> BnetFsm::on(const UserDataWriteRequest&) {
+core::Status<> BnetFsm::on(const UserDataWriteRequest& m) {
     if (state_ != BnetState::InChat && state_ != BnetState::LoggedIn) {
         return reject("bnet fsm: WRITEUSERDATA before login");
+    }
+    // SID_WRITEUSERDATA (0x27): the original only ever updates the CALLER's own
+    // account and only accepts "profile\\" keys (others are logged + ignored).
+    // values are name-major then key-minor; with the usual name_count == 1 each
+    // values[j] is the value for keys[j].
+    if (use_cases_.user_profile_store && !current_username_.empty() &&
+        !m.keys.empty()) {
+        const std::size_t names = m.names.empty() ? 1 : m.names.size();
+        for (std::size_t ni = 0; ni < names; ++ni) {
+            for (std::size_t kj = 0; kj < m.keys.size(); ++kj) {
+                const std::size_t vi = ni * m.keys.size() + kj;
+                if (vi >= m.values.size()) break;
+                const std::string& key = m.keys[kj];
+                if (key.size() >= 9 && ieq_ascii(key.substr(0, 8), "profile\\")) {
+                    use_cases_.user_profile_store->set(
+                        current_username_, key, m.values[vi]);
+                }
+            }
+        }
     }
     return core::ok();
 }
