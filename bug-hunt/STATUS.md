@@ -780,6 +780,11 @@ handler prefers it (falls back to the connection FSM). LogoutUser then detaches
 (it already keyed detach by session_id == sid). Repro login->disconnect->re-login
 went rc=2 -> rc=0. Full unit suite green. (commit fca6810)
 
+## Post-W48 full regression sweep: 31/31 diff scenarios PASS
+Re-ran the entire suite (13 BNCS + userdata + profile + 15 WOL + diff_all_clients)
+after the W48 close-path change (LogoutUser now runs on BNCS disconnect): 31/31
+PASS, 0 regressions — incl. diff_leave/diff_chat which exercise the close path.
+
 ## RUNNING TOTAL: ~81 distinct bugs/features across 48 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
