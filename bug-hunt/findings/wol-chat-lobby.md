@@ -450,3 +450,73 @@ Still skeleton (separate from auth): the post-login WOL lobby/game commands
 (LIST/JOIN game model, GAMEOPT, STARTG, the automatch `matchbot`) remain
 no-ops — see the body of this file. Auth (the entry gate for the whole Westwood
 family) is the part that is now faithful end to end.
+
+---
+
+## F-W29 — WOL post-login lobby LIST/JOIN over the shared channel repo (DONE)
+
+`on_list` now emits the WOL `327 RPL_CHANNEL "<name> <count> <official> 388"`
+(WOLv2) form instead of the standard IRC 322, and `on_join` relays through the
+JoinChannel use-case over the shared channel repository. `diff_wol_lobby.py`:
+a joined channel appears in LIST on both the oracle and v3. (W-3 partially
+addressed for chat channels; game-channel 326 entries still pending — see W-5.)
+
+---
+
+## F-W31 — WOL channel chat is delivered across sessions (DONE) — the routing foundation for the game lobby
+
+**The gap (was W-10, partial):** `on_privmsg` posted a channel message via the
+PostMessage use-case but then **dropped the returned recipient SessionId list on
+the floor** — WolFsm had no message router and WOL sessions were never registered
+with the cross-session `MessageRouterImpl`. Two WOL clients in the same channel
+never heard each other. This is also the exact mechanism GAMEOPT/STARTG need to
+broadcast, so it blocked the whole game lobby.
+
+**Fix (commit c9c7133, wave 31):**
+- `make_wol_session` assigns each WOL connection a real `SessionId`
+  (`next_session_id()`) and registers its egress with the shared
+  `MessageRouterImpl`, unregistering on close. New `WolFsm::set_routing()`.
+- `on_privmsg` encodes the standard IRC line once —
+  `:<nick>!<nick>@Battle.net PRIVMSG <#chan> :<text>` — and routes it to every
+  recipient SessionId from PostMessage. No self-echo (matches the original).
+- Session identity now lines up across the single shared session registry: WOL
+  auth `attach`es account→session, PostMessage resolves members to those
+  SessionIds, the router delivers to the registered egress.
+
+**Verified:** `tests/diff/diff_wol_chat.py` — two WOL clients A,B join `#wolchat`;
+A PRIVMSGs, B receives the same text on **both** the oracle and v3. New
+`wol_client.py` helpers `wol_privmsg` / `wol_read_privmsg`. Unit suite (3150)
+green; the null-router stub path (unit tests) is unchanged.
+
+### Next increment plan — GAMEOPT / STARTG / JOINGAME (the remaining game lobby)
+
+Now unblocked by F-W31. The oracle reference is `handle_wol.cpp`
+`_handle_gameopt_command` (1130), `_handle_startg_command` (1264),
+`_handle_joingame_command` (908). Faithful scope, smallest-first:
+
+1. **GAMEOPT channel-talk** (smallest, reuses the router): oracle does
+   `channel_message_send(channel, message_type_gameopt_talk, conn, text)` — a
+   pure broadcast of the opaque options text to the *current channel*'s members,
+   **no game model required**. v3: resolve the current channel's member sessions
+   (needs a member→session list the WolFsm can reach — either thread the existing
+   `channel_reader` + `session_registry` into WolFsm, or add a small
+   "list channel member sessions" use-case) and route
+   `:<nick>!<nick>@Battle.net GAMEOPT <#chan> :<text>`. Also GAMEOPT-whisper to a
+   single nick (resolve nick→session). Diff: two clients, A GAMEOPTs, B receives.
+2. **JOINGAME create/join**: needs the game-as-channel model — a game *is* a
+   channel with min/max players, channelType (tag), tournament flag,
+   gameExtension, optional password. Create (numparams>=7) makes the channel+game
+   and acks `message_wol_joingame`; Join (numparams 2|3) finds an available game,
+   checks full/banned/password, joins its channel, acks WOLv1/WOLv2 layout
+   `<min> <max> <gameType> 1 [1|clanID] [clanID|longIP] <tournament> :<#chan>`.
+   This is the large piece (game repo already exists for BNCS GETADVLISTEX; needs
+   WOL-specific channel-game fields + the ack encoder).
+3. **STARTG**: `game_set_status(started)` + per-player STARTG with the IP list;
+   WOLv2 `:<owner>!WWOL@host STARTG u :user1 ip user2 ip :gameNumber time_t`,
+   WOLv1 the owner-IP form. Broadcasts to the named players via the router.
+
+GOTCHA carried forward: running-server diffs must be launched with the Bash tool
+`run_in_background:true` (a foreground `timeout|tee` pipeline that boots the
+oracle is killed by the harness with exit 144; foreground `sleep` is blocked).
+Leftover sanitizer/dev bnetd procs squat ports — `pkill -9 -f build/<variant>/...`
+between runs.

@@ -25,6 +25,7 @@
 #include <string>
 
 #include "core/error.hpp"
+#include "domain/identity/ports.hpp"
 #include "wol_fsm/wol_internal.hpp"
 
 namespace pvpgn::protocol::wol {
@@ -127,6 +128,15 @@ core::Status<> WolFsm::on_bytes(std::span<const std::byte> bytes) {
 void WolFsm::on_close() {
     state_ = WolState::Disconnecting;
     line_buf_.clear();
+    // Release this session's account->session binding. try_wol_authenticate()
+    // attached it on login; without the matching detach here the registry
+    // accumulates a stale entry for every WOL account that ever connected
+    // (and PostMessage would keep routing to a dead SessionId). Mirrors the
+    // BNCS logout path. account_id_ stays 0 until authenticated, so the guard
+    // also skips connections that closed before logging in.
+    if (auth_.session_registry && account_id_.value() != 0) {
+        auth_.session_registry->detach(session_id_);
+    }
 }
 
 // ===========================================================================

@@ -122,7 +122,7 @@ void TcpSession::close() {
         error_code ignored;
         self->socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored);
         self->socket_.close(ignored);
-        if (self->on_close_) self->on_close_(error_code{});
+        self->fire_close_and_release(error_code{});
     });
 }
 
@@ -133,7 +133,22 @@ void TcpSession::deliver_close(const error_code& ec) {
     error_code ignored;
     socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored);
     socket_.close(ignored);
-    if (on_close_) on_close_(ec);
+    fire_close_and_release(ec);
+}
+
+void TcpSession::fire_close_and_release(const error_code& ec) {
+    // Fire the close callback, then drop BOTH handlers. The handlers typically
+    // capture a shared_ptr to the protocol FSM, which transitively owns this
+    // TcpSession through its egress (FSM -> ctx -> egress -> TcpSession). That
+    // forms a reference cycle; without clearing the captures here the whole
+    // session graph leaks on every disconnect. Move the close handler into a
+    // local and clear the members first so the captures stay alive for the
+    // duration of the call but are released immediately afterwards. Runs on
+    // strand_, so this never races do_read()'s use of on_bytes_.
+    auto on_close = std::move(on_close_);
+    on_close_ = nullptr;
+    on_bytes_ = nullptr;
+    if (on_close) on_close(ec);
 }
 
 }  // namespace pvpgn::infra::net

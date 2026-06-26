@@ -77,6 +77,11 @@ private:
     void do_read();
     void do_write_locked();
     void deliver_close(const boost::system::error_code& ec);
+    /// Invoke `on_close_` once, then release both callbacks so any shared_ptrs
+    /// they capture (notably the protocol FSM, which transitively owns this
+    /// session) are dropped — breaking the FSM<->session reference cycle that
+    /// would otherwise leak the whole graph on disconnect. Must run on `strand_`.
+    void fire_close_and_release(const boost::system::error_code& ec);
     /// (Re)arm the idle-read deadline. No-op when the timeout is disabled.
     /// Must run on `strand_`.
     void arm_idle_timer();
