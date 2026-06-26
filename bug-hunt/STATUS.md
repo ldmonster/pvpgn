@@ -991,3 +991,17 @@ victim EID_CHANNEL move) are not replicated; the decisive membership behaviour
 matches. 201/201 channel/chat/fsm unit tests pass; no diff regression.
 Remaining deferred: WOL cross-protocol presence; full admin-account model (real
 /ban with banlist + rejoin block for true admins); full member-flags parity.
+
+## Wave 61: hardening — malformed-input robustness confirmed + regression guard
+Autonomous hardening round: 2 fleet agents fuzzed the BNCS and WOL listeners with
+~100 hostile/malformed cases each (truncated headers, lying/zero/oversized length
+prefixes, count-overflow array fields 0xFFFFFFFF, unknown opcodes, empty bodies
+for valid opcodes, unterminated cstrings, 4MB bodies, 10k-packet floods, 200
+half-open connections, over-long IRC lines, no-CRLF, NUL/binary/format-string
+payloads, missing params, pre-login/out-of-order commands). RESULT: v3 has ZERO
+crashes and ZERO hangs — it caps buffers like the oracle (drops over-long lines),
+survives the count-overflow allocation-bait vectors, and stays responsive under
+floods. The hardening directive is substantially met on the malformed-input axis.
+Added diff_robustness.py (a fleet-derived battery + post-battery liveness check)
+as a permanent regression guard; no code change needed. Documented behavioral
+(non-fatal) DoS-resistance divergences in findings/malformed-input-safety.md.

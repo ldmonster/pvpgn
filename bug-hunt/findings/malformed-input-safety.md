@@ -203,3 +203,31 @@ if (byte >= 32 && byte < 127) {
 - Telnet `try_parse_line` (`protocol/telnet/src/codec.cpp`) exists but the live
   telnet accumulation path used by `TelnetSession::feed` is the hand-rolled loop
   audited above; both share the same missing-cap class.
+
+## Wave 61: BNCS+WOL malformed-input fleet fuzz — v3 is crash/hang-robust
+Two fleet agents fuzzed both listeners with ~100 hostile cases each. v3 had NO
+crash and NO hang in any case, including the high-risk vectors:
+- Lying/zero/oversized length prefixes; length < header size; u16-wrap lengths.
+- READUSERDATA/WRITEUSERDATA/AUTH_CHECK count fields = 0xFFFFFFFF and 0x10000^2
+  (32-bit product overflow) — no large allocation, no loop blowup.
+- 4MB bodies, 10k-packet floods, 1500 pipelined packets, 200 half-open conns.
+- WOL over-long lines (128KB/512KB) — buffer capped, connection closed like the
+  oracle; no unbounded buffering. NUL/binary/non-UTF8/format-string payloads safe.
+- Pre-login/out-of-order commands rejected gracefully (v3 is actually STRICTER
+  than the oracle here — it closes pre-login CHATCOMMAND/READUSERDATA where the
+  oracle processes some unauthenticated).
+Regression guard: tests/diff/diff_robustness.py (battery + liveness assert).
+
+### Behavioral DoS-resistance divergences (non-fatal, NOT fixed)
+1. v3 keeps misbehaving connections OPEN (length-lie idle, junk-line flood) where
+   the oracle proactively CLOSES them. Minor idle-socket / 1:1 reflection surface;
+   bounded (u16 per-packet length cap, no unbounded allocation). A connection-drop
+   / rate-limit policy would close this, but it is a behavioral change with
+   legit-client risk and the oracle's exact policy is config-nuanced — deferred.
+2. Missing-param WOL commands: oracle returns ERR_NEEDMOREPARAMS (461); v3 often
+   silently ignores or returns a different numeric (431/451/421). Error-surface
+   divergence only; both safe.
+3. Different IRC numerics for some malformed commands (VERCHK 602 vs 379, JOINGAME
+   403 vs non-numeric). Cosmetic.
+These are error-surface/DoS-policy divergences, not safety bugs; v3 never crashes,
+hangs, or allocates unboundedly.
