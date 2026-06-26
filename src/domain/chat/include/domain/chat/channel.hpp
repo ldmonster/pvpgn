@@ -11,6 +11,7 @@
 
 #include <bitset>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -95,6 +96,8 @@ public:
     const std::string&  topic()        const noexcept { return topic_; }
     const ChannelPolicy& policy()      const noexcept { return policy_; }
     std::size_t         member_count() const noexcept { return members_.size(); }
+    /// The current channel operator (gavel), if any. See operator_id_.
+    std::optional<AccountId> operator_id() const noexcept { return operator_id_; }
     bool                is_full()      const noexcept {
         return policy_.max_members != 0 && members_.size() >= policy_.max_members;
     }
@@ -142,12 +145,20 @@ public:
         if (auto [_, inserted] = members_.emplace(who, tag); !inserted) {
             return JoinOutcome::Accepted;
         }
+        // First member of a non-permanent channel becomes its operator (tmpOP),
+        // mirroring the original (channel.cpp: currmembers==1 -> conn_set_tmpOP).
+        // Permanent/predefined channels have no auto-operator.
+        if (!operator_id_ && members_.size() == 1 &&
+            !policy_.flags.has(ChannelFlag::Permanent)) {
+            operator_id_ = who;
+        }
         events_.push_back(events::ChannelJoined{id_, who});
         return JoinOutcome::Accepted;
     }
 
     void leave(AccountId who) {
         if (members_.erase(who) == 0) return;
+        reassign_operator_on_leave(who);
         events_.push_back(events::ChannelLeft{id_, who});
     }
 
@@ -164,6 +175,7 @@ public:
     bool kick(AccountId moderator, AccountId target) {
         if (!contains(moderator)) return false;
         members_.erase(target);
+        reassign_operator_on_leave(target);
         if (!is_banned(target)) banlist_.push_back(target);
         events_.push_back(events::ChannelMemberKicked{id_, moderator, target});
         return true;
@@ -190,6 +202,22 @@ private:
     std::unordered_map<AccountId, ClientTag>        members_;
     std::vector<AccountId>                          banlist_;
     std::vector<events::DomainEvent>                events_;
+    /// The channel operator (gavel). The original makes the FIRST user to join a
+    /// non-permanent channel its temporary operator (tmpOP); predefined/permanent
+    /// channels have no auto-operator. Migrated to a remaining member when the
+    /// operator leaves/is kicked, cleared when the channel empties.
+    std::optional<AccountId>                        operator_id_{};
+
+    /// On a member departure, keep the operator invariant: if `who` was the
+    /// operator, migrate the gavel to any remaining member (or clear it).
+    void reassign_operator_on_leave(AccountId who) {
+        if (!operator_id_ || operator_id_->value() != who.value()) return;
+        if (members_.empty()) {
+            operator_id_.reset();
+        } else {
+            operator_id_ = members_.begin()->first;
+        }
+    }
 };
 
 }  // namespace pvpgn::domain::chat

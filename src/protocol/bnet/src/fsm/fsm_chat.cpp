@@ -184,11 +184,20 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
                 member_name = std::to_string(member_id.value());
             }
 
+            // Channel operator (gavel) flag: the original marks the channel's
+            // tmpOP with MF_GAVEL (0x02) in USERFLAGS/SHOWUSER/JOIN. The first
+            // user of a non-permanent channel is its operator (see Channel::admit).
+            const std::uint32_t member_flags =
+                (joined_channel.operator_id() &&
+                 joined_channel.operator_id()->value() == member_id.value())
+                    ? 0x02u
+                    : 0x00u;
+
             // EID_USERFLAGS (0x09) carries the member's channel/user flags; the
             // original precedes each SHOWUSER with it. flags=0 (normal user).
             if (auto s = ctx_->send(ServerMessage{ChatEvent{
                 /*event_id*/    kEidUserFlags,  // EID_USERFLAGS (0x09)
-                /*flags*/       0x00,
+                /*flags*/       member_flags,
                 /*ping_ms*/     0,
                 /*user_ip*/     0x00000000u,
                 /*acct_number*/ 0xBADC0FFEu,
@@ -200,7 +209,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
 
             if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
                 /*event_id*/    kEidShowUser,  // EID_SHOWUSER (0x01)
-                /*flags*/       0x00,
+                /*flags*/       member_flags,
                 /*ping_ms*/     0,
                 /*user_ip*/     0x00000000u,
                 /*acct_number*/ 0xBADC0FFEu,
@@ -227,10 +236,19 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
 
     // Broadcast EID_JOIN to all other members via message_router
     if (!join_result.value().members_to_notify.empty()) {
+        // The joiner is operator only if they are the channel's tmpOP (i.e. the
+        // first member of a non-permanent channel — in which case there are no
+        // other members to notify, so this is normally 0).
+        const auto& jc = join_result.value().channel;
+        const std::uint32_t joiner_flags =
+            (jc.operator_id() &&
+             jc.operator_id()->value() == current_account_id_.value())
+                ? 0x02u
+                : 0x00u;
         broadcast_chat_event(
             ChatEvent{
                 /*event_id*/    kEidJoin,   // EID_JOIN (0x02)
-                /*flags*/       0,
+                /*flags*/       joiner_flags,
                 /*ping_ms*/     0,
                 /*user_ip*/     0,
                 /*acct_number*/ 0,

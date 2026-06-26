@@ -35,3 +35,13 @@ non-permanent channel, migrate/clear on leave), expose operator_id(), and comput
 the flags field in the 3 fsm_chat.cpp chat-event sites from the channel's
 operator + (later) the squelch-relative bit. Build a real member-flags subsystem
 for full parity.
+
+## UPDATE wave 58: IMPLEMENTED (operator gavel 0x02)
+The first-user-operator case is now fixed (commit in wave 58). Channel aggregate
+tracks operator_id_ (first admit of a non-permanent channel; migrated on
+leave/kick; cleared when empty); fsm_chat.cpp emits 0x02 in USERFLAGS/SHOWUSER/
+JOIN from channel.operator_id(). Verified by tests/diff/diff_channel_op.py against
+the oracle. Confirmed safe because default channels are seeded Permanent
+(BnetdService) so they are not auto-op'd. STILL NOT MODELED (minor): the transient
+MF_PLUG (0x10) UDP-capability bit, the admin(0x01)/op(0x08)/voice(0x04) tiers, and
+the recipient-relative squelch bit (0x20) in dstflags — full member-flags parity.

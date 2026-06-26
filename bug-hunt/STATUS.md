@@ -932,3 +932,21 @@ Fleet round 2 (3 parallel agents) found three divergences:
      protocol tag). Root cause: wol_auth.cpp/wol_fsm.cpp never call any presence
      path; router->broadcast is byte-oriented, not protocol-aware.
 Two fleet probes confirmed CLEAN earlier (user-flags, peer-address). 57 waves.
+
+## Wave 58: channel operator flag (first user of a non-permanent channel = op)
+Promoted the wave-57 DEFERRED item A to a fix after confirming it is safe:
+BnetdService seeds the default channels as Permanent (so they are NOT auto-op'd,
+matching the oracle), user-created channels get first-user-op (matching the
+oracle), and no diff inspects the chat-event flags VALUE (diff_chat only checks
+EID_USERFLAGS presence). Implementation: Channel aggregate gains operator_id_
+(set on first admit of a non-permanent channel; migrated to a remaining member on
+the operator's leave/kick; cleared when empty) + operator_id() accessor. The JOIN
+handler in fsm_chat.cpp now emits MF_GAVEL (0x02) in the per-member USERFLAGS/
+SHOWUSER events and the joiner's EID_JOIN, computed from channel.operator_id().
+diff_channel_op.py: bob sees the channel creator alice as operator (0x02) and
+himself as 0, matching the oracle (masking the oracle's transient MF_PLUG 0x10
+UDP-capability bit, which v3 does not model — a separate minor gap). All 201
+channel/chat/fsm/join/leave unit tests pass; no diff regression.
+Remaining deferred: WOL friend presence (C — cross-protocol encoding), full
+member-flags parity (admin/op/voice tiers, MF_PLUG UDP bit, recipient-relative
+squelch 0x20 in dstflags), /whois last-seen timestamp for offline bnet users.
