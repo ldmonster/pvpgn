@@ -76,6 +76,13 @@ public:
 
     BnetState state() const noexcept { return state_; }
 
+    /// The logged-in account (0 until login). Used by the transport's close
+    /// handler to drive LogoutUser — the OLS/NLS login runs through this FSM, so
+    /// this, not the connection-level FSM, is the authoritative account id.
+    [[nodiscard]] domain::AccountId account_id() const noexcept {
+        return current_account_id_;
+    }
+
     /// Drive the FSM with one decoded inbound message. Returns
     /// `InvalidArgument` if the message is illegal in the current
     /// state (the caller should close the session).

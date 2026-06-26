@@ -153,8 +153,18 @@ void BnetBnftpDispatchFactory::operator()(
                     // before unregistering the session. Use `self` (the
                     // snapshotted factory) rather than `this`: see the
                     // reentrancy note at the top of the handler.
+                    // The OLS/NLS login runs through the BnetFsm (it attaches the
+                    // session to the registry), so its account id is authoritative.
+                    // Reading only the connection-level FSM here left acct_id == 0
+                    // for OLS logins, so LogoutUser was skipped and the session was
+                    // never detached — blocking re-login of the same account after
+                    // a disconnect (single-session policy). Prefer the BnetFsm's
+                    // account id, falling back to the connection FSM's.
                     const auto& conn_fsm = adapter->connection_fsm();
-                    const std::uint32_t acct_id = conn_fsm.account_id();
+                    std::uint32_t acct_id =
+                        fsm ? static_cast<std::uint32_t>(fsm->account_id().value())
+                            : 0u;
+                    if (acct_id == 0) acct_id = conn_fsm.account_id();
                     if (acct_id != 0) {
                         application::auth::LogoutRequest req{
                             domain::SessionId{sid},
