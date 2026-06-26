@@ -516,4 +516,58 @@ core::Status<> WolFsm::on_joingame(std::string_view params) {
     return send_numeric(461, nick_, "JOINGAME :Not enough parameters");
 }
 
+core::Status<> WolFsm::on_finduser(std::string_view params, bool ex) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+
+    auto target = trim(first_token(params));
+    if (target.empty()) {
+        return send_numeric(461, nick_,
+                            std::string(ex ? "FINDUSEREX" : "FINDUSER") +
+                                " :Not enough parameters");
+    }
+
+    // Default: not found / not findable.  Found ("0") iff the target account is
+    // online (a live session); WOL `findme` defaults on, so online == findable.
+    // The payload carries the user's current channel (empty if none).
+    std::string payload = "1 :";
+    if (auth_.account_reader && auth_.session_registry) {
+        auto name = domain::UserName::parse(std::string{target});
+        if (name) {
+            auto acct = auth_.account_reader->find_by_name(name.value());
+            if (acct &&
+                auth_.session_registry->session_for(acct.value().id())) {
+                std::string chan;
+                if (channel_reader_) {
+                    const auto id = acct.value().id();
+                    channel_reader_->forEach(
+                        [&](const domain::chat::Channel& c) {
+                            for (const auto& mid : c.member_ids()) {
+                                if (mid.value() == id.value()) {
+                                    chan = "#" + c.name();
+                                    return false;  // stop iteration
+                                }
+                            }
+                            return true;
+                        });
+                }
+                payload = ex ? ("0 :" + chan + ",0") : ("0 :" + chan);
+            }
+        }
+    }
+
+    // Wire form mirrors irc_send_cmd: ":<server> <code> <nick> <payload>" with
+    // the payload verbatim (it already contains its own ':' separator), so this
+    // is built raw rather than via send_numeric (which would inject an extra ':').
+    std::string line = ":";
+    line += std::string(ctx_->server_name());
+    line += ex ? " 398 " : " 388 ";
+    line += nick_;
+    line += ' ';
+    line += payload;
+    return send_raw(line);
+}
+
 }  // namespace pvpgn::protocol::wol

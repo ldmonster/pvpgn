@@ -225,6 +225,25 @@ def wol_read_after_verb(client, verb, tries=20):
     return None
 
 
+def wol_finduser(client, nick, ex=False):
+    """Send FINDUSER/FINDUSEREX <nick>."""
+    client.send_line(f"{'FINDUSEREX' if ex else 'FINDUSER'} {nick}")
+
+
+def wol_read_finduser(client, ex=False, tries=20):
+    """Read the 388/398 reply; return the status field ('0' found / '1' not),
+    or None. Wire: ':server 388 nick <0|1> :<channel>'."""
+    code = "398" if ex else "388"
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        parts = line.split(" ", 4)
+        if len(parts) >= 4 and parts[1] == code:
+            return parts[3]
+    return None
+
+
 def wol_gameopt(client, target, options):
     """Send GAMEOPT <target> :<options> (channel '#...' or a nick)."""
     client.send_line(f"GAMEOPT {target} :{options}")

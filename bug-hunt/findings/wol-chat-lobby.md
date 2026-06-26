@@ -352,6 +352,19 @@ reached them) as BUG, and the structural gaps as NOT-IMPLEMENTED.
 
 ---
 
+## W-11 progress: FINDUSER / FINDUSEREX — DONE (wave 35)
+
+`on_finduser` (FINDUSER 388 / FINDUSEREX 398): resolves the target nick ->
+account (account_reader) and reports presence — "0 :<channel>" when the account
+has a live session (WOL `findme` defaults on, so online == findable; channel
+resolved via channel_reader), "1 :" otherwise; FINDUSEREX appends ",0". Reply is
+built raw (`:server <code> <nick> <payload>`, payload verbatim) to match the
+original `irc_send_cmd` framing rather than send_numeric (which would inject an
+extra ':'). `diff_wol_finduser.py`: online user -> 0, unknown -> 1, FINDUSEREX ->
+0, all match the oracle. Remaining W-11 stubs: SETOPT, PAGE, GETBUDDY/ADDBUDDY/
+DELBUDDY (maps to the existing friend use-cases), codepage/locale, GETINSIDER,
+SQUADINFO/CLANBYNAME, CHANCHK, HOST/INVMSG/USERIP, ladder LISTSEARCH/etc.
+
 ## What MATCHES (or is acceptably close)
 
 - Line framing: v3 `process_lines` handles `\r\n` and bare `\n`, with a 512-byte

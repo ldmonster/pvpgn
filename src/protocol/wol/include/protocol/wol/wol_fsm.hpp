@@ -261,6 +261,13 @@ private:
     /// `_handle_joingame_command`.
     core::Status<> on_joingame(std::string_view params);
 
+    /// FINDUSER / FINDUSEREX <nick> — report whether a user is online (and thus
+    /// findable; findme defaults on) and which channel they are in. Replies
+    /// 388 (FINDUSER) / 398 (FINDUSEREX): "0 :<channel>" when found, "1 :" when
+    /// not. @p ex selects FINDUSEREX (398, ",0" suffix). Mirrors the original
+    /// `_handle_finduser_command` / `_handle_finduserex_command`.
+    core::Status<> on_finduser(std::string_view params, bool ex);
+
     /// Route a fully-formed IRC line (CRLF appended here) to each recipient
     /// SessionId via the message router. Best-effort; null router → no-op.
     void route_irc_line(const std::string& line,
