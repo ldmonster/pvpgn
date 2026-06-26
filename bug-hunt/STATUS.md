@@ -888,3 +888,19 @@ wall-clock and intentionally not served). diff_userdata_edges.py covers both.
 Two probes the fleet ran came back CLEAN (already hardened): WOL user-flags
 (findme/pageme) and peer-address store both cleared on WolFsm::on_close (w51) —
 no ghost across reconnect. Confirms the WOL connection-scoped cleanup is complete.
+
+## Wave 56: friend presence watch (login/logout whisper to mutual friends)
+Fleet probe (agent 4) found a whole missing subsystem: the original's
+WatchComponent::dispatch_whisper notifies a logging-in/out user's MUTUAL, online
+friends via an EID_WHISPER (0x04) chat event — "Your friend X has entered/left
+<server>." — fired from conn_set_account (login) and conn_destroy (logout),
+gated on friend_get_mutual. v3 had NO presence push (friends list was query-only).
+Fix: BnetFsm::notify_friends_presence(entered) — resolves our friend list via the
+list_friends use-case, and for each MUTUAL (friend also lists us) + ONLINE friend,
+whispers them the entered/left text. Triggered after login (OLS line 208, W3 line
+306 in fsm_auth) and at the top of on_disconnect. server_name plumbed through
+BnetUseCaseContext (cfg.server_name) for the message tail. diff_friends_watch.py
+compares the structural part (eid + originating user + "has entered"/"has left"
+prefix), normalizing the per-server server-name tail (oracle "PvPGN Realm" vs v3
+"pvpgn.v3"). Now matches the oracle on both login and logout. diff_friends.py
+(static add/list/remove) still passes — no regression.

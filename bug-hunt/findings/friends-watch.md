@@ -300,3 +300,13 @@ client-side reorder parity is desired.
 - **Remove-nonexistent rule** — v3 `NotAFriend` (`remove_friend.cpp:20-22`)
   matches original's "X was not found on your friends list." (-2,
   `command.cpp:1628-1631`).
+
+## Wave 56: friend presence watch implemented
+Verified differentially (tests/diff/diff_friends_watch.py): on a mutual friend's
+login/logout, the user receives an EID_WHISPER "Your friend X has entered/left
+<server>." — matching the original's watch.cpp dispatch_whisper (gated on mutual
+friendship + online). Implemented as BnetFsm::notify_friends_presence(entered),
+called from the OLS+W3 login success paths and on_disconnect; mutual+online
+resolution via the list_friends use-case; server name from cfg.server_name.
+The separate explicit /watch watchlist path ("Watched user %s ...") is still not
+implemented (distinct from the friends-list presence push covered here).

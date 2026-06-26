@@ -92,6 +92,10 @@ struct BnetUseCaseContext {
     std::shared_ptr<application::social::AddFriend>    add_friend;
     std::shared_ptr<application::social::RemoveFriend> remove_friend;
     std::shared_ptr<application::social::ListFriends>  list_friends;
+    /// Server/realm display name, used in the friend presence whisper text
+    /// ("Your friend X has entered <server_name>."). Empty falls back to a
+    /// generic label. Mirrors the original's prefs_get_servername().
+    std::string server_name;
 };
 
 }  // namespace pvpgn::protocol::bnet

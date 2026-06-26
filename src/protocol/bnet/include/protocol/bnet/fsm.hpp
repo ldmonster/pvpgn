@@ -203,6 +203,15 @@ private:
     void broadcast_chat_event(const ChatEvent& ev,
                               std::span<const domain::SessionId> sessions);
 
+    /// Notify this account's MUTUAL, currently-online friends that it has
+    /// entered (`entered == true`) or left Battle.net, by whispering each of
+    /// them "Your friend <me> has entered/left <server_name>." — mirroring the
+    /// original's watch.cpp WatchComponent::dispatch_whisper, which fires on
+    /// conn_set_account (login) and conn_destroy (logout). A friend is notified
+    /// only when the relationship is mutual (both list each other) and the
+    /// friend is online. No-op without list_friends/session_registry/router.
+    void notify_friends_presence(bool entered);
+
     /// Handle the /whisper command family (/w /msg /m). `rest` is the command
     /// line past the leading '/', `cmd_end` the offset of the space after the
     /// command word (npos if none). Routes EID_WHISPER to the target session

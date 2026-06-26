@@ -56,6 +56,7 @@ BnetUseCaseContext make_test_context() {
         .add_friend        = nullptr,
         .remove_friend     = nullptr,
         .list_friends      = nullptr,
+        .server_name       = "",
     };
 }
 

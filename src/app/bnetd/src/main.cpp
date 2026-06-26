@@ -470,6 +470,9 @@ int main(int argc, char* argv[]) {
             use_cases.list_friends =
                 std::make_shared<application::social::ListFriends>(
                     no_delete_friends, no_delete_sessions, no_delete_reader);
+            // Realm/server name for the friend presence whisper text
+            // ("Your friend X has entered <server_name>.").
+            use_cases.server_name = cfg.server_name;
 
             // Hosted-game advertisement (SID_STARTADVEX3 0x1C) + game list
             // (SID_GETADVLISTEX 0x09), over the shared game repository so a game

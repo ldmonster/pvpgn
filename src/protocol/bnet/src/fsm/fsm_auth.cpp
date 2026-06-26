@@ -206,6 +206,9 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
     }
 
     state_ = BnetState::LoggedIn;
+    // Watch/presence: notify mutual online friends that we entered (mirrors the
+    // original's conn_set_account -> WatchComponent::dispatch_whisper, ET_login).
+    notify_friends_presence(/*entered=*/true);
     return ctx_->send(ServerMessage{LogonResponse2Reply{0x00u, ""}});
 }
 
@@ -301,6 +304,9 @@ core::Status<> BnetFsm::on(const LogonProofW3Request& m) {
     current_account_id_ = w3_pending_account_;
     current_username_   = w3_pending_username_;
     state_              = BnetState::LoggedIn;
+    // Watch/presence: notify mutual online friends that we entered (mirrors the
+    // original's conn_set_account -> WatchComponent::dispatch_whisper, ET_login).
+    notify_friends_presence(/*entered=*/true);
 
     // Mirror the original (_client_loginproofw3): once the proof checks out, a
     // client at version id >= 0x0D whose account has no e-mail on file is asked

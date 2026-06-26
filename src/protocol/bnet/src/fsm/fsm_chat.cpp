@@ -1020,6 +1020,11 @@ core::Status<> BnetFsm::on(const LeaveChannel&) {
 }
 
 void BnetFsm::on_disconnect() {
+    // Watch/presence: tell this account's mutual, online friends it has left,
+    // before any membership teardown (mirrors the original's conn_destroy ->
+    // WatchComponent::dispatch_whisper, ET_logout).
+    notify_friends_presence(/*entered=*/false);
+
     // A disconnect while in a channel is a channel part: reuse the LEAVECHANNEL
     // path so the remaining members get EID_LEAVE. We deliberately do NOT guard
     // on current_channel_id_ != 0 — the in-memory repo assigns channel id 0 to
@@ -1049,6 +1054,48 @@ void BnetFsm::on_disconnect() {
     // this session's disconnect is safe.
     if (use_cases_.ignore_store && current_account_id_.value() != 0) {
         use_cases_.ignore_store->clear_owner(current_account_id_);
+    }
+}
+
+void BnetFsm::notify_friends_presence(bool entered) {
+    if (!use_cases_.list_friends || !use_cases_.session_registry ||
+        !use_cases_.message_router || current_account_id_.value() == 0 ||
+        current_username_.empty()) {
+        return;
+    }
+    // Our own friend list; only mutual + online friends are notified.
+    auto mine = use_cases_.list_friends->execute(current_account_id_);
+    if (!mine) return;
+
+    const std::string label =
+        use_cases_.server_name.empty() ? "Battle.net" : use_cases_.server_name;
+    std::string text = "Your friend ";
+    text += current_username_;
+    text += entered ? " has entered " : " has left ";
+    text += label;
+    text += '.';
+
+    for (const auto& f : mine.value()) {
+        if (!f.is_online) continue;
+        if (f.id.value() == current_account_id_.value()) continue;
+        // Mutuality: the friend must also list us (matches the original's
+        // friend_get_mutual gate in watch.cpp).
+        auto theirs = use_cases_.list_friends->execute(f.id);
+        if (!theirs) continue;
+        bool mutual = false;
+        for (const auto& ff : theirs.value()) {
+            if (ff.id.value() == current_account_id_.value()) {
+                mutual = true;
+                break;
+            }
+        }
+        if (!mutual) continue;
+        auto sess = use_cases_.session_registry->session_for(f.id);
+        if (!sess) continue;
+        const domain::SessionId one[1] = {sess.value()};
+        broadcast_chat_event(
+            ChatEvent{kEidWhisper, 0, 0, 0, 0, 0, current_username_, text},
+            std::span<const domain::SessionId>{one, 1});
     }
 }
 
