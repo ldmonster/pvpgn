@@ -26,6 +26,10 @@ namespace pvpgn::domain::chat {
 class IChannelReader;
 }  // namespace pvpgn::domain::chat
 
+namespace pvpgn::domain::connection {
+class IPeerAddressStore;
+}  // namespace pvpgn::domain::connection
+
 namespace pvpgn::application::game {
 class IWolGameStore;
 }  // namespace pvpgn::application::game
@@ -66,6 +70,7 @@ void make_wol_session(
     std::shared_ptr<application::chat::PostMessage>   post_message,
     application::social::AddFriend*           add_friend,
     application::social::RemoveFriend*        remove_friend,
-    application::social::ListFriends*         list_friends);
+    application::social::ListFriends*         list_friends,
+    domain::connection::IPeerAddressStore*   peer_store);
 
 } // namespace pvpgn::app::bnetd

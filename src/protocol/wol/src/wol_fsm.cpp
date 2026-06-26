@@ -25,6 +25,7 @@
 #include <string>
 
 #include "core/error.hpp"
+#include "domain/connection/peer_address_store.hpp"
 #include "domain/identity/ports.hpp"
 #include "wol_fsm/wol_internal.hpp"
 
@@ -137,6 +138,9 @@ void WolFsm::on_close() {
     if (auth_.session_registry && account_id_.value() != 0) {
         auth_.session_registry->detach(session_id_);
     }
+    if (peer_store_ && account_id_.value() != 0) {
+        peer_store_->remove(account_id_);
+    }
 }
 
 // ===========================================================================
@@ -213,6 +217,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "PAGE") return on_page(params);
     if (cmd == "CHANCHK") return on_chanchk(params);
     if (cmd == "HOST") return on_host(params);
+    if (cmd == "USERIP") return on_userip(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
     // CVERS, VERCHK, APGAR, SETOPT, SERIAL, STARTG, etc.
@@ -222,7 +227,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         "STARTG",
         "ADVERTR", "ADVERTC",
         "INVMSG", "INVDEL",
-        "USERIP", "SQUADINFO", "CLANBYNAME",
+        "SQUADINFO", "CLANBYNAME",
         "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE", "NAMES",
         "TOPIC", "TIME", "KICK", "MODE",
     };

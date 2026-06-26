@@ -28,7 +28,8 @@ void make_wol_session(
     std::shared_ptr<application::chat::PostMessage>   post_message,
     application::social::AddFriend*           add_friend,
     application::social::RemoveFriend*        remove_friend,
-    application::social::ListFriends*         list_friends) {
+    application::social::ListFriends*         list_friends,
+    domain::connection::IPeerAddressStore*   peer_store) {
 
     auto egress = std::make_shared<TcpSessionEgress>(tcp);
     auto ctx    = std::make_shared<WolEgressContext>(egress, cfg.server_name);
@@ -43,6 +44,17 @@ void make_wol_session(
     fsm->set_routing(session_id, router.get(), channel_reader);
     fsm->set_game_store(wol_game_store);
     fsm->set_social(add_friend, remove_friend, list_friends);
+    // Capture this connection's peer IP so USERIP/STARTG can report it. The
+    // endpoint is available now (socket open); guard against a transport race.
+    {
+        std::string peer_ip;
+        try {
+            peer_ip = tcp->remote_endpoint().address().to_string();
+        } catch (...) {
+            peer_ip.clear();
+        }
+        fsm->set_peer(std::move(peer_ip), peer_store);
+    }
     if (router) {
         router->register_session(session_id, egress);
     }

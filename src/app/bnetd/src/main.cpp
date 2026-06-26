@@ -116,6 +116,7 @@
 #include "infra/inmemory/ip_ban_repository.hpp"
 #include "infra/inmemory/session_registry.hpp"
 #include "infra/inmemory/srp3_credential_store.hpp"
+#include "infra/inmemory/peer_address_store.hpp"
 #include "infra/inmemory/wol_credential_store.hpp"
 #include "infra/inmemory/wol_game_store.hpp"
 #include "infra/inmemory/friend_list_repository.hpp"
@@ -364,6 +365,9 @@ int main(int argc, char* argv[]) {
         // Run-loop scoped like the stores above, shared across WOL sessions so a
         // game hosted on one connection is joinable from another.
         infra::inmemory::InMemoryWolGameStore        wol_game_store;
+        // Per-account peer IP registry (WOL USERIP / STARTG). Run-loop scoped,
+        // shared so one session can report another's address.
+        infra::inmemory::InMemoryPeerAddressStore    peer_address_store;
         // Friends list store (SID_FRIENDSLIST + /friends add|remove). Run-loop
         // scoped like the credential stores above.
         infra::inmemory::InMemoryFriendListRepository friend_repo;
@@ -533,15 +537,17 @@ int main(int argc, char* argv[]) {
         auto wol_list_friends  = use_cases.list_friends;
         TcpListener wol_listener{
             rt,
-            [&cfg, &channel_repo, &wol_game_store, message_router, wol_auth,
-             wol_list_channels, wol_join_channel, wol_post_message,
-             wol_add_friend, wol_remove_friend, wol_list_friends]
+            [&cfg, &channel_repo, &wol_game_store, &peer_address_store,
+             message_router, wol_auth, wol_list_channels, wol_join_channel,
+             wol_post_message, wol_add_friend, wol_remove_friend,
+             wol_list_friends]
             (std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
                 make_wol_session(std::move(tcp), cfg, next_session_id(),
                                  message_router, &channel_repo, &wol_game_store,
                                  wol_auth, wol_list_channels, wol_join_channel,
                                  wol_post_message, wol_add_friend.get(),
-                                 wol_remove_friend.get(), wol_list_friends.get());
+                                 wol_remove_friend.get(), wol_list_friends.get(),
+                                 &peer_address_store);
             },
             wol_idle};
         wol_listener.start(cfg.listen_address, cfg.wol_port);

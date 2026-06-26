@@ -25,6 +25,7 @@
 #include "application/social/remove_friend.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/chat/ports.hpp"
+#include "domain/connection/peer_address_store.hpp"
 #include "domain/connection/ports.hpp"
 #include "domain/identity/account.hpp"
 #include "domain/identity/ports.hpp"
@@ -815,6 +816,38 @@ core::Status<> WolFsm::on_host(std::string_view params) {
                     line += std::string(text);
                     route_irc_line(line, {sid.value()});
                     return core::ok();
+                }
+            }
+        }
+    }
+    return send_numeric(401, nick_, std::string(target) + " :No such nick");
+}
+
+core::Status<> WolFsm::on_userip(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    auto target = trim(first_token(params));
+    if (target.empty()) return core::ok();  // original guard
+
+    if (auth_.account_reader && peer_store_) {
+        auto name = domain::UserName::parse(std::string{target});
+        if (name) {
+            auto acct = auth_.account_reader->find_by_name(name.value());
+            if (acct) {
+                if (auto ip = peer_store_->get(acct.value().id())) {
+                    // Reply to the requester (original message_send_text(conn,...)):
+                    // ":<nick>!<nick>@Battle.net USERIP <nick> <ip>".
+                    std::string line = ":";
+                    line += nick_;
+                    line += '!';
+                    line += nick_;
+                    line += "@Battle.net USERIP ";
+                    line += std::string(target);
+                    line += ' ';
+                    line += ip.value();
+                    return send_raw(line);
                 }
             }
         }

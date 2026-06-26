@@ -296,6 +296,24 @@ def wol_read_numeric(client, code, tries=20):
     return None
 
 
+def wol_userip(client, nick, tries=20):
+    """USERIP <nick>; return (status, ip): ('ok', '<ip>') on a USERIP reply,
+    ('401', '') on ERR_NOSUCHNICK, else (None, None)."""
+    client.send_line(f"USERIP {nick}")
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        if " USERIP " in line:
+            after = line.split(" USERIP ", 1)[1]
+            parts = after.split()
+            return ("ok", parts[1] if len(parts) >= 2 else "")
+        p = line.split(" ", 2)
+        if len(p) >= 2 and p[1] == "401":
+            return ("401", "")
+    return (None, None)
+
+
 def wol_chanchk(client, channel, tries=20):
     """CHANCHK <channel>; return 'chanchk' if the server echoes a CHANCHK line,
     '403' on ERR_NOSUCHCHANNEL, else None."""

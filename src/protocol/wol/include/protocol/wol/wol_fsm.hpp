@@ -70,6 +70,7 @@ class ISessionRegistry;
 
 namespace pvpgn::domain::connection {
 class IMessageRouter;
+class IPeerAddressStore;
 }  // namespace pvpgn::domain::connection
 
 namespace pvpgn::domain::chat {
@@ -186,6 +187,15 @@ public:
     /// channel join without game tracking).
     void set_game_store(application::game::IWolGameStore* store) noexcept {
         wol_game_store_ = store;
+    }
+
+    /// Record this connection's peer IP and the shared peer-address store. On
+    /// login the FSM registers account -> @p ip so USERIP/STARTG can report it.
+    /// Both non-owning; null/empty in test mode (USERIP then 401s).
+    void set_peer(std::string ip,
+                  domain::connection::IPeerAddressStore* store) {
+        peer_ip_    = std::move(ip);
+        peer_store_ = store;
     }
 
     /// Wire the social use-cases backing the WOL buddy commands (GETBUDDY /
@@ -313,6 +323,11 @@ private:
     /// is offline/unknown. Mirrors `_handle_host_command`.
     core::Status<> on_host(std::string_view params);
 
+    /// USERIP <nick> — report a user's peer IP back to the requester
+    /// (":<nick>!<nick>@Battle.net USERIP <nick> <ip>"); 401 if offline/unknown.
+    /// Uses the peer-address store. Mirrors `_handle_userip_command`.
+    core::Status<> on_userip(std::string_view params);
+
     /// GETBUDDY — reply 333 with the backtick-terminated buddy (friend) list.
     core::Status<> on_getbuddy();
 
@@ -404,6 +419,11 @@ private:
     /// This session's codepage / locale (SETCODEPAGE / SETLOCALE; 0 until set).
     int         codepage_ = 0;
     int         locale_   = 0;
+
+    /// This connection's peer IP (from the transport) + the shared account->IP
+    /// store. Registered on login, removed on close; used by USERIP/STARTG.
+    std::string peer_ip_;
+    domain::connection::IPeerAddressStore* peer_store_ = nullptr;
 
     /// Account ID resolved after successful login (0 until authenticated).
     domain::AccountId account_id_{0};

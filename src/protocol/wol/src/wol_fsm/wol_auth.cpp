@@ -16,6 +16,7 @@
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
 #include "application/auth/wol_credential_store.hpp"
+#include "domain/connection/peer_address_store.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/bn_hash.hpp"
 #include "domain/shared/client_tag.hpp"
@@ -267,6 +268,10 @@ core::Status<> WolFsm::try_wol_authenticate() {
     // sent regardless so a benign attach race never blocks login).
     if (auth_.session_registry) {
         (void)auth_.session_registry->attach(session_id_, acct_id);
+    }
+    // Register this account's peer IP so USERIP/STARTG can report it.
+    if (peer_store_ && !peer_ip_.empty()) {
+        peer_store_->set(acct_id, peer_ip_);
     }
     account_id_ = acct_id;
     state_      = WolState::Authenticated;

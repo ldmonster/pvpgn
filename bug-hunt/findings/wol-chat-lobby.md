@@ -402,10 +402,20 @@ CHANCHK <channel> replies ":<server> CHANCHK <channel>" when the channel exists
 else 401. diff_wol_chanchk_host.py: existing channel -> CHANCHK, absent -> 403,
 host delivered to online target, 401 for unknown — all match the oracle.
 
+## W-11 progress: peer-IP registry + USERIP — DONE (wave 40)
+
+Added a small peer-address registry (domain::connection::IPeerAddressStore +
+InMemoryPeerAddressStore, run-loop scoped) mapping AccountId -> peer IP. The IP is
+captured from TcpSession::remote_endpoint() in make_wol_session, registered on WOL
+login (try_wol_authenticate) and removed on close. USERIP <nick> now resolves the
+target -> account -> IP and replies ":<nick>!<nick>@Battle.net USERIP <nick> <ip>"
+(401 if offline/unknown). diff_wol_userip.py: online user -> 127.0.0.1, unknown ->
+401, matches the oracle. THIS ALSO UNBLOCKS STARTG (the per-player IP list).
+
 Remaining W-11 stubs: SETOPT (cross-session findme/pageme gating — needs a shared
-registry), INVMSG (channel-invite relay, doable), USERIP (BLOCKED on peer-IP
-tracking like STARTG), SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/
-HIGHSCORE.
+registry), INVMSG (channel-invite relay, doable), SQUADINFO/CLANBYNAME (clan),
+ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE. STARTG now has the peer IPs it needs
+(gameNumber/time_t still need a tolerant diff).
 
 ## What MATCHES (or is acceptably close)
 
