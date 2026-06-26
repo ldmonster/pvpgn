@@ -412,10 +412,18 @@ target -> account -> IP and replies ":<nick>!<nick>@Battle.net USERIP <nick> <ip
 (401 if offline/unknown). diff_wol_userip.py: online user -> 127.0.0.1, unknown ->
 401, matches the oracle. THIS ALSO UNBLOCKS STARTG (the per-player IP list).
 
+## W-11 progress: INVMSG — DONE (wave 41)
+
+INVMSG <channel> <flag> <invited,...> relays a game invite to each named online
+user. GOTCHA found by the differential: the original's wire form carries the
+invitee's OWN name first (inserted by its postformat) —
+":<sender>!.. INVMSG <invited> <channel> <flag>", not "<channel> <flag>". v3 now
+prepends the invitee name per recipient. diff_wol_invmsg.py: B receives
+"invb #invroom 1", matching the oracle byte-for-byte.
+
 Remaining W-11 stubs: SETOPT (cross-session findme/pageme gating — needs a shared
-registry), INVMSG (channel-invite relay, doable), SQUADINFO/CLANBYNAME (clan),
-ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE. STARTG now has the peer IPs it needs
-(gameNumber/time_t still need a tolerant diff).
+registry), SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE.
+STARTG now has the peer IPs it needs (gameNumber/time_t still need a tolerant diff).
 
 ## What MATCHES (or is acceptably close)
 

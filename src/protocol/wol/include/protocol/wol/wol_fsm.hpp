@@ -328,6 +328,11 @@ private:
     /// Uses the peer-address store. Mirrors `_handle_userip_command`.
     core::Status<> on_userip(std::string_view params);
 
+    /// INVMSG <channel> <flag> <invited,...> — relay a game invite to each named
+    /// online user (":<nick>!<nick>@Battle.net INVMSG <channel> <flag>") via the
+    /// router. No sender reply. Mirrors `_handle_invmsg_command`.
+    core::Status<> on_invmsg(std::string_view params);
+
     /// GETBUDDY — reply 333 with the backtick-terminated buddy (friend) list.
     core::Status<> on_getbuddy();
 

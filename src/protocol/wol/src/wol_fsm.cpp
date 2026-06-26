@@ -218,6 +218,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "CHANCHK") return on_chanchk(params);
     if (cmd == "HOST") return on_host(params);
     if (cmd == "USERIP") return on_userip(params);
+    if (cmd == "INVMSG") return on_invmsg(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
     // CVERS, VERCHK, APGAR, SETOPT, SERIAL, STARTG, etc.
@@ -226,7 +227,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         "SETOPT", "SERIAL",
         "STARTG",
         "ADVERTR", "ADVERTC",
-        "INVMSG", "INVDEL",
+        "INVDEL",
         "SQUADINFO", "CLANBYNAME",
         "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE", "NAMES",
         "TOPIC", "TIME", "KICK", "MODE",

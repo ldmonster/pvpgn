@@ -855,4 +855,56 @@ core::Status<> WolFsm::on_userip(std::string_view params) {
     return send_numeric(401, nick_, std::string(target) + " :No such nick");
 }
 
+core::Status<> WolFsm::on_invmsg(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    // INVMSG <channel> <flag> <invited,invited2,...>
+    auto tok = split_ws(params);
+    if (tok.size() < 3) return core::ok();  // original guard (numparams >= 3)
+
+    const std::string chan_flag =
+        std::string{tok[0]} + " " + std::string{tok[1]};  // "<channel> <flag>"
+
+    if (!message_router_ || !auth_.account_reader || !auth_.session_registry) {
+        return core::ok();
+    }
+    // The invited list is comma-separated; deliver to each online invitee. The
+    // original's wire form carries the invitee's OWN name first (inserted by its
+    // postformat): ":<sender>!.. INVMSG <invited> <channel> <flag>".
+    std::string_view invited = tok[2];
+    std::size_t pos = 0;
+    while (pos <= invited.size()) {
+        std::size_t comma = invited.find(',', pos);
+        std::string_view who = invited.substr(
+            pos, comma == std::string_view::npos ? std::string_view::npos
+                                                 : comma - pos);
+        who = trim(who);
+        if (!who.empty()) {
+            auto name = domain::UserName::parse(std::string{who});
+            if (name) {
+                auto acct = auth_.account_reader->find_by_name(name.value());
+                if (acct) {
+                    if (auto sid = auth_.session_registry->session_for(
+                            acct.value().id())) {
+                        std::string line = ":";
+                        line += nick_;
+                        line += '!';
+                        line += nick_;
+                        line += "@Battle.net INVMSG ";
+                        line += std::string(who);
+                        line += ' ';
+                        line += chan_flag;
+                        route_irc_line(line, {sid.value()});
+                    }
+                }
+            }
+        }
+        if (comma == std::string_view::npos) break;
+        pos = comma + 1;
+    }
+    return core::ok();
+}
+
 }  // namespace pvpgn::protocol::wol
