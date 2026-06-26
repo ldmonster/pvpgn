@@ -514,9 +514,18 @@ Unblocked by F-W31. Oracle ref: `handle_wol.cpp` `_handle_gameopt_command` (1130
    and acks **every channel member** `<min> <max> <type> 1 1 <tourn> :#chan` via
    the router (so the host learns a player joined). `diff_wol_joingame.py`: A
    creates #wolgame, B joins, B's ack `2 8 1 1 1 0` matches the oracle.
-3. **STARTG** (NOW UNBLOCKED by #2): `game_set_status(started)` + per-player STARTG with the IP list;
-   WOLv2 `:<owner>!WWOL@host STARTG u :user1 ip user2 ip :gameNumber time_t`,
-   WOLv1 the owner-IP form. Broadcasts to the named players via the router.
+3. **STARTG** (game model now exists, but BLOCKED on peer-IP tracking):
+   `game_set_status(started)` + per-player STARTG with the IP list — WOLv2
+   `:<owner>!WWOL@host STARTG u :user1 ip user2 ip :gameNumber time_t`, WOLv1 the
+   owner-IP form. The payload's reason for existing is the per-player IPs (P2P
+   game setup), which v3 cannot currently produce: there is no SessionId/account
+   -> peer-IP map (TcpSession knows its own remote_endpoint, but WolFsm can't
+   reach another session's IP). Faithfully reproducing STARTG therefore needs a
+   peer-IP registry first — infra disproportionate to the single verb — and the
+   gameNumber + time_t fields make a byte-exact differential impossible anyway
+   (they differ per server/run). Deferred until peer-IP tracking exists; the
+   control flow (mark started + route a STARTG line to named players) is trivial
+   on top of the wave-31 router once the IPs are available.
 
 GOTCHA carried forward: running-server diffs must be launched with the Bash tool
 `run_in_background:true` (a foreground `timeout|tee` pipeline that boots the

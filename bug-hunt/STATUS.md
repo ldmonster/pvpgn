@@ -607,9 +607,32 @@ resolves nick->account->session (401 if offline). Shared route_irc_line() helper
 diff_wol_gameopt.py matches the oracle; re-hardened (extended LSan driver covering
 GAMEOPT channel+whisper+malformed + ASan diff: 0 leaks, 0 crashes). (f47c0d2)
 
-## RUNNING TOTAL: ~64 distinct bugs/features across 33 waves. Login (all families)
+## Wave 34: WOL JOINGAME (game-as-channel create/join)
+JOINGAME was a silent no-op — WOL clients could never host/join a game lobby.
+Added a WOL game-channel registry (application::game::IWolGameStore +
+InMemoryWolGameStore, run-loop scoped, shared across WOL sessions) holding the
+WOL-specific metadata (min/max players, game type, tournament, gameExtension,
+password, host, backing channel id, players) — kept apart from the BNCS
+IGameRepository. on_joingame: CREATE (>=7 params) registers the game + creates
+the backing channel and acks the host; JOIN (2-3 params) finds the game (478 if
+closed), enforces full (471) then password (475) [matches oracle order], joins
+the channel, and acks every channel member via the router. diff_wol_joingame.py:
+A creates #wolgame, B joins, ack "2 8 1 1 1 0" matches the oracle. (commit 70484ed)
+
+## Hardening (waves 33-34): GAMEOPT + JOINGAME re-hardened to 100%
+ASan + UBSan fleet over the new surface. Both report HARDENED 100% / 0 defects:
+all 5 WOL differentials (chat/gameopt/joingame/lobby/login) match the oracle
+against BOTH sanitizer binaries; WOL unit 63/63 + full suite green (the recurring
+anongame/multilocale parallel temp-file race + a pre-existing tomlplusplus UBSan
+finding are the only "failures", both non-defects); leak driver (login → JOINGAME
+create/join → GAMEOPT → PRIVMSG → disconnect, x8 rounds, SIGTERM) reports 0 leaks;
+edge battery (malformed JOINGAME param counts, non-numeric/overflow strtoul
+tokens, full/wrong-password joins, invalid-UTF-8, pre-auth) — server stayed up,
+0 ASan/UBSan reports.
+
+## RUNNING TOTAL: ~65 distinct bugs/features across 34 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + WOL
-## lobby LIST/JOIN + WOL cross-session chat + GAMEOPT match the oracle;
-## runtime-hardened (ASan+UBSan clean, leak-clean). Still open: WOL JOINGAME
-## (game-as-channel model — the big remaining piece) + STARTG (blocked on it) +
-## matchbot/anongame. See bug-hunt/findings/wol-chat-lobby.md F-W31 for the plan.
+## lobby LIST/JOIN + WOL cross-session chat + GAMEOPT + JOINGAME match the oracle;
+## runtime-hardened (ASan+UBSan clean, leak-clean). Still open: WOL STARTG
+## (needs peer-IP tracking infra; gameNumber/time_t preclude a byte-exact diff)
+## + matchbot/anongame automatch. See findings/wol-chat-lobby.md F-W31.

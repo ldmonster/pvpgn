@@ -72,23 +72,37 @@ etc. between runs. clang not on PATH (fuzzer reuses build/v3-fuzz from wave 23).
   (401 if offline). Shared route_irc_line() helper. diff_wol_gameopt.py matches
   oracle; re-hardened (extended leak check + ASan diff, 0 leaks/0 crashes).
 
+## Wave 34 — DONE (WOL JOINGAME) + hardened
+
+- W34 `70484ed`: **WOL JOINGAME create/join** (game-as-channel). New
+  application::game::IWolGameStore (+ InMemoryWolGameStore), run-loop scoped,
+  shared across WOL sessions, holds the WOL game metadata (min/max, type,
+  tournament, extension, password, host, channel id, players). on_joingame:
+  CREATE (>=7 params) registers game + creates channel + acks host; JOIN (2-3)
+  finds game (478 closed / 471 full / 475 bad-pass, full-before-pass matches
+  oracle), joins channel, acks all members via router. diff_wol_joingame.py
+  matches oracle (ack "2 8 1 1 1 0"). protocol_wol now deps application_game.
+- Re-hardened waves 33-34: ASan + UBSan fleet → both "HARDENED 100% / 0 defects";
+  all 5 WOL diffs match against both sanitizer binaries; leak driver 0 leaks;
+  edge battery clean.
+
 ## NEXT — remaining divergences
 
-1. **WOL JOINGAME** (game-as-channel model) — the big remaining piece. A WOL game
-   IS a channel with metadata: min/max players, channelType (tag), tournament
-   flag, gameExtension, optional password. Create (numparams>=7) makes the
-   channel+game and acks message_wol_joingame; Join (numparams 2|3) finds an
-   available game, checks full/banned/password, joins its channel, acks the
-   WOLv1/WOLv2 layout. Oracle: handle_wol.cpp:908. v3 has a game repo
-   (StartGame/ListPublicGames for BNCS) + channel repo — reconciling them into a
-   WOL game-channel is the work. PREREQUISITE for STARTG.
-2. **WOL STARTG** (handle_wol.cpp:1264) — needs conn_get_game; per-player STARTG
-   with IP list + gameNumber + time_t. Blocked on JOINGAME (no game to start).
-3. JOINGAME password enforcement (part of #1).
+1. **WOL STARTG** (handle_wol.cpp:1264) — game model now EXISTS (W34) but STARTG
+   is BLOCKED on peer-IP tracking: its payload is per-player IPs (P2P setup) +
+   gameNumber + time_t. v3 has no SessionId/account -> peer-IP map (TcpSession
+   knows its own remote_endpoint, but WolFsm can't reach another session's IP),
+   and the gameNumber/time_t fields make a byte-exact differential impossible.
+   Needs a peer-IP registry first (infra disproportionate to one verb). Control
+   flow (mark started + route STARTG to named players) is trivial on the W31
+   router once IPs exist. See findings/wol-chat-lobby.md item 3.
+2. **matchbot / anongame automatch** — entire WOL automatch chat subsystem still
+   NOT-IMPLEMENTED (oracle anongame_wol.cpp, ~615 lines). Large separate feature.
 
-The router foundation (W31) + GAMEOPT (W33) prove the broadcast path; STARTG is
-the same broadcast with the STARTG verb once a game model exists. Full plan +
-oracle wire formats in bug-hunt/findings/wol-chat-lobby.md (F-W31).
+The WOL game lobby is now functional end-to-end for the common path: native
+APGAR login, LIST/JOIN chat channels, cross-session channel chat, GAMEOPT game
+options, and JOINGAME game create/join — all matching the oracle and hardened.
+Full plan + oracle wire formats in bug-hunt/findings/wol-chat-lobby.md (F-W31).
 
 Note: the CommandRegistry is still NOT wired into bnetd (make_use_case_context
 doesn't set command_registry/permission_checker); the implemented chat commands
