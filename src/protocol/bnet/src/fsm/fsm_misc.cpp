@@ -75,8 +75,13 @@ core::Status<> BnetFsm::on(const SetEmailReply&) {
 }
 
 core::Status<> BnetFsm::on(const IconRequest&) {
-    // Icons.bni metadata fetch is part of the early handshake.
-    return core::ok();
+    // SID_GETICONDATA (0x2D): the original (_client_iconreq) replies with
+    // SERVER_ICONREPLY carrying the icon file's mtime + name ("icons.bni") so the
+    // client can fetch it via BNFTP. v3 does not track the file's mtime at the
+    // protocol layer, so the timestamp is a placeholder; the filename matches.
+    return ctx_->send(ServerMessage{IconReply{
+        /*timestamp*/ 0,
+        /*filename*/  "icons.bni"}});
 }
 
 core::Status<> BnetFsm::on(const GetPasswordRequest&) {

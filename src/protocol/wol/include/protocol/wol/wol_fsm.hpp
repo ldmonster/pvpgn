@@ -287,6 +287,13 @@ private:
     /// operator prefixed with '@') + RPL_ENDOFNAMES (366). Mirrors the original.
     core::Status<> on_names(std::string_view params);
 
+    /// TIME — RPL_TIME (391) with the server name + current unix time.
+    core::Status<> on_time();
+
+    /// MODE — channel mode query (324 RPL_CHANNELMODEIS "+tns" / 368 end-of-ban
+    /// for "MODE #c b") or 501 ERR_UMODEUNKNOWNFLAG for a user-mode query.
+    core::Status<> on_mode(std::string_view params);
+
     /// JOIN #<channel>
     core::Status<> on_join(std::string_view params);
 

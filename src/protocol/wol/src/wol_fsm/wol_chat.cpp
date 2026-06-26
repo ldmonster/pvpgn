@@ -152,6 +152,60 @@ core::Status<> WolFsm::on_names(std::string_view params) {
                         "End of NAMES list");
 }
 
+core::Status<> WolFsm::on_time() {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    // 391 RPL_TIME: ":server 391 <nick> <server> :<unixtime>" — mirrors the
+    // original's _handle_time_command (time(NULL)). The server name is repeated
+    // as a param, then the unix time as the trailing arg.
+    const std::string sv{ctx_->server_name()};
+    const std::string target =
+        std::string(nick_.empty() ? "*" : nick_) + " " + sv;
+    return send_numeric(391, target,
+                        std::to_string(static_cast<long long>(std::time(nullptr))));
+}
+
+core::Status<> WolFsm::on_mode(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    auto target = trim(first_token(params));
+    if (target.empty()) {
+        return send_numeric(461, nick_, "MODE :Not enough parameters");
+    }
+    // Channel mode query. The original returns a fixed "+tns" for a plain query
+    // and an empty ban list (368) for "MODE #chan b". Mode *changes* route
+    // through the operator commands and are not handled here.
+    if (target[0] == '#') {
+        // Second token, if any (e.g. the "b" ban-list query).
+        auto rest = params;
+        auto sp = rest.find(' ');
+        std::string_view sub =
+            (sp == std::string_view::npos) ? std::string_view{}
+                                           : trim(rest.substr(sp + 1));
+        if (!sub.empty() && (sub[0] == 'b' || sub == "+b")) {
+            // 368 RPL_ENDOFBANLIST (empty ban list).
+            return send_numeric(368, std::string(nick_) + " " + std::string(target),
+                                "End of channel ban list");
+        }
+        // 324 RPL_CHANNELMODEIS: the mode is a plain param (no leading ':'), so
+        // build the line directly rather than via send_numeric (which adds " :").
+        std::string line = ":";
+        line += ctx_->server_name();
+        line += " 324 ";
+        line += nick_;
+        line += ' ';
+        line += std::string(target);
+        line += " +tns";
+        return send_raw(line);
+    }
+    // User-mode query -> 501 ERR_UMODEUNKNOWNFLAG, matching the original.
+    return send_numeric(501, nick_, "Unknown MODE flag");
+}
+
 core::Status<> WolFsm::on_join(std::string_view params) {
     if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
         return send_numeric(451, nick_.empty() ? "*" : nick_,

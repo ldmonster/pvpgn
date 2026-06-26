@@ -1062,3 +1062,25 @@ connection) and compares the member SET + operator marking (353 order is
 unordered-map-dependent). Matches the oracle. 3199/3199 units.
 Note: bare NAMES (no channel) lists every channel on the oracle — config-dependent,
 not differentially meaningful — so v3 returns just the 366 terminator.
+
+## Wave 70: BNCS GETFILETIME/GETICONDATA replies + WOL TIME/MODE
+Fleet round (2 agents, untested-opcode sweep) found several silent-no-op gaps; the
+backend-free, cleanly-diffable ones are fixed here:
+  BNCS 0x33 SID_GETFILETIME + 0x2D SID_GETICONDATA: the original always replies
+    (SERVER_FILEINFOREPLY echoing type/unknown2/filename + mtime; SERVER_ICONREPLY
+    with icons.bni). v3's on(FileInfoRequest)/on(IconRequest) were no-op stubs.
+    The reply encoders already existed — just wired the FSM handlers to send
+    FileInfoReply{echoed fields, timestamp 0 placeholder} / IconReply{0,
+    "icons.bni"}. diff_fileinfo.py (compares echoed type/unknown2/filename, not the
+    host-dependent timestamp). Real SC/D2 clients expect these in the TOS/icon
+    handshake.
+  WOL TIME -> 391 RPL_TIME (server + unix time); WOL MODE #chan -> 324
+    RPL_CHANNELMODEIS "+tns" / "MODE #chan b" -> 368 end-of-ban / "MODE <nick>"
+    -> 501 ERR_UMODEUNKNOWNFLAG. Were silent no-ops in wol_known[]. Implemented
+    on_time + on_mode (query only; mode CHANGES route through operator commands,
+    deferred). diff_wol_timemode.py.
+Deferred (more involved): WOL TOPIC (needs channel topic wired — domain Channel
+HAS topic_/set_topic + there's an unwired SetChannelTopic use-case; also note the
+ORACLE CRASHES on a bare "TOPIC #chan" query — NULL deref, so never test that) and
+WOL KICK (IRC form: operator check + KICK broadcast + member removal). BNCS
+clan/realm/ladder/MOTD/ad opcodes need backends — not cleanly diffable.

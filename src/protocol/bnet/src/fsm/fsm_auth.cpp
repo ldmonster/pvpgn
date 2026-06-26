@@ -233,10 +233,18 @@ core::Status<> BnetFsm::on(const CdKey2Request&) {
     return core::ok();
 }
 
-core::Status<> BnetFsm::on(const FileInfoRequest&) {
-    // GETFILETIME may be sent from AuthInfoReceived onwards (e.g. for
-    // gateways/icons probes) — accept in any non-Closing state.
-    return core::ok();
+core::Status<> BnetFsm::on(const FileInfoRequest& m) {
+    // SID_GETFILETIME (0x33): the original (_client_fileinforeq) ALWAYS replies
+    // with SERVER_FILEINFOREPLY echoing the request's type + unknown2 and the
+    // requested filename, plus the file's server-side mtime (so the client can
+    // decide whether to BNFTP-download a newer copy). v3 does not track these
+    // files' mtimes at the protocol layer, so the timestamp is sent as 0 (a
+    // placeholder); the echoed type/unknown2/filename match the oracle.
+    return ctx_->send(ServerMessage{FileInfoReply{
+        /*type*/      m.type,
+        /*unknown2*/  m.unknown2,
+        /*timestamp*/ 0,
+        /*filename*/  m.filename}});
 }
 
 // WarCraft III SRP-3 (NLS) login — SID_AUTH_ACCOUNTLOGON (0x53) step A.
