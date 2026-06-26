@@ -352,3 +352,13 @@ profile\location, i.e. the original's account_get_desc / account_get_loc). The
 reply has no timestamps, so it byte-diffs exactly. diff_profile.py: write a
 description + location, request the profile, get them back — matches the oracle.
 bncs_client.py helper request_profile.
+
+## Wave 55: READUSERDATA fallback + BNET\ system fields
+Verified differentially (tests/diff/diff_userdata_edges.py): (1) reading a
+nonexistent account name returns the caller's own profile (oracle's reqacc=myacc
+fallback); (2) BNET\acct\username and BNET\acct\userid are served on a self-read
+(seeded at account creation in the oracle) and stay hidden cross-account. Fixed in
+on(UserDataReadRequest): name->account resolution with self-fallback, system
+fields computed from the account aggregate. Happy-path write/read + cross-account
+read already matched (diff_userdata.py). Dynamic BNET fields (ctime) are not
+served — wall-clock, not differentially stable.

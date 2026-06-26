@@ -866,16 +866,52 @@ core::Status<> BnetFsm::on(const UserDataReadRequest& m) {
     reply.name_count = static_cast<std::uint32_t>(m.names.size());
     reply.key_count  = static_cast<std::uint32_t>(m.keys.size());
     for (const auto& name : m.names) {
+        // Resolve the requested name to an account. The original's _client_statsreq
+        // falls back to the CALLER's own account when the requested name does not
+        // resolve (`if (!reqacc) reqacc = myacc;`), so a read of a nonexistent
+        // name returns the caller's own profile — and is treated as "self" for the
+        // BNET\-hide rule. Mirror that: substitute current_username_ when `name`
+        // is not a real account.
+        std::string target = name;
+        std::optional<domain::identity::Account> acct;
+        if (use_cases_.account_repo) {
+            if (auto parsed = domain::UserName::parse(name)) {
+                if (auto found = use_cases_.account_repo->find_by_name(parsed.value())) {
+                    acct = std::move(found.value());
+                }
+            }
+        }
+        if (!acct && !current_username_.empty()) {
+            target = current_username_;  // reqacc = myacc fallback
+            if (use_cases_.account_repo) {
+                if (auto parsed = domain::UserName::parse(target)) {
+                    if (auto found =
+                            use_cases_.account_repo->find_by_name(parsed.value())) {
+                        acct = std::move(found.value());
+                    }
+                }
+            }
+        }
         const bool is_self =
             !current_username_.empty() &&
-            ieq_ascii(name, current_username_);
+            ieq_ascii(target, current_username_);
         for (const auto& key : m.keys) {
             std::string value;
             const bool hidden =
                 !is_self && key.size() >= 4 && ieq_ascii(key.substr(0, 4), "BNET");
-            if (!hidden && use_cases_.user_profile_store) {
-                if (auto v = use_cases_.user_profile_store->get(name, key)) {
-                    value = std::move(v.value());
+            if (!hidden) {
+                // System BNET\acct\* attributes the original auto-populates at
+                // account creation (account.cpp). username/userid are static and
+                // resolvable from the account aggregate; serve them directly so a
+                // self-read matches the oracle without a separate seed step.
+                if (acct && ieq_ascii(key, "BNET\\acct\\username")) {
+                    value = std::string{acct->name().display()};
+                } else if (acct && ieq_ascii(key, "BNET\\acct\\userid")) {
+                    value = std::to_string(acct->id().value());
+                } else if (use_cases_.user_profile_store) {
+                    if (auto v = use_cases_.user_profile_store->get(target, key)) {
+                        value = std::move(v.value());
+                    }
                 }
             }
             reply.values.push_back(std::move(value));

@@ -871,3 +871,20 @@ IIgnoreStore::clear_owner (default no-op; InMemory erases the owner's set) and
 call it from BnetFsm::on_disconnect. kick-old (w49/50/53) guarantees a single
 live session per account, so clearing on disconnect is safe. Now matches the
 oracle. 7th lifecycle/cleanup fix in the w48-54 run.
+
+## Wave 55: READUSERDATA edge cases — nonexistent fallback + BNET\ system fields
+Fleet probe (agent) of the BNCS profile/userdata surface found two divergences in
+SID_READUSERDATA vs the oracle's _client_statsreq:
+  D1. Nonexistent-account read must fall back to the CALLER's own profile
+      (`if (!reqacc) reqacc = myacc;`). v3 returned empty for an unknown name.
+  D2. Auto-populated BNET\acct\* fields (username/userid, seeded at account
+      creation in account.cpp) were missing — a self-read of BNET\acct\username
+      returned '' on v3 vs 'bob' on the oracle.
+Fix (fsm_chat.cpp on(UserDataReadRequest)): resolve the requested name to an
+account; if it doesn't resolve, substitute current_username_ (and treat as self
+for the BNET\-hide rule). Serve BNET\acct\username / BNET\acct\userid from the
+resolved account aggregate (static, diffable; dynamic fields like ctime are
+wall-clock and intentionally not served). diff_userdata_edges.py covers both.
+Two probes the fleet ran came back CLEAN (already hardened): WOL user-flags
+(findme/pageme) and peer-address store both cleared on WolFsm::on_close (w51) —
+no ghost across reconnect. Confirms the WOL connection-scoped cleanup is complete.
