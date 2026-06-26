@@ -804,6 +804,11 @@ diff_concurrent_login_w3.py (observable: old connection dropped; W3 proof reply 
 "success" either way): both logins succeed + old kicked, matching the oracle.
 (commit a6a01bb) The lifecycle bug-hunt (drive 2 connections + diff) found w48/49/50.
 
+## Post-W50 full regression sweep: 33/33 diff scenarios PASS
+Re-ran the whole suite (incl. diff_concurrent_login + diff_concurrent_login_w3)
+after the W49/W50 kick-old-login changes: 33/33 PASS, 0 regressions. kick-old-login
+is complete for both OLS and W3/NLS and non-regressive.
+
 ## RUNNING TOTAL: ~83 distinct bugs/features across 50 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
