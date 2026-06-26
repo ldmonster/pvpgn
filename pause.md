@@ -53,11 +53,42 @@ fuzzer 8.79M execs 0 crashes; unit 3150 green; all 9 diffs pass. NOTE: leftover
 sanitizer bnetd procs can squat ports 4000/6112/6667 — `pkill -f build/v3-asan`
 etc. between runs. clang not on PATH (fuzzer reuses build/v3-fuzz from wave 23).
 
+## Waves 31-33 — DONE (WOL cross-session delivery + GAMEOPT)
+
+- W31 `c9c7133`: **WOL channel chat delivered across sessions** (the routing
+  foundation). make_wol_session assigns a real SessionId + registers the egress
+  with the shared MessageRouter (unregister on close); new WolFsm::set_routing;
+  on_privmsg routes the IRC line to PostMessage's recipients (no self-echo).
+  diff_wol_chat.py: two WOL clients, A speaks → B hears, matches oracle.
+- W32 `dca75f6`: **fixed 2 ASan-found leaks.** (a) TcpSession FSM<->session
+  reference cycle — close() never released the callbacks, so every disconnect
+  leaked the whole graph (~6KB/conn); fix: fire_close_and_release() clears
+  on_close_/on_bytes_ after firing (helps ALL protocols). (b) WOL never detached
+  account->session from the registry; fix: WolFsm::on_close detaches. Verified
+  leak-clean (LSan driver, 0 leaks), ASan memory-safe, UBSan clean.
+- W33 `f47c0d2`: **WOL GAMEOPT relay.** on_gameopt: channel mode broadcasts the
+  opaque options to current-channel members (channel_reader threaded into WolFsm
+  + session registry, no self-echo); whisper mode resolves nick->account->session
+  (401 if offline). Shared route_irc_line() helper. diff_wol_gameopt.py matches
+  oracle; re-hardened (extended leak check + ASan diff, 0 leaks/0 crashes).
+
 ## NEXT — remaining divergences
 
-1. WOL game lobby (GAMEOPT/STARTG/JOINGAME game model, matchbot) — still skeleton
-   (LIST/JOIN of chat channels now done; the GAME side remains).
-2. JOINGAME password enforcement (noted while wiring game create).
+1. **WOL JOINGAME** (game-as-channel model) — the big remaining piece. A WOL game
+   IS a channel with metadata: min/max players, channelType (tag), tournament
+   flag, gameExtension, optional password. Create (numparams>=7) makes the
+   channel+game and acks message_wol_joingame; Join (numparams 2|3) finds an
+   available game, checks full/banned/password, joins its channel, acks the
+   WOLv1/WOLv2 layout. Oracle: handle_wol.cpp:908. v3 has a game repo
+   (StartGame/ListPublicGames for BNCS) + channel repo — reconciling them into a
+   WOL game-channel is the work. PREREQUISITE for STARTG.
+2. **WOL STARTG** (handle_wol.cpp:1264) — needs conn_get_game; per-player STARTG
+   with IP list + gameNumber + time_t. Blocked on JOINGAME (no game to start).
+3. JOINGAME password enforcement (part of #1).
+
+The router foundation (W31) + GAMEOPT (W33) prove the broadcast path; STARTG is
+the same broadcast with the STARTG verb once a game model exists. Full plan +
+oracle wire formats in bug-hunt/findings/wol-chat-lobby.md (F-W31).
 
 Note: the CommandRegistry is still NOT wired into bnetd (make_use_case_context
 doesn't set command_registry/permission_checker); the implemented chat commands

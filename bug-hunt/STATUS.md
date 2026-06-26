@@ -576,7 +576,40 @@ malformed-input cases + 25 UBSan batches, 0 sanitizer hits, server alive
 throughout; libFuzzer 8.79M execs 0 crashes; full unit suite 3150 green; all 9
 oracle differentials pass. Both sanitizers report CLEAN.
 
-## RUNNING TOTAL: ~61 distinct bugs/features across 30 waves. Login (all families)
+## Wave 31: WOL channel chat delivered across sessions (routing foundation)
+on_privmsg posted a WOL channel message via PostMessage but DROPPED the returned
+recipient SessionId list — WolFsm had no message router and WOL sessions were
+never registered with the cross-session MessageRouter, so two WOL clients in one
+channel never heard each other (and GAMEOPT/STARTG broadcasts depend on this
+path). Fix: make_wol_session assigns each WOL connection a real SessionId +
+registers its egress with the shared MessageRouter (unregister on close); new
+WolFsm::set_routing; on_privmsg encodes the IRC line once and routes it to the
+recipients (no self-echo). Session identity now lines up across the single shared
+registry. diff_wol_chat.py matches the oracle. (commit c9c7133)
+
+## Wave 32: fix 2 ASan-found WOL session-lifecycle leaks
+ASan over the W31 surface: memory-SAFE (0 UAF/overflow/double-free; the
+disconnect-vs-send race is guarded by the router's weak_ptr) but NOT leak-clean.
+(a) Pre-existing, protocol-agnostic reference cycle — TcpSession callbacks capture
+the FSM, which transitively owns the TcpSession via its egress; close() never
+released the callbacks → whole graph leaked on every disconnect (~6KB/conn, 940KB
+over 150 conns, all Indirect). Fix: TcpSession::fire_close_and_release() clears
+on_close_/on_bytes_ after firing (benefits BNCS/WOL/IRC/BNFTP). (b) WOL attached
+account->session on auth but never detached; fix: WolFsm::on_close detaches.
+Verified leak-clean via an LSan driver (8 rounds x 2 clients, 0 leaks). (dca75f6)
+
+## Wave 33: WOL GAMEOPT game-option relay
+GAMEOPT was a silent no-op. on_gameopt now relays the opaque options: channel mode
+(#...) broadcasts ":<nick>!<nick>@Battle.net GAMEOPT <#chan> :<opts>" to current-
+channel members (channel_reader threaded into WolFsm + session registry, no
+self-echo; mirrors channel_message_send/message_type_gameopt_talk); whisper mode
+resolves nick->account->session (401 if offline). Shared route_irc_line() helper.
+diff_wol_gameopt.py matches the oracle; re-hardened (extended LSan driver covering
+GAMEOPT channel+whisper+malformed + ASan diff: 0 leaks, 0 crashes). (f47c0d2)
+
+## RUNNING TOTAL: ~64 distinct bugs/features across 33 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + WOL
-## lobby LIST/JOIN match the oracle; runtime-hardened (ASan+UBSan clean). Still
-## open: WOL game lobby (GAMEOPT/STARTG/JOINGAME/matchbot), JOINGAME password.
+## lobby LIST/JOIN + WOL cross-session chat + GAMEOPT match the oracle;
+## runtime-hardened (ASan+UBSan clean, leak-clean). Still open: WOL JOINGAME
+## (game-as-channel model — the big remaining piece) + STARTG (blocked on it) +
+## matchbot/anongame. See bug-hunt/findings/wol-chat-lobby.md F-W31 for the plan.
