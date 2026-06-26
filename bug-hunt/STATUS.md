@@ -707,12 +707,22 @@ form carries the invitee's OWN name first — ":<sender>!.. INVMSG <invited>
 diff_wol_invmsg.py matches byte-for-byte ("invb #invroom 1"). Hardened: matches
 under ASan; leak driver (incl. INVMSG) 0 leaks. (commit 275215a)
 
-## RUNNING TOTAL: ~74 distinct bugs/features across 41 waves. Login (all families)
-## + NLS passchange + friends + game advertise/list + all chat commands + WOL
-## (login, lobby LIST/JOIN, cross-session chat, GAMEOPT, JOINGAME, FINDUSER, buddy
-## list, codepage/locale, GETINSIDER, PAGE, CHANCHK, HOST, USERIP, INVMSG) all
-## match the oracle & are runtime-hardened (ASan+UBSan clean, leak-clean; 12 WOL
-## differentials). Still open: WOL STARTG (unblocked by peer-IP registry;
-## gameNumber/time_t need a tolerant diff), SETOPT (cross-session findme/pageme
-## gating), SQUADINFO/CLANBYNAME (clan), ladder, matchbot/anongame.
-## See findings/wol-chat-lobby.md.
+## Wave 42: WOL STARTG — closes the JOINGAME/GAMEOPT/STARTG game lobby
+on_startg resolves the sender's game (wol_game_store by channel) and sends each
+named player ":<owner>!<owner>@Battle.net STARTG <player> :<owner_ip> <gameid>
+<time>" via the router (owner_ip from the peer store, gameid = channel_id, time =
+std::time). diff_wol_startg.py is a TOLERANT diff (delivery + owner-IP presence):
+the trailing gameNumber/time_t differ per server/run and cannot be byte-compared
+— STARTG is the one WOL command whose payload is not byte-diffable. Both servers
+deliver STARTG to the named player carrying 127.0.0.1. Hardened: matches under
+ASan; leak driver (full create->join->STARTG sequence) 0 leaks. (commit d4c35b9)
+
+## RUNNING TOTAL: ~75 distinct bugs/features across 42 waves. Login (all families)
+## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
+## command surface — login, lobby LIST/JOIN, cross-session chat, GAMEOPT, the full
+## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
+## GETINSIDER, PAGE, CHANCHK, HOST, USERIP, INVMSG — all match the oracle & are
+## runtime-hardened (ASan+UBSan clean, leak-clean; 13 WOL differentials). Still
+## open: SETOPT (cross-session findme/pageme gating, no direct reply),
+## SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE,
+## ADVERTR/ADVERTC, matchbot/anongame automatch. See findings/wol-chat-lobby.md.

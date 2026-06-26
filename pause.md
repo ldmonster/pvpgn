@@ -133,23 +133,28 @@ The full WOL command surface (10 differentials) is now oracle-matched + hardened
   (":<sender>!.. INVMSG <invited> <channel> <flag>"). diff_wol_invmsg.py matches
   ("invb #invroom 1"). Hardened under ASan + leak driver (0 leaks).
 
-## NEXT — remaining divergences
+## Wave 42 — DONE (WOL STARTG) — closes the game lobby + hardened
 
-1. **WOL STARTG** (handle_wol.cpp:1264) — game model EXISTS (W34) AND peer IPs now
-   available (W40 IPeerAddressStore). Remaining friction: the per-player STARTG
-   payload ends with `gameNumber time_t`, which differ per server/run, so a
-   byte-exact differential is impossible — needs a TOLERANT diff (assert each
-   named player receives a STARTG line containing the expected peer IP(s); ignore
-   the trailing id/time). Also needs a game id (use channel_id_) and a start time
-   (no clock in WolFsm — pass one in or use a placeholder the diff ignores). The
-   control flow (mark started + route STARTG to the named players with their peer
-   IPs from IPeerAddressStore) is trivial on the W31 router. See
-   findings/wol-chat-lobby.md item 3.
-2. **Smaller WOL stubs**: SETOPT (cross-session findme/pageme gating — needs a
-   shared registry, no direct reply), INVMSG (channel-invite relay — doable via
-   the router like HOST), SQUADINFO/CLANBYNAME (clan), ladder
-   LISTSEARCH/RUNGSEARCH/HIGHSCORE.
-3. **matchbot / anongame automatch** — entire WOL automatch chat subsystem still
+- W42 `d4c35b9`: STARTG <channel> <nick1,nick2,...> sends each named player
+  ":<owner>!<owner>@Battle.net STARTG <player> :<owner_ip> <gameid> <time>" via
+  the router (owner_ip from the W40 peer store, gameid = channel_id, time =
+  std::time). diff_wol_startg.py is a TOLERANT diff (delivery + owner-IP presence;
+  gameNumber/time_t are not byte-diffable). Hardened under ASan + leak driver.
+- **Task #17 (JOINGAME/GAMEOPT/STARTG game lobby) is COMPLETE.** The full WOL
+  command surface (13 differentials) matches the oracle and is hardened.
+
+## NEXT — remaining divergences (all niche or large)
+
+1. **SETOPT** — toggles findme/pageme; its only effect is gating cross-session
+   FINDUSER/PAGE, and it has NO direct reply. Needs a shared findme/pageme
+   registry that FINDUSER/PAGE consult; weakly diffable (only via their behavior
+   change). Low value.
+2. **SQUADINFO / CLANBYNAME** (358 RPL_BATTLECLAN) — clan info. v3 has a clan
+   domain but wiring it into WOL + creating clan membership in the mock is
+   setup-heavy; the empty-clan case replies the same on both.
+3. **ladder** LISTSEARCH/RUNGSEARCH/HIGHSCORE, **ADVERTR/ADVERTC** — ladder/ad
+   relays, niche.
+4. **matchbot / anongame automatch** — entire WOL automatch subsystem still
    NOT-IMPLEMENTED (oracle anongame_wol.cpp, ~615 lines). Large separate feature.
 
 The WOL game lobby is now functional end-to-end for the common path: native
