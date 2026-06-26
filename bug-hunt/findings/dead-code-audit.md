@@ -22,8 +22,7 @@ surface, or duplicate subsystems where the choice of "which is canonical" is a
 judgment call. Removing them unilaterally risks deleting wanted scaffolding.
 
 ### Duplicate / superseded subsystems (verify canonical before removing)
-- Compiled-but-unreferenced: `protocol/bnet/event_dispatcher.{cpp,hpp}`
-  (`BnetEventDispatcher`, in CMake), `protocol/irc/src/bridge_fsm.cpp`
+- Compiled-but-unreferenced: `protocol/irc/src/bridge_fsm.cpp`
   (`IrcBridgeFsm` — superseded by live `IrcFsm`), `protocol/wolgameres/src/
   wol_fsm.cpp` (stub `wolgameres::WolFsm` — distinct from live `protocol::wol`).
 - Uncompiled duplicate dirs: `infra/plugin/` vs live `infra/scripting/plugin/`;
@@ -83,3 +82,15 @@ clearly-removable cruft is the duplicate/superseded subsystems and core legacy
 modules — but several involve a "which is canonical" decision (esp. plugin/lua)
 that should be confirmed against the composition roots, ideally in a dedicated
 cleanup pass with the build + full test suite run after each batch.
+
+## UPDATE waves 63-64: removed orphaned/dead subsystems
+- w63: src/infra/plugin/ (orphan dup of infra/scripting/plugin) + src/infra/sandbox/
+  + tests/unit/infra/sandbox/ (orphan lib+test, no CMakeLists, never built).
+- w64: protocol/bnet event_dispatcher.{cpp,hpp} (BnetEventDispatcher) — was compiled
+  (CMakeLists:574) but referenced by nothing; removed file + CMake line, full relink
+  + suite confirm dead.
+Still NOT removed (need care): infra/scripting/lua (unwired-but-TESTED, Lua-gated);
+the infra/session stub factories + protocol/irc bridge_fsm + protocol/wolgameres
+cluster (interdependent — bridge_fsm/wolgameres referenced only by the dead session
+factories); core legacy modules. Confirm canonical + build BOTH Lua-on/off before
+touching the scripting items.

@@ -571,7 +571,6 @@ pvpgn_v3_add_library(protocol_bnet
         protocol/bnet/src/fsm/fsm_misc.cpp   # Advisory/no-op handlers
         protocol/bnet/src/anongame.cpp
         protocol/bnet/src/anongame_tags.cpp
-        protocol/bnet/src/event_dispatcher.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocol/bnet/include
     PRIVATE_INCLUDES
