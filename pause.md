@@ -126,6 +126,13 @@ The full WOL command surface (10 differentials) is now oracle-matched + hardened
   target's IP (401 if offline). diff_wol_userip.py matches (127.0.0.1 / 401).
   Hardened under both sanitizers + leak driver (0 leaks). UNBLOCKS STARTG.
 
+## Wave 41 — DONE (WOL INVMSG) + hardened
+
+- W41 `275215a`: INVMSG <channel> <flag> <invited,...> relays the invite to each
+  named online user. GOTCHA: the wire form carries the invitee's OWN name first
+  (":<sender>!.. INVMSG <invited> <channel> <flag>"). diff_wol_invmsg.py matches
+  ("invb #invroom 1"). Hardened under ASan + leak driver (0 leaks).
+
 ## NEXT — remaining divergences
 
 1. **WOL STARTG** (handle_wol.cpp:1264) — game model EXISTS (W34) AND peer IPs now

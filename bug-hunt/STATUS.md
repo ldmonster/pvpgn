@@ -699,12 +699,20 @@ unknown -> 401, matches the oracle. Hardened: USERIP matches under both sanitize
 binaries; leak driver (incl. the peer-IP set/remove lifecycle) 0 leaks. This
 registry also UNBLOCKS STARTG (the per-player IP list). (commit a47e519)
 
-## RUNNING TOTAL: ~73 distinct bugs/features across 40 waves. Login (all families)
+## Wave 41: WOL INVMSG game-invite relay
+INVMSG <channel> <flag> <invited,...> relays the invite to each named online user
+via the router. The differential caught a real format detail: the original's wire
+form carries the invitee's OWN name first — ":<sender>!.. INVMSG <invited>
+<channel> <flag>" — so v3 prepends the invitee name per recipient.
+diff_wol_invmsg.py matches byte-for-byte ("invb #invroom 1"). Hardened: matches
+under ASan; leak driver (incl. INVMSG) 0 leaks. (commit 275215a)
+
+## RUNNING TOTAL: ~74 distinct bugs/features across 41 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + WOL
 ## (login, lobby LIST/JOIN, cross-session chat, GAMEOPT, JOINGAME, FINDUSER, buddy
-## list, codepage/locale, GETINSIDER, PAGE, CHANCHK, HOST, USERIP) all match the
-## oracle & are runtime-hardened (ASan+UBSan clean, leak-clean; 11 WOL
-## differentials). Still open: WOL STARTG (now unblocked by the peer-IP registry;
+## list, codepage/locale, GETINSIDER, PAGE, CHANCHK, HOST, USERIP, INVMSG) all
+## match the oracle & are runtime-hardened (ASan+UBSan clean, leak-clean; 12 WOL
+## differentials). Still open: WOL STARTG (unblocked by peer-IP registry;
 ## gameNumber/time_t need a tolerant diff), SETOPT (cross-session findme/pageme
-## gating), INVMSG, SQUADINFO/CLANBYNAME, ladder, matchbot/anongame.
+## gating), SQUADINFO/CLANBYNAME (clan), ladder, matchbot/anongame.
 ## See findings/wol-chat-lobby.md.
