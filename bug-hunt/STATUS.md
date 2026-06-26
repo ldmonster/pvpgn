@@ -717,12 +717,22 @@ the trailing gameNumber/time_t differ per server/run and cannot be byte-compared
 deliver STARTG to the named player carrying 127.0.0.1. Hardened: matches under
 ASan; leak driver (full create->join->STARTG sequence) 0 leaks. (commit d4c35b9)
 
-## RUNNING TOTAL: ~75 distinct bugs/features across 42 waves. Login (all families)
+## Wave 43: WOL SETOPT (findme/pageme gating)
+Added a shared per-account flags store (application::game::IWolUserFlagsStore +
+InMemoryWolUserFlagsStore, run-loop scoped, both default ON, removed on close).
+SETOPT <find>,<page> (16/17 find off/on, 32/33 page off/on) updates the sender's
+flags; FINDUSER now requires the target's findme, PAGE the target's pageme.
+diff_wol_setopt.py: across two clients, default 0/0 -> SETOPT 16,32 -> 1/1 ->
+SETOPT 17,33 -> 0/0, matching the oracle. Hardened under both sanitizers +
+leak-clean. (commit 113c563)
+
+## RUNNING TOTAL: ~76 distinct bugs/features across 43 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
-## command surface — login, lobby LIST/JOIN, cross-session chat, GAMEOPT, the full
+## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
-## GETINSIDER, PAGE, CHANCHK, HOST, USERIP, INVMSG — all match the oracle & are
-## runtime-hardened (ASan+UBSan clean, leak-clean; 13 WOL differentials). Still
-## open: SETOPT (cross-session findme/pageme gating, no direct reply),
-## SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE,
-## ADVERTR/ADVERTC, matchbot/anongame automatch. See findings/wol-chat-lobby.md.
+## GETINSIDER, PAGE, CHANCHK, HOST, USERIP, INVMSG, SETOPT — all match the oracle
+## & are runtime-hardened (ASan+UBSan clean, leak-clean; 14 WOL differentials).
+## Remaining WOL: SQUADINFO/CLANBYNAME (clan, setup-heavy), ladder LISTSEARCH/
+## RUNGSEARCH/HIGHSCORE, ADVERTR/ADVERTC (niche), matchbot/anongame (large).
+## See findings/wol-chat-lobby.md. The cleanly-diffable WOL surface is essentially
+## complete.

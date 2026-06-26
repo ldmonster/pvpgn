@@ -143,13 +143,17 @@ The full WOL command surface (10 differentials) is now oracle-matched + hardened
 - **Task #17 (JOINGAME/GAMEOPT/STARTG game lobby) is COMPLETE.** The full WOL
   command surface (13 differentials) matches the oracle and is hardened.
 
+## Wave 43 — DONE (WOL SETOPT) + hardened
+
+- W43 `113c563`: shared per-account WOL find/page flags store
+  (application::game::IWolUserFlagsStore, default ON, removed on close). SETOPT
+  <find>,<page> updates them; FINDUSER requires target findme, PAGE requires
+  target pageme. diff_wol_setopt.py matches the oracle (0/0 -> 1/1 -> 0/0).
+  Hardened under both sanitizers + leak-clean. 14 WOL differentials.
+
 ## NEXT — remaining divergences (all niche or large)
 
-1. **SETOPT** — toggles findme/pageme; its only effect is gating cross-session
-   FINDUSER/PAGE, and it has NO direct reply. Needs a shared findme/pageme
-   registry that FINDUSER/PAGE consult; weakly diffable (only via their behavior
-   change). Low value.
-2. **SQUADINFO / CLANBYNAME** (358 RPL_BATTLECLAN) — clan info. v3 has a clan
+1. **SQUADINFO / CLANBYNAME** (358 RPL_BATTLECLAN) — clan info. v3 has a clan
    domain but wiring it into WOL + creating clan membership in the mock is
    setup-heavy; the empty-clan case replies the same on both.
 3. **ladder** LISTSEARCH/RUNGSEARCH/HIGHSCORE, **ADVERTR/ADVERTC** — ladder/ad
