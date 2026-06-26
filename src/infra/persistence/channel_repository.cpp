@@ -15,11 +15,11 @@ domain::chat::Channel SqlChannelRepository::channel_from_row(const DbRow& row) {
     const std::string name  = row.get_text(1);
     const std::string topic = row.get_text(2);
 
-    const auto flags_raw   = static_cast<std::uint8_t>(row.get_int(3) & 0xFF);
+    const auto flags_raw   = static_cast<std::uint16_t>(row.get_int(3) & 0xFFFF);
     const auto max_members = static_cast<std::uint32_t>(row.get_int(4));
 
     domain::chat::ChannelFlags flags;
-    for (std::uint8_t bit = 0; bit < 8; ++bit) {
+    for (std::uint8_t bit = 0; bit < 16; ++bit) {
         if (flags_raw & (1u << bit)) {
             flags.set(static_cast<domain::chat::ChannelFlag>(bit));
         }
@@ -83,11 +83,11 @@ core::Status<> SqlChannelRepository::save(const domain::chat::Channel& channel) 
         return core::fail(core::Error{
             core::StatusCode::Internal, "persistence: driver not available"});
     }
-    std::uint8_t flags_raw = 0;
-    for (std::uint8_t bit = 0; bit < 8; ++bit) {
+    std::uint16_t flags_raw = 0;
+    for (std::uint8_t bit = 0; bit < 16; ++bit) {
         if (channel.policy().flags.has(
                 static_cast<domain::chat::ChannelFlag>(bit))) {
-            flags_raw |= static_cast<std::uint8_t>(1u << bit);
+            flags_raw |= static_cast<std::uint16_t>(1u << bit);
         }
     }
     // SECURITY: every value is bound via `?` placeholders, never concatenated

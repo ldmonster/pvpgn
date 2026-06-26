@@ -1119,3 +1119,27 @@ The cleanly-diffable WOL verb surface is now COMPLETE (waves 67-72: BNFTP,
 SQUADINFO, NAMES, fileinfo, TIME, MODE, KICK, TOPIC). Remaining WOL gaps all need
 backends (ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE, GAMERES binary listener) or are
 config-dependent — not cleanly diffable.
+
+## Wave 73: hide "the Void" from SID_CHANNELLIST (channel-list faithfulness)
+First wave to exercise SID_CHANNELLIST (0x0B / CLIENT_PROGIDENT2). The handler
+(BnetFsm::on(ChannelListRequest), fsm_chat.cpp) was already wired but UNTESTED.
+Probing it revealed a divergence: v3 seeded "The Void" as an ordinary permanent
+channel and advertised it in the list, whereas the original flags the
+kicked/banned limbo channel (channel_flags_thevoid, set when a channel's
+shortname == "THE VOID") and NEVER lists it — in SID_CHANNELLIST, the /channels
+command, and IRC/WOL LIST alike.
+
+Fix (faithful, robust through persistence):
+  - domain ChannelFlag gains TheVoid=8 (bitset widened 8->16 bits).
+  - SqlChannelRepository save/load now round-trips all 16 flag bits (uint16
+    column value), so The Void stays hidden after a restart with the SQL backend.
+  - BnetdService seeds "The Void" with ChannelFlag::TheVoid set.
+  - ListChannels skips TheVoid-flagged channels (covers BNCS CHANNELLIST + WOL
+    LIST, matching the original's blanket exclusion).
+
+diff_channellist.py verifies vs the oracle: both answer 0x0B with a well-formed
+NUL-terminated list + empty terminator (no trailing garbage), and NEITHER lists
+"The Void" (names otherwise legitimately differ per server config). 3199/3199
+unit (8 known load_anongame temp-file flakes pass -j1); channel/chat/WOL diff
+regression set (channellist, channelcmds, multichannel, join_edges, leave, chat,
+whoami, friends, gamelist, wol_chat, wol_lobby) all match the oracle.

@@ -24,6 +24,13 @@ ListChannels::execute(const ListChannelsRequest& req) const {
 
     // 2. Iterate channels via forEach
     channels_->forEach([&](const domain::chat::Channel& ch) {
+        // "the Void" sink channel is never advertised in any listing, matching
+        // the original server (channel_flags_thevoid is excluded from
+        // SID_CHANNELLIST, the /channels command, and the IRC/WOL LIST).
+        if (ch.policy().flags.has(domain::chat::ChannelFlag::TheVoid)) {
+            return true;  // continue — skip
+        }
+
         // 3. Filter by client tag if provided
         if (req.filter_by_tag.has_value() &&
             req.filter_by_tag.value().bytes() != domain::ClientTag{}.bytes()) {

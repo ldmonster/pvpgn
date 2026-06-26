@@ -35,6 +35,11 @@ enum class ChannelFlag : std::uint8_t {
     System      = 5,
     AllowBots   = 6,
     Locked      = 7,
+    /// "the Void" sink channel (legacy `channel_flags_thevoid`). Such channels
+    /// exist but are NEVER advertised in the channel list (SID_CHANNELLIST /
+    /// WOL LIST), matching the original server which hides the kicked/banned
+    /// limbo channel from listings.
+    TheVoid     = 8,
 };
 
 class ChannelFlags {
@@ -48,7 +53,7 @@ public:
     bool operator==(const ChannelFlags&) const = default;
 
 private:
-    std::bitset<8> bits_;
+    std::bitset<16> bits_;
 };
 
 struct ChannelPolicy {

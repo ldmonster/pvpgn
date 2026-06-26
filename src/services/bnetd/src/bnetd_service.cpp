@@ -38,6 +38,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "application/auth/login_user_nls.hpp"
@@ -131,6 +132,12 @@ BnetdService::BnetdService(
             domain::chat::ChannelPolicy policy;
             policy.flags.set(domain::chat::ChannelFlag::Permanent);
             policy.flags.set(domain::chat::ChannelFlag::AllowBots);
+            // "The Void" is the legacy kicked/banned limbo channel: it exists
+            // but the original server never advertises it in the channel list
+            // (channel_flags_thevoid). Flag it so ListChannels hides it.
+            if (std::string_view{def.name} == "The Void") {
+                policy.flags.set(domain::chat::ChannelFlag::TheVoid);
+            }
             policy.max_members = def.max_members;
 
             auto channel = domain::chat::Channel::create(
