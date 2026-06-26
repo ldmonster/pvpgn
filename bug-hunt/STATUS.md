@@ -770,13 +770,17 @@ per-connection sessionkey (anti-tamper) carried by OLS-session internals v3
 doesn't model. Rotation verified by the use-case unit tests + ack=1 end-to-end;
 331 bnet/auth unit tests pass under ASan. (commit 9312f8a)
 
-## NOTE (found while verifying W47): v3 may not detach an OLS session on BNCS
-## disconnect — re-login of the same account on a fresh connection hit the
-## single-session policy (rc=0x02). Not a change-password bug; flagged for a
-## future look (WOL got detach-on-close in W32; the BNCS/OLS close path wasn't
-## re-checked here).
+## Wave 48: FIX BNCS session not detached on disconnect (re-login bug)
+The W47 note turned out to be a real availability bug: an OLS account could not
+re-login after disconnect (LOGONRESPONSE2 rc=0x02 forever) because the close
+handler read the account id from the connection-level FSM (0 for the OLS path,
+since login runs through the BnetFsm), so the acct_id!=0 guard skipped LogoutUser
+and the session was never detached. Fix: BnetFsm::account_id() accessor; the close
+handler prefers it (falls back to the connection FSM). LogoutUser then detaches
+(it already keyed detach by session_id == sid). Repro login->disconnect->re-login
+went rc=2 -> rc=0. Full unit suite green. (commit fca6810)
 
-## RUNNING TOTAL: ~80 distinct bugs/features across 47 waves. Login (all families)
+## RUNNING TOTAL: ~81 distinct bugs/features across 48 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
