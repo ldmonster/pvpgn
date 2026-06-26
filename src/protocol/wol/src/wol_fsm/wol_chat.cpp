@@ -13,6 +13,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -896,6 +897,73 @@ core::Status<> WolFsm::on_invmsg(std::string_view params) {
                         line += std::string(who);
                         line += ' ';
                         line += chan_flag;
+                        route_irc_line(line, {sid.value()});
+                    }
+                }
+            }
+        }
+        if (comma == std::string_view::npos) break;
+        pos = comma + 1;
+    }
+    return core::ok();
+}
+
+core::Status<> WolFsm::on_startg(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    // STARTG <channel> <nick1,nick2,...>
+    auto tok = split_ws(params);
+    if (tok.size() < 2) {
+        return send_numeric(461, nick_, "STARTG :Not enough parameters");
+    }
+
+    // The sender must own a game; resolve it from the game store by channel name.
+    if (!wol_game_store_ || !message_router_ || !auth_.account_reader ||
+        !auth_.session_registry) {
+        return core::ok();
+    }
+    std::string game_name{tok[0]};
+    if (!game_name.empty() && game_name[0] == '#') game_name.erase(0, 1);
+    auto game = wol_game_store_->find(game_name);
+    if (!game) return core::ok();  // original: "conn has not game" -> no reply
+
+    // Owner IP (WOLv1 STARTG carries the game owner's address) + game id + time.
+    std::string owner_ip;
+    if (peer_store_) {
+        if (auto ip = peer_store_->get(game->host)) owner_ip = ip.value();
+    }
+    const std::string tail = owner_ip + " " +
+        std::to_string(game->channel_id.value()) + " " +
+        std::to_string(static_cast<long long>(std::time(nullptr)));
+
+    // Deliver STARTG to each named (comma-separated) player. The recipient's own
+    // name fills the dest slot (the original's postformat), then the trailing
+    // ":" payload carries owner_ip gameid time.
+    std::string_view players = tok[1];
+    std::size_t pos = 0;
+    while (pos <= players.size()) {
+        std::size_t comma = players.find(',', pos);
+        std::string_view who = players.substr(
+            pos, comma == std::string_view::npos ? std::string_view::npos
+                                                 : comma - pos);
+        who = trim(who);
+        if (!who.empty()) {
+            auto name = domain::UserName::parse(std::string{who});
+            if (name) {
+                auto acct = auth_.account_reader->find_by_name(name.value());
+                if (acct) {
+                    if (auto sid = auth_.session_registry->session_for(
+                            acct.value().id())) {
+                        std::string line = ":";
+                        line += nick_;
+                        line += '!';
+                        line += nick_;
+                        line += "@Battle.net STARTG ";
+                        line += std::string(who);
+                        line += " :";
+                        line += tail;
                         route_irc_line(line, {sid.value()});
                     }
                 }

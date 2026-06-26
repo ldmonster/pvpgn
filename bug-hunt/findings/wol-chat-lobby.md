@@ -421,9 +421,20 @@ invitee's OWN name first (inserted by its postformat) —
 prepends the invitee name per recipient. diff_wol_invmsg.py: B receives
 "invb #invroom 1", matching the oracle byte-for-byte.
 
+## STARTG — DONE (wave 42), closing the JOINGAME/GAMEOPT/STARTG game lobby
+
+STARTG <channel> <nick1,nick2,...>: resolves the sender's game (wol_game_store by
+channel), then sends each named player ":<owner>!<owner>@Battle.net STARTG
+<player> :<owner_ip> <gameid> <time>" via the router — owner_ip from the peer
+store, gameid = channel_id, time = std::time(nullptr). diff_wol_startg.py is a
+TOLERANT diff (delivery + owner-IP presence): the trailing gameNumber/time_t
+differ per server/run so they cannot be byte-compared — this is the one WOL
+command whose payload is not byte-diffable. Both servers deliver STARTG to the
+named player carrying 127.0.0.1.
+
 Remaining W-11 stubs: SETOPT (cross-session findme/pageme gating — needs a shared
-registry), SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE.
-STARTG now has the peer IPs it needs (gameNumber/time_t still need a tolerant diff).
+registry), SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE,
+ADVERTR/ADVERTC. matchbot/anongame automatch = large separate subsystem.
 
 ## What MATCHES (or is acceptably close)
 

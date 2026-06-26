@@ -219,13 +219,13 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "HOST") return on_host(params);
     if (cmd == "USERIP") return on_userip(params);
     if (cmd == "INVMSG") return on_invmsg(params);
+    if (cmd == "STARTG") return on_startg(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
-    // CVERS, VERCHK, APGAR, SETOPT, SERIAL, STARTG, etc.
+    // CVERS, VERCHK, APGAR, SETOPT, SERIAL, etc.
     // Return 421 ERR_UNKNOWNCOMMAND for truly unknown commands.
     const std::string_view wol_known[] = {
         "SETOPT", "SERIAL",
-        "STARTG",
         "ADVERTR", "ADVERTC",
         "INVDEL",
         "SQUADINFO", "CLANBYNAME",

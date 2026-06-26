@@ -296,6 +296,11 @@ def wol_read_numeric(client, code, tries=20):
     return None
 
 
+def wol_startg(client, channel, players):
+    """STARTG <channel> <nick1,nick2,...> (no sender reply; goes to the players)."""
+    client.send_line(f"STARTG {channel} {players}")
+
+
 def wol_invmsg(client, channel, flag, invited):
     """INVMSG <channel> <flag> <invited,...> (no sender reply)."""
     client.send_line(f"INVMSG {channel} {flag} {invited}")

@@ -333,6 +333,13 @@ private:
     /// router. No sender reply. Mirrors `_handle_invmsg_command`.
     core::Status<> on_invmsg(std::string_view params);
 
+    /// STARTG <channel> <nick1,nick2,...> — mark the sender's game started and
+    /// send each named player a STARTG carrying the owner's peer IP, the game id
+    /// and a start time (":<owner>!<owner>@Battle.net STARTG <player> :<owner_ip>
+    /// <gameid> <time>"). Needs the sender to own a game (wol_game_store) and the
+    /// peer-address store for the IP. Mirrors `_handle_startg_command` (WOLv1).
+    core::Status<> on_startg(std::string_view params);
+
     /// GETBUDDY — reply 333 with the backtick-terminated buddy (friend) list.
     core::Status<> on_getbuddy();
 
