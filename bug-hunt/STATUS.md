@@ -1084,3 +1084,18 @@ HAS topic_/set_topic + there's an unwired SetChannelTopic use-case; also note th
 ORACLE CRASHES on a bare "TOPIC #chan" query — NULL deref, so never test that) and
 WOL KICK (IRC form: operator check + KICK broadcast + member removal). BNCS
 clan/realm/ladder/MOTD/ad opcodes need backends — not cleanly diffable.
+
+## Wave 71: implement WOL KICK (operator removes a member)
+WOL KICK was a silent no-op (wol_known[]) where the original lets a channel
+operator kick a member (broadcasts a KICK line to the channel + removes the
+victim). Implemented WolFsm::on_kick: parse #chan + victim + reason (default
+"Bye"); 461 on too few params; operator-gated via channel.operator_id() (wave 58)
+-> 482 ERR_CHANOPRIVSNEEDED for non-ops; 441 if the victim isn't on the channel;
+capture all member sessions, remove the victim via LeaveChannel, broadcast the
+KICK via route_irc_line. The KICK prefix is environment-dependent (oracle WCHT@ip
+vs v3 @Battle.net) so diff_wol_kick.py compares the decisive observables: victim
+receives a KICK naming them, operator sees it, victim removed from the roster
+(ordered joins -> deterministic operator). Matches the oracle. 3199/3199 units.
+Remaining WOL gap: TOPIC (needs the channel topic wired through a use-case; the
+domain Channel has topic_/set_topic; CAUTION the oracle CRASHES on a bare TOPIC
+query). BNCS clan/realm/ladder/MOTD/ad need backends — not cleanly diffable.

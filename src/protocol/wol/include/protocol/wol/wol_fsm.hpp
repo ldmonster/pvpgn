@@ -294,6 +294,11 @@ private:
     /// for "MODE #c b") or 501 ERR_UMODEUNKNOWNFLAG for a user-mode query.
     core::Status<> on_mode(std::string_view params);
 
+    /// KICK #chan <nick> [:reason] — a channel operator removes a member and
+    /// broadcasts the KICK to the channel. 461 on too few params, 482 if the
+    /// caller is not the operator, 441 if the target is not on the channel.
+    core::Status<> on_kick(std::string_view params);
+
     /// JOIN #<channel>
     core::Status<> on_join(std::string_view params);
 

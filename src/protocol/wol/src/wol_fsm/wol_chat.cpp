@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "application/chat/join_channel.hpp"
+#include "application/chat/leave_channel.hpp"
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
 #include "application/game/wol_game_store.hpp"
@@ -204,6 +205,81 @@ core::Status<> WolFsm::on_mode(std::string_view params) {
     }
     // User-mode query -> 501 ERR_UMODEUNKNOWNFLAG, matching the original.
     return send_numeric(501, nick_, "Unknown MODE flag");
+}
+
+core::Status<> WolFsm::on_kick(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    // Parse "#chan <victim> [:reason]".
+    auto chan_sv = trim(first_token(params));
+    std::string_view rest;
+    if (auto sp = params.find(' '); sp != std::string_view::npos) {
+        rest = trim(params.substr(sp + 1));
+    }
+    auto victim_sv = trim(first_token(rest));
+    if (chan_sv.empty() || victim_sv.empty()) {
+        return send_numeric(461, nick_, "KICK :Not enough parameters");
+    }
+    // Reason: trailing text after the victim, ':' stripped; default "Bye".
+    std::string reason;
+    if (auto sp = rest.find(' '); sp != std::string_view::npos) {
+        auto r = trim(rest.substr(sp + 1));
+        if (!r.empty() && r[0] == ':') r.remove_prefix(1);
+        reason = std::string(r);
+    }
+    if (reason.empty()) reason = "Bye";
+
+    if (!channel_reader_ || !leave_channel_ || !auth_.account_reader ||
+        channel_id_.value() == 0) {
+        return send_numeric(442, nick_, std::string(chan_sv) + " :You're not on that channel");
+    }
+    auto ch = channel_reader_->find_by_id(channel_id_);
+    if (!ch) {
+        return send_numeric(442, nick_, std::string(chan_sv) + " :You're not on that channel");
+    }
+    // Only the channel operator (tmpOP, wave 58) may kick.
+    const auto op = ch.value().operator_id();
+    if (!op || op->value() != account_id_.value()) {
+        return send_numeric(482, nick_,
+                            std::string(chan_sv) + " :You're not channel operator");
+    }
+    // Resolve the victim and confirm membership.
+    auto vparsed = domain::UserName::parse(std::string(victim_sv));
+    if (!vparsed) {
+        return send_numeric(441, nick_, std::string(victim_sv) + " " +
+                            std::string(chan_sv) + " :They aren't on that channel");
+    }
+    auto vacct = auth_.account_reader->find_by_name(vparsed.value());
+    if (!vacct || !ch.value().contains(vacct.value().id())) {
+        return send_numeric(441, nick_, std::string(victim_sv) + " " +
+                            std::string(chan_sv) + " :They aren't on that channel");
+    }
+    const auto victim_id = vacct.value().id();
+    const std::string victim_name{vacct.value().name().display()};
+
+    // Capture every member's session (including the victim and the kicker) BEFORE
+    // removal so they all receive the KICK broadcast.
+    auto recipients = current_channel_member_sessions(/*exclude_self=*/false);
+
+    // Remove the victim from the channel.
+    (void)leave_channel_->execute(channel_id_, victim_id);
+
+    // Broadcast the KICK. The original prefixes the line with the victim's
+    // hostmask; we use the v3-consistent "@Battle.net" form.
+    std::string line = ":";
+    line += victim_name;
+    line += '!';
+    line += victim_name;
+    line += "@Battle.net KICK ";
+    line += channel_;
+    line += ' ';
+    line += victim_name;
+    line += " :";
+    line += reason;
+    route_irc_line(line, recipients);
+    return core::ok();
 }
 
 core::Status<> WolFsm::on_join(std::string_view params) {
