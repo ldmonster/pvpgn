@@ -111,6 +111,7 @@
 #  define PVPGN_V3_BNETD_HAVE_METRICS_SERVER 1
 #endif
 #include "infra/inmemory/channel_repository.hpp"
+#include "application/chat/set_channel_topic.hpp"
 #include "infra/inmemory/event_bus.hpp"
 #include "infra/inmemory/game_repository.hpp"
 #include "infra/inmemory/ip_ban_repository.hpp"
@@ -563,12 +564,18 @@ int main(int argc, char* argv[]) {
         auto wol_remove_friend = use_cases.remove_friend;
         auto wol_list_friends  = use_cases.list_friends;
         auto wol_leave_channel = use_cases.leave_channel;
+        // WOL TOPIC: set/persist a channel topic via the SetChannelTopic
+        // use-case (member-gated, <=255 chars). Shares the channel repo + router.
+        auto no_delete_channels = std::shared_ptr<domain::chat::IChannelRepository>(
+            &channel_repo, [](domain::chat::IChannelRepository*) noexcept {});
+        auto wol_set_topic = std::make_shared<application::chat::SetChannelTopic>(
+            no_delete_channels, message_router);
         TcpListener wol_listener{
             rt,
             [&cfg, &channel_repo, &wol_game_store, &peer_address_store,
              &wol_user_flags_store, message_router, wol_auth, wol_list_channels,
              wol_join_channel, wol_post_message, wol_add_friend,
-             wol_remove_friend, wol_list_friends, wol_leave_channel]
+             wol_remove_friend, wol_list_friends, wol_leave_channel, wol_set_topic]
             (std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
                 make_wol_session(std::move(tcp), cfg, next_session_id(),
                                  message_router, &channel_repo, &wol_game_store,
@@ -576,7 +583,7 @@ int main(int argc, char* argv[]) {
                                  wol_post_message, wol_add_friend.get(),
                                  wol_remove_friend.get(), wol_list_friends.get(),
                                  &peer_address_store, &wol_user_flags_store,
-                                 wol_leave_channel);
+                                 wol_leave_channel, wol_set_topic);
             },
             wol_idle};
         wol_listener.start(cfg.listen_address, cfg.wol_port);

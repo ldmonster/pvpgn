@@ -19,6 +19,7 @@
 
 #include "application/chat/join_channel.hpp"
 #include "application/chat/leave_channel.hpp"
+#include "application/chat/set_channel_topic.hpp"
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
 #include "application/game/wol_game_store.hpp"
@@ -282,6 +283,51 @@ core::Status<> WolFsm::on_kick(std::string_view params) {
     return core::ok();
 }
 
+core::Status<> WolFsm::on_topic(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    auto chan_sv = trim(first_token(params));
+    if (chan_sv.empty()) {
+        return send_numeric(461, nick_, "TOPIC :Not enough parameters");
+    }
+    const std::string chan_disp{chan_sv};  // keep '#'
+
+    // Topic text, if supplied (everything after the channel token; ':' stripped).
+    bool has_topic = false;
+    std::string new_topic;
+    if (auto sp = params.find(' '); sp != std::string_view::npos) {
+        auto rest = trim(params.substr(sp + 1));
+        if (!rest.empty()) {
+            has_topic = true;
+            if (rest[0] == ':') rest.remove_prefix(1);
+            new_topic = std::string(rest);
+        }
+    }
+
+    if (has_topic) {
+        // SET: persist via the use-case (member-gated, <=255 chars), then echo
+        // 332 RPL_TOPIC to the setter — exactly what the original does.
+        if (set_channel_topic_ && channel_id_.value() != 0) {
+            application::chat::SetChannelTopicRequest req{
+                account_id_, channel_id_, new_topic};
+            (void)set_channel_topic_->execute(req);
+        }
+        return send_numeric(332, std::string(nick_) + " " + chan_disp, new_topic);
+    }
+
+    // QUERY: reply 332 with the stored topic (empty if unset). The original
+    // CRASHES on this path (NULL deref); v3 handles it safely.
+    std::string topic;
+    if (channel_reader_ && channel_id_.value() != 0) {
+        if (auto ch = channel_reader_->find_by_id(channel_id_)) {
+            topic = ch.value().topic();
+        }
+    }
+    return send_numeric(332, std::string(nick_) + " " + chan_disp, topic);
+}
+
 core::Status<> WolFsm::on_join(std::string_view params) {
     if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
         return send_numeric(451, nick_.empty() ? "*" : nick_,
@@ -341,6 +387,13 @@ core::Status<> WolFsm::on_join(std::string_view params) {
             names_line += std::to_string(mid.value());
         }
         if (auto s = send_raw(names_line); !s) return s;
+
+        // 332 RPL_TOPIC: the original sends the channel topic on every join
+        // (empty when unset), so a joiner sees a topic set by an earlier member.
+        if (auto s = send_numeric(332, std::string(nick_) + " " + channel_,
+                                  join_result.value().channel.topic()); !s) {
+            return s;
+        }
 
         // 366 RPL_ENDOFNAMES
         return send_numeric(366, channel_, "End of /NAMES list");

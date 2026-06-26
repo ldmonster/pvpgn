@@ -1099,3 +1099,23 @@ receives a KICK naming them, operator sees it, victim removed from the roster
 Remaining WOL gap: TOPIC (needs the channel topic wired through a use-case; the
 domain Channel has topic_/set_topic; CAUTION the oracle CRASHES on a bare TOPIC
 query). BNCS clan/realm/ladder/MOTD/ad need backends — not cleanly diffable.
+
+## Wave 72: implement WOL TOPIC (set/persist + 332 on join) — WOL verb surface complete
+The last untested WOL verb. TOPIC was a silent no-op (wol_known[]). The original
+stores a channel topic on "TOPIC #chan :text", echoes 332 RPL_TOPIC to the setter,
+and includes 332 in every later JOIN. Implemented:
+  - Wired the (previously unwired-but-tested) SetChannelTopic use-case through
+    main.cpp -> make_wol_session -> WolFsm::set_channel_topic_use_case (shares the
+    channel repo + router; member-gated, <=255 chars).
+  - WolFsm::on_topic: SET persists via the use-case + echoes 332; bare QUERY
+    replies 332 with the stored topic SAFELY (the ORACLE CRASHES on a bare query —
+    NULL deref — so the test never sends one, but v3 must not crash).
+  - on_join now emits 332 (the channel topic, empty when unset) like the original,
+    so a later joiner sees a topic an earlier member set.
+diff_wol_topic.py verifies end-to-end: A sets topic -> A gets 332 echo -> B joins
+-> B sees the persisted topic. Matches the oracle. 232/232 WOL/chat/channel/join
+unit tests pass (join-332 change non-regressive); 3199/3199 overall.
+The cleanly-diffable WOL verb surface is now COMPLETE (waves 67-72: BNFTP,
+SQUADINFO, NAMES, fileinfo, TIME, MODE, KICK, TOPIC). Remaining WOL gaps all need
+backends (ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE, GAMERES binary listener) or are
+config-dependent — not cleanly diffable.

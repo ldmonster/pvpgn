@@ -17,6 +17,7 @@ class JoinChannel;
 class ListChannels;
 class PostMessage;
 class LeaveChannel;
+class SetChannelTopic;
 }  // namespace pvpgn::application::chat
 
 namespace pvpgn::infra::routing {
@@ -75,6 +76,7 @@ void make_wol_session(
     application::social::ListFriends*         list_friends,
     domain::connection::IPeerAddressStore*   peer_store,
     application::game::IWolUserFlagsStore*    user_flags_store,
-    std::shared_ptr<application::chat::LeaveChannel> leave_channel);
+    std::shared_ptr<application::chat::LeaveChannel> leave_channel,
+    std::shared_ptr<application::chat::SetChannelTopic> set_topic);
 
 } // namespace pvpgn::app::bnetd

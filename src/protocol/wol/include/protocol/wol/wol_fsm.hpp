@@ -62,6 +62,7 @@ class JoinChannel;
 class ListChannels;
 class PostMessage;
 class LeaveChannel;
+class SetChannelTopic;
 }  // namespace pvpgn::application::chat
 
 namespace pvpgn::domain::identity {
@@ -191,6 +192,13 @@ public:
         leave_channel_ = lc;
     }
 
+    /// SetChannelTopic use-case for the TOPIC command (persists the channel
+    /// topic). Non-owning; null in test/stub mode (TOPIC set then no-ops).
+    void set_channel_topic_use_case(
+        application::chat::SetChannelTopic* st) noexcept {
+        set_channel_topic_ = st;
+    }
+
     /// Wire the WOL game-channel registry so JOINGAME can create/find games.
     /// Non-owning; null in test/stub mode (JOINGAME then falls back to a local
     /// channel join without game tracking).
@@ -298,6 +306,11 @@ private:
     /// broadcasts the KICK to the channel. 461 on too few params, 482 if the
     /// caller is not the operator, 441 if the target is not on the channel.
     core::Status<> on_kick(std::string_view params);
+
+    /// TOPIC #chan [:text] — set the channel topic (echoing 332 to the setter) or,
+    /// with no text, query it (reply 332 with the stored topic). NOTE: the
+    /// original CRASHES on a bare query (NULL deref); v3 handles it safely.
+    core::Status<> on_topic(std::string_view params);
 
     /// JOIN #<channel>
     core::Status<> on_join(std::string_view params);
@@ -458,6 +471,7 @@ private:
     /// LeaveChannel use-case for disconnect cleanup. Non-owning; null in stub
     /// mode.
     application::chat::LeaveChannel* leave_channel_ = nullptr;
+    application::chat::SetChannelTopic* set_channel_topic_ = nullptr;
 
     /// Native WOL auth collaborators (empty in legacy/skeleton mode).
     WolAuthDeps auth_{};

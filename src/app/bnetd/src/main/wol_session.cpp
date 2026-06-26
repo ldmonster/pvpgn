@@ -31,7 +31,8 @@ void make_wol_session(
     application::social::ListFriends*         list_friends,
     domain::connection::IPeerAddressStore*   peer_store,
     application::game::IWolUserFlagsStore*    user_flags_store,
-    std::shared_ptr<application::chat::LeaveChannel> leave_channel) {
+    std::shared_ptr<application::chat::LeaveChannel> leave_channel,
+    std::shared_ptr<application::chat::SetChannelTopic> set_topic) {
 
     auto egress = std::make_shared<TcpSessionEgress>(tcp);
     auto ctx    = std::make_shared<WolEgressContext>(egress, cfg.server_name);
@@ -59,6 +60,7 @@ void make_wol_session(
     }
     fsm->set_user_flags_store(user_flags_store);
     fsm->set_leave_channel(leave_channel.get());
+    fsm->set_channel_topic_use_case(set_topic.get());
     if (router) {
         router->register_session(session_id, egress);
     }

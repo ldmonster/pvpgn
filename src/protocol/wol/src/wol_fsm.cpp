@@ -233,6 +233,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "TIME")    return on_time();
     if (cmd == "MODE")    return on_mode(params);
     if (cmd == "KICK")    return on_kick(params);
+    if (cmd == "TOPIC")   return on_topic(params);
     if (cmd == "PRIVMSG") return on_privmsg(params);
     if (cmd == "GAMEOPT") return on_gameopt(params);
     if (cmd == "JOINGAME") return on_joingame(params);
@@ -276,7 +277,6 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         "ADVERTC",
         "INVDEL",
         "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE",
-        "TOPIC",
     };
     for (auto kw : wol_known) {
         if (cmd == kw) return core::ok();  // silently accept
