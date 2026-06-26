@@ -528,15 +528,20 @@ int main(int argc, char* argv[]) {
         auto wol_list_channels = use_cases.list_channels;
         auto wol_join_channel  = use_cases.join_channel;
         auto wol_post_message  = use_cases.post_message;
+        auto wol_add_friend    = use_cases.add_friend;
+        auto wol_remove_friend = use_cases.remove_friend;
+        auto wol_list_friends  = use_cases.list_friends;
         TcpListener wol_listener{
             rt,
             [&cfg, &channel_repo, &wol_game_store, message_router, wol_auth,
-             wol_list_channels, wol_join_channel, wol_post_message]
+             wol_list_channels, wol_join_channel, wol_post_message,
+             wol_add_friend, wol_remove_friend, wol_list_friends]
             (std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
                 make_wol_session(std::move(tcp), cfg, next_session_id(),
                                  message_router, &channel_repo, &wol_game_store,
                                  wol_auth, wol_list_channels, wol_join_channel,
-                                 wol_post_message);
+                                 wol_post_message, wol_add_friend.get(),
+                                 wol_remove_friend.get(), wol_list_friends.get());
             },
             wol_idle};
         wol_listener.start(cfg.listen_address, cfg.wol_port);

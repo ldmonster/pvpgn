@@ -25,7 +25,10 @@ void make_wol_session(
     protocol::wol::WolAuthDeps               auth,
     std::shared_ptr<application::chat::ListChannels> list_channels,
     std::shared_ptr<application::chat::JoinChannel>   join_channel,
-    std::shared_ptr<application::chat::PostMessage>   post_message) {
+    std::shared_ptr<application::chat::PostMessage>   post_message,
+    application::social::AddFriend*           add_friend,
+    application::social::RemoveFriend*        remove_friend,
+    application::social::ListFriends*         list_friends) {
 
     auto egress = std::make_shared<TcpSessionEgress>(tcp);
     auto ctx    = std::make_shared<WolEgressContext>(egress, cfg.server_name);
@@ -39,6 +42,7 @@ void make_wol_session(
     // WolEgressContext owned by the FSM (captured in the callbacks below).
     fsm->set_routing(session_id, router.get(), channel_reader);
     fsm->set_game_store(wol_game_store);
+    fsm->set_social(add_friend, remove_friend, list_friends);
     if (router) {
         router->register_session(session_id, egress);
     }

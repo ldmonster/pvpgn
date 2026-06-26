@@ -80,6 +80,12 @@ namespace pvpgn::application::game {
 class IWolGameStore;
 }  // namespace pvpgn::application::game
 
+namespace pvpgn::application::social {
+class AddFriend;
+class RemoveFriend;
+class ListFriends;
+}  // namespace pvpgn::application::social
+
 namespace pvpgn::protocol::wol {
 
 /// Collaborators the native Westwood Online (APGAR/CVERS) login path needs.
@@ -182,6 +188,17 @@ public:
         wol_game_store_ = store;
     }
 
+    /// Wire the social use-cases backing the WOL buddy commands (GETBUDDY /
+    /// ADDBUDDY / DELBUDDY), reusing the same friend-list store as BNCS. All
+    /// non-owning; null in test/stub mode (buddy commands then no-op).
+    void set_social(application::social::AddFriend* add,
+                    application::social::RemoveFriend* remove,
+                    application::social::ListFriends* list) noexcept {
+        add_friend_    = add;
+        remove_friend_ = remove;
+        list_friends_  = list;
+    }
+
     /// Feed raw bytes from the TCP stream into the FSM.
     /// Returns ok() on success; error causes the session to close.
     core::Status<> on_bytes(std::span<const std::byte> bytes);
@@ -267,6 +284,17 @@ private:
     /// not. @p ex selects FINDUSEREX (398, ",0" suffix). Mirrors the original
     /// `_handle_finduser_command` / `_handle_finduserex_command`.
     core::Status<> on_finduser(std::string_view params, bool ex);
+
+    /// GETBUDDY — reply 333 with the backtick-terminated buddy (friend) list.
+    core::Status<> on_getbuddy();
+
+    /// ADDBUDDY <name> — add a buddy (friend); reply 334 <name>, or 401 if the
+    /// named account does not exist. Mirrors `_handle_addbuddy_command`.
+    core::Status<> on_addbuddy(std::string_view params);
+
+    /// DELBUDDY <name> — remove a buddy; reply 335 <name> (echoes the name
+    /// regardless, like the original). Mirrors `_handle_delbuddy_command`.
+    core::Status<> on_delbuddy(std::string_view params);
 
     /// Route a fully-formed IRC line (CRLF appended here) to each recipient
     /// SessionId via the message router. Best-effort; null router → no-op.
@@ -361,6 +389,12 @@ private:
     /// WOL game-channel registry (JOINGAME create/join). Non-owning; null in
     /// test/stub mode.
     application::game::IWolGameStore* wol_game_store_ = nullptr;
+
+    /// Social use-cases for the WOL buddy commands (shared with BNCS friends).
+    /// Non-owning; null in test/stub mode.
+    application::social::AddFriend*    add_friend_    = nullptr;
+    application::social::RemoveFriend* remove_friend_ = nullptr;
+    application::social::ListFriends*  list_friends_  = nullptr;
 
     /// Accumulation buffer for partial lines.
     std::string line_buf_;

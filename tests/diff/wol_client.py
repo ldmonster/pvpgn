@@ -244,6 +244,46 @@ def wol_read_finduser(client, ex=False, tries=20):
     return None
 
 
+def wol_addbuddy(client, name):
+    """ADDBUDDY <name>; read the 334 (or 401) reply line."""
+    client.send_line(f"ADDBUDDY {name}")
+    for _ in range(20):
+        line = client.read_line()
+        if line is None:
+            break
+        parts = line.split(" ", 3)
+        if len(parts) >= 2 and parts[1] in ("334", "401"):
+            return parts[1]
+    return None
+
+
+def wol_delbuddy(client, name):
+    """DELBUDDY <name>; read the 335 reply line."""
+    client.send_line(f"DELBUDDY {name}")
+    for _ in range(20):
+        line = client.read_line()
+        if line is None:
+            break
+        parts = line.split(" ", 3)
+        if len(parts) >= 2 and parts[1] == "335":
+            return parts[1]
+    return None
+
+
+def wol_getbuddy(client, tries=20):
+    """GETBUDDY; return the lowercased set of buddy names from the 333 reply."""
+    client.send_line("GETBUDDY")
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        parts = line.split(" ", 3)
+        if len(parts) >= 3 and parts[1] == "333":
+            payload = parts[3] if len(parts) >= 4 else ""
+            return {b.lower() for b in payload.strip().split("`") if b}
+    return None
+
+
 def wol_gameopt(client, target, options):
     """Send GAMEOPT <target> :<options> (channel '#...' or a nick)."""
     client.send_line(f"GAMEOPT {target} :{options}")

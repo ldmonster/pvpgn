@@ -361,8 +361,20 @@ resolved via channel_reader), "1 :" otherwise; FINDUSEREX appends ",0". Reply is
 built raw (`:server <code> <nick> <payload>`, payload verbatim) to match the
 original `irc_send_cmd` framing rather than send_numeric (which would inject an
 extra ':'). `diff_wol_finduser.py`: online user -> 0, unknown -> 1, FINDUSEREX ->
-0, all match the oracle. Remaining W-11 stubs: SETOPT, PAGE, GETBUDDY/ADDBUDDY/
-DELBUDDY (maps to the existing friend use-cases), codepage/locale, GETINSIDER,
+0, all match the oracle.
+
+## W-11 progress: GETBUDDY / ADDBUDDY / DELBUDDY — DONE (wave 36)
+
+The WOL buddy commands reuse v3's existing social use-cases (the same friend-list
+store as BNCS): ADDBUDDY <name> resolves the name -> account and AddFriend, reply
+334 <name> (401 if unknown); DELBUDDY <name> RemoveFriend, reply 335 <name>
+(echoes the name regardless, like the original); GETBUDDY reply 333 with the
+backtick-terminated buddy list (ListFriends -> names). Threaded the social
+use-cases into WolFsm (set_social) + make_wol_session; protocol_wol now deps
+application_social. diff_wol_buddy.py: ADD shows the buddy (334), DEL removes it
+(335), matching the oracle.
+
+Remaining W-11 stubs: SETOPT, PAGE, codepage/locale, GETINSIDER,
 SQUADINFO/CLANBYNAME, CHANCHK, HOST/INVMSG/USERIP, ladder LISTSEARCH/etc.
 
 ## What MATCHES (or is acceptably close)

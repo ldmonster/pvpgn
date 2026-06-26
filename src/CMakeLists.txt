@@ -765,6 +765,7 @@ pvpgn_v3_add_library(protocol_wol
         application_auth
         application_chat
         application_game
+        application_social
         application_ports
         domain_chat
         domain_shared

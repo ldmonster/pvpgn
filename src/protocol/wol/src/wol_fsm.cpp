@@ -202,6 +202,9 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "JOINGAME") return on_joingame(params);
     if (cmd == "FINDUSER") return on_finduser(params, /*ex=*/false);
     if (cmd == "FINDUSEREX") return on_finduser(params, /*ex=*/true);
+    if (cmd == "GETBUDDY") return on_getbuddy();
+    if (cmd == "ADDBUDDY") return on_addbuddy(params);
+    if (cmd == "DELBUDDY") return on_delbuddy(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
     // CVERS, VERCHK, APGAR, SETOPT, SERIAL, STARTG, etc.
@@ -209,8 +212,8 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     const std::string_view wol_known[] = {
         "SETOPT", "SERIAL",
         "STARTG",
-        "PAGE", "ADVERTR", "ADVERTC", "CHANCHK", "GETBUDDY",
-        "ADDBUDDY", "DELBUDDY", "HOST", "INVMSG", "INVDEL",
+        "PAGE", "ADVERTR", "ADVERTC", "CHANCHK",
+        "HOST", "INVMSG", "INVDEL",
         "USERIP", "SQUADINFO", "CLANBYNAME", "SETCODEPAGE",
         "GETCODEPAGE", "SETLOCALE", "GETLOCALE", "GETINSIDER",
         "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE", "NAMES",

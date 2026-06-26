@@ -19,6 +19,9 @@
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
 #include "application/game/wol_game_store.hpp"
+#include "application/social/add_friend.hpp"
+#include "application/social/list_friends.hpp"
+#include "application/social/remove_friend.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/chat/ports.hpp"
 #include "domain/connection/ports.hpp"
@@ -567,6 +570,90 @@ core::Status<> WolFsm::on_finduser(std::string_view params, bool ex) {
     line += nick_;
     line += ' ';
     line += payload;
+    return send_raw(line);
+}
+
+// Build ":<server> <code> <nick> <params>" — the irc_send_cmd framing, with the
+// params verbatim (no injected ':'). Used by the WOL buddy replies (333/334/335).
+core::Status<> WolFsm::on_getbuddy() {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    // Backtick-terminated buddy list (matches the original 333 payload).
+    std::string list;
+    if (list_friends_) {
+        auto r = list_friends_->execute(account_id_);
+        if (r) {
+            for (const auto& f : r.value()) {
+                list += std::string(f.name.display());
+                list += '`';
+            }
+        }
+    }
+    std::string line = ":";
+    line += std::string(ctx_->server_name());
+    line += " 333 ";
+    line += nick_;
+    line += ' ';
+    line += list;
+    return send_raw(line);
+}
+
+core::Status<> WolFsm::on_addbuddy(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    auto target = trim(first_token(params));
+    if (target.empty()) {
+        return send_numeric(461, nick_, "ADDBUDDY :Not enough parameters");
+    }
+    if (add_friend_ && auth_.account_reader) {
+        auto name = domain::UserName::parse(std::string{target});
+        if (name) {
+            auto acct = auth_.account_reader->find_by_name(name.value());
+            if (acct) {
+                (void)add_friend_->execute(account_id_, acct.value().id());
+                std::string line = ":";
+                line += std::string(ctx_->server_name());
+                line += " 334 ";
+                line += nick_;
+                line += ' ';
+                line += std::string(target);
+                return send_raw(line);
+            }
+        }
+    }
+    // Unknown account: 401 ERR_NOSUCHNICK (the original sends "<name> :No such nick").
+    return send_numeric(401, nick_, std::string(target) + " :No such nick");
+}
+
+core::Status<> WolFsm::on_delbuddy(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    auto target = trim(first_token(params));
+    if (target.empty()) {
+        return send_numeric(461, nick_, "DELBUDDY :Not enough parameters");
+    }
+    if (remove_friend_ && auth_.account_reader) {
+        auto name = domain::UserName::parse(std::string{target});
+        if (name) {
+            auto acct = auth_.account_reader->find_by_name(name.value());
+            if (acct) {
+                (void)remove_friend_->execute(account_id_, acct.value().id());
+            }
+        }
+    }
+    // The original echoes 335 with the name regardless of whether it was present.
+    std::string line = ":";
+    line += std::string(ctx_->server_name());
+    line += " 335 ";
+    line += nick_;
+    line += ' ';
+    line += std::string(target);
     return send_raw(line);
 }
 

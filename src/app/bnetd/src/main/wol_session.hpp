@@ -30,6 +30,12 @@ namespace pvpgn::application::game {
 class IWolGameStore;
 }  // namespace pvpgn::application::game
 
+namespace pvpgn::application::social {
+class AddFriend;
+class RemoveFriend;
+class ListFriends;
+}  // namespace pvpgn::application::social
+
 namespace pvpgn::app::bnetd {
 
 /// Wire up a WolFsm for the given TCP session and start it.
@@ -45,6 +51,8 @@ namespace pvpgn::app::bnetd {
 ///              When incomplete the FSM falls back to the legacy IRC path.
 /// @param list_channels/join_channel/post_message  Chat use-cases for the
 ///   post-login WOL lobby (LIST / JOIN / PRIVMSG); may be null.
+/// @param add_friend/remove_friend/list_friends  Social use-cases backing the
+///   WOL buddy commands (ADDBUDDY / DELBUDDY / GETBUDDY); may be null.
 void make_wol_session(
     std::shared_ptr<infra::net::TcpSession> tcp,
     const ServerConfig&                      cfg,
@@ -55,6 +63,9 @@ void make_wol_session(
     protocol::wol::WolAuthDeps               auth,
     std::shared_ptr<application::chat::ListChannels> list_channels,
     std::shared_ptr<application::chat::JoinChannel>   join_channel,
-    std::shared_ptr<application::chat::PostMessage>   post_message);
+    std::shared_ptr<application::chat::PostMessage>   post_message,
+    application::social::AddFriend*           add_friend,
+    application::social::RemoveFriend*        remove_friend,
+    application::social::ListFriends*         list_friends);
 
 } // namespace pvpgn::app::bnetd
