@@ -1644,20 +1644,6 @@ pvpgn_v3_add_library(infra_metrics
         Boost::system
 )
 
-# ---- infra/health (HTTP handlers for /healthz, /readyz, /varz, /metrics) ----
-
-pvpgn_v3_add_library(infra_health
-    STATIC
-    SOURCES
-        infra/health/src/health_handler.cpp
-        infra/health/src/metrics_handler.cpp
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/infra/health/include
-    PUBLIC_DEPS
-        core
-        application_ports
-)
-
 # ---- infra/tracing (distributed tracing adapters: log + OTLP) -------------
 
 option(PVPGN_V3_WITH_OTLP

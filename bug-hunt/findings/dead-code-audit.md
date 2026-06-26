@@ -110,6 +110,16 @@ NOTE corrections from precise verification (substring grep gave false positives)
 Dead-code removal paused here: remaining items need per-symbol / lib-dependency
 care (error-prone via grep) and are best done in a focused pass with build+test.
 
+## UPDATE wave 75: removed infra/health (unlinked HTTP-handler lib)
+Removed the infra_health STATIC lib (src/CMakeLists.txt block) + src/infra/health/.
+Proven dead: no target links infra_health, no `#include "infra/health/*"` anywhere,
+HealthHandler/MetricsHandler referenced nowhere outside their own dir, no test dir.
+Reconfigure + full relink + 3199/3199; diff_chat still matches the oracle (bnetd
+never linked it, so the binary is byte-for-byte unchanged in behavior).
+Still present (have real consumers/tests, do NOT remove): infra/discovery (used by
+services/combined + test), infra/metrics + infra/webui_json (tested), infra/tracing
+(unlinked but is a deliberate option-gated OTLP adapter — leave as scaffolding).
+
 ## UPDATE wave 66: removed dead infra/session + IrcBridgeFsm cluster
 Removed the infra_session INTERFACE library (src/CMakeLists.txt block) and its 4
 protocol session-factory headers (src/infra/session/), confirmed linked by nothing

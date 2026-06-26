@@ -1169,3 +1169,15 @@ multichannel, channel_join_edges) all match the oracle.
 The PART source hostmask is environment-dependent (oracle WCHT@ip vs v3
 @Battle.net), so the diff compares decisive observables, not the literal prefix
 (same approach as wave 71 KICK / wave 69 NAMES).
+
+## Wave 75: dead-code removal — infra/health (unlinked HTTP-handler lib)
+Dead-code pass (focus area). `infra/health` (HealthHandler + MetricsHandler, HTTP
+handlers for /healthz, /readyz, /varz, /metrics) was a STATIC lib defined in
+src/CMakeLists.txt but linked by NOTHING: zero `target_link_libraries(... infra_health)`,
+zero `#include "infra/health/*.hpp"` anywhere in src/ or tests/, and the classes
+HealthHandler/MetricsHandler are referenced nowhere outside their own dir (only a
+doc-comment cross-mention). No test dir (tests/unit/infra/health absent). Contrast
+infra/discovery (KEEP — used by services/combined + has a test) and infra/metrics,
+infra/webui_json (KEEP — have tests). Removed the CMake block + src/infra/health/.
+Reconfigure clean, full relink + 3199/3199 units green; diff_chat still matches the
+oracle (pure build-level removal, bnetd binary unchanged — it never linked the lib).
