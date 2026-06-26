@@ -950,3 +950,25 @@ channel/chat/fsm/join/leave unit tests pass; no diff regression.
 Remaining deferred: WOL friend presence (C — cross-protocol encoding), full
 member-flags parity (admin/op/voice tiers, MF_PLUG UDP bit, recipient-relative
 squelch 0x20 in dstflags), /whois last-seen timestamp for offline bnet users.
+
+## Wave 59: JOINCHANNEL edges — canonical name echo + re-join no-op (fleet round 3)
+Fleet round 3 (3 agents) on operator-commands / account-validation / join-edges:
+  FIXED (this wave): two clean JOINCHANNEL divergences —
+  - EID_CHANNEL echoed the raw typed channel name; the original echoes the
+    CANONICAL stored name (creator's spelling). Joining "mychan" of a channel
+    created as "MyChan" now reports "MyChan". Fix: fsm_chat.cpp EID_CHANNEL text =
+    join_result.value().channel.name() (was m.channel).
+  - Re-joining the channel you are already in re-emitted the whole roster; the
+    original's conn_set_channel no-ops that ("channel == oldchannel"). Fix: capture
+    previous_channel_id before the join and early-return when it equals the joined
+    channel id (suppress roster/EID_CHANNEL/JOIN). diff_channel_join_edges.py.
+  NO-BUG: account-name validation — accept/reject is byte-identical to the oracle
+    across 35+ names (length 2..15, symbols -_[], / \ rejected, control/high-byte/
+    unicode rejected, dup rejected). Only cosmetic difference: a >32-char name —
+    oracle silently drops (wire field cap UNCHECKED_NAME_STR=32, no reply), v3
+    sends a graceful NO. Not a hardening gap; v3 is never more permissive.
+  DEFERRED: channel operator commands /kick /ban /unban — unimplemented in v3
+    (fall through to "Unknown command"). Dead code exists (kick_from_channel.cpp,
+    ban_from_channel.cpp) but is unwired, routes no events, and gates on the wrong
+    authorization ("operator" group vs the oracle's split: /kick allows tmpOP,
+    /ban+/unban require account-admin). Subsystem — see findings.

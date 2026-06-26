@@ -114,6 +114,10 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
             /*text*/        m.channel}});
     }
 
+    // Remember the channel we are currently in so we can detect a re-join of the
+    // SAME channel below (the original's conn_set_channel no-ops that case).
+    const domain::ChannelId previous_channel_id = current_channel_id_;
+
     // Call join_channel use-case — use client_tag_ stored from AUTH_INFO
     auto join_result = use_cases_.join_channel->execute(
         current_account_id_, m.channel, client_tag_);
@@ -156,6 +160,15 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
     // Join succeeded - store channel ID and transition state
     current_channel_id_ = join_result.value().channel.id();
     state_ = BnetState::InChat;
+
+    // Re-joining the channel you are already in is a silent no-op on the
+    // original (conn_set_channel: `if (channel == oldchannel) return 0;`) — it
+    // sends no roster, no EID_CHANNEL, no JOIN broadcast. Match that: the
+    // use-case already skipped the leave for a same-channel re-join, so just
+    // suppress the (re-)emission here.
+    if (previous_channel_id.value() == current_channel_id_.value()) {
+        return core::ok();
+    }
 
     // Send EID_SHOWUSER (0x01) for EACH member of the channel to this client,
     // INCLUDING the user who just joined — every real Battle.net client expects
@@ -221,7 +234,11 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
         }
     }
 
-    // Send EID_CHANNEL event with the channel name
+    // Send EID_CHANNEL event with the CANONICAL channel name (the stored name,
+    // set by the channel's creator), not the raw string this client typed. The
+    // original always echoes channel_get_name() — so joining "mychan" when the
+    // channel was created as "MyChan" reports "MyChan". The use-case resolves the
+    // canonical name in join_result.value().channel.name().
     if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
         /*event_id*/    kEidChannel,  // EID_CHANNEL (0x07)
         /*flags*/       0,
@@ -230,7 +247,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
         /*acct_number*/ 0,
         /*registration*/0,
         /*username*/    "",
-        /*text*/        m.channel}}); !send_status) {
+        /*text*/        join_result.value().channel.name()}}); !send_status) {
         return send_status;
     }
 

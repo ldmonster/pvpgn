@@ -286,3 +286,27 @@ compared). Minor known gap (not fixed): /whois on an existing-but-offline,
 bnet-class user — the oracle returns "User was last seen on: <timestamp>" while
 v3 returns the flat "User is offline" (oracle's non-bnet fallback wording, which
 v3 matches). Needs last-seen tracking; the timestamp wouldn't diff cleanly anyway.
+
+## Wave 59: channel operator commands /kick /ban /unban DEFERRED (subsystem)
+Confirmed divergence (scratchpad probe_opcmds.py / probe_banonly.py): v3 does not
+implement /kick, /ban, /unban — they fall through the command dispatch to the
+(null) command registry and return "Unknown command." (EID_INFO). The original:
+- /kick (command.cpp _handle_kick_command): allowed by admin OR operator OR
+  channel tmpOP (the gavel-holder CAN kick) -> removes target, broadcasts
+  EID_LEAVE, moves target session to CHANNEL_NAME_KICKED + EID_ERROR to target.
+- /ban, /unban (_handle_ban_command/_handle_unban_command): require account-level
+  admin/operator and do NOT accept tmpOP -> a plain channel creator gets EID_ERROR.
+v3 dead code: src/application/chat/src/kick_from_channel.cpp + ban_from_channel.cpp
+implement auth + channel.kick() but (a) are never wired into bnetd, (b) gate on the
+"operator" command-group not the tmpOP gavel, (c) route no events ("// Events
+would be routed here"). No /unban use-case exists. Domain support is present but
+unused on the live path: channel.hpp kick()/is_banned()/admit()->Banned (mapped to
+"You are banned from this channel" in fsm_chat.cpp) — but nothing records a ban so
+the join-time check never fires.
+Fix shape (subsystem): intercept /kick/ban/unban in fsm_chat (or wire a registry);
+implement the split authorization (kick: admin/op/tmpOP via channel.operator_id()
+from wave 58; ban/unban: account-admin only — v3 has no admin-account model, so a
+tmpOP /ban should return EID_ERROR to match); on /kick mutate membership +
+broadcast EID_LEAVE + notify the target; on /ban also populate the channel banlist
+so admit()'s existing ban check refuses rejoin, and clear it on /unban. Account
+validation came back clean (byte-identical accept/reject; see STATUS wave 59).
