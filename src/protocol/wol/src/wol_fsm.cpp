@@ -225,13 +225,14 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "INVMSG") return on_invmsg(params);
     if (cmd == "STARTG") return on_startg(params);
     if (cmd == "SETOPT") return on_setopt(params);
+    if (cmd == "ADVERTR") return on_advertr(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
-    // CVERS, VERCHK, APGAR, SERIAL, etc.
+    // CVERS, VERCHK, APGAR, SERIAL, etc. (ADVERTC is a no-op in the original too.)
     // Return 421 ERR_UNKNOWNCOMMAND for truly unknown commands.
     const std::string_view wol_known[] = {
         "SERIAL",
-        "ADVERTR", "ADVERTC",
+        "ADVERTC",
         "INVDEL",
         "SQUADINFO", "CLANBYNAME",
         "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE", "NAMES",

@@ -306,6 +306,22 @@ def wol_invmsg(client, channel, flag, invited):
     client.send_line(f"INVMSG {channel} {flag} {invited}")
 
 
+def wol_advertr(client, channel, tries=20):
+    """ADVERTR <channel>; return the payload after 'ADVERTR ' (e.g. '5 #room'),
+    or '461' on ERR_NEEDMOREPARAMS, else None."""
+    client.send_line(f"ADVERTR {channel}")
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        if " ADVERTR " in line:
+            return line.split(" ADVERTR ", 1)[1].strip()
+        p = line.split(" ", 2)
+        if len(p) >= 2 and p[1] == "461":
+            return "461"
+    return None
+
+
 def wol_setopt(client, opt):
     """SETOPT <opt> (e.g. '16,32'); no reply, so follow with a PING round-trip to
     guarantee the server processed it before the caller queries another client."""

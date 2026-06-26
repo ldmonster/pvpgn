@@ -443,8 +443,15 @@ toggles them across two clients (default 0/0, SETOPT 16,32 -> 1/1, SETOPT 17,33 
 0/0) — matches the oracle. (Harness note: wol_finduser only SENDS; pair it with
 wol_read_finduser to read the status.)
 
-Remaining W-11 stubs: SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/
-HIGHSCORE, ADVERTR/ADVERTC. matchbot/anongame automatch = large separate subsystem.
+## ADVERTR — DONE (wave 44)
+
+ADVERTR <channel> replies ":<server> ADVERTR 5 <channel>" (461 with no param).
+diff_wol_advertr.py matches the oracle ("5 #adroom"). ADVERTC is a no-op in the
+original too (kept silently accepted).
+
+Remaining W-11 stubs: SQUADINFO/CLANBYNAME (clan — needs clan-membership setup to
+test meaningfully; empty case same on both), ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE
+(needs a ladder backend). matchbot/anongame automatch = large separate subsystem.
 
 ## What MATCHES (or is acceptably close)
 

@@ -915,6 +915,23 @@ core::Status<> WolFsm::on_invmsg(std::string_view params) {
     return core::ok();
 }
 
+core::Status<> WolFsm::on_advertr(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    auto chan = trim(first_token(params));
+    if (chan.empty()) {
+        return send_numeric(461, nick_, "ADVERTR :Not enough parameters");
+    }
+    // ":<server> ADVERTR 5 <channel>" (no nick — the original uses a null source).
+    std::string line = ":";
+    line += std::string(ctx_->server_name());
+    line += " ADVERTR 5 ";
+    line += std::string(chan);
+    return send_raw(line);
+}
+
 core::Status<> WolFsm::on_setopt(std::string_view params) {
     if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
         return send_numeric(451, nick_.empty() ? "*" : nick_,

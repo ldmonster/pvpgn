@@ -341,6 +341,11 @@ private:
     /// router. No sender reply. Mirrors `_handle_invmsg_command`.
     core::Status<> on_invmsg(std::string_view params);
 
+    /// ADVERTR <channel> — reply ":<server> ADVERTR 5 <channel>" (a game-ad
+    /// refresh ack to the sender); 461 with no param. Mirrors
+    /// `_handle_advertr_command`.
+    core::Status<> on_advertr(std::string_view params);
+
     /// SETOPT <find>,<page> — toggle this account's findme/pageme flags
     /// (16/17 = find off/on, 32/33 = page off/on). No reply. Mirrors
     /// `_handle_setopt_command`.
