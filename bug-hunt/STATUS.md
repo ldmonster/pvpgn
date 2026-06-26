@@ -630,9 +630,34 @@ edge battery (malformed JOINGAME param counts, non-numeric/overflow strtoul
 tokens, full/wrong-password joins, invalid-UTF-8, pre-auth) — server stayed up,
 0 ASan/UBSan reports.
 
-## RUNNING TOTAL: ~65 distinct bugs/features across 34 waves. Login (all families)
+## Wave 35: WOL FINDUSER / FINDUSEREX presence lookup
+Both were silent no-ops. on_finduser resolves nick -> account (account_reader)
+and reports presence (WOL findme defaults on, so online == findable): 388/398
+"0 :<channel>" found (channel via channel_reader) / "1 :" not. Reply built raw to
+match irc_send_cmd framing. diff_wol_finduser.py: online -> 0, unknown -> 1,
+FINDUSEREX -> 0, matches oracle. (commit b8f4c39)
+
+## Wave 36: WOL buddy list (GETBUDDY / ADDBUDDY / DELBUDDY)
+Silent no-ops. Implemented by reusing v3's existing social use-cases (the SAME
+friend-list store as BNCS): ADDBUDDY resolves name -> AddFriend (334, or 401
+unknown); DELBUDDY RemoveFriend (335, echoes name regardless like the original);
+GETBUDDY 333 backtick-terminated list (ListFriends). Threaded social use-cases
+into WolFsm (set_social); protocol_wol now deps application_social.
+diff_wol_buddy.py: add shows (334), del removes (335), matches oracle. (f52858c)
+
+## Hardening (waves 35-36): FINDUSER + BUDDY re-hardened to 100%
+ASan + UBSan fleet → both "HARDENED 100% / 0 defects": all 7 WOL differentials
+(login/lobby/chat/gameopt/joingame/finduser/buddy) match the oracle against BOTH
+sanitizer binaries; WOL unit 63/63 + full suite green (only the known parallel
+anongame race + pre-existing tomlplusplus finding); leak drivers (buddy/finduser
++ game-lobby rounds) report 0 leaks; hostile edge fuzzing (invalid-UTF-8/long
+nicks, duplicate/never-added buddies, self-add, 0-param variants) left the server
+alive with 0 ASan/UBSan reports.
+
+## RUNNING TOTAL: ~67 distinct bugs/features across 36 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + WOL
-## lobby LIST/JOIN + WOL cross-session chat + GAMEOPT + JOINGAME match the oracle;
-## runtime-hardened (ASan+UBSan clean, leak-clean). Still open: WOL STARTG
-## (needs peer-IP tracking infra; gameNumber/time_t preclude a byte-exact diff)
-## + matchbot/anongame automatch. See findings/wol-chat-lobby.md F-W31.
+## lobby LIST/JOIN + cross-session chat + GAMEOPT + JOINGAME + FINDUSER + buddy
+## list match the oracle; runtime-hardened (ASan+UBSan clean, leak-clean). Still
+## open: WOL STARTG (needs peer-IP infra) + smaller WOL stubs (SETOPT, PAGE,
+## codepage/locale, GETINSIDER, SQUADINFO/CLANBYNAME, CHANCHK, HOST/INVMSG/USERIP,
+## ladder) + matchbot/anongame automatch. See findings/wol-chat-lobby.md.

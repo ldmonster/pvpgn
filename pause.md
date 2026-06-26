@@ -86,6 +86,17 @@ etc. between runs. clang not on PATH (fuzzer reuses build/v3-fuzz from wave 23).
   all 5 WOL diffs match against both sanitizer binaries; leak driver 0 leaks;
   edge battery clean.
 
+## Waves 35-36 — DONE (WOL FINDUSER + buddy list) + hardened
+
+- W35 `b8f4c39`: WOL FINDUSER/FINDUSEREX presence lookup (388/398 "0 :<chan>" /
+  "1 :"; online==findable since findme defaults on). diff_wol_finduser.py matches.
+- W36 `f52858c`: WOL buddy list GETBUDDY/ADDBUDDY/DELBUDDY (333/334/335) reusing
+  v3's AddFriend/RemoveFriend/ListFriends use-cases (same store as BNCS friends);
+  set_social threaded into WolFsm; protocol_wol deps application_social.
+  diff_wol_buddy.py matches.
+- Re-hardened W35-36: ASan + UBSan fleet → both "HARDENED 100% / 0 defects"; all 7
+  WOL diffs match both sanitizer binaries; leak drivers 0 leaks; edge fuzz clean.
+
 ## NEXT — remaining divergences
 
 1. **WOL STARTG** (handle_wol.cpp:1264) — game model now EXISTS (W34) but STARTG
