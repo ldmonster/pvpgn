@@ -432,9 +432,19 @@ differ per server/run so they cannot be byte-compared — this is the one WOL
 command whose payload is not byte-diffable. Both servers deliver STARTG to the
 named player carrying 127.0.0.1.
 
-Remaining W-11 stubs: SETOPT (cross-session findme/pageme gating — needs a shared
-registry), SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE,
-ADVERTR/ADVERTC. matchbot/anongame automatch = large separate subsystem.
+## SETOPT — DONE (wave 43)
+
+Added a shared per-account WOL find/page flags store (application::game::
+IWolUserFlagsStore + InMemoryWolUserFlagsStore, run-loop scoped, both default ON,
+removed on close). SETOPT <find>,<page> (16/17 = find off/on, 32/33 = page off/on)
+updates the sender's flags; FINDUSER and PAGE now consult the TARGET's flags
+(online AND findme -> found; online AND pageme -> paged). diff_wol_setopt.py
+toggles them across two clients (default 0/0, SETOPT 16,32 -> 1/1, SETOPT 17,33 ->
+0/0) — matches the oracle. (Harness note: wol_finduser only SENDS; pair it with
+wol_read_finduser to read the status.)
+
+Remaining W-11 stubs: SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/
+HIGHSCORE, ADVERTR/ADVERTC. matchbot/anongame automatch = large separate subsystem.
 
 ## What MATCHES (or is acceptably close)
 

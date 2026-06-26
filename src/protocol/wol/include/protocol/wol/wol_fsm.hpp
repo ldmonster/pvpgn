@@ -79,6 +79,7 @@ class IChannelReader;
 
 namespace pvpgn::application::game {
 class IWolGameStore;
+class IWolUserFlagsStore;
 }  // namespace pvpgn::application::game
 
 namespace pvpgn::application::social {
@@ -196,6 +197,13 @@ public:
                   domain::connection::IPeerAddressStore* store) {
         peer_ip_    = std::move(ip);
         peer_store_ = store;
+    }
+
+    /// Wire the shared WOL find/page flags store (SETOPT writes it; FINDUSER and
+    /// PAGE consult the target's flags). Non-owning; null in test mode (flags
+    /// then default ON, so online == findable/pageable).
+    void set_user_flags_store(application::game::IWolUserFlagsStore* store) noexcept {
+        user_flags_store_ = store;
     }
 
     /// Wire the social use-cases backing the WOL buddy commands (GETBUDDY /
@@ -333,6 +341,11 @@ private:
     /// router. No sender reply. Mirrors `_handle_invmsg_command`.
     core::Status<> on_invmsg(std::string_view params);
 
+    /// SETOPT <find>,<page> — toggle this account's findme/pageme flags
+    /// (16/17 = find off/on, 32/33 = page off/on). No reply. Mirrors
+    /// `_handle_setopt_command`.
+    core::Status<> on_setopt(std::string_view params);
+
     /// STARTG <channel> <nick1,nick2,...> — mark the sender's game started and
     /// send each named player a STARTG carrying the owner's peer IP, the game id
     /// and a start time (":<owner>!<owner>@Battle.net STARTG <player> :<owner_ip>
@@ -458,6 +471,10 @@ private:
     /// WOL game-channel registry (JOINGAME create/join). Non-owning; null in
     /// test/stub mode.
     application::game::IWolGameStore* wol_game_store_ = nullptr;
+
+    /// Shared WOL find/page flags (SETOPT / FINDUSER / PAGE). Non-owning; null in
+    /// test/stub mode (flags then default ON).
+    application::game::IWolUserFlagsStore* user_flags_store_ = nullptr;
 
     /// Social use-cases for the WOL buddy commands (shared with BNCS friends).
     /// Non-owning; null in test/stub mode.

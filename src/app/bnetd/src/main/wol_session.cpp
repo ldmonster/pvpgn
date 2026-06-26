@@ -29,7 +29,8 @@ void make_wol_session(
     application::social::AddFriend*           add_friend,
     application::social::RemoveFriend*        remove_friend,
     application::social::ListFriends*         list_friends,
-    domain::connection::IPeerAddressStore*   peer_store) {
+    domain::connection::IPeerAddressStore*   peer_store,
+    application::game::IWolUserFlagsStore*    user_flags_store) {
 
     auto egress = std::make_shared<TcpSessionEgress>(tcp);
     auto ctx    = std::make_shared<WolEgressContext>(egress, cfg.server_name);
@@ -55,6 +56,7 @@ void make_wol_session(
         }
         fsm->set_peer(std::move(peer_ip), peer_store);
     }
+    fsm->set_user_flags_store(user_flags_store);
     if (router) {
         router->register_session(session_id, egress);
     }

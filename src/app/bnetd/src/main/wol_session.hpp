@@ -32,6 +32,7 @@ class IPeerAddressStore;
 
 namespace pvpgn::application::game {
 class IWolGameStore;
+class IWolUserFlagsStore;
 }  // namespace pvpgn::application::game
 
 namespace pvpgn::application::social {
@@ -71,6 +72,7 @@ void make_wol_session(
     application::social::AddFriend*           add_friend,
     application::social::RemoveFriend*        remove_friend,
     application::social::ListFriends*         list_friends,
-    domain::connection::IPeerAddressStore*   peer_store);
+    domain::connection::IPeerAddressStore*   peer_store,
+    application::game::IWolUserFlagsStore*    user_flags_store);
 
 } // namespace pvpgn::app::bnetd

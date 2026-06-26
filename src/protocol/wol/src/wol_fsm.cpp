@@ -24,6 +24,7 @@
 #include <optional>
 #include <string>
 
+#include "application/game/wol_user_flags_store.hpp"
 #include "core/error.hpp"
 #include "domain/connection/peer_address_store.hpp"
 #include "domain/identity/ports.hpp"
@@ -141,6 +142,9 @@ void WolFsm::on_close() {
     if (peer_store_ && account_id_.value() != 0) {
         peer_store_->remove(account_id_);
     }
+    if (user_flags_store_ && account_id_.value() != 0) {
+        user_flags_store_->remove(account_id_);
+    }
 }
 
 // ===========================================================================
@@ -220,12 +224,13 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "USERIP") return on_userip(params);
     if (cmd == "INVMSG") return on_invmsg(params);
     if (cmd == "STARTG") return on_startg(params);
+    if (cmd == "SETOPT") return on_setopt(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
-    // CVERS, VERCHK, APGAR, SETOPT, SERIAL, etc.
+    // CVERS, VERCHK, APGAR, SERIAL, etc.
     // Return 421 ERR_UNKNOWNCOMMAND for truly unknown commands.
     const std::string_view wol_known[] = {
-        "SETOPT", "SERIAL",
+        "SERIAL",
         "ADVERTR", "ADVERTC",
         "INVDEL",
         "SQUADINFO", "CLANBYNAME",

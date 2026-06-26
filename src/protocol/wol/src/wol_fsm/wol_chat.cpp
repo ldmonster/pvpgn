@@ -21,6 +21,7 @@
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
 #include "application/game/wol_game_store.hpp"
+#include "application/game/wol_user_flags_store.hpp"
 #include "application/social/add_friend.hpp"
 #include "application/social/list_friends.hpp"
 #include "application/social/remove_friend.hpp"
@@ -543,8 +544,11 @@ core::Status<> WolFsm::on_finduser(std::string_view params, bool ex) {
         auto name = domain::UserName::parse(std::string{target});
         if (name) {
             auto acct = auth_.account_reader->find_by_name(name.value());
-            if (acct &&
-                auth_.session_registry->session_for(acct.value().id())) {
+            const bool findable =
+                acct && auth_.session_registry->session_for(acct.value().id()) &&
+                (!user_flags_store_ ||
+                 user_flags_store_->get(acct.value().id()).findme);
+            if (findable) {
                 std::string chan;
                 if (channel_reader_) {
                     const auto id = acct.value().id();
@@ -742,7 +746,10 @@ core::Status<> WolFsm::on_page(std::string_view params) {
         auto name = domain::UserName::parse(std::string{target});
         if (name) {
             auto acct = auth_.account_reader->find_by_name(name.value());
-            if (acct) {
+            const bool pageable =
+                acct && (!user_flags_store_ ||
+                         user_flags_store_->get(acct.value().id()).pageme);
+            if (pageable) {
                 if (auto sid = auth_.session_registry->session_for(
                         acct.value().id())) {
                     std::string line = ":";
@@ -905,6 +912,27 @@ core::Status<> WolFsm::on_invmsg(std::string_view params) {
         if (comma == std::string_view::npos) break;
         pos = comma + 1;
     }
+    return core::ok();
+}
+
+core::Status<> WolFsm::on_setopt(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    // SETOPT <find>,<page>  (16/17 = find off/on, 32/33 = page off/on). No reply.
+    auto arg = trim(first_token(params));
+    if (arg.empty() || !user_flags_store_ || account_id_.value() == 0) {
+        return core::ok();
+    }
+    auto comma = arg.find(',');
+    if (comma == std::string_view::npos) return core::ok();
+    std::string_view find_opt = trim(arg.substr(0, comma));
+    std::string_view page_opt = trim(arg.substr(comma + 1));
+    application::game::WolUserFlags flags;
+    flags.findme = (find_opt == "17");
+    flags.pageme = (page_opt == "33");
+    user_flags_store_->set(account_id_, flags);
     return core::ok();
 }
 

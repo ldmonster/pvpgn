@@ -306,6 +306,20 @@ def wol_invmsg(client, channel, flag, invited):
     client.send_line(f"INVMSG {channel} {flag} {invited}")
 
 
+def wol_setopt(client, opt):
+    """SETOPT <opt> (e.g. '16,32'); no reply, so follow with a PING round-trip to
+    guarantee the server processed it before the caller queries another client."""
+    client.send_line(f"SETOPT {opt}")
+    client.send_line("PING setopt_sync")
+    for _ in range(20):
+        line = client.read_line()
+        if line is None:
+            break
+        if "PONG" in line:
+            return True
+    return False
+
+
 def wol_userip(client, nick, tries=20):
     """USERIP <nick>; return (status, ip): ('ok', '<ip>') on a USERIP reply,
     ('401', '') on ERR_NOSUCHNICK, else (None, None)."""
