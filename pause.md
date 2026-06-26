@@ -97,6 +97,17 @@ etc. between runs. clang not on PATH (fuzzer reuses build/v3-fuzz from wave 23).
 - Re-hardened W35-36: ASan + UBSan fleet → both "HARDENED 100% / 0 defects"; all 7
   WOL diffs match both sanitizer binaries; leak drivers 0 leaks; edge fuzz clean.
 
+## Waves 37-38 — DONE (WOL codepage/locale/insider + PAGE) + hardened
+
+- W37 `610684a`: SETCODEPAGE/GETCODEPAGE (329/328), SETLOCALE/GETLOCALE (310/309),
+  GETINSIDER (399); per-session storage + backtick GET payloads; new send_raw_cmd
+  helper (finduser/buddy refactored onto it). diff_wol_userinfo.py matches.
+- W38 `8b2dcf6`: PAGE <nick> :<msg> (389 "0 :"/"1 :"; delivers via router).
+  diff_wol_page.py matches.
+- Re-hardened W37-38: ASan + UBSan fleet over the full WOL command surface →
+  both "HARDENED 100% / 0 defects"; all 8 WOL diffs match both sanitizer binaries;
+  leak drivers 0 leaks; edge fuzz clean.
+
 ## NEXT — remaining divergences
 
 1. **WOL STARTG** (handle_wol.cpp:1264) — game model now EXISTS (W34) but STARTG

@@ -654,10 +654,31 @@ anongame race + pre-existing tomlplusplus finding); leak drivers (buddy/finduser
 nicks, duplicate/never-added buddies, self-add, 0-param variants) left the server
 alive with 0 ASan/UBSan reports.
 
-## RUNNING TOTAL: ~67 distinct bugs/features across 36 waves. Login (all families)
+## Wave 37: WOL codepage / locale / GETINSIDER
+SETCODEPAGE/GETCODEPAGE (329/328), SETLOCALE/GETLOCALE (310/309), GETINSIDER
+(399). Values stored per-session and echoed; GET forms emit the backtick
+"<nick>`<value>`" payload (own value for this nick, 0 for others — no cross-
+session registry, documented). New send_raw_cmd() helper (irc_send_cmd framing);
+the finduser/buddy raw replies were refactored onto it. diff_wol_userinfo.py
+matches the oracle. (commit 610684a)
+
+## Wave 38: WOL PAGE
+PAGE <nick> :<msg> resolves nick -> account -> session, delivers the page via the
+router, replies 389 "0 :" (paged) / "1 :" (offline/unknown). pageme defaults on.
+diff_wol_page.py matches the oracle. (commit 8b2dcf6)
+
+## Hardening (waves 37-38): re-hardened to 100%
+ASan + UBSan fleet over the full WOL command surface (the send_raw_cmd refactor is
+shared) → both "HARDENED 100% / 0 defects": all 8 WOL differentials match the
+oracle against BOTH sanitizer binaries; leak drivers (incl. codepage/locale/
+insider/page rounds) report 0 leaks; hostile edge fuzzing (out-of-range atoi,
+invalid-UTF-8/200-char nicks, case-flipped self, malformed PAGE) clean. PAGE
+additionally verified leak-clean + oracle-matching against the ASan binary.
+
+## RUNNING TOTAL: ~70 distinct bugs/features across 38 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + WOL
-## lobby LIST/JOIN + cross-session chat + GAMEOPT + JOINGAME + FINDUSER + buddy
-## list match the oracle; runtime-hardened (ASan+UBSan clean, leak-clean). Still
-## open: WOL STARTG (needs peer-IP infra) + smaller WOL stubs (SETOPT, PAGE,
-## codepage/locale, GETINSIDER, SQUADINFO/CLANBYNAME, CHANCHK, HOST/INVMSG/USERIP,
-## ladder) + matchbot/anongame automatch. See findings/wol-chat-lobby.md.
+## (login, lobby LIST/JOIN, cross-session chat, GAMEOPT, JOINGAME, FINDUSER, buddy
+## list, codepage/locale, GETINSIDER, PAGE) all match the oracle; runtime-hardened
+## (ASan+UBSan clean, leak-clean). Still open: WOL STARTG (needs peer-IP infra),
+## SETOPT (cross-session findme/pageme gating), SQUADINFO/CLANBYNAME, CHANCHK,
+## HOST/INVMSG/USERIP, ladder, matchbot/anongame. See findings/wol-chat-lobby.md.
