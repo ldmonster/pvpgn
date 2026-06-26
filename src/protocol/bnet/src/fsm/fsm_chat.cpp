@@ -997,8 +997,35 @@ void BnetFsm::on_disconnect() {
     }
 }
 
-core::Status<> BnetFsm::on(const ProfileRequest&) {
-    return require_clan_state(state_, "bnet fsm: PROFILEREQ before login");
+core::Status<> BnetFsm::on(const ProfileRequest& m) {
+    if (auto s = require_clan_state(state_, "bnet fsm: PROFILEREQ before login");
+        !s) {
+        return s;
+    }
+    // SID_PROFILE (0x35): reply with the requested account's description +
+    // location (the profile\* attributes) and clan tag. Mirrors the original
+    // _client_profilereq, which sends NOTHING for a nonexistent account.
+    if (!use_cases_.account_repo) return core::ok();
+    auto name = domain::UserName::parse(m.player_name);
+    if (!name) return core::ok();
+    auto acct = use_cases_.account_repo->find_by_name(name.value());
+    if (!acct) return core::ok();
+
+    ProfileReply reply;
+    reply.cookie = m.cookie;
+    reply.fail   = 0;
+    if (use_cases_.user_profile_store) {
+        if (auto d = use_cases_.user_profile_store->get(
+                m.player_name, "profile\\description")) {
+            reply.description = std::move(d.value());
+        }
+        if (auto l = use_cases_.user_profile_store->get(
+                m.player_name, "profile\\location")) {
+            reply.location = std::move(l.value());
+        }
+    }
+    reply.clan_tag = 0;  // clan tag not modelled on this path (no clan -> 0)
+    return ctx_->send(ServerMessage{std::move(reply)});
 }
 
 core::Status<> BnetFsm::on(const MotdRequest&) {

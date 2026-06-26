@@ -39,6 +39,7 @@ SID_FRIENDSLIST = 0x65
 SID_FRIENDINFO = 0x66
 SID_READUSERDATA = 0x26
 SID_WRITEUSERDATA = 0x27
+SID_PROFILE = 0x35
 
 # Chat event ids (canonical BNCS).
 EID_SHOWUSER = 0x01
@@ -595,6 +596,29 @@ def write_userdata(client, account, kv):
     for k in keys:
         body += cstring(kv[k])
     client.send(SID_WRITEUSERDATA, body)
+
+
+def request_profile(client, player_name, cookie=1, max_packets=30):
+    """SID_PROFILE (0x35): request a user's profile; return
+    {fail, description, location, clan_tag} or None (no reply)."""
+    body = struct.pack("<I", cookie) + cstring(player_name)
+    client.send(SID_PROFILE, body)
+    rbody = client.recv_sid(SID_PROFILE, max_packets)
+    if rbody is None or len(rbody) < 5:
+        return None
+    _cookie, fail = struct.unpack_from("<IB", rbody, 0)
+    if fail != 0:
+        return {"fail": fail, "description": "", "location": "", "clan_tag": 0}
+    off = 5
+    end = rbody.find(b"\x00", off)
+    desc = rbody[off:end].decode("latin-1", "replace")
+    off = end + 1
+    end = rbody.find(b"\x00", off)
+    loc = rbody[off:end].decode("latin-1", "replace")
+    off = end + 1
+    clan_tag = struct.unpack_from("<I", rbody, off)[0] if off + 4 <= len(rbody) else 0
+    return {"fail": fail, "description": desc, "location": loc,
+            "clan_tag": clan_tag}
 
 
 def read_userdata(client, account, keys, request_id=1, max_packets=30):

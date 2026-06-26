@@ -340,3 +340,15 @@ _client_statsreq / _client_statsupdate:
   key) -> ["m","99","NY",""], matching the oracle. bncs_client.py helpers
   write_userdata / read_userdata. Unit suite green (the new BnetUseCaseContext
   field was added to the fsm_test / fsm_channel_test designated-init blocks).
+
+## RESOLVED (wave 46): SID_PROFILE (0x35) profile view
+
+on(ProfileRequest) was a stub (state-check only, no reply). Implemented against
+_client_profilereq: resolve the requested account (account_repo); for a
+nonexistent account send nothing (matches the original); otherwise reply
+ProfileReply{cookie, fail=0, description, location, clan_tag=0} where
+description/location come from the wave-45 profile store (profile\description /
+profile\location, i.e. the original's account_get_desc / account_get_loc). The
+reply has no timestamps, so it byte-diffs exactly. diff_profile.py: write a
+description + location, request the profile, get them back — matches the oracle.
+bncs_client.py helper request_profile.
