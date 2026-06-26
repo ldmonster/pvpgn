@@ -284,7 +284,18 @@ core::Status<> BnetFsm::on(const LogonProofW3Request& m) {
 
     // Proof matched — attach the session (W3 bypasses LoginUser, so do it here)
     // and transition to LoggedIn before returning the server proof M2.
+    // kick-old-login (the original's default): if the account already has a live
+    // session, detach it and close that old connection, then attach this one.
+    // (Previously the attach failure was ignored, leaving the new session
+    // unregistered — a ghost — and the old session in place.)
     if (use_cases_.session_registry) {
+        if (auto old =
+                use_cases_.session_registry->session_for(w3_pending_account_)) {
+            use_cases_.session_registry->detach(old.value());
+            if (use_cases_.message_router) {
+                (void)use_cases_.message_router->disconnect(old.value());
+            }
+        }
         (void)use_cases_.session_registry->attach(session_id_, w3_pending_account_);
     }
     current_account_id_ = w3_pending_account_;
