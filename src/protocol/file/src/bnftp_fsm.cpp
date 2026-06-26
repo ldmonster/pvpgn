@@ -234,12 +234,18 @@ core::Status<> BnftpFsm::handle_file_request(std::string_view filename,
         filetime = mtime_to_filetime(t);
     }
 
+    // The reply's `filelen` always carries the FULL file size, independent of
+    // start_offset, matching the original pvpgn (file_send sets filelen from
+    // stat() and only then fseeks to startoffset — src/bnetd/file.cpp). The
+    // streamed payload below is file_size - start_offset bytes.
+    std::uint32_t full_len = static_cast<std::uint32_t>(file_size);
+
     // Clamp start_offset.
     if (start_offset > file_size) start_offset = static_cast<std::uint32_t>(file_size);
     std::uint32_t send_len = static_cast<std::uint32_t>(file_size - start_offset);
 
-    // Send the reply header.
-    auto hdr_st = send_reply_header(send_len, ad_id, extension_tag, filetime, filename);
+    // Send the reply header (full file size, per the original wire format).
+    auto hdr_st = send_reply_header(full_len, ad_id, extension_tag, filetime, filename);
     if (!hdr_st) return hdr_st;
 
     if (send_len == 0) return core::ok();

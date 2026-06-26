@@ -1235,3 +1235,23 @@ kick/topic/part) + robustness battery all still match.
 Remaining 461-adjacent divergences left as-is (different code paths, deferred):
 PRIVMSG no-param -> oracle 461 vs v3 411 ERR_NORECIPIENT; NOTICE/WHO/NAMES verb
 surface differs (documented in findings/malformed-input-safety.md).
+
+## Wave 78 (LANDED) — BNFTP resume reply `filelen` = full file size
+DIVERGENCE (on-wire value): a BNFTP CLIENT_FILE_REQ with a non-zero startoffset
+(download resume) got a SERVER_FILE_REPLY whose `filelen` field disagreed with the
+oracle. The original pvpgn (src/bnetd/file.cpp file_send) sets reply.filelen to the
+FULL file size from stat() and only THEN fseeks to startoffset, streaming
+`filelen - startoffset` bytes; past-EOF (startoffset >= filelen) it "keeps the real
+filesize" and streams nothing. v3's BnftpFsm::handle_file_request instead put
+`file_size - start_offset` into reply.filelen, so a resume advertised a too-small
+total and a past-EOF request advertised 0 — both wrong on the wire. (Flagged as the
+"Secondary note" in findings/bnftp-file.md.)
+Fix (src/protocol/file/src/bnftp_fsm.cpp): reply header now carries `full_len`
+(= file_size) while the streamed payload stays `file_size - clamped_start_offset`.
+Pure header-value correction; byte count delivered is unchanged.
+Updated the two unit tests that pinned the old (wrong) behavior
+(tests/unit/protocol/file/bnftp_fsm_test.cpp): start_offset>0 and past-EOF now
+expect filelen == full content size. New guard tests/diff/diff_bnftp_resume.py
+covers offsets 0 / mid-file / exact-EOF / past-EOF across two file sizes — all match
+the oracle (filelen + delivered bytes). 3199/3199 units green; existing diff_bnftp.py
+(offset 0, sizes 1..65536) still matches.

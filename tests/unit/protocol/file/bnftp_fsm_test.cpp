@@ -344,8 +344,9 @@ TEST_CASE("BnftpFsm: valid file request with start_offset skips bytes",
     REQUIRE(st.has_value());
 
     auto reply = parse_reply_header(ctx->sent);
-    // filelen in the reply is the number of bytes being sent (file_size - start_offset).
-    REQUIRE(reply.filelen == 6u);
+    // filelen in the reply always carries the FULL file size (10), matching the
+    // original pvpgn; the streamed payload is file_size - start_offset (6 bytes).
+    REQUIRE(reply.filelen == static_cast<std::uint32_t>(content.size()));
 
     REQUIRE(ctx->sent.size() == reply.header_bytes + 6u);
 
@@ -372,7 +373,9 @@ TEST_CASE("BnftpFsm: start_offset >= file_size sends zero data bytes",
     REQUIRE(st.has_value());
 
     auto reply = parse_reply_header(ctx->sent);
-    REQUIRE(reply.filelen == 0u);
+    // filelen carries the FULL file size even past EOF (the original "keeps the
+    // real filesize" — src/bnetd/file.cpp); no data bytes are streamed.
+    REQUIRE(reply.filelen == static_cast<std::uint32_t>(content.size()));
 
     // Only the header packet, no file data.
     REQUIRE(ctx->sent.size() == reply.header_bytes);
