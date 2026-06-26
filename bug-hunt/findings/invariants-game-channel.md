@@ -361,3 +361,13 @@ Highest-priority: **C-1** (two-channels-at-once) and **C-2** (no first-user
 operator) are HIGH and both stem from the channel join path / missing operator
 model. **G-4** (zombie 1-player game) and **C-3** (max-members semantics) are the
 notable MEDIUM lifecycle/admission divergences.
+
+## Wave 52: advertised game must be torn down on host disconnect
+Verified differentially (tests/diff/diff_game_disconnect.py): when a BNCS host
+advertises via SID_STARTADVEX3 and then disconnects without SID_CLOSEGAME, the
+oracle removes the game from GETADVLISTEX; v3 ghosted it. Fixed by wiring the
+LeaveGame use-case (it was declared in BnetUseCaseContext but never constructed in
+main.cpp -> null, which also silently broke explicit SID_CLOSEGAME) and by having
+BnetFsm::on_disconnect run leave_game for current_game_id_, mirroring on(CloseGame).
+Invariant: a connection's hosted game is removed when that connection is destroyed,
+exactly as the original's conn_destroy -> game cleanup.

@@ -40,6 +40,7 @@
 #include "application/chat/post_message.hpp"
 #include "application/chat/ignore_store.hpp"
 #include "application/chat/whisper_use_case.hpp"
+#include "application/game/leave_game.hpp"
 #include "application/game/list_public_games.hpp"
 #include "application/social/add_friend.hpp"
 #include "application/social/list_friends.hpp"
@@ -994,6 +995,15 @@ void BnetFsm::on_disconnect() {
     // to remove, so there is no double broadcast.
     if (state_ == BnetState::InChat || state_ == BnetState::InGame) {
         (void)on(LeaveChannel{});
+    }
+    // A disconnect while hosting/advertising a game (SID_STARTADVEX3 set
+    // current_game_id_) must remove that game from the shared repo, exactly as
+    // an explicit SID_CLOSEGAME would. Otherwise the advertised game ghosts in
+    // every other client's GETADVLISTEX after the host drops. The leave_game
+    // use-case removes the game once its last player leaves; we are that player.
+    if (use_cases_.leave_game && current_game_id_.value() != 0) {
+        (void)use_cases_.leave_game->execute(current_game_id_, current_account_id_);
+        current_game_id_ = domain::GameId{0};
     }
 }
 

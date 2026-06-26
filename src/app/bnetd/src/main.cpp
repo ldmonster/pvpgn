@@ -127,6 +127,7 @@
 #include "application/social/remove_friend.hpp"
 #include "application/social/list_friends.hpp"
 #include "application/game/start_game.hpp"
+#include "application/game/leave_game.hpp"
 #include "application/game/list_public_games.hpp"
 #include "infra/inmemory/unit_of_work_factory.hpp"
 #include "services/bnetd/bnetd_service.hpp"
@@ -481,6 +482,11 @@ int main(int argc, char* argv[]) {
                 std::make_shared<application::game::StartGame>(game_repo);
             use_cases.list_public_games =
                 std::make_shared<application::game::ListPublicGames>(no_delete_games);
+            // CLOSEGAME and host-disconnect game teardown share this use-case;
+            // without it a hosted game ghosts in GETADVLISTEX after the host
+            // drops (it removes the game when its last player leaves).
+            use_cases.leave_game =
+                std::make_shared<application::game::LeaveGame>(game_repo);
 
             // Squelch/ignore list (/squelch /unsquelch + broadcast filtering).
             use_cases.ignore_store =

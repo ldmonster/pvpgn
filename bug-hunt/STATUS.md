@@ -832,3 +832,16 @@ w51 WOL disconnect ghost) — all found by the connection-lifecycle bug-hunt.
 ## membership to test beyond the degenerate no-clan case), ladder LISTSEARCH/
 ## RUNGSEARCH/HIGHSCORE (needs a ladder backend with data), matchbot/anongame
 ## automatch (~615-line subsystem). See findings/wol-chat-lobby.md.
+
+## Wave 52: fix BNCS advertised-game ghost on host disconnect
+A BNCS host that advertised via SID_STARTADVEX3 and then dropped the socket
+(no SID_CLOSEGAME) left the game in the shared repo forever — a ghost in every
+other client's GETADVLISTEX. diff_game_disconnect.py: after the host's raw close
+the oracle returns [] but v3 still listed 'GhostGame'. Two root causes:
+  (1) BnetFsm::on_disconnect left the channel but never removed the host's game.
+  (2) use_cases_.leave_game was DECLARED but never wired in main.cpp -> null, so
+      even explicit SID_CLOSEGAME was a silent no-op (latent, no diff covered it).
+Fix: wire LeaveGame in main.cpp (shares game_repo with StartGame); on_disconnect
+now runs leave_game for current_game_id_ (removes the game when its last player
+leaves, mirroring on(CloseGame)). Now matches the oracle ([] after disconnect).
+(5th consecutive lifecycle bug; fixes explicit CLOSEGAME teardown as a bonus.)
