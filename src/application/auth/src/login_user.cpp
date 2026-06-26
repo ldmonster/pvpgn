@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "application/auth/login_user.hpp"
 
+#include <optional>
+
 #include "core/trace.hpp"
 #include "domain/shared/events.hpp"
 
@@ -58,7 +60,14 @@ LoginUser::Result LoginUser::execute(LoginRequest req) {
         return core::fail(LoginError::MustChangePassword);
     }
 
-    // 3. Single-session policy.
+    // 3. Single-session policy with kick-old-login (the original's default):
+    //    if the account already has a live session, detach it and report it so
+    //    the transport can close that old connection, then attach this one.
+    std::optional<domain::SessionId> kicked;
+    if (auto old = sessions_.session_for(account.id())) {
+        sessions_.detach(old.value());
+        kicked = old.value();
+    }
     if (auto status = sessions_.attach(req.session, account.id()); !status) {
         return core::fail(LoginError::AlreadyLoggedIn);
     }
@@ -70,7 +79,7 @@ LoginUser::Result LoginUser::execute(LoginRequest req) {
         return core::fail(LoginError::PersistenceFailed);
     }
 
-    return LoginResponse{account.id(), account.locale()};
+    return LoginResponse{account.id(), account.locale(), kicked};
 }
 
 LoginUser::Result LoginUser::execute(LoginWithSessionHashRequest req) {
@@ -140,6 +149,12 @@ LoginUser::Result LoginUser::execute(LoginWithSessionHashRequest req) {
     if (account.must_change_password()) {
         return core::fail(LoginError::MustChangePassword);
     }
+    // Kick-old-login (see the cleartext arm above).
+    std::optional<domain::SessionId> kicked;
+    if (auto old = sessions_.session_for(account.id())) {
+        sessions_.detach(old.value());
+        kicked = old.value();
+    }
     if (auto status = sessions_.attach(req.session, account.id()); !status) {
         return core::fail(LoginError::AlreadyLoggedIn);
     }
@@ -147,7 +162,7 @@ LoginUser::Result LoginUser::execute(LoginWithSessionHashRequest req) {
         sessions_.detach(req.session);
         return core::fail(LoginError::PersistenceFailed);
     }
-    return LoginResponse{account.id(), account.locale()};
+    return LoginResponse{account.id(), account.locale(), kicked};
 }
 
 }  // namespace pvpgn::application::auth

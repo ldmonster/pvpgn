@@ -97,6 +97,13 @@ public:
     send_to_account(domain::AccountId account_id,
                     std::span<const std::byte> bytes) = 0;
 
+    /// Forcibly close the connection registered under @p session_id (e.g.
+    /// kick-old-login). Default: no-op, so test fakes need not implement it.
+    virtual core::Result<void, core::Error>
+    disconnect(domain::SessionId /*session_id*/) {
+        return core::ok();
+    }
+
 protected:
     IMessageRouter() = default;
 };

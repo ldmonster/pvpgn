@@ -12,6 +12,7 @@
 /// All collaborators are constructor-injected by reference. The
 /// use-case is pure: no globals, no threads, no clocks of its own.
 
+#include <optional>
 #include <utility>
 
 #include "domain/identity/ports.hpp"
@@ -53,6 +54,10 @@ struct LoginWithSessionHashRequest {
 struct LoginResponse {
     domain::AccountId id;
     domain::Locale    locale;
+    /// When this login kicked a previously-online session for the same account
+    /// (kick_old_login default), the old SessionId — the caller (transport)
+    /// should close that connection. std::nullopt when nothing was kicked.
+    std::optional<domain::SessionId> kicked_session{};
 };
 
 enum class LoginError {

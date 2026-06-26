@@ -96,6 +96,17 @@ public:
         return core::ok();
     }
 
+    core::Result<void, core::Error>
+    disconnect(domain::SessionId session_id) override {
+        std::shared_lock lock(mu_);
+        auto it = sessions_.find(session_id.value());
+        if (it == sessions_.end()) return core::ok();
+        auto egress_ptr = it->second.lock();
+        lock.unlock();
+        if (egress_ptr) egress_ptr->close();
+        return core::ok();
+    }
+
     core::Result<void, core::Error> send_to_account(
         domain::AccountId account_id, std::span<const std::byte> bytes) override {
         // Look up registry

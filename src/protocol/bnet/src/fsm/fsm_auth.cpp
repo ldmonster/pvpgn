@@ -198,6 +198,13 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
     current_account_id_ = login_result.value().id;
     current_username_   = std::string{m.username};
 
+    // kick-old-login: if this login displaced a previously-online session for
+    // the account, close that old connection (LoginUser already detached it).
+    if (login_result.value().kicked_session && use_cases_.message_router) {
+        (void)use_cases_.message_router->disconnect(
+            login_result.value().kicked_session.value());
+    }
+
     state_ = BnetState::LoggedIn;
     return ctx_->send(ServerMessage{LogonResponse2Reply{0x00u, ""}});
 }

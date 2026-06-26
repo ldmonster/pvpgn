@@ -188,8 +188,7 @@ TEST_CASE("LoginUser(session-hash): must-change-password surfaces "
     CHECK_FALSE(f.sessions.account_for(f.alice_session).has_value());
 }
 
-TEST_CASE("LoginUser(session-hash): duplicate session is rejected with "
-          "AlreadyLoggedIn",
+TEST_CASE("LoginUser(session-hash): a second login kicks the previous session",
           "[application][auth][login][session_hash]") {
     Fixture f;
     f.seed_with([](domain::identity::Account&) {});
@@ -198,11 +197,12 @@ TEST_CASE("LoginUser(session-hash): duplicate session is rejected with "
     // First login attaches alice_session.
     REQUIRE(uc.execute(f.sh_good_req(0x77u, 0x88u, f.alice_session)));
 
-    // Second login for the same account on a different session is refused
-    // by the single-session policy.
+    // Second login for the same account on a different session succeeds via
+    // kick-old-login and reports the displaced (old) session.
     auto r = uc.execute(f.sh_good_req(0x77u, 0x88u, domain::SessionId{2}));
-    REQUIRE_FALSE(r);
-    CHECK(r.error() == LoginError::AlreadyLoggedIn);
+    REQUIRE(r);
+    REQUIRE(r.value().kicked_session.has_value());
+    CHECK(r.value().kicked_session.value() == f.alice_session);
 }
 
 TEST_CASE("LoginUser(session-hash): wrong proof publishes a rejection event",

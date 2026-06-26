@@ -117,7 +117,7 @@ TEST_CASE("LoginUser: bad password is rejected and emits an event",
     REQUIRE(events.load() == 1);  // UserLoginRejected
 }
 
-TEST_CASE("LoginUser: duplicate session is rejected",
+TEST_CASE("LoginUser: a second login kicks the previous session (kick-old-login)",
           "[application][auth][login]") {
     Fixture f;
     f.seed_alice();
@@ -125,10 +125,13 @@ TEST_CASE("LoginUser: duplicate session is rejected",
     auto uc = f.make_use_case();
     REQUIRE(uc.execute(f.req_for("alice", f.password, f.alice_session)));
 
-    // Same account, different session — single-session policy refuses.
+    // Same account, different session — kick-old-login (the original's default):
+    // the new login SUCCEEDS and reports the displaced session so the transport
+    // can close that old connection.
     auto r = uc.execute(f.req_for("alice", f.password, domain::SessionId{2}));
-    REQUIRE_FALSE(r);
-    REQUIRE(r.error() == LoginError::AlreadyLoggedIn);
+    REQUIRE(r);
+    REQUIRE(r.value().kicked_session.has_value());
+    REQUIRE(r.value().kicked_session.value() == f.alice_session);
 }
 
 TEST_CASE("LoginUser: locked account is rejected",
