@@ -274,3 +274,15 @@ couple of EID_USERFLAGS updates. v3 sends EID_JOIN with an EMPTY text and no
 USERFLAGS follow-ups. The join IS announced (event id + username correct), so
 rosters populate; only the statstring/flags payload is missing. Deferred: needs
 the client statstring plumbed from ENTERCHAT/login through the join broadcast.
+
+## Wave 57: /whoami implemented; /whois offline-wording note
+/whoami was unimplemented (fell through to the command registry -> "Unknown
+command."). Added BnetFsm::handle_whoami() reporting the caller's own location
+("You are using Battle.net and are currently in channel ..."), mirroring the
+original's _handle_whoami_command (do_whois on self). Verified by
+tests/diff/diff_whoami.py (reply kind EID_INFO, not unknown-command; the
+localized text itself is charset-garbled in the harness so only the kind is
+compared). Minor known gap (not fixed): /whois on an existing-but-offline,
+bnet-class user — the oracle returns "User was last seen on: <timestamp>" while
+v3 returns the flat "User is offline" (oracle's non-bnet fallback wording, which
+v3 matches). Needs last-seen tracking; the timestamp wouldn't diff cleanly anyway.

@@ -904,3 +904,31 @@ compares the structural part (eid + originating user + "has entered"/"has left"
 prefix), normalizing the per-server server-name tail (oracle "PvPGN Realm" vs v3
 "pvpgn.v3"). Now matches the oracle on both login and logout. diff_friends.py
 (static add/list/remove) still passes — no regression.
+
+## Wave 57: /whoami + scoped-deferred findings (fleet round 2)
+Fleet round 2 (3 parallel agents) found three divergences:
+  B. /whoami unimplemented in v3 (fell through to "Unknown command"); oracle
+     reports the caller's location. FIXED: BnetFsm::handle_whoami() (self-location
+     report, "You are using Battle.net and are currently in channel ...", mirrors
+     the original's _handle_whoami_command -> do_whois(self)). diff_whoami.py
+     (decisive observable = reply KIND is EID_INFO, not unknown-command; the
+     localized text is charset-garbled in the harness).
+  A. Channel OPERATOR flags — DEFERRED (subsystem). Oracle marks the first user
+     of a NON-permanent channel as operator (MF_GAVEL 0x02) in EID_SHOWUSER/JOIN/
+     USERFLAGS; v3 hardcodes flags=0 everywhere. A faithful fix needs: operator
+     state in the Channel aggregate (members_ is an unordered_map — no join order),
+     op-migration on the operator leaving, AND correct handling of permanent/
+     predefined channels (v3 creates default channels with empty/non-permanent
+     flags, so a naive "first user => op" would WRONGLY op the default channel's
+     first user, a NEW divergence). Plus EID_USERFLAGS update broadcasts. Root
+     cause: fsm_chat.cpp SHOWUSER/JOIN/USERFLAGS ChatEvent flags arg = 0.
+  C. WOL friend presence — DEFERRED (cross-protocol encoding). w56 presence is
+     BNCS-only (notify_friends_presence lives in BnetFsm). A WOL login/logout
+     doesn't notify friends. The WOL->BNCS-recipient case would work with BNCS
+     encoding, but a correct general fix needs PER-RECIPIENT protocol-aware
+     encoding (a BNCS-encoded ChatEvent sent to a WOL recipient would corrupt its
+     stream), which v3's router (raw-bytes broadcast) can't do today. Needs a
+     protocol-aware presence-delivery mechanism (shared use-case + per-session
+     protocol tag). Root cause: wol_auth.cpp/wol_fsm.cpp never call any presence
+     path; router->broadcast is byte-oriented, not protocol-aware.
+Two fleet probes confirmed CLEAN earlier (user-flags, peer-address). 57 waves.

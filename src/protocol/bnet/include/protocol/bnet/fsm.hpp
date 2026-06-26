@@ -237,6 +237,10 @@ private:
     /// status and current channel.
     core::Status<> handle_whois(std::string_view args);
 
+    /// Handle /whoami — report the CALLER's own online status and current
+    /// channel (the original's _handle_whoami_command -> do_whois on self).
+    core::Status<> handle_whoami();
+
     /// Handle /users (alias /status) — server population stats.
     core::Status<> handle_users();
 

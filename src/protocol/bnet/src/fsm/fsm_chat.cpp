@@ -294,6 +294,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "who") return handle_who(info_args);
             if (cmd == "whois" || cmd == "where" || cmd == "whereis")
                 return handle_whois(info_args);
+            if (cmd == "whoami") return handle_whoami();
             if (cmd == "users" || cmd == "status") return handle_users();
             if (cmd == "squelch" || cmd == "ignore")
                 return handle_squelch(info_args, /*add=*/true);
@@ -753,6 +754,37 @@ core::Status<> BnetFsm::handle_whois(std::string_view args) {
             channel_name + "\".");
     }
     return info(kEidInfo, name + " is using Battle.net.");
+}
+
+core::Status<> BnetFsm::handle_whoami() {
+    auto info = [&](std::uint32_t eid, std::string text) {
+        return ctx_->send(ServerMessage{ChatEvent{
+            eid, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+            "Battle.net", std::move(text)}});
+    };
+    if (current_username_.empty()) {
+        return info(kEidError, "Unknown user.");
+    }
+    // Scan channel membership for the caller's current channel (same approach as
+    // handle_whois, but keyed on our own account id — no name lookup needed).
+    std::string channel_name;
+    if (use_cases_.channel_reader) {
+        use_cases_.channel_reader->forEach([&](const domain::chat::Channel& c) {
+            for (const auto& mid : c.member_ids()) {
+                if (mid.value() == current_account_id_.value()) {
+                    channel_name = c.name();
+                    return false;  // stop iteration
+                }
+            }
+            return true;
+        });
+    }
+    if (!channel_name.empty()) {
+        return info(kEidInfo,
+            "You are using Battle.net and are currently in channel \"" +
+            channel_name + "\".");
+    }
+    return info(kEidInfo, "You are using Battle.net.");
 }
 
 core::Status<> BnetFsm::handle_users() {
