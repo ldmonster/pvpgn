@@ -845,3 +845,17 @@ Fix: wire LeaveGame in main.cpp (shares game_repo with StartGame); on_disconnect
 now runs leave_game for current_game_id_ (removes the game when its last player
 leaves, mirroring on(CloseGame)). Now matches the oracle ([] after disconnect).
 (5th consecutive lifecycle bug; fixes explicit CLOSEGAME teardown as a bonus.)
+
+## Wave 53: WOL kick-old-login (second login kicks the first session)
+WOL analog of w49/w50. WolFsm auth did `(void)session_registry->attach(...)` and
+ignored the single-session-policy failure, so a second login for the same account
+left BOTH sessions alive — the old one a ghost the oracle would have kicked.
+Probe (now diff_wol_concurrent_login.py): after alice's 2nd login the oracle had
+closed alice1 (a1_alive=False) but v3 kept it alive (True). Fix: mirror the BNCS
+W3 kick path in wol_auth.cpp — if session_for(acct) is a different live session,
+detach it + message_router_->disconnect it, then attach the new one. Now matches
+the oracle (old session kicked). Also added diff_kick_channel.py: confirms a
+KICKED BNCS session leaves its channel (other members see EID_LEAVE) — the kick
+cascade (router disconnect -> close -> on_disconnect -> LeaveChannel) works; no
+bug, regression guard only.
+6th consecutive lifecycle bug fix (w48-53, minus the no-bug kick_channel probe).

@@ -17,6 +17,7 @@
 #include "application/auth/login_user.hpp"
 #include "application/auth/wol_credential_store.hpp"
 #include "domain/connection/peer_address_store.hpp"
+#include "domain/connection/ports.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/bn_hash.hpp"
 #include "domain/shared/client_tag.hpp"
@@ -264,9 +265,21 @@ core::Status<> WolFsm::try_wol_authenticate() {
         // else: token matches — proceed.
     }
 
-    // Attach the session if a registry is wired (best-effort; the welcome is
-    // sent regardless so a benign attach race never blocks login).
+    // Attach the session if a registry is wired. kick-old-login (the original's
+    // default, matching BNCS w49/w50): if this account already has a live
+    // session, detach it and close that old connection, then attach this one.
+    // Previously the attach failure was ignored, so a second login for the same
+    // account left BOTH sessions alive — the old one a ghost the oracle would
+    // have kicked. The welcome is still sent regardless so a benign attach race
+    // never blocks login.
     if (auth_.session_registry) {
+        if (auto old = auth_.session_registry->session_for(acct_id);
+            old && old.value() != session_id_) {
+            auth_.session_registry->detach(old.value());
+            if (message_router_) {
+                (void)message_router_->disconnect(old.value());
+            }
+        }
         (void)auth_.session_registry->attach(session_id_, acct_id);
     }
     // Register this account's peer IP so USERIP/STARTG can report it.

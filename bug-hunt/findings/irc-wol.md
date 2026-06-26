@@ -369,3 +369,12 @@ is a large unported subsystem — flagged, not a parity bug to fix now.
 
 Highest-impact, most clearly-a-bug: **Finding 1** (numeric argument layout) and
 **Finding 6** (PONG → 421), both of which affect real IRC clients on every session.
+
+## Wave 53: WOL kick-old-login
+WOL auth must enforce the original's single-session policy by KICKING the old
+session, not silently ignoring the attach failure. Verified differentially
+(tests/diff/diff_wol_concurrent_login.py): the oracle closes the first session
+when the same account logs in again; v3 left both alive. Fixed in wol_auth.cpp by
+mirroring the BNCS W3 kick path (session_for -> detach old + message_router_->
+disconnect old -> attach new). The kicked WOL session's channel/game cleanup then
+runs through the existing on_close path (w51).
