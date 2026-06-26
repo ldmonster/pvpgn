@@ -40,6 +40,7 @@ SID_FRIENDINFO = 0x66
 SID_READUSERDATA = 0x26
 SID_WRITEUSERDATA = 0x27
 SID_PROFILE = 0x35
+SID_CHANGEPASSWORD = 0x31
 
 # Chat event ids (canonical BNCS).
 EID_SHOWUSER = 0x01
@@ -596,6 +597,25 @@ def write_userdata(client, account, kv):
     for k in keys:
         body += cstring(kv[k])
     client.send(SID_WRITEUSERDATA, body)
+
+
+def change_password_ols(client, account, old_password, new_password,
+                        ticks=0, sessionkey=0, max_packets=30):
+    """SID_CHANGEPASSWORD (0x31): old password as a session-hash
+    (xsha1(ticks||sessionkey||hash1(old))), new password as hash1. Returns the
+    ACK message (1 = success, 0 = fail) or None."""
+    old_h1 = hash_password(old_password)
+    old_h2 = double_hash(old_h1, ticks, sessionkey)
+    new_h1 = hash_password(new_password)
+    body = struct.pack("<II", ticks, sessionkey)
+    body += struct.pack("<5I", *old_h2)
+    body += struct.pack("<5I", *new_h1)
+    body += cstring(account)
+    client.send(SID_CHANGEPASSWORD, body)
+    rbody = client.recv_sid(SID_CHANGEPASSWORD, max_packets)
+    if rbody is None or len(rbody) < 4:
+        return None
+    return struct.unpack_from("<I", rbody, 0)[0]
 
 
 def request_profile(client, player_name, cookie=1, max_packets=30):

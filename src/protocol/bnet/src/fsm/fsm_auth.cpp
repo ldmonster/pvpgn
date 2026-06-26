@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <string>
 
+#include "application/auth/change_password.hpp"
 #include "application/auth/create_account.hpp"
 #include "application/auth/login_user.hpp"
 #include "application/auth/login_user_w3.hpp"
@@ -457,7 +458,35 @@ core::Status<> BnetFsm::on(const CreateAccount1Request& m) {
 }
 core::Status<> BnetFsm::on(const Unknown2B&)             { return core::ok(); }
 core::Status<> BnetFsm::on(const CdKeyLegacyRequest&)    { return core::ok(); }
-core::Status<> BnetFsm::on(const ChangePasswordRequest&) { return core::ok(); }
+core::Status<> BnetFsm::on(const ChangePasswordRequest& m) {
+    // SID_CHANGEPASSWORD (0x31), legacy OLS: the client sends the old password
+    // as a session-hash (double-hash of stored hash1 with ticks+sessionkey) and
+    // the new password as hash1. The use-case re-derives via the same hasher and
+    // rotates on a match. Mirrors the original _client_changepassreq; reply
+    // SERVER_CHANGEPASSACK with success/fail.
+    if (!use_cases_.change_password) {
+        return ctx_->send(
+            ServerMessage{ChangePasswordReply{kChangePasswordMessageFail}});
+    }
+    auto username = domain::UserName::parse(m.player_name);
+    auto old_h2 = domain::BNHash::from_bytes(pack_hash1_le(m.oldpassword_hash2));
+    auto new_h1 = domain::BNHash::from_bytes(pack_hash1_le(m.newpassword_hash1));
+    if (!username || !old_h2 || !new_h1) {
+        return ctx_->send(
+            ServerMessage{ChangePasswordReply{kChangePasswordMessageFail}});
+    }
+    application::auth::ChangePasswordWithSessionHashRequest req{
+        .name                   = username.value(),
+        .current_password_hash2 = old_h2.value(),
+        .ticks                  = m.ticks,
+        .sessionkey             = m.sessionkey,
+        .new_password           = new_h1.value(),
+    };
+    auto result = use_cases_.change_password->execute(req);
+    const std::uint32_t code =
+        result ? kChangePasswordMessageSuccess : kChangePasswordMessageFail;
+    return ctx_->send(ServerMessage{ChangePasswordReply{code}});
+}
 core::Status<> BnetFsm::on(const Unknown39&)             { return core::ok(); }
 core::Status<> BnetFsm::on(const CreateAccountRequest&)  { return core::ok(); }
 core::Status<> BnetFsm::on(const NetGamePort&)           { return core::ok(); }

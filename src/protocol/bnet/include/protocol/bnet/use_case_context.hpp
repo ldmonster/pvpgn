@@ -16,7 +16,7 @@
 namespace pvpgn::application::auth {
 class LoginUser;
 class CreateAccount;
-class ChangePassword;
+class ChangePasswordUseCase;
 class LoginUserW3;
 class ISrp3CredentialStore;
 class IUserProfileStore;
@@ -58,7 +58,7 @@ namespace pvpgn::protocol::bnet {
 struct BnetUseCaseContext {
     std::shared_ptr<application::auth::LoginUser> login_user;
     std::shared_ptr<application::auth::CreateAccount> create_account;
-    std::shared_ptr<application::auth::ChangePassword> change_password;
+    std::shared_ptr<application::auth::ChangePasswordUseCase> change_password;
     std::shared_ptr<application::chat::JoinChannel> join_channel;
     std::shared_ptr<application::chat::PostMessage> post_message;
     std::shared_ptr<application::chat::LeaveChannel> leave_channel;

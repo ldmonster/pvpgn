@@ -134,6 +134,7 @@
 // Wire the real auth use-cases (login + OLS account creation) so login
 // enforces credentials and a real account_id flows into the chat path.
 #include "application/auth/create_account.hpp"
+#include "application/auth/change_password.hpp"
 #include "application/auth/login_user.hpp"
 #include "application/auth/login_user_w3.hpp"
 #include "infra/crypto/bnet_session_hasher.hpp"
@@ -431,6 +432,11 @@ int main(int argc, char* argv[]) {
             static const infra::crypto::BnetSessionHasher session_hasher;
             use_cases.login_user = std::make_shared<application::auth::LoginUser>(
                 account_repo, session_reg, event_bus, auth_clock, session_hasher);
+            // Legacy OLS password change (SID_CHANGEPASSWORD 0x31): re-derives the
+            // old-password session hash via the same hasher as login.
+            use_cases.change_password =
+                std::make_shared<application::auth::ChangePasswordUseCase>(
+                    account_repo, event_bus, session_hasher);
             use_cases.create_account = std::make_shared<application::auth::CreateAccount>(
                 account_repo, ip_ban_repo, event_bus, auth_clock);
             // WarCraft III SRP-3 login (SID_AUTH_ACCOUNTLOGON/PROOF) + the
