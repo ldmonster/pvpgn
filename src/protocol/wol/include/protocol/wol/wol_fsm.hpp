@@ -303,6 +303,16 @@ private:
     /// the battleclan "PAGE 0" broadcast form is not modelled).
     core::Status<> on_page(std::string_view params);
 
+    /// CHANCHK <channel> — channel existence check. Replies ":<server> CHANCHK
+    /// <channel>" if the channel exists, else 403 ERR_NOSUCHCHANNEL. Mirrors
+    /// `_handle_chanchk_command`.
+    core::Status<> on_chanchk(std::string_view params);
+
+    /// HOST <nick> :<text> — relay a host announcement to an online target via
+    /// the router (":<nick>!<nick>@Battle.net HOST : <text>"); 401 if the target
+    /// is offline/unknown. Mirrors `_handle_host_command`.
+    core::Status<> on_host(std::string_view params);
+
     /// GETBUDDY — reply 333 with the backtick-terminated buddy (friend) list.
     core::Status<> on_getbuddy();
 

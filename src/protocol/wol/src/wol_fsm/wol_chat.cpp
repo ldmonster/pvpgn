@@ -758,4 +758,68 @@ core::Status<> WolFsm::on_page(std::string_view params) {
     return send_raw_cmd(389, paged ? "0 :" : "1 :");
 }
 
+core::Status<> WolFsm::on_chanchk(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    auto chan = trim(first_token(params));
+    if (chan.empty()) return core::ok();  // original: no reply without a param
+
+    std::string bare{chan};
+    if (!bare.empty() && bare[0] == '#') bare.erase(0, 1);
+    bool exists = false;
+    if (channel_reader_) {
+        if (auto r = channel_reader_->find_by_name(bare)) exists = true;
+    }
+    if (exists) {
+        // ":<server> CHANCHK <channel>" (no nick — preformat uses a null source).
+        std::string line = ":";
+        line += std::string(ctx_->server_name());
+        line += " CHANCHK ";
+        line += std::string(chan);
+        return send_raw(line);
+    }
+    return send_numeric(403, nick_, std::string(chan) + " :No such channel");
+}
+
+core::Status<> WolFsm::on_host(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    // HOST <nick> [:<text>]
+    auto sp = params.find(' ');
+    std::string_view target = sp == std::string_view::npos
+                                  ? params : params.substr(0, sp);
+    std::string_view text = sp == std::string_view::npos
+                                ? std::string_view{} : params.substr(sp + 1);
+    if (!text.empty() && text[0] == ':') text.remove_prefix(1);
+    target = trim(target);
+    if (target.empty()) return core::ok();  // original guard
+
+    if (message_router_ && auth_.account_reader && auth_.session_registry) {
+        auto name = domain::UserName::parse(std::string{target});
+        if (name) {
+            auto acct = auth_.account_reader->find_by_name(name.value());
+            if (acct) {
+                if (auto sid = auth_.session_registry->session_for(
+                        acct.value().id())) {
+                    // ":<nick>!<nick>@Battle.net HOST : <text>" (original sends
+                    // the text prefixed with ": ").
+                    std::string line = ":";
+                    line += nick_;
+                    line += '!';
+                    line += nick_;
+                    line += "@Battle.net HOST : ";
+                    line += std::string(text);
+                    route_irc_line(line, {sid.value()});
+                    return core::ok();
+                }
+            }
+        }
+    }
+    return send_numeric(401, nick_, std::string(target) + " :No such nick");
+}
+
 }  // namespace pvpgn::protocol::wol

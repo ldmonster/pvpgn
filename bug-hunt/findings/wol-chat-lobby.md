@@ -394,9 +394,18 @@ so online == pageable; the "PAGE 0" battleclan broadcast form is not modelled).
 461 with missing target/message. diff_wol_page.py: online target -> 0, unknown
 -> 1, matches the oracle.
 
-Remaining W-11 stubs: SETOPT (effect is cross-session FINDUSER/PAGE gating — needs
-a shared findme/pageme registry), SQUADINFO/CLANBYNAME (clan), CHANCHK,
-HOST/INVMSG/USERIP, ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE.
+## W-11 progress: CHANCHK + HOST — DONE (wave 39)
+
+CHANCHK <channel> replies ":<server> CHANCHK <channel>" when the channel exists
+(channel_reader->find_by_name) else 403. HOST <nick> :<text> relays
+":<nick>!<nick>@Battle.net HOST : <text>" to an online target via the router,
+else 401. diff_wol_chanchk_host.py: existing channel -> CHANCHK, absent -> 403,
+host delivered to online target, 401 for unknown — all match the oracle.
+
+Remaining W-11 stubs: SETOPT (cross-session findme/pageme gating — needs a shared
+registry), INVMSG (channel-invite relay, doable), USERIP (BLOCKED on peer-IP
+tracking like STARTG), SQUADINFO/CLANBYNAME (clan), ladder LISTSEARCH/RUNGSEARCH/
+HIGHSCORE.
 
 ## What MATCHES (or is acceptably close)
 
