@@ -1143,3 +1143,29 @@ NUL-terminated list + empty terminator (no trailing garbage), and NEITHER lists
 unit (8 known load_anongame temp-file flakes pass -j1); channel/chat/WOL diff
 regression set (channellist, channelcmds, multichannel, join_edges, leave, chat,
 whoami, friends, gamelist, wol_chat, wol_lobby) all match the oracle.
+
+## Wave 74: WOL PART faithfulness (no-op off-channel + real-channel + broadcast)
+Probing the WOL PART verb (implemented but untested) found three divergences
+from the oracle (_handle_part_command -> conn_part_channel, which IGNORES its
+params and just parts the connection's CURRENT channel via
+channel_del_connection(message_type_part)):
+  1. PART while NOT on a channel: the oracle is a SILENT no-op (sends nothing);
+     v3 replied 442 ERR_NOTONCHANNEL.
+  2. PART <wrongname> while in #room: the oracle parts the REAL current channel
+     and the PART line names #room; v3 echoed the supplied parameter (#wrongname).
+  3. Multi-user: the oracle broadcasts the PART to the whole channel so other
+     members see the departure; v3 only echoed to the parting user and NEVER left
+     the domain channel (leaver ghosted in the roster, others saw nothing).
+Fix: rewrote WolFsm::on_part to ignore params, return ok() (no reply) when not on
+a channel, leave the domain channel via the LeaveChannel use-case, broadcast the
+PART (v3-consistent @Battle.net hostmask) to the remaining members + echo to self,
+and reset channel_/channel_id_/state_ (mirrors the disconnect-path PART already in
+wol_fsm.cpp). diff_wol_part.py verifies all five observables vs the oracle
+(no-reply-off-channel, real-channel echo, ignores-param, self-echo, member-sees-
+part). Updated the two unit tests that asserted the old 442 behavior to assert the
+silent no-op. 3199/3199 units; WOL/chat diff regression set (wol_part, wol_chat,
+wol_lobby, wol_names, wol_kick, wol_disconnect, leave, chat, whisper, emote,
+multichannel, channel_join_edges) all match the oracle.
+The PART source hostmask is environment-dependent (oracle WCHT@ip vs v3
+@Battle.net), so the diff compares decisive observables, not the literal prefix
+(same approach as wave 71 KICK / wave 69 NAMES).

@@ -413,13 +413,17 @@ TEST_CASE("WolFsm R307: PART after JOIN leaves channel",
     REQUIRE(ctx->has_line_containing("PART"));
 }
 
-TEST_CASE("WolFsm R307: PART when not in channel returns 442",
+TEST_CASE("WolFsm R307: PART when not in channel is a silent no-op",
           "[protocol][wol][fsm][channel][R307]") {
+    // The original's _handle_part_command calls conn_part_channel(), which is a
+    // no-op (sends NOTHING) when the connection is not on a channel — it never
+    // returns 442. v3 matches: silent no-op, no reply line.
     auto ctx = std::make_shared<FakeWolCtx>();
     WolFsm fsm{ctx};
     do_auth(fsm, "Dave");
     ctx->lines.clear();
 
     REQUIRE(feed_line(fsm, "PART #lobby").has_value());
-    REQUIRE(ctx->has_line_containing("442"));
+    REQUIRE_FALSE(ctx->has_line_containing("442"));
+    REQUIRE(ctx->lines.empty());
 }

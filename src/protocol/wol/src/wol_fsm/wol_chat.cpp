@@ -434,23 +434,42 @@ core::Status<> WolFsm::on_join(std::string_view params) {
     return send_numeric(366, channel_, "End of /NAMES list");
 }
 
-core::Status<> WolFsm::on_part(std::string_view params) {
+core::Status<> WolFsm::on_part(std::string_view /*params*/) {
+    // The original's _handle_part_command IGNORES its parameters entirely: it
+    // calls conn_part_channel(conn), which parts the connection's CURRENT
+    // channel (and resets an open game). When the client is not on a channel it
+    // is a silent no-op — NO error numeric is sent (v3 previously replied 442,
+    // and previously echoed the *parameter* channel instead of the real one).
     if (state_ != WolState::InChannel && state_ != WolState::InGame) {
-        return send_numeric(442, nick_, "You're not on that channel");
+        return core::ok();
     }
 
-    auto chan = trim(first_token(params));
-    if (chan.empty()) chan = channel_;
+    // The IRC PART line names the actual current channel (v3-consistent
+    // "@Battle.net" hostmask; the original uses the client's WCHT@ip form, which
+    // is environment-dependent).
+    std::string line = ":";
+    line += nick_;
+    line += '!';
+    line += nick_;
+    line += "@Battle.net PART ";
+    line += channel_;
 
-    // Echo PART back.
-    std::string part_echo = ":";
-    part_echo += nick_;
-    part_echo += " PART ";
-    part_echo += chan;
-    auto st = send_raw(part_echo);
-    if (!st) return st;
+    // Leave the domain channel and notify the remaining members, mirroring the
+    // original's channel_del_connection(message_type_part). (v3 previously only
+    // echoed to the parting user and never left the domain channel, so other
+    // members never saw the PART and the leaver ghosted in the roster.)
+    if (leave_channel_ && account_id_.value() != 0 && channel_id_.value() != 0) {
+        if (auto result = leave_channel_->execute(channel_id_, account_id_)) {
+            route_irc_line(line, result.value().members_to_notify);
+        }
+    }
+
+    // Echo the PART back to the parting user (the original broadcasts to the
+    // whole channel, the leaver included).
+    if (auto st = send_raw(line); !st) return st;
 
     channel_.clear();
+    channel_id_ = domain::ChannelId{0};
     state_ = WolState::Authenticated;
     return core::ok();
 }
