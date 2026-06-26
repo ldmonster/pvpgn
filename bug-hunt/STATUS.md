@@ -809,7 +809,18 @@ Re-ran the whole suite (incl. diff_concurrent_login + diff_concurrent_login_w3)
 after the W49/W50 kick-old-login changes: 33/33 PASS, 0 regressions. kick-old-login
 is complete for both OLS and W3/NLS and non-regressive.
 
-## RUNNING TOTAL: ~83 distinct bugs/features across 50 waves. Login (all families)
+## Wave 51: fix WOL channel/game ghost on disconnect
+A WOL client that disconnected stayed in the channel roster (and any game) as a
+ghost — WolFsm::on_close cleaned the session/peer/flags stores but never left the
+channel/game (unlike the BNCS on_disconnect -> LeaveChannel). diff_wol_disconnect
+.py: #wdisc count stayed 2 on v3 vs 1 on the oracle. Fix: on_close runs
+LeaveChannel (membership removal + IRC PART to remaining members) + new
+IWolGameStore::remove_player (erases an emptied game). Threaded LeaveChannel into
+WolFsm/make_wol_session/main. Now matches the oracle (2 -> 1). (commit 6585c2a)
+This is the 4th consecutive lifecycle bug fix (w48 re-login, w49/50 kick-old,
+w51 WOL disconnect ghost) — all found by the connection-lifecycle bug-hunt.
+
+## RUNNING TOTAL: ~84 distinct bugs/features across 51 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
