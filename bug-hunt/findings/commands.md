@@ -310,3 +310,14 @@ tmpOP /ban should return EID_ERROR to match); on /kick mutate membership +
 broadcast EID_LEAVE + notify the target; on /ban also populate the channel banlist
 so admit()'s existing ban check refuses rejoin, and clear it on /unban. Account
 validation came back clean (byte-identical accept/reject; see STATUS wave 59).
+
+## UPDATE wave 60: /kick IMPLEMENTED; /ban /unban refuse (no admin model)
+/kick is now implemented (BnetFsm::handle_kick): operator-gated via
+channel.operator_id() (wave 58), removes the target through LeaveChannel,
+broadcasts EID_LEAVE to remaining members, notifies the target. Non-op /kick ->
+EID_ERROR. /ban + /unban -> EID_ERROR (authorization refused) since v3 has no
+admin-account model and the original refuses a tmpOP anyway. Verified by
+tests/diff/diff_channel_kick.py. STILL DEFERRED: a real admin-account model so an
+actual admin's /ban populates the channel banlist and blocks rejoin (admit() ban
+check already exists); the oracle's cosmetic kick events (operator EID_INFO ack,
+victim EID_CHANNEL move to "Kicked").

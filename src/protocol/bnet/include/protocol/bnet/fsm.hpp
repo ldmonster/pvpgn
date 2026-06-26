@@ -241,6 +241,18 @@ private:
     /// channel (the original's _handle_whoami_command -> do_whois on self).
     core::Status<> handle_whoami();
 
+    /// Handle /kick <user> — a channel operator removes a member from the
+    /// channel (broadcasts EID_LEAVE to the remaining members and notifies the
+    /// target). Refused with EID_ERROR if the caller is not the operator.
+    core::Status<> handle_kick(std::string_view args);
+
+    /// Handle /ban and /unban <user>. The original requires account-level
+    /// admin/operator (a channel tmpOP is NOT sufficient); v3 has no admin-account
+    /// model, so these are always refused with EID_ERROR — matching the oracle's
+    /// refusal for the only role v3 models (the channel operator/tmpOP).
+    core::Status<> handle_ban(std::string_view args);
+    core::Status<> handle_unban(std::string_view args);
+
     /// Handle /users (alias /status) — server population stats.
     core::Status<> handle_users();
 

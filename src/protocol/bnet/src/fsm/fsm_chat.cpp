@@ -330,6 +330,9 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "whois" || cmd == "where" || cmd == "whereis")
                 return handle_whois(info_args);
             if (cmd == "whoami") return handle_whoami();
+            if (cmd == "kick") return handle_kick(info_args);
+            if (cmd == "ban") return handle_ban(info_args);
+            if (cmd == "unban") return handle_unban(info_args);
             if (cmd == "users" || cmd == "status") return handle_users();
             if (cmd == "squelch" || cmd == "ignore")
                 return handle_squelch(info_args, /*add=*/true);
@@ -820,6 +823,90 @@ core::Status<> BnetFsm::handle_whoami() {
             channel_name + "\".");
     }
     return info(kEidInfo, "You are using Battle.net.");
+}
+
+core::Status<> BnetFsm::handle_kick(std::string_view args) {
+    auto err = [&](std::string text) {
+        return ctx_->send(ServerMessage{ChatEvent{
+            kEidError, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+            "", std::move(text)}});
+    };
+    if (state_ != BnetState::InChat) {
+        return err("You are not in a channel.");
+    }
+    if (!use_cases_.channel_reader || !use_cases_.leave_channel ||
+        !use_cases_.account_repo) {
+        return err("That user is not a member of this channel.");
+    }
+    // The caller must be the channel's operator (the original allows admin /
+    // operator / tmpOP; v3 models only the tmpOP gavel — see Channel::operator_id).
+    auto chan = use_cases_.channel_reader->find_by_id(current_channel_id_);
+    if (!chan) {
+        return err("That user is not a member of this channel.");
+    }
+    const auto op = chan.value().operator_id();
+    if (!op || op->value() != current_account_id_.value()) {
+        return err("You are not a channel operator.");
+    }
+    // Resolve the target account.
+    const std::string who{rtrim_sv(args)};
+    auto parsed = who.empty() ? std::nullopt
+                              : std::optional{domain::UserName::parse(who)};
+    if (!parsed || !*parsed) {
+        return err("That user is not a member of this channel.");
+    }
+    auto target = use_cases_.account_repo->find_by_name(parsed->value());
+    if (!target) {
+        return err("That user is not a member of this channel.");
+    }
+    const domain::AccountId target_id = target.value().id();
+    if (!chan.value().contains(target_id)) {
+        return err("That user is not a member of this channel.");
+    }
+    if (target_id.value() == current_account_id_.value()) {
+        // Kicking yourself is a no-op error (the gavel-holder stays).
+        return err("You cannot kick yourself.");
+    }
+    const std::string target_name{target.value().name().display()};
+    // Capture the target's session before removing them so we can notify it.
+    std::optional<domain::SessionId> target_session;
+    if (use_cases_.session_registry) {
+        target_session = use_cases_.session_registry->session_for(target_id);
+    }
+    // Remove the target from the channel (same membership path as a self-leave).
+    auto leave = use_cases_.leave_channel->execute(current_channel_id_, target_id);
+    if (!leave) {
+        return err("That user is not a member of this channel.");
+    }
+    // Tell the remaining members the target left (EID_LEAVE, username = target).
+    const auto& remaining = leave.value().members_to_notify;
+    if (!remaining.empty()) {
+        broadcast_chat_event(
+            ChatEvent{kEidLeave, 0, 0, 0, 0, 0, target_name, ""}, remaining);
+    }
+    // Notify the kicked user on their own session.
+    if (target_session) {
+        const domain::SessionId one[1] = {target_session.value()};
+        broadcast_chat_event(
+            ChatEvent{kEidError, 0, 0, 0, 0, 0, "",
+                      "You have been kicked out of the channel."},
+            std::span<const domain::SessionId>{one, 1});
+    }
+    return core::ok();
+}
+
+core::Status<> BnetFsm::handle_ban(std::string_view) {
+    // The original's /ban requires account-level admin/operator; a channel
+    // operator (tmpOP) is not sufficient, and v3 has no admin-account model, so
+    // the command is always refused — matching the oracle's EID_ERROR refusal for
+    // the channel-operator role (the only role v3 models).
+    return ctx_->send(ServerMessage{ChatEvent{
+        kEidError, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+        "", "That command requires operator/admin privileges."}});
+}
+
+core::Status<> BnetFsm::handle_unban(std::string_view args) {
+    return handle_ban(args);
 }
 
 core::Status<> BnetFsm::handle_users() {

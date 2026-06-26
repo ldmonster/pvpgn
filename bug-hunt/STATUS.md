@@ -972,3 +972,22 @@ Fleet round 3 (3 agents) on operator-commands / account-validation / join-edges:
     ban_from_channel.cpp) but is unwired, routes no events, and gates on the wrong
     authorization ("operator" group vs the oracle's split: /kick allows tmpOP,
     /ban+/unban require account-admin). Subsystem — see findings.
+
+## Wave 60: channel operator command /kick (+ /ban /unban refusal)
+Promoted the wave-59 deferred operator-commands finding to a fix for /kick (the
+cleanly-implementable, highest-value one, building on wave-58 operator tracking).
+Implemented BnetFsm::handle_kick: caller must be the channel operator
+(channel.operator_id() == self, from wave 58); resolves the target, removes it via
+the LeaveChannel use-case, broadcasts EID_LEAVE (username=target) to the remaining
+members, and notifies the kicked target on its own session. A non-operator's /kick
+is refused with EID_ERROR (target stays). /ban and /unban are implemented as
+authorization-refused (EID_ERROR): the original requires account-level admin (a
+tmpOP is not sufficient) and v3 has no admin-account model, so they always refuse —
+matching the oracle's refusal for the only role v3 models. This removes the prior
+"Unknown command" (EID_INFO) divergence for all three. diff_channel_kick.py:
+operator-kick removes the member (others see EID_LEAVE), non-op kick refused —
+matches the oracle. The oracle's extra cosmetic events (operator EID_INFO ack,
+victim EID_CHANNEL move) are not replicated; the decisive membership behaviour
+matches. 201/201 channel/chat/fsm unit tests pass; no diff regression.
+Remaining deferred: WOL cross-protocol presence; full admin-account model (real
+/ban with banlist + rejoin block for true admins); full member-flags parity.
