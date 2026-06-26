@@ -750,7 +750,15 @@ diff_userdata.py: write profile\\sex/age/location, read back -> ["m","99","NY","
 matches the oracle. Hardened: matches under both sanitizer binaries; the codec
 already caps cell counts. (commit 7974ade)
 
-## RUNNING TOTAL: ~78 distinct bugs/features across 45 waves. Login (all families)
+## Wave 46: BNCS SID_PROFILE (0x35) profile view ("/finger")
+on(ProfileRequest) was a stub. Implemented against _client_profilereq: resolve
+the requested account (nonexistent -> no reply, like the original); else reply
+ProfileReply{cookie, fail=0, description, location, clan_tag=0} served from the
+wave-45 profile store. No timestamps in the reply -> byte-exact diff.
+diff_profile.py matches the oracle; hardened under both sanitizer binaries.
+(commit 646f7f5)
+
+## RUNNING TOTAL: ~79 distinct bugs/features across 46 waves. Login (all families)
 ## + NLS passchange + friends + game advertise/list + all chat commands + the WOL
 ## command surface — login, lobby LIST/JOIN, cross-session chat, the full
 ## JOINGAME/GAMEOPT/STARTG game lobby, FINDUSER, buddy list, codepage/locale,
