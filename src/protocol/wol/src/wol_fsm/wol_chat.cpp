@@ -16,6 +16,7 @@
 #include "application/chat/join_channel.hpp"
 #include "application/chat/list_channels.hpp"
 #include "application/chat/post_message.hpp"
+#include "domain/connection/ports.hpp"
 #include "domain/shared/chat_message.hpp"
 #include "domain/shared/client_tag.hpp"
 #include "domain/shared/ids.hpp"
@@ -250,8 +251,30 @@ core::Status<> WolFsm::on_privmsg(std::string_view params) {
                 return send_numeric(404, nick_,
                                     chan + " :Cannot send to channel");
             }
-            // Success: other members receive the message via event dispatch.
-            // No echo back to sender required by WoL protocol.
+
+            // Relay to every other channel member's connection. WOL clients
+            // expect the standard IRC form, with the sender's hostmask prefix:
+            //   :<nick>!<nick>@<host> PRIVMSG <#channel> :<message>
+            // The line is identical for all recipients (it carries the
+            // sender's identity), so encode once and route to each SessionId.
+            // The sender gets no echo (matches the original WOL server).
+            if (message_router_) {
+                std::string line = ":";
+                line += nick_;
+                line += '!';
+                line += nick_;
+                line += "@Battle.net PRIVMSG ";
+                line += std::string(target);
+                line += " :";
+                line += std::string(message);
+                line += "\r\n";
+                const auto* bytes =
+                    reinterpret_cast<const std::byte*>(line.data());
+                std::span<const std::byte> payload{bytes, line.size()};
+                for (const auto& sid : post_result.value().recipients) {
+                    (void)message_router_->send(sid, payload);
+                }
+            }
             return core::ok();
         }
         // No use-case wired — silently accept (stub mode).

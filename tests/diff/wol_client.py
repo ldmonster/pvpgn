@@ -191,6 +191,33 @@ def wol_list(client):
     return sorted(names)
 
 
+def wol_privmsg(client, target, message):
+    """Send a PRIVMSG <target> :<message> (no reply expected for the sender)."""
+    client.send_line(f"PRIVMSG {target} :{message}")
+
+
+def wol_read_privmsg(client, want_channel=None, tries=20):
+    """Read lines until a PRIVMSG is received, returning (sender, target, text)
+    or None if none arrives. Filters to want_channel when given."""
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        # ":<nick>!<user>@<host> PRIVMSG <target> :<text>"
+        if " PRIVMSG " not in line:
+            continue
+        prefix, _, after = line.partition(" PRIVMSG ")
+        sender = prefix[1:].split("!", 1)[0] if prefix.startswith(":") else prefix
+        target, _, text = after.partition(" ")
+        if text.startswith(":"):
+            text = text[1:]
+        if want_channel is not None and target.lstrip("#").lower() != \
+                want_channel.lstrip("#").lower():
+            continue
+        return (sender, target, text)
+    return None
+
+
 if __name__ == "__main__":
     import sys
     h = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"

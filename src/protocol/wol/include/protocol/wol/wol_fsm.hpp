@@ -68,6 +68,10 @@ class IAccountReader;
 class ISessionRegistry;
 }  // namespace pvpgn::domain::identity
 
+namespace pvpgn::domain::connection {
+class IMessageRouter;
+}  // namespace pvpgn::domain::connection
+
 namespace pvpgn::protocol::wol {
 
 /// Collaborators the native Westwood Online (APGAR/CVERS) login path needs.
@@ -147,6 +151,17 @@ public:
         , join_channel_(std::move(join_channel))
         , post_message_(std::move(post_message))
         , auth_(auth) {}
+
+    /// Assign the cross-session identity for this connection. Must be called
+    /// before authentication so the session registry attaches the account to
+    /// the right SessionId and the message router can deliver to it. @p router
+    /// is non-owning and must outlive the FSM (may be null in test mode, in
+    /// which case channel messages are accepted but not relayed).
+    void set_routing(domain::SessionId session_id,
+                     domain::connection::IMessageRouter* router) noexcept {
+        session_id_     = session_id;
+        message_router_ = router;
+    }
 
     /// Feed raw bytes from the TCP stream into the FSM.
     /// Returns ok() on success; error causes the session to close.
@@ -284,6 +299,11 @@ private:
 
     /// Session ID for this connection (used in use-case calls).
     domain::SessionId session_id_{};
+
+    /// Cross-session message router for relaying channel chat to other members'
+    /// connections. Non-owning; null in test/stub mode (messages still post to
+    /// the channel but are not delivered to peers).
+    domain::connection::IMessageRouter* message_router_ = nullptr;
 
     /// Accumulation buffer for partial lines.
     std::string line_buf_;

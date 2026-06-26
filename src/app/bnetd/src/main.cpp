@@ -525,9 +525,10 @@ int main(int argc, char* argv[]) {
         auto wol_post_message  = use_cases.post_message;
         TcpListener wol_listener{
             rt,
-            [&cfg, wol_auth, wol_list_channels, wol_join_channel,
+            [&cfg, message_router, wol_auth, wol_list_channels, wol_join_channel,
              wol_post_message](std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
-                make_wol_session(std::move(tcp), cfg, wol_auth,
+                make_wol_session(std::move(tcp), cfg, next_session_id(),
+                                 message_router, wol_auth,
                                  wol_list_channels, wol_join_channel,
                                  wol_post_message);
             },
