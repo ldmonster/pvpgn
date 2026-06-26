@@ -210,6 +210,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "SETLOCALE") return on_setlocale(params);
     if (cmd == "GETLOCALE") return on_getlocale(params);
     if (cmd == "GETINSIDER") return on_getinsider(params);
+    if (cmd == "PAGE") return on_page(params);
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.
     // CVERS, VERCHK, APGAR, SETOPT, SERIAL, STARTG, etc.
@@ -217,7 +218,7 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     const std::string_view wol_known[] = {
         "SETOPT", "SERIAL",
         "STARTG",
-        "PAGE", "ADVERTR", "ADVERTC", "CHANCHK",
+        "ADVERTR", "ADVERTC", "CHANCHK",
         "HOST", "INVMSG", "INVDEL",
         "USERIP", "SQUADINFO", "CLANBYNAME",
         "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE", "NAMES",

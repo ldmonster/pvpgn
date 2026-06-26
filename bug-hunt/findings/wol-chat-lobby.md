@@ -385,9 +385,18 @@ echoes "<nick>`0". All built via a new send_raw_cmd() helper (irc_send_cmd
 framing; the existing finduser/buddy raw replies were refactored onto it).
 diff_wol_userinfo.py: all five replies match the oracle (self-query).
 
+## W-11 progress: PAGE — DONE (wave 38)
+
+PAGE <nick> :<message> resolves the target nick -> account -> session and
+delivers ":<nick>!<nick>@Battle.net PAGE :<msg>" via the router, replying 389
+"0 :" when paged / "1 :" when the target is offline/unknown (pageme defaults on,
+so online == pageable; the "PAGE 0" battleclan broadcast form is not modelled).
+461 with missing target/message. diff_wol_page.py: online target -> 0, unknown
+-> 1, matches the oracle.
+
 Remaining W-11 stubs: SETOPT (effect is cross-session FINDUSER/PAGE gating — needs
-a shared findme/pageme registry), PAGE (389 + delivery), SQUADINFO/CLANBYNAME
-(clan), CHANCHK, HOST/INVMSG/USERIP, ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE.
+a shared findme/pageme registry), SQUADINFO/CLANBYNAME (clan), CHANCHK,
+HOST/INVMSG/USERIP, ladder LISTSEARCH/RUNGSEARCH/HIGHSCORE.
 
 ## What MATCHES (or is acceptably close)
 

@@ -298,6 +298,15 @@ def wol_cmd_reply(client, sendline, code, tries=20):
     return None
 
 
+def wol_page(client, nick, msg):
+    """PAGE <nick> :<msg>; return the 389 status char ('0' paged / '1' not)."""
+    payload = wol_cmd_reply(client, f"PAGE {nick} :{msg}", 389)
+    if payload is None:
+        return None
+    toks = payload.replace(":", " ").split()
+    return toks[0] if toks else ""
+
+
 def wol_gameopt(client, target, options):
     """Send GAMEOPT <target> :<options> (channel '#...' or a nick)."""
     client.send_line(f"GAMEOPT {target} :{options}")

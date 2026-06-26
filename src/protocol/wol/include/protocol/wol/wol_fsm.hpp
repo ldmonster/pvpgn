@@ -297,6 +297,12 @@ private:
     /// GETINSIDER <nick> — reply 399 "<nick>`0" (461 with no param).
     core::Status<> on_getinsider(std::string_view params);
 
+    /// PAGE <nick> :<message> — deliver a page to an online target via the
+    /// router and reply 389 "0 :" (paged) / "1 :" (target offline/unknown).
+    /// Mirrors `_handle_page_command` (pageme defaults on, so online == pageable;
+    /// the battleclan "PAGE 0" broadcast form is not modelled).
+    core::Status<> on_page(std::string_view params);
+
     /// GETBUDDY — reply 333 with the backtick-terminated buddy (friend) list.
     core::Status<> on_getbuddy();
 

@@ -714,4 +714,48 @@ core::Status<> WolFsm::on_getinsider(std::string_view params) {
     return send_raw_cmd(399, std::string{target} + "`0");
 }
 
+core::Status<> WolFsm::on_page(std::string_view params) {
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(451, nick_.empty() ? "*" : nick_,
+                            "You have not registered");
+    }
+    // PAGE <target> :<message>
+    auto sp = params.find(' ');
+    if (sp == std::string_view::npos) {
+        return send_numeric(461, nick_, "PAGE :Not enough parameters");
+    }
+    std::string_view target  = params.substr(0, sp);
+    std::string_view message = params.substr(sp + 1);
+    if (!message.empty() && message[0] == ':') message.remove_prefix(1);
+    if (target.empty() || message.empty()) {
+        return send_numeric(461, nick_, "PAGE :Not enough parameters");
+    }
+
+    // Deliver the page to the target if it resolves to an online account
+    // (pageme defaults on, so online == pageable). "PAGE 0" battleclan broadcast
+    // is not modelled. Reply 389 "0 :" when paged, "1 :" otherwise.
+    bool paged = false;
+    if (target != "0" && message_router_ && auth_.account_reader &&
+        auth_.session_registry) {
+        auto name = domain::UserName::parse(std::string{target});
+        if (name) {
+            auto acct = auth_.account_reader->find_by_name(name.value());
+            if (acct) {
+                if (auto sid = auth_.session_registry->session_for(
+                        acct.value().id())) {
+                    std::string line = ":";
+                    line += nick_;
+                    line += '!';
+                    line += nick_;
+                    line += "@Battle.net PAGE :";
+                    line += std::string(message);
+                    route_irc_line(line, {sid.value()});
+                    paged = true;
+                }
+            }
+        }
+    }
+    return send_raw_cmd(389, paged ? "0 :" : "1 :");
+}
+
 }  // namespace pvpgn::protocol::wol
