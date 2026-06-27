@@ -3,7 +3,7 @@
 /// WolFsm — post-authentication channel and chat command handlers.
 ///
 ///   on_ping()    — PING <token> → PONG :<token>
-///   on_quit()    — QUIT → ERROR :Closing Link + close
+///   on_quit()    — QUIT → 607 RPL_QUIT :goodbye + close
 ///   on_list()    — LIST → 321 + 322 entries + 323
 ///   on_join()    — JOIN #channel → echo + 353 + 366
 ///   on_part()    — PART #channel → echo + state reset
@@ -73,8 +73,14 @@ core::Status<> WolFsm::on_ping(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_quit(std::string_view /*params*/) {
+    // The original _handle_quit_command (handle_wol.cpp) replies to a QUIT with
+    // the WOL-specific numeric RPL_QUIT (607) ":goodbye" — irc_send formats it
+    // as ":<server> 607 <nick> :goodbye" — then destroys the connection. The
+    // channel PART broadcast to the other members is driven by on_close()
+    // (mirroring conn_quit_channel). v3 previously sent a bare
+    // "ERROR :Closing Link" here, which no real WOL client expects.
     state_ = WolState::Disconnecting;
-    auto st = send_raw("ERROR :Closing Link");
+    auto st = send_numeric(607, nick_.empty() ? "*" : nick_, "goodbye");
     ctx_->close();
     return st;
 }

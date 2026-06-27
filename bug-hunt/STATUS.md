@@ -5,6 +5,23 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 96 (LANDED) — WOL QUIT reply wire format (607 RPL_QUIT :goodbye)
+DIVERGENCE (wrong reply), connection-lifecycle. The original _handle_quit_command
+(handle_wol.cpp) answers a client QUIT with the WOL-specific numeric RPL_QUIT
+(607) — irc_send formats it ":<server> 607 <nick> :goodbye" — then destroys the
+connection (the channel PART to the other members already flows from
+conn_quit_channel, which v3 mirrors in WolFsm::on_close). v3's WolFsm::on_quit
+(wol_fsm/wol_chat.cpp) instead sent a bare "ERROR :Closing Link" that no real WOL
+client expects. Probe: WOL login then QUIT -> oracle ":<host> 607 quitter
+:goodbye", v3 "ERROR :Closing Link".
+Fix: on_quit now sends send_numeric(607, nick_ (or "*"), "goodbye") before
+ctx_->close(), matching the original byte-for-byte. Updated the one unit test that
+asserted the old ERROR line (wol_fsm_test.cpp "QUIT sends ERROR line" -> asserts
+" 607 " + ":goodbye") and the wol_chat.cpp header doc-comment.
+New guard tests/diff/diff_wol_quit.py: server-name-normalized QUIT reply matches
+the oracle (before: v3 sent ERROR). 3199/3199 units green; WOL diff regression
+(login, chat, part, disconnect, list_params, ping, topic, kick) all still match.
+
 ## Wave 95 (LANDED) — WOL LIST param-count gating (channels vs. empty envelope)
 DIVERGENCE (over-listing), follow-up to the wave-93 WOL fuzz sweep ("LIST with
 extra params -> oracle returns empty list"). The original _handle_list_command

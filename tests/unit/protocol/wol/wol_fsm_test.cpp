@@ -271,13 +271,16 @@ TEST_CASE("WolFsm: QUIT → Disconnecting state",
     REQUIRE(ctx->closed);
 }
 
-TEST_CASE("WolFsm: QUIT sends ERROR line",
+TEST_CASE("WolFsm: QUIT sends RPL_QUIT (607) goodbye line",
           "[protocol][wol][fsm]") {
     auto ctx = std::make_shared<FakeWolContext>();
     WolFsm fsm{ctx};
 
+    // The original _handle_quit_command replies with numeric 607 ":goodbye"
+    // (":<server> 607 <nick> :goodbye"); unauthenticated, the nick is "*".
     REQUIRE(feed_line(fsm, "QUIT").has_value());
-    REQUIRE(ctx->has_line_containing("ERROR"));
+    REQUIRE(ctx->has_line_containing(" 607 "));
+    REQUIRE(ctx->has_line_containing(":goodbye"));
 }
 
 TEST_CASE("WolFsm: bytes after QUIT are ignored",
