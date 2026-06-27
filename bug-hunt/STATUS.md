@@ -5,6 +5,20 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 110 (LANDED) — WOL PING -> PONG 512-byte length guard (oversized PONG suppressed)
+DIVERGENCE (wire over-length line). The original irc_send_pong (src/bnetd/irc.cpp:169)
+computes the full constructed reply length and, when it would exceed
+MAX_IRC_MESSAGE_LEN (512), suppresses the reply entirely (logs "max message length
+exceeded", returns -1, sends nothing). v3's WolFsm::on_ping (wol_fsm/wol_chat.cpp)
+always built and sent the PONG with no length check, so a long PING token produced an
+over-length PONG line. FIX: mirror the oracle's exact arithmetic before send_raw —
+suppress (return core::ok()) when
+(1 + hostlen + 1 + 4 + 1 + hostlen + (token ? 2+tokenlen : 0) + 2 + 1) > 512.
+Decisive hostname-independent case: a 600-char PING token -> both servers now send 0
+bytes (v3's own constructed PONG ~627B clearly exceeds 512). Pinned by
+tests/diff/diff_wol_ping_overlong.py (short token = both PONG control; 600-char token =
+both suppress). Distinct from wave 93 (PONG wire FORMAT) and the line-truncation cap.
+
 ## Wave 104 (LANDED) — WOL TOPIC uses the IRC trailing param (extra middle params discarded)
 DIVERGENCE (wrong topic text), another WOL fuzz item flagged in wave 93. A real
 IRC line is "<cmd> <middle params...> :<trailing>". The original's line tokeniser

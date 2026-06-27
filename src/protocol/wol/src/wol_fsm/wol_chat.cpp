@@ -75,6 +75,22 @@ core::Status<> WolFsm::on_ping(std::string_view params) {
     }
 
     const std::string sv{ctx_->server_name()};
+
+    // Mirror the original irc_send_pong length guard (irc.cpp): when the fully
+    // constructed reply line — ":<host> PONG <host>[ :<token>]\r\n" plus the
+    // trailing NUL — would exceed MAX_IRC_MESSAGE_LEN (512), the original logs
+    // "max message length exceeded" and sends NOTHING (returns -1). Replicate
+    // the exact arithmetic so an oversized PING token suppresses the PONG
+    // instead of emitting an over-length line.
+    constexpr std::size_t kMaxIrcMessageLen = 512;  // incl. CRLF (RFC 2812)
+    const std::size_t hostlen = sv.size();
+    const std::size_t constructed =
+        1 + hostlen + 1 + 4 + 1 + hostlen +
+        (token.empty() ? 0 : 2 + token.size()) + 2 + 1;
+    if (constructed > kMaxIrcMessageLen) {
+        return core::ok();  // suppress: oversized reply, mirror oracle
+    }
+
     std::string pong = ":";
     pong += sv;
     pong += " PONG ";
