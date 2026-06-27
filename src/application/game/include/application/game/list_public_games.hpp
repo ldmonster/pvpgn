@@ -23,13 +23,17 @@
 namespace pvpgn::application::game {
 
 struct GameInfo {
-    domain::GameId  id;
-    std::string     name;
-    std::size_t     current_players;
-    std::size_t     max_players;
-    std::string     game_type;
-    std::string     map_name;
-    bool            is_private;
+    domain::GameId            id;
+    std::string              name;
+    std::size_t              current_players;
+    std::size_t              max_players;
+    std::string              game_type;
+    std::string              map_name;
+    bool                     is_private;
+    /// Lifecycle state of the hosted match. The protocol layer maps this (plus
+    /// the player counts) to the SID_GETADVLISTEX status word — an in-progress
+    /// or finished game must not be advertised as "open".
+    domain::gameplay::GameState state = domain::gameplay::GameState::Open;
 };
 
 struct ListPublicGamesRequest {

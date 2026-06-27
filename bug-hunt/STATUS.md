@@ -2996,3 +2996,18 @@ would hang waiting for a reply the original always sends.
   with no reply (UNCHECKED_NAME_STR parity).
 e2e: tests/diff/diff_ols_legacy_auth.py — oracle and v3 both give create OK=0 /
 dup=4, login good=1 / bad=0 (byte-identical). diff_ols_login (0x3a) still matches.
+
+## Wave 171: GETADVLISTEX game status derived from game state (was hardcoded OPEN)
+SID_GETADVLISTEX entries hardcoded status=0x04 (GAME_STATUS_OPEN) for every game,
+so a full/in-progress/finished game lied to clients as "open". The original maps
+game_get_status -> OPEN(0x04)/FULL(0x06)/STARTED(0x0e)/DONE(0x0c). v3 now plumbs
+the gameplay::GameState through the ListPublicGames projection and maps it in the
+protocol layer (Open+full -> FULL, InProgress -> STARTED, Reporting/Finalized ->
+DONE). diff_gamelist_fields.py extended to compare the status word (OPEN parity).
+DEFERRED (round-5, deeper): GameListEntry port/game_ip stay 0 — the Game aggregate
+doesn't capture the host endpoint (documented infra-layer TODO: server_port=0 in
+join/snapshot), so advertised games carry no joinable address yet. gametype echoes
+the request filter (no real bngtype in the v3 game model). WOL host-prefix
+(@Battle.net vs WWOL@<ip>) is an intentional v3 redesign across 11 verbs, left as-is.
+D2CS wire_types.hpp "dead" structs are a deliberate protocol opcode catalog
+(scaffolding for unimplemented opcodes), not removed.

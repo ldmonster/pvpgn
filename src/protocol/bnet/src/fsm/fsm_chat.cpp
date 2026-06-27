@@ -799,7 +799,25 @@ core::Status<> BnetFsm::on(const GameListRequest& m) {
                 e.unknown1  = 0x0001u;
                 e.unknown3  = 0x0002u;
                 e.unknown6  = 0x0000002bu;
-                e.status    = 0x04u;          // GAME_STATUS_OPEN
+                // Status mirrors the original's game_get_status mapping (OPEN
+                // 0x04 / FULL 0x06 / STARTED 0x0e / DONE 0x0c): an in-progress
+                // game reports STARTED, a finished one DONE, and an open game
+                // that has reached its player cap reports FULL — not OPEN.
+                switch (g.state) {
+                    case domain::gameplay::GameState::Open:
+                        e.status = (g.max_players != 0 &&
+                                    g.current_players >= g.max_players)
+                                       ? 0x06u   // GAME_STATUS_FULL
+                                       : 0x04u;  // GAME_STATUS_OPEN
+                        break;
+                    case domain::gameplay::GameState::InProgress:
+                        e.status = 0x0eu;        // GAME_STATUS_STARTED
+                        break;
+                    case domain::gameplay::GameState::Reporting:
+                    case domain::gameplay::GameState::Finalized:
+                        e.status = 0x0cu;        // GAME_STATUS_DONE
+                        break;
+                }
                 e.game_name = g.name;
                 e.info      = g.map_name;     // statstring / map
                 reply.entries.push_back(std::move(e));

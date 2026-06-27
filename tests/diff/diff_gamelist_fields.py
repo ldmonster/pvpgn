@@ -17,8 +17,9 @@ def first_entry_consts(host, port):
     if not reply or len(reply) < 8+28: return None
     hdr = reply[8:8+28]
     _g, u1, u3 = struct.unpack_from("<HHH", hdr, 0)
+    status = struct.unpack_from("<I", hdr, 20)[0]   # GAME_STATUS_* word
     u6 = struct.unpack_from("<I", hdr, 24)[0]
-    return (u1, u3, u6)
+    return (u1, u3, u6, status)
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--orig-repo", default="/home/cnupt/work/pvpgn-server")
     ap.add_argument("--v3-bnetd", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),"../../build/v3-dev/src/app/bnetd/bnetd"))
@@ -27,8 +28,11 @@ def main():
     try:
         orig.start(); v3.start()
         o=first_entry_consts("127.0.0.1",a.orig_port); n=first_entry_consts("127.0.0.1",a.v3_port)
-        print(f"entry (u1,u3,u6): oracle={o} v3={n}")
-        ok = (o==(1,2,0x2b) and n==(1,2,0x2b))
-        print("OK: per-entry constants match oracle" if ok else "FAIL"); return 0 if ok else 1
+        print(f"entry (u1,u3,u6,status): oracle={o} v3={n}")
+        # A freshly advertised, non-full open game must report GAME_STATUS_OPEN
+        # (0x04) on both servers; v3 now derives status from game state instead
+        # of hardcoding it, so this also guards that the OPEN case still matches.
+        ok = (o==(1,2,0x2b,0x04) and n==(1,2,0x2b,0x04))
+        print("OK: per-entry constants + status match oracle" if ok else "FAIL"); return 0 if ok else 1
     finally: v3.stop(); orig.stop()
 sys.exit(main())

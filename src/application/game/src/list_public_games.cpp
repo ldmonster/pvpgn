@@ -39,6 +39,7 @@ ListPublicGames::execute(const ListPublicGamesRequest& req) {
             .game_type = "public",
             .map_name = game.descriptor().map,
             .is_private = false,
+            .state = game.state(),
         });
 
         count++;
