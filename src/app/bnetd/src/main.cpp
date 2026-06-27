@@ -118,6 +118,7 @@
 #include "infra/inmemory/session_registry.hpp"
 #include "infra/inmemory/srp3_credential_store.hpp"
 #include "infra/inmemory/peer_address_store.hpp"
+#include "infra/inmemory/in_memory_topic_store.hpp"
 #include "infra/inmemory/user_profile_store.hpp"
 #include "infra/inmemory/wol_credential_store.hpp"
 #include "infra/inmemory/wol_game_store.hpp"
@@ -568,14 +569,20 @@ int main(int argc, char* argv[]) {
         // use-case (member-gated, <=255 chars). Shares the channel repo + router.
         auto no_delete_channels = std::shared_ptr<domain::chat::IChannelRepository>(
             &channel_repo, [](domain::chat::IChannelRepository*) noexcept {});
+        // Channel-NAME-keyed persistent topic store (parity with the original's
+        // class_topiclist): topics survive the destroy-on-empty of a
+        // non-permanent channel, so a re-joiner sees the previously-set topic.
+        auto wol_topic_store =
+            std::make_shared<infra::inmemory::InMemoryTopicStore>();
         auto wol_set_topic = std::make_shared<application::chat::SetChannelTopic>(
-            no_delete_channels, message_router);
+            no_delete_channels, message_router, wol_topic_store);
         TcpListener wol_listener{
             rt,
             [&cfg, &channel_repo, &wol_game_store, &peer_address_store,
              &wol_user_flags_store, message_router, wol_auth, wol_list_channels,
              wol_join_channel, wol_post_message, wol_add_friend,
-             wol_remove_friend, wol_list_friends, wol_leave_channel, wol_set_topic]
+             wol_remove_friend, wol_list_friends, wol_leave_channel, wol_set_topic,
+             wol_topic_store]
             (std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
                 make_wol_session(std::move(tcp), cfg, next_session_id(),
                                  message_router, &channel_repo, &wol_game_store,
@@ -583,7 +590,8 @@ int main(int argc, char* argv[]) {
                                  wol_post_message, wol_add_friend.get(),
                                  wol_remove_friend.get(), wol_list_friends.get(),
                                  &peer_address_store, &wol_user_flags_store,
-                                 wol_leave_channel, wol_set_topic);
+                                 wol_leave_channel, wol_set_topic,
+                                 wol_topic_store.get());
             },
             wol_idle};
         wol_listener.start(cfg.listen_address, cfg.wol_port);

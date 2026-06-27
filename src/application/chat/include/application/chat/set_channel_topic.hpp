@@ -15,6 +15,7 @@
 #include "core/result.hpp"
 #include "domain/shared/ids.hpp"
 #include "domain/chat/ports.hpp"
+#include "domain/chat/topic_store.hpp"
 #include "domain/connection/ports.hpp"
 
 namespace pvpgn::application::chat {
@@ -37,8 +38,10 @@ class SetChannelTopic {
 public:
     explicit SetChannelTopic(
         std::shared_ptr<domain::chat::IChannelRepository> channels,
-        std::shared_ptr<domain::connection::IMessageRouter> router)
-        : channels_(channels), router_(router) {}
+        std::shared_ptr<domain::connection::IMessageRouter> router,
+        std::shared_ptr<domain::chat::ITopicStore> topic_store = nullptr)
+        : channels_(channels), router_(router),
+          topic_store_(std::move(topic_store)) {}
 
     /// Execute: validate permissions and set channel topic.
     core::Result<void, SetChannelTopicError>
@@ -49,6 +52,10 @@ private:
 
     std::shared_ptr<domain::chat::IChannelRepository> channels_;
     std::shared_ptr<domain::connection::IMessageRouter>     router_;
+    // Channel-NAME-keyed persistent topic store. When present, the topic is
+    // also written here so it outlives the Channel object (parity with the
+    // original's class_topiclist). Null in stub/test mode.
+    std::shared_ptr<domain::chat::ITopicStore>         topic_store_;
 };
 
 }  // namespace pvpgn::application::chat

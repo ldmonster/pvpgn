@@ -77,6 +77,7 @@ class IPeerAddressStore;
 
 namespace pvpgn::domain::chat {
 class IChannelReader;
+class ITopicStore;
 }  // namespace pvpgn::domain::chat
 
 namespace pvpgn::application::game {
@@ -197,6 +198,15 @@ public:
     void set_channel_topic_use_case(
         application::chat::SetChannelTopic* st) noexcept {
         set_channel_topic_ = st;
+    }
+
+    /// Wire the channel-NAME-keyed persistent topic store. The JOIN RPL_TOPIC
+    /// (332) and the TOPIC-query path read from here so a re-joiner of an
+    /// emptied-then-recreated channel sees the topic the oracle persists (the
+    /// Channel domain object's topic_ is discarded on destroy-on-empty).
+    /// Non-owning; null in test/stub mode (then falls back to Channel::topic()).
+    void set_topic_store(domain::chat::ITopicStore* ts) noexcept {
+        topic_store_ = ts;
     }
 
     /// Wire the WOL game-channel registry so JOINGAME can create/find games.
@@ -497,6 +507,7 @@ private:
     /// mode.
     application::chat::LeaveChannel* leave_channel_ = nullptr;
     application::chat::SetChannelTopic* set_channel_topic_ = nullptr;
+    domain::chat::ITopicStore* topic_store_ = nullptr;
 
     /// Native WOL auth collaborators (empty in legacy/skeleton mode).
     WolAuthDeps auth_{};

@@ -26,6 +26,7 @@ class MessageRouterImpl;
 
 namespace pvpgn::domain::chat {
 class IChannelReader;
+class ITopicStore;
 }  // namespace pvpgn::domain::chat
 
 namespace pvpgn::domain::connection {
@@ -77,6 +78,7 @@ void make_wol_session(
     domain::connection::IPeerAddressStore*   peer_store,
     application::game::IWolUserFlagsStore*    user_flags_store,
     std::shared_ptr<application::chat::LeaveChannel> leave_channel,
-    std::shared_ptr<application::chat::SetChannelTopic> set_topic);
+    std::shared_ptr<application::chat::SetChannelTopic> set_topic,
+    domain::chat::ITopicStore*               topic_store);
 
 } // namespace pvpgn::app::bnetd

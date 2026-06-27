@@ -29,6 +29,7 @@
 #include "application/social/remove_friend.hpp"
 #include "domain/chat/channel.hpp"
 #include "domain/chat/ports.hpp"
+#include "domain/chat/topic_store.hpp"
 #include "domain/connection/peer_address_store.hpp"
 #include "domain/connection/ports.hpp"
 #include "domain/identity/account.hpp"
@@ -501,11 +502,15 @@ core::Status<> WolFsm::on_topic(std::string_view params) {
     }
 
     // QUERY: reply 332 with the stored topic (empty if unset). The original
-    // CRASHES on this path (NULL deref); v3 handles it safely.
+    // CRASHES on this path (NULL deref); v3 handles it safely. The topic comes
+    // from the channel-NAME-keyed persistent store (parity with the original's
+    // Topic.get(channel_get_name(channel))), falling back to the per-channel
+    // topic_ when no store is wired.
     std::string topic;
     if (channel_reader_ && channel_id_.value() != 0) {
         if (auto ch = channel_reader_->find_by_id(channel_id_)) {
-            topic = ch.value().topic();
+            topic = topic_store_ ? topic_store_->get(ch.value().name())
+                                 : ch.value().topic();
         }
     }
     return send_numeric(332, std::string(nick_) + " " + chan_disp, topic);
@@ -585,8 +590,16 @@ core::Status<> WolFsm::on_join(std::string_view params) {
 
         // 332 RPL_TOPIC: the original sends the channel topic on every join
         // (empty when unset), so a joiner sees a topic set by an earlier member.
+        // The topic is read from the channel-NAME-keyed persistent store (parity
+        // with irc_send_topic -> Topic.get(channel_get_name(channel))), which
+        // survives the destroy-on-empty of a non-permanent channel — so a fresh
+        // re-joiner of a previously-emptied channel still gets the prior topic.
+        // Falls back to the per-channel topic_ when no store is wired.
+        std::string join_topic = topic_store_
+                                     ? topic_store_->get(chan_name)
+                                     : join_result.value().channel.topic();
         if (auto s = send_numeric(332, std::string(nick_) + " " + channel_,
-                                  join_result.value().channel.topic()); !s) {
+                                  join_topic); !s) {
             return s;
         }
 

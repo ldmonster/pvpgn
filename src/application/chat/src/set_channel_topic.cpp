@@ -30,6 +30,14 @@ SetChannelTopic::execute(const SetChannelTopicRequest& req) const {
     // 4. Call channel.set_topic() — domain enforces any permission rules
     channel.set_topic(req.setter_id, std::string{req.new_topic});
 
+    // 4b. Mirror the topic into the channel-NAME-keyed persistent store so it
+    // outlives the Channel object (parity with the original's class_topiclist /
+    // Topic.set). When the channel later empties and is destroyed, the topic
+    // survives here and is restored to a fresh re-joiner of the same name.
+    if (topic_store_) {
+        topic_store_->set(channel.name(), std::string{req.new_topic});
+    }
+
     // 5. Save updated channel
     auto save_result = channels_->save(channel);
     if (!save_result) {

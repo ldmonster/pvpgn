@@ -2289,3 +2289,30 @@ populated from AUTH_INFO and the tag constants already exist; no new plumbing.
 Guard: tests/diff/diff_iconreq.py asserts filename per product (SEXP/STAR ->
 "icons.bni", W3XP/WAR3 -> "icons-WAR3.bni") matching on both servers; PASSES.
 Full suite 3203/3203 green; diff_channellist still matches the oracle.
+
+## Wave 127
+WOL channel TOPIC was lost when the channel emptied. The oracle keeps IRC/WOL
+topics in a SEPARATE, channel-NAME-keyed store (class_topiclist / topic.cpp)
+independent of the Channel object's lifetime: _handle_topic_command writes via
+Topic.set() and irc_send_topic reads via Topic.get(channel_get_name(channel)).
+When the last member of a non-permanent channel leaves/disconnects the oracle
+destroys the Channel (channel.cpp:558) but the topic SURVIVES, so a fresh
+re-joiner gets the old topic back. v3 stored the topic ON the Channel domain
+object (Channel::topic_) and removed the whole channel on empty
+(leave_channel.cpp), discarding the topic -> re-joiner saw an empty 332.
+Observable (WOL/sku=1000): A joins #tpersist, `TOPIC #tpersist :SecretTopic123`,
+disconnects (channel destroyed on both); B re-joins -> ORACLE 332 carries
+SecretTopic123, V3 carried empty.
+FIX: new channel-NAME-keyed persistent topic store. Port
+domain/chat/topic_store.hpp (ITopicStore: set/get by name); in-memory impl
+infra/inmemory/in_memory_topic_store.hpp (case-folded key, thread-safe; mirrors
+class_topiclist with no topicfile). SetChannelTopic gained an optional
+ITopicStore and writes the topic keyed by channel.name() alongside the per-
+channel set (set_channel_topic.cpp). WolFsm gained set_topic_store(); the JOIN
+RPL_TOPIC 332 and the TOPIC-query path read from the name-keyed store (fallback
+to Channel::topic() when unwired). Composition root (main.cpp) creates one
+InMemoryTopicStore shared by the WOL listener; wired through make_wol_session.
+Guard: tests/diff/diff_wol_topic_persist.py (A sets topic + disconnects, B
+re-joins, both 332 == SecretTopic123) PASSES on both servers. Full suite
+3203/3203 green; diff_wol_topic / diff_wol_topic_extraparam /
+diff_wol_topic_notonchan / diff_wol_part still match the oracle.
