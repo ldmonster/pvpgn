@@ -62,6 +62,7 @@ target_link_libraries(bnetd
         domain_connection
         application_auth
         application_connection
+        application_init
         protocol_bnet
         protocol_file
         protocol_wol

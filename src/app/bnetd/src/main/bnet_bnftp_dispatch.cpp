@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "application/auth/logout_user.hpp"
+#include "application/init/init_conn_dispatch.hpp"
 #include "domain/shared/ids.hpp"
 
 namespace pvpgn::app::bnetd {
@@ -186,7 +187,55 @@ void BnetBnftpDispatchFactory::operator()(
                 });
 
         } else {
-            // BNFTP protocol (or unknown — let BnftpFsm reject it)
+            // Non-BNet stream (first byte was not 0xFF/0x01). Mirror the
+            // original's handle_init_packet (src/bnetd/handle_init.cpp),
+            // which switches on this single connection-class octet and
+            // *destroys* the connection (returns -1) for the ENC (0x04),
+            // LOCALMACHINE (0x98), D2CS_BNETD-from-a-non-realm-IP (0x65),
+            // and every unknown/default byte. Previously v3 routed every
+            // such byte into BnftpFsm, which just waited for more bytes —
+            // silently holding unsupported/unknown init classes OPEN (a
+            // remote half-open-connection exhaustion surface). Reuse the
+            // already-unit-tested decision logic so the live dispatch and
+            // the pure decision function agree.
+            using application::init::dispatch_init_conn;
+            using application::init::InitConnRequest;
+            using application::init::InitDecision;
+            const InitDecision decision =
+                dispatch_init_conn(
+                    InitConnRequest{
+                        /*cclass=*/static_cast<std::uint8_t>(first),
+                        /*conn_count=*/0,
+                        /*max_conns_per_ip=*/0,
+                        // v3 has no realmlist, so a D2CS_BNETD (0x65) link
+                        // from any IP is denied — matching the original
+                        // closing such links from a non-realm IP.
+                        /*d2cs_ip_allowed=*/false,
+                    })
+                    .decision;
+
+            // kRejected (ENC/LOCALMACHINE/unknown), kD2csIpDenied (0x65
+            // with no realmlist), kRateLimited, and kD2csBnetd (no v3
+            // realm-link implementation) all have no live handler: close
+            // immediately, matching the original's conn_destroy. Only
+            // kFile (0x02 → BNFTP) is accepted below; kBot (0x03) and
+            // kTelnet (0x0d) are unimplemented in v3 but the original
+            // keeps those sockets OPEN (it emits a prompt), so they fall
+            // through and BnftpFsm leaves them waiting — preserving the
+            // open/closed observable rather than introducing a new
+            // close divergence.
+            if (decision == InitDecision::kRejected ||
+                decision == InitDecision::kD2csIpDenied ||
+                decision == InitDecision::kRateLimited ||
+                decision == InitDecision::kD2csBnetd) {
+                session->close();
+                pbuf->clear();
+                return;
+            }
+
+            // BNFTP protocol (or an accepted-but-unimplemented bot/telnet
+            // class — let BnftpFsm wait, matching the original keeping the
+            // socket open).
             auto egress = std::make_shared<TcpSessionEgress>(session);
             auto ctx    = std::make_shared<BnftpEgressContext>(egress);
             auto fsm    = std::make_shared<protocol::file::BnftpFsm>(

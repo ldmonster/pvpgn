@@ -2396,3 +2396,31 @@ tests/diff/diff_version.py asserts /version -> single EID 0x12 with text
 starting "PvPGN", and /copyright -> identical EID sequence AND byte-identical
 text on both servers; passes. Build clean (-Werror); unit suite 3203/3203
 green; diff_command_case.py and diff_channelcmds.py still pass.
+
+## Wave 132
+Fixed a remote half-open-connection exhaustion surface on the shared
+BNCS/BNFTP listener: v3 silently held OPEN any connection whose first byte
+(the CLIENT_INITCONN_CLASS_* selector) was an unsupported/unknown class,
+whereas the oracle's handle_init_packet (src/bnetd/handle_init.cpp) returns
+-1 -> destroys the connection for ENC (0x04), LOCALMACHINE (0x98),
+D2CS_BNETD from a non-realm IP (0x65), and every unknown byte (default).
+Root cause: BnetBnftpDispatchFactory (src/app/bnetd/src/main/
+bnet_bnftp_dispatch.cpp) special-cased only 0xFF/0x01 as BNet and routed
+EVERY other first byte into BnftpFsm, which just waits for more bytes —
+so junk init classes stayed alive (unauthenticated clients could open
+unbounded half-open connections).
+FIX: in the dispatch else-branch, route the first byte through the
+already-unit-tested application/init dispatch_init_conn() (previously dead
+code on the live path) and session->close() on kRejected / kD2csIpDenied /
+kRateLimited / kD2csBnetd, mirroring the original's conn_destroy. v3 has no
+realmlist so D2CS_BNETD (0x65) is passed d2cs_ip_allowed=false -> denied ->
+closed, matching the oracle closing such links from a non-realm IP. Only
+0x02 (BNFTP) is accepted into BnftpFsm; 0x03 (BOT) / 0x0d (TELNET) are
+unimplemented in v3 but the oracle keeps those sockets OPEN (emits a
+prompt), so they fall through and BnftpFsm leaves them waiting — preserving
+the open/closed observable. 0xFF stays a BNet stream (intentional v3
+accommodation for clients that already stripped the init byte). Wired
+application_init into the bnetd target. New guard tests/diff/diff_init_class.py
+asserts both servers CLOSE on 0x04/0x05/0x65/0x98/0xAB/0x00 and stay OPEN on
+0x01/0x02; passes. Build clean (-Werror); unit suite 3203/3203 green;
+diff_bnftp.py and diff_bad_marker_resync.py still pass.
