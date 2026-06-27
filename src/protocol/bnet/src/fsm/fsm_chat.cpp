@@ -831,7 +831,12 @@ core::Status<> BnetFsm::on(const LadderSearchRequest&) {
     if (state_ != BnetState::InChat && state_ != BnetState::LoggedIn) {
         return reject("bnet fsm: LADDERSEARCH before login");
     }
-    return core::ok();
+    // The original _client_laddersearchreq ALWAYS sends a SERVER_LADDERSEARCHREPLY
+    // (the player's 0-based rank, or RANK_NONE 0xffffffff when unranked) — a
+    // no-reply hangs the client. v3 has no ladder backend, so every player is
+    // unranked: reply RANK_NONE (the default), matching the oracle's reply for
+    // a player with no ladder standing.
+    return ctx_->send(ServerMessage{LadderSearchReply{}});
 }
 
 namespace {

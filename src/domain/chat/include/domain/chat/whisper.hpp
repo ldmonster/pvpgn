@@ -36,14 +36,6 @@ struct Whisper {
     core::SystemTime sent_at;
 };
 
-/// WhisperOutcome — result of attempting a whisper delivery.
-enum class WhisperOutcome : std::uint8_t {
-    Delivered,          ///< Message delivered successfully
-    RecipientIgnoring,  ///< Recipient has sender on ignore list
-    RecipientOffline,   ///< Recipient has no active session
-    SenderQuotaExceeded ///< Sender is muted/throttled
-};
-
 /// IgnoreList aggregate — manages which accounts a user ignores.
 class IgnoreList {
 public:

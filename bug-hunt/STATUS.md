@@ -3091,3 +3091,19 @@ NOTE: CREATECHARREQ can't be differentially tested against the oracle — it nee
 real D2 newbie .d2s save templates (file_read failure -> d2char_create returns
 0x14), a binary asset the harness can't synthesise. Auth + char-list are the
 asset-free differential surface.
+
+## Wave 176: SID_LADDERSEARCH reply (was silent no-op) + dead WhisperOutcome enum
+- SID_LADDERSEARCH (0x2f): v3's handler was `return core::ok();` — sent nothing,
+  hanging a client that queries a ladder rank. The original _client_laddersearchreq
+  ALWAYS sends SERVER_LADDERSEARCHREPLY (rank, or RANK_NONE 0xffffffff when
+  unranked). v3 has no ladder backend → reply RANK_NONE (LadderSearchReply default),
+  matching the oracle for an unranked player. The reply encoder/constants already
+  existed. diff_laddersearch.py: oracle=v3=0xffffffff.
+- dead code: removed domain::chat::WhisperOutcome enum (0 references anywhere in
+  src/tests).
+DEFERRED (round-7, same hang pattern, need new reply types/encoders): SID_AUTHREQ1
+(0x07) + SID_CDKEY legacy (0x30) are also no-op stubs (the original always replies
+AUTHREPLY1/CDKEYREPLY) — needs reply message structs + encoders added (AuthReply1,
+CdKeyReply don't exist yet). WOL ISON(303)/WHO(352+315)/WHOIS(311+318) silent in
+v3 vs original — implement next. runtime/peer_link + service_host + realm
+character_persistence are TODO stubs (incomplete features, not differential bugs).
