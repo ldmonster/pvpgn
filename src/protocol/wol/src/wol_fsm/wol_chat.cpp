@@ -458,6 +458,18 @@ core::Status<> WolFsm::on_join(std::string_view params) {
         return send_needmoreparams("JOIN");
     }
 
+    // The original (irc.cpp _handle_join_command -> irc_convert_ircname) only
+    // accepts channel names prefixed with '#' (or '!<id>'); any other bare token
+    // maps to a NULL ircname and the server answers ERR_NOSUCHCHANNEL
+    //   ":<server> 403 <nick> <name> :JOIN failed"
+    // rather than silently auto-creating a channel from the token. ("JOIN 0" is
+    // the RFC2812 part-all-channels sentinel and is left to the normal path.)
+    if (chan_sv[0] != '#' && chan_sv != "0") {
+        return send_numeric(403,
+                            std::string(nick_) + " " + std::string(chan_sv),
+                            "JOIN failed");
+    }
+
     // Strip leading '#' for the domain channel name.
     std::string chan_name{chan_sv};
     if (!chan_name.empty() && chan_name[0] == '#') {

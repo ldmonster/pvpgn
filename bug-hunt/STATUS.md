@@ -5,6 +5,33 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 100 (LANDED) — WOL JOIN of a non-'#'-prefixed name -> 403 "JOIN failed"
+DIVERGENCE (silently auto-creates where oracle rejects). The original
+(irc.cpp _handle_join_command) runs the JOIN target through irc_convert_ircname(),
+which returns NULL for any name not prefixed with '#' (or '!<id>'); a NULL ircname
+makes the server answer ERR_NOSUCHCHANNEL ":<server> 403 <nick> <name> :JOIN
+failed". v3's WolFsm::on_join (wol_fsm/wol_chat.cpp) instead stripped a leading
+'#' (a no-op for a bare token) and called the JoinChannel use-case, which
+auto-created a brand-new channel from the token and echoed a full JOIN/353/332/366
+welcome — letting a malformed JOIN spawn junk channels the original would reject.
+Probe: "JOIN plainname" -> oracle "403 uj plainname :JOIN failed"; v3 auto-created
+"plainname" and joined it.
+Fix: on_join now, right after the empty-name 461 guard, rejects any target whose
+first char is not '#' (excluding the RFC2812 "JOIN 0" part-all sentinel) with
+send_numeric(403, "<nick> <name>", "JOIN failed") — the name carried as a middle
+param exactly like the original. The normal '#'-prefixed happy path is untouched.
+New guard tests/diff/diff_wol_join_unprefixed.py: "JOIN plainname" returns
+403 ... plainname :JOIN failed (server-name-stripped, byte-for-byte) on both
+servers, and a following "JOIN #realchan" still echoes JOIN + 366 — match (before:
+v3 auto-created). 3199/3199 units green; WOL diff regression (login, chat, part,
+names, list, topic, mode, kick, needmoreparams, nosuchnick, joingame, lobby) +
+diff_robustness all still match the oracle.
+Other still-open WOL fuzz divergences (each a separate behavior, not a crash):
+PRIVMSG to a logged-in user/self (oracle delivers a whisper; v3 always 401s, and
+its 401 miss form ":nobody :No such nick" diverges from the original's bare
+":No such user"); TOPIC with an extra middle param (v3 folds the extra token into
+the stored topic). Left for follow-up — user-whisper needs nick->session routing.
+
 ## Wave 99 (LANDED) — removed dead ServerMetrics aggregator (infra/metrics)
 Dead-code removal. `infra/metrics/src/server_metrics.cpp` +
 `include/infra/metrics/server_metrics.hpp` defined `ServerMetrics` (a struct of
