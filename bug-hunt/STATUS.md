@@ -2479,3 +2479,18 @@ not diffable). New guard tests/diff/diff_talk_op_flags.py asserts both servers
 send flags=0x02 on the EID_TALK and EID_EMOTE an operator's channel-mate
 receives (flags compared, latency ignored); passes. Build clean (-Werror);
 unit suite 3203/3203 green; diff_talk.py and diff_join_userflags.py still pass.
+
+## Wave 136
+SID_MAPAUTHREQ1 (0x32) / SID_MAPAUTHREQ2 (0x3C) sent no reply in v3, whereas the
+oracle ALWAYS answers with SERVER_MAPAUTHREPLY1/2 (same opcode) carrying a 4-byte
+u32 response. The oracle's _client_mapauthreq1/2 (handle_bnet.cpp) unconditionally
+creates a reply; not-in-a-game sets response = SERVER_MAPAUTHREPLY1_NO (0). v3's
+BnetFsm::on(MapAuthReq1)/on(MapAuthReq2) (fsm_game.cpp) were pure no-ops (only a
+login-state guard), stalling the W3 map-auth handshake.
+FIX: after the existing require_clan_state guard, each handler now sends the reply
+that already had a struct + encoder in v3 — MapAuthReply1{kMapAuthReply1ResponseNo}
+and MapAuthReply2{0u}. v3 tracks no per-connection game/map state at the protocol
+layer, so replying NO (response=0) exactly matches the oracle's not-in-a-game path,
+the cleanly-diffable case. New guard tests/diff/diff_mapauth.py asserts both servers
+reply 0x32/0x3C with a >=4-byte body and response==0; passes. Build clean (-Werror);
+unit suite 3203/3203 green; diff_startgame_done.py still passes.

@@ -215,11 +215,18 @@ core::Status<> BnetFsm::on(const GameReport&) {
 }
 
 core::Status<> BnetFsm::on(const MapAuthReq1&) {
-    return require_clan_state(state_, "bnet fsm: MAPAUTHREQ1 before login");
+    auto s = require_clan_state(state_, "bnet fsm: MAPAUTHREQ1 before login");
+    if (!s) return s;
+    // The oracle always answers; with no per-connection game/map state tracked
+    // at the protocol layer the not-in-a-game path applies, response = NO.
+    return ctx_->send(ServerMessage{MapAuthReply1{kMapAuthReply1ResponseNo}});
 }
 
 core::Status<> BnetFsm::on(const MapAuthReq2&) {
-    return require_clan_state(state_, "bnet fsm: MAPAUTHREQ2 before login");
+    auto s = require_clan_state(state_, "bnet fsm: MAPAUTHREQ2 before login");
+    if (!s) return s;
+    // Mirror MapAuthReq1: oracle unconditionally replies, NO when not in a game.
+    return ctx_->send(ServerMessage{MapAuthReply2{0u}});
 }
 
 }  // namespace pvpgn::protocol::bnet
