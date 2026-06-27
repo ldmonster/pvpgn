@@ -853,11 +853,20 @@ core::Status<> BnetFsm::handle_who(std::string_view args) {
         // EID_INFO (describe_command), not an error.
         return info(kEidInfo, "Usage: /who <channel>");
     }
+    auto channel_not_found = [&]() {
+        // The original sends two EID_ERROR lines for an unknown channel: the
+        // "does not exist" notice followed by a hint about /whois.
+        if (auto r = info(kEidError, "That channel does not exist."); !r)
+            return r;
+        return info(kEidError,
+                    "(If you are trying to search for a user, use the /whois "
+                    "command.)");
+    };
     if (!use_cases_.channel_reader) {
-        return info(kEidError, "That channel does not exist.");
+        return channel_not_found();
     }
     auto ch = use_cases_.channel_reader->find_by_name(chan);
-    if (!ch) return info(kEidError, "That channel does not exist.");
+    if (!ch) return channel_not_found();
     std::string text = "Users in channel " + chan + ":";
     for (const auto& mid : ch.value().member_ids()) {
         std::string nm;

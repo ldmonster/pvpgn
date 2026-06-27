@@ -2316,3 +2316,14 @@ Guard: tests/diff/diff_wol_topic_persist.py (A sets topic + disconnects, B
 re-joins, both 332 == SecretTopic123) PASSES on both servers. Full suite
 3203/3203 green; diff_wol_topic / diff_wol_topic_extraparam /
 diff_wol_topic_notonchan / diff_wol_part still match the oracle.
+
+## Wave 128
+/who on a nonexistent channel now emits TWO EID_ERROR (0x13) lines to match the
+oracle (_handle_who_command): "That channel does not exist." followed by the
+hint "(If you are trying to search for a user, use the /whois command.)". v3's
+BnetFsm::handle_who previously sent only the first line. Both the no-reader and
+the find_by_name-miss paths now route through a shared channel_not_found lambda
+that emits both lines (hint sent only for the not-found case, not banned-from).
+Guard: tests/diff/diff_who_nonexistent.py asserts both servers emit exactly two
+EID_ERROR and zero EID_INFO for "/who <bogus>" — PASSES on both. Full suite
+3203/3203 green; diff_whoami / diff_channelcmds still match the oracle.
