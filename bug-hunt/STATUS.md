@@ -2772,3 +2772,27 @@ intentional deviation, untouched. Verified with scratchpad probe_wol_join_bcast.
 tests/diff/diff_wol_join_broadcast.py (member_sees_join / joiner_self_echo /
 no_self_dup_to_others all oracle==v3). Build clean (-Werror); full unit suite
 green (3204/3204); diff_wol_part / diff_wol_kick / diff_wol_names still match.
+
+## Wave 151
+A successful chat /unsquelch (or /unignore) of a user who is currently online
+must emit a trailing EID_USERFLAGS (0x09) naming that user. The oracle
+_handle_unsquelch_command (command.cpp), on the removal-succeeded branch
+(conn_del_ignore() >= 0), sends EID_INFO "No longer ignoring." and then, ONLY
+when account_get_conn(target) != NULL (target online), a trailing EID_USERFLAGS
+carrying the now-unignored user's chat name, channel flags and statstring as the
+text (message_type_userflags appends chatcharname + playerinfo). v3's
+BnetFsm::handle_squelch (src/protocol/bnet/src/fsm/fsm_chat.cpp) sent only the
+EID_INFO and omitted the 0x09 entirely. Decisive probe (alice /squelch bob then
+/unsquelch bob with bob online): ORACLE -> [0x12 "No longer ignoring.", 0x09
+un='bob' flags=0 text='BOON' (bob statstring)]; V3 -> [0x12 only]. Fix: in
+handle_squelch on the !add success branch (unsquelch returned removed==true),
+after the EID_INFO, check target online via session_registry->session_for(target)
+and, only if online, send one EID_USERFLAGS{username=target display name}. The
+gavel flag (0x02) is computed by scanning channel_reader for the target's current
+channel operator status; the statstring text is left empty (v3 tracks none here).
+Gated exactly like the oracle: emitted ONLY on successful removal AND only for an
+online target — NEVER on the "User was not being ignored." branch nor for an
+offline target. Build clean (-Werror); full unit suite green (3204/3204); new
+tests/diff/diff_unsquelch_userflags.py (first_uf_count / first_uf_names_bob /
+second_uf_count all oracle==v3) passes; diff_squelch / diff_unsquelch_ghost still
+match.

@@ -1198,8 +1198,50 @@ core::Status<> BnetFsm::handle_squelch(std::string_view args, bool add) {
     }
     const bool removed =
         use_cases_.ignore_store->unsquelch(current_account_id_, target);
-    return info(kEidInfo,
-                removed ? "No longer ignoring." : "User was not being ignored.");
+    if (!removed) {
+        return info(kEidInfo, "User was not being ignored.");
+    }
+    if (auto s = info(kEidInfo, "No longer ignoring."); !s) return s;
+    // Oracle: on a successful removal AND only when the target is currently
+    // online, _handle_unsquelch_command emits a trailing EID_USERFLAGS (0x09)
+    // naming the now-unignored user. It is NOT sent for the
+    // "User was not being ignored." branch nor for an offline target.
+    const bool online = use_cases_.session_registry &&
+                        use_cases_.session_registry->session_for(target).has_value();
+    if (!online) {
+        return core::ok();
+    }
+    // Channel operator (gavel) flag: the original carries the target's current
+    // channel/user flags. The first user of a non-permanent channel is its
+    // operator (MF_GAVEL 0x02); everyone else is a normal user (0).
+    std::uint32_t target_flags = 0x00u;
+    if (use_cases_.channel_reader) {
+        use_cases_.channel_reader->forEach(
+            [&](const domain::chat::Channel& c) {
+                for (const auto& mid : c.member_ids()) {
+                    if (mid.value() == target.value()) {
+                        if (c.operator_id() &&
+                            c.operator_id()->value() == target.value()) {
+                            target_flags = 0x02u;
+                        }
+                        return false;  // found target's channel — stop
+                    }
+                }
+                return true;
+            });
+    }
+    // The text is the target's playerinfo/statstring; v3 does not track one
+    // here, so it is left empty (the EID kind + username are the load-bearing,
+    // cleanly-diffable parts).
+    return ctx_->send(ServerMessage{ChatEvent{
+        /*event_id*/    kEidUserFlags,  // EID_USERFLAGS (0x09)
+        /*flags*/       target_flags,
+        /*ping_ms*/     0,
+        /*user_ip*/     0x00000000u,
+        /*acct_number*/ kChatEventAcctNum,
+        /*registration*/kChatEventRegAuth,
+        /*username*/    name,
+        /*text*/        ""}});
 }
 
 std::vector<domain::SessionId> BnetFsm::filter_squelched(
