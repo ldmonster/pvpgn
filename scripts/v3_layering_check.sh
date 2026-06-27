@@ -99,8 +99,7 @@ emit() {
 #                                      ITeamRepository, IMailStore, MailMessage
 #   domain/ladder/ports.hpp        <- ILadderRepository
 #   domain/matchmaking/ports.hpp   <- IAnonGameCompressor
-#   domain/connection/ports.hpp    <- IConnectionEgress, IConnectionHandler,
-#                                      IMessageRouter
+#   domain/connection/ports.hpp    <- IConnectionEgress, IMessageRouter
 #
 # TODO (future lint rule): warn when new code includes from application/ports/
 # for any of the above moved headers. The shims handle backward compat for

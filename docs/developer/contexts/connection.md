@@ -28,11 +28,11 @@ the exit point for all outbound messages.
 | Interface | Purpose |
 |-----------|---------|
 | `IConnectionEgress` | Write a serialised packet buffer to a specific `ConnectionId` |
-| `IConnectionHandler` | Callback invoked by the I/O layer when a packet arrives |
 | `IMessageRouter` | Dispatch a decoded `Message` to the appropriate use case |
 
-The I/O layer (`src/infra/net/`) implements `IConnectionEgress` and calls `IConnectionHandler`
-on each received packet. The application layer implements `IMessageRouter`.
+The I/O layer (`src/infra/net/`) implements `IConnectionEgress` to send bytes; inbound
+bytes are driven into the per-connection FSM session contexts (`tcp_session.hpp`,
+`session_context_impl.hpp`). The application layer implements `IMessageRouter`.
 
 ## Key Use Cases (`src/application/connection/`)
 
@@ -45,8 +45,8 @@ on each received packet. The application layer implements `IMessageRouter`.
 
 ## Where to Add New Features
 
-- **New protocol family** → implement `IConnectionHandler` for the new protocol; register in the
-  I/O acceptor factory in `src/infra/net/`
+- **New protocol family** → add a per-connection FSM session context (see `tcp_session.hpp` /
+  `session_context_impl.hpp`); register in the I/O acceptor factory in `src/infra/net/`
 - **New egress message type** → add a serialiser in `src/protocol/<family>/`; call via `IConnectionEgress`
 - **Connection-level metrics** → emit via `core::IMetricsRegistry` inside `AcceptConnectionUseCase`
   and `CloseConnectionUseCase`

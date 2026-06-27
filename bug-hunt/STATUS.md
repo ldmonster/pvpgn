@@ -2836,3 +2836,18 @@ correct on_join 403 caller (wol_chat.cpp:321) and the 401 callers. Build clean
 extended tests/diff/diff_wol_chanchk_host.py to compare the full
 server-name-normalized 461/403 lines (not just the numeric code) — oracle==v3;
 diff_wol_part still matches.
+
+## Wave 154
+Dead-code removal: excised the dead abstract port `IConnectionHandler` (class
+block, ports.hpp:46-74) from src/domain/connection/include/domain/connection/ports.hpp.
+The interface had zero implementations, zero consumers, zero tests — protocols are
+wired through the sibling `IConnectionEgress` port plus the per-connection FSM
+session contexts (tcp_session.hpp, session_context_impl.hpp), never through
+IConnectionHandler. `grep -rIn IConnectionHandler` over src/tests now returns
+nothing; the two live siblings in the same header (IConnectionEgress,
+IMessageRouter) are retained. Because the type was never instantiated, removal
+changes no object code (byte-identical on both servers). Also scrubbed the stale
+references in docs/developer/contexts/connection.md (rows 31/34/48) and
+scripts/v3_layering_check.sh (line 102). Build clean (-Werror); full unit suite
+green (3204/3204); diff_all_clients 19/19 oracle==v3 and diff_concurrent_login
+still match — confirming the connection layer is behaviorally unchanged.

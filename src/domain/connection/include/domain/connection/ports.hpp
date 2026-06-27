@@ -44,36 +44,6 @@ protected:
 };
 
 // ---------------------------------------------------------------------------
-// IConnectionHandler
-// ---------------------------------------------------------------------------
-
-/// Ingress side of a single client connection. Implementations consume
-/// inbound bytes, decode framed messages, and write responses via the
-/// `IConnectionEgress` supplied at `start()`.
-class IConnectionHandler {
-public:
-    virtual ~IConnectionHandler() = default;
-
-    IConnectionHandler(const IConnectionHandler&)            = delete;
-    IConnectionHandler& operator=(const IConnectionHandler&) = delete;
-    IConnectionHandler(IConnectionHandler&&)                 = delete;
-    IConnectionHandler& operator=(IConnectionHandler&&)      = delete;
-
-    /// Invoked once when the connection is ready. The egress reference
-    /// must outlive the handler's use of it.
-    virtual void start(IConnectionEgress& egress) = 0;
-
-    /// Feed inbound bytes from the transport into the handler.
-    virtual void on_bytes(core::ByteView bytes) = 0;
-
-    /// Notify the handler that the peer has closed the connection.
-    virtual void on_close() = 0;
-
-protected:
-    IConnectionHandler() = default;
-};
-
-// ---------------------------------------------------------------------------
 // IMessageRouter
 // ---------------------------------------------------------------------------
 
