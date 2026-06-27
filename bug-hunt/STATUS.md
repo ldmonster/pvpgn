@@ -2057,3 +2057,22 @@ existed (codec_legacy_ols.cpp, messages_legacy.hpp); only handler wiring changed
 New guard tests/diff/diff_compinfo.py byte-compares the constant 16-byte COMPREPLY
 and asserts SESSIONKEY1/2 SID+length against the oracle (PASS). 3199/3199 unit
 tests green; diff_ols_login and diff_dup_create still match the oracle.
+
+## Wave 116 (LANDED) — Remove dead runtime/ composition-root scaffolding (11 files)
+An 11-file cluster under src/runtime/ was genuinely dead: never compiled, never
+included. The runtime STATIC lib (src/CMakeLists.txt) only lists service_host.cpp,
+peer_link.cpp, cli.cpp, daemonize.cpp, crash_handler.cpp (+win_service.cpp on WIN32);
+there is no GLOB anywhere. Confirmed: 0 hits in build/v3-dev/compile_commands.json and
+0 .o files for each of capability_token / health_check / service_config_loader /
+service_logger / service_metrics. Each of the 6 headers (those 5 + composition_root.hpp)
+was #included only by its own .cpp (composition_root.hpp by nothing). Two apparent
+external refs were false positives: NetworkConfig resolves to
+pvpgn::infra::config::NetworkConfig (server_config.hpp), and the CapabilityToken used by
+peer_link_test.cpp is the DIFFERENT live struct in runtime/peer_link.hpp:63 (encode/
+decode), not the dead sign/verify class — both declared pvpgn::runtime::CapabilityToken,
+a latent ODR hazard now eliminated. REMOVED: src/runtime/src/{capability_token,
+health_check,service_config_loader,service_logger,service_metrics}.cpp and
+src/runtime/include/runtime/{capability_token,health_check,service_config_loader,
+service_logger,service_metrics,composition_root}.hpp. No CMakeLists/include edits needed.
+Rebuild = "ninja: no work to do" (TUs never entered any target). 3199/3199 unit tests
+green; diff_chat and diff_concurrent_login still match the oracle.
