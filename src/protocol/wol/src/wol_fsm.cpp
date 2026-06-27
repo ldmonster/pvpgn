@@ -28,6 +28,7 @@
 #include "application/game/wol_game_store.hpp"
 #include "application/game/wol_user_flags_store.hpp"
 #include "core/error.hpp"
+#include "core/version.hpp"
 #include "domain/connection/peer_address_store.hpp"
 #include "domain/identity/ports.hpp"
 #include "wol_fsm/wol_internal.hpp"
@@ -316,6 +317,50 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         }
         return send_numeric(439, nick_.empty() ? "*" : nick_,
                             std::string(cmd) + " :ID does not exist");
+    }
+
+    // COPYRIGHT / WARRANTY / LICENSE / VERSION: the original routes these through
+    // its chat-command handler (_handle_copyright_command / _handle_version_command),
+    // which for a WOL connection renders each output line as a PAGE. v3 had let
+    // them fall through to "Unknown command.". Emit the same GPL block / version.
+    if (cmd == "COPYRIGHT" || cmd == "WARRANTY" || cmd == "LICENSE") {
+        static constexpr const char* kCopyright[] = {
+            " Copyright (C) 2002 - 2014  See source for details",
+            " ",
+            " PvPGN is free software; you can redistribute it and/or",
+            " modify it under the terms of the GNU General Public License",
+            " as published by the Free Software Foundation; either version 2",
+            " of the License, or (at your option) any later version.",
+            " ",
+            " This program is distributed in the hope that it will be useful,",
+            " but WITHOUT ANY WARRANTY; without even the implied warranty of",
+            " MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the",
+            " GNU General Public License for more details.",
+            " ",
+            " You should have received a copy of the GNU General Public License",
+            " along with this program; if not, write to the Free Software",
+            " Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.",
+        };
+        const std::string who = nick_.empty() ? "*" : nick_;
+        for (const char* cline : kCopyright) {
+            std::string p = ":";
+            p += ctx_->server_name();
+            p += " PAGE ";
+            p += who;
+            p += " :";
+            p += cline;
+            if (auto s = send_raw(p); !s) return s;
+        }
+        return core::ok();
+    }
+    if (cmd == "VERSION") {
+        std::string p = ":";
+        p += ctx_->server_name();
+        p += " PAGE ";
+        p += nick_.empty() ? "*" : nick_;
+        p += " :PvPGN ";
+        p += core::kVersionString;
+        return send_raw(p);
     }
 
     // WOL-specific commands that we acknowledge but don't fully implement yet.

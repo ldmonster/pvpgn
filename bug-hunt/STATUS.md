@@ -2925,3 +2925,13 @@ applied serially (build + unit 3204 + per-fix diff, all green):
 - w160 (fsm_auth.cpp): SID_CREATE_ACCT1 username >32 bytes is dropped with NO reply
   (oracle UNCHECKED_NAME_STR cap), not answered NO [diff_create_overlong].
 - w161 (dead code): removed unreferenced d2dbs GameResultData struct.
+
+## Wave 162: WOL COPYRIGHT/WARRANTY/LICENSE/VERSION (was "Unknown command.")
+The original routes these verbs through its chat-command handler, rendering each
+output line as a PAGE: COPYRIGHT/WARRANTY/LICENSE emit the 15-line GPL block,
+VERSION emits "PvPGN <version>". v3 had let them fall through to the
+"Unknown command." PAGE. Added handlers in WolFsm::dispatch_line emitting the same
+PAGE lines (GPL block byte-identical to the BNCS handle_copyright table; version
+from core::kVersionString). diff_wol_copyright.py: 15 copyright pages + 1 version
+page, matching the oracle. (Applied directly by the orchestrator during a transient
+agent-API rate-limit; round-2 finders had hit a rate limit + classifier outage.)
