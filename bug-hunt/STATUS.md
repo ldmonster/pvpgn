@@ -5,6 +5,29 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 104 (LANDED) — WOL TOPIC uses the IRC trailing param (extra middle params discarded)
+DIVERGENCE (wrong topic text), another WOL fuzz item flagged in wave 93. A real
+IRC line is "<cmd> <middle params...> :<trailing>". The original's line tokeniser
+(handle_irc_common.cpp) splits a TOPIC line into middle params plus a single
+trailing ":" parameter, and _handle_topic_command sets the channel topic from that
+TRAILING text alone — any extra middle params between the channel name and the ":"
+are discarded. v3's WolFsm::on_topic (wol_fsm/wol_chat.cpp) instead took
+everything after the channel TOKEN as the topic, so `TOPIC #c extra :the topic`
+stored the topic as "extra :the topic" instead of "the topic". Probe:
+`TOPIC #Lob extra :new topic here` -> oracle "332 ... #Lob :new topic here",
+v3 "332 ... #Lob :extra :new topic here".
+Fix: on_topic now extracts the topic as the IRC trailing parameter (the text after
+the first " :" — verbatim, no trim, mirroring the original's raw post-colon
+pointer). When there is no trailing " :" there is no topic to set, so we fall
+through to the safe QUERY path; the original instead CRASHES on a colon-less
+"TOPIC #c" (std::string(NULL) deref), which v3 deliberately does not replicate.
+The normal single-param form (`TOPIC #c :text`) is unaffected.
+New guard tests/diff/diff_wol_topic_extraparam.py: `TOPIC #TX extra :TheTopic`
+must store/echo only "TheTopic" (332 set echo + persisted 332 seen by a later
+joiner) on both servers — match (before: v3 stored "extra :TheTopic"). 3199/3199
+units green; WOL diff regression (topic, topic_notonchan, chat, part, kick, mode)
+all still match the oracle.
+
 ## Wave 103 (LANDED) — WOL TOPIC for a channel you're not on -> 442 (was a 332 echo)
 DIVERGENCE (wrong reply numeric), one of the WOL fuzz items flagged in wave 93.
 The original (_handle_topic_command, irc.cpp, WOL branch) persists the topic on

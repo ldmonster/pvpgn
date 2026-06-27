@@ -427,16 +427,24 @@ core::Status<> WolFsm::on_topic(std::string_view params) {
     }
     const std::string chan_disp{chan_sv};  // keep '#'
 
-    // Topic text, if supplied (everything after the channel token; ':' stripped).
+    // Topic text is the IRC *trailing* parameter (everything after the first
+    // " :"), NOT simply everything after the channel token. The original's line
+    // tokeniser (handle_irc_common.cpp) splits a command line into middle params
+    // plus a single trailing ":" parameter, and _handle_topic_command sets the
+    // channel topic from that trailing text alone; any extra middle params
+    // between the channel name and the ":" are discarded. Matching this means
+    //   "TOPIC #c extra :the topic"  sets the topic to "the topic"
+    // (not "extra :the topic"). The trailing text is taken verbatim (no trim),
+    // mirroring the original which passes the raw post-colon pointer through.
+    // With no trailing " :" there is no topic to set, so we fall through to the
+    // safe QUERY path — the original instead crashes on a colon-less
+    // "TOPIC #c" (std::string(NULL) deref), which v3 deliberately does not
+    // replicate.
     bool has_topic = false;
     std::string new_topic;
-    if (auto sp = params.find(' '); sp != std::string_view::npos) {
-        auto rest = trim(params.substr(sp + 1));
-        if (!rest.empty()) {
-            has_topic = true;
-            if (rest[0] == ':') rest.remove_prefix(1);
-            new_topic = std::string(rest);
-        }
+    if (auto cpos = params.find(" :"); cpos != std::string_view::npos) {
+        has_topic = true;
+        new_topic = std::string(params.substr(cpos + 2));
     }
 
     if (has_topic) {
