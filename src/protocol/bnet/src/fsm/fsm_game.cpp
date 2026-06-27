@@ -23,9 +23,27 @@ namespace pvpgn::protocol::bnet {
 
 // --- Game-lifecycle handlers with state transitions -----------------------
 
+// CLIENT_STARTGAME{1,3}_STATUSMASK / _STATUS_DONE from the original protocol.
+// Mask off the low nibble and compare against the "game finished" status.
+namespace {
+constexpr std::uint32_t kStartGameStatusMask = 0x0000000fu;
+constexpr std::uint32_t kStartGameStatusDone = 0x0000000cu;
+}  // namespace
+
 core::Status<> BnetFsm::on(const StartGame1Request& m) {
     auto s = require_clan_state(state_, "bnet fsm: STARTGAME1 before login");
     if (!s) return s;
+
+    // Mirror the original (_client_startgame1): a status update for an already
+    // hosted game (or a DONE for a game that no longer exists) is silent — the
+    // server only ACKs when it actually creates a game. We only host on the
+    // STARTGAME4 path, so here current_game_id_ is never set; suppress the
+    // spurious ACK for the "finished/destroyed game" status and reply nothing,
+    // matching the oracle's "client tried to set game status DONE" log path.
+    if (current_game_id_.value() != 0
+        || (m.status & kStartGameStatusMask) == kStartGameStatusDone) {
+        return core::ok();
+    }
 
     if (!use_cases_.start_game) {
         // No start_game use-case available - accept the request with fallback
@@ -56,6 +74,13 @@ core::Status<> BnetFsm::on(const StartGame1Request& m) {
 core::Status<> BnetFsm::on(const StartGame3Request& m) {
     auto s = require_clan_state(state_, "bnet fsm: STARTGAME3 before login");
     if (!s) return s;
+
+    // Same gating as STARTGAME1 (see above): silent for already-hosted games and
+    // for the DONE status against a non-existent game.
+    if (current_game_id_.value() != 0
+        || (m.status & kStartGameStatusMask) == kStartGameStatusDone) {
+        return core::ok();
+    }
 
     if (!use_cases_.start_game) {
         // No start_game use-case available - accept the request with fallback

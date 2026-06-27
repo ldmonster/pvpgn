@@ -1,5 +1,21 @@
 # Bug Hunt — Status (final summary)
 
+## Wave 121 (LANDED) — SID_STARTGAME1/STARTGAME3 status=DONE must not ACK
+DIVERGENCE (bncs-opcode). BnetFsm::on(StartGame1Request)/on(StartGame3Request)
+ignored the inbound `status` field and UNCONDITIONALLY sent a SID_STARTGAME1
+(0x08)/SID_STARTGAME3 (0x1A) ACK. The oracle (_client_startgame1/3,
+handle_bnet.cpp:4055-4180) only ACKs when the conn has NO current game AND
+(status & 0x0f) != CLIENT_STARTGAME{1,3}_STATUS_DONE (0x0c); a DONE status with
+no game is logged ("client tried to set game status DONE to destroyed game") and
+gets NO reply, and an already-hosted game just updates its status silently.
+Decisive observable post full-login: status=DONE(0x0c) -> oracle 0 packets, v3
+sent a spurious 0x08/0x1A ACK (body 01000000). FIX (fsm_game.cpp): before the
+ACK path in both handlers, return core::ok() with no reply when
+current_game_id_ != 0 or (status & 0x0f) == 0x0c. status=OPEN(0x04) still ACKs
+(unchanged). New guard tests/diff/diff_startgame_done.py asserts DONE silent +
+OPEN acked on both servers for STARTGAME1 and STARTGAME3. 3199/3199 unit tests
+green; diff_gamelist / diff_game_disconnect still match the oracle.
+
 ## Wave 115 (LANDED) — WOL ladder verbs (HIGHSCORE/LISTSEARCH/RUNGSEARCH) must destroy the connection
 DIVERGENCE (connection lifecycle). The oracle's WOL ladder-server handlers
 (handle_wol.cpp) close (destroy) the client connection in backend-independent
