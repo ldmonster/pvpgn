@@ -5,6 +5,21 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 99 (LANDED) — removed dead ServerMetrics aggregator (infra/metrics)
+Dead-code removal. `infra/metrics/src/server_metrics.cpp` +
+`include/infra/metrics/server_metrics.hpp` defined `ServerMetrics` (a struct of
+shared_ptr metric handles + a single static `ServerMetrics::create(registry)`
+factory that registers ~15 named server metrics). Proven dead: grep over src+tests
+showed `ServerMetrics`/`server_metrics.hpp` referenced NOWHERE except its own two
+files — no test, no consumer. The metrics subsystem itself is LIVE: bnetd main.cpp
+wires `InMemoryMetricsRegistry` + `HttpMetricsServer` directly, but never calls
+`ServerMetrics::create()`, so the aggregator was orphaned scaffolding within an
+otherwise-used lib. Removed the .cpp/.hpp + the `infra/metrics/src/server_metrics.cpp`
+SOURCES line in src/CMakeLists.txt (infra_metrics keeps in_memory_metrics_registry
++ http_metrics_server). Reconfigure + full relink + 3199/3199; the metrics
+registry test (test_infra_metrics_registry) still passes; diff_chat still matches
+the oracle (bnetd behaviorally unchanged — it never referenced ServerMetrics).
+
 ## Wave 98 (LANDED) — WOL MODE channel-query faithfulness (403/472 vs 324 echo)
 DIVERGENCE (wrong reply), from the wave-93 fuzz-leftover list. v3's WolFsm::on_mode
 (wol_fsm/wol_chat.cpp) channel branch echoed 324 RPL_CHANNELMODEIS "+tns" for ALL

@@ -1629,7 +1629,6 @@ pvpgn_v3_add_library(infra_metrics
     STATIC
     SOURCES
         infra/metrics/src/in_memory_metrics_registry.cpp
-        infra/metrics/src/server_metrics.cpp
         infra/metrics/src/http_metrics_server.cpp
     PUBLIC_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/infra/metrics/include
