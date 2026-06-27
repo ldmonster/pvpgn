@@ -2014,3 +2014,23 @@ the no-use-case fallback path already sent EID_CHANNEL first. New guard
 tests/diff/diff_join_channel_first_event.py asserts the first post-JOIN CHATEVENT is
 0x07 on both servers (PASS). 3199/3199 unit tests green; diff_channel_join_edges and
 diff_join_userflags still match the oracle.
+
+## Wave 114 (LANDED) — COMPINFO1 (0x05) / COMPINFO2 (0x1E) now reply (were silent no-ops)
+The legacy/OLS retail login flow (Starcraft/Diablo pre-NLS) opens with
+CLIENT_COMPINFO1 (SID 0x05). The oracle (_client_compinfo1, handle_bnet.cpp:381)
+always replies with TWO packets: SERVER_COMPREPLY (SID 0x05, 16-byte body of the
+four magic registration constants reg_version=0x00000001 / reg_auth=0xaa8843d1 /
+client_id=0x001b9dda / client_token=0xab69f79a) followed by SERVER_SESSIONKEY1
+(SID 0x28, 4-byte session key). The sibling CLIENT_COMPINFO2 (SID 0x1E) replies
+SERVER_COMPREPLY + SERVER_SESSIONKEY2 (SID 0x1D, sessionnum + sessionkey). v3
+handled both as silent no-ops (BnetFsm::on returned core::ok() with no reply),
+sending 0 bytes and stalling legacy clients. FIX: in fsm_auth.cpp, wire
+on(CompInfo1Request) to ctx_->send(CompReply{}) (defaults already equal the four
+constants) then SessionKey1, and on(CompInfo2) to CompReply{} then SessionKey2.
+The session key is a deterministic always-nonzero hash of the session id
+(legacy_session_key helper) — the oracle uses a random conn_get_sessionkey but
+only SID/length is peer-observable. Encoders/structs/variant entries already
+existed (codec_legacy_ols.cpp, messages_legacy.hpp); only handler wiring changed.
+New guard tests/diff/diff_compinfo.py byte-compares the constant 16-byte COMPREPLY
+and asserts SESSIONKEY1/2 SID+length against the oracle (PASS). 3199/3199 unit
+tests green; diff_ols_login and diff_dup_create still match the oracle.

@@ -452,12 +452,42 @@ core::Status<> BnetFsm::on(const CreateAccount2Request& m) {
         ServerMessage{CreateAccount2Reply{kCreateAccount2ResultOk}});
 }
 
-// Legacy / OLS handlers: accept as advisory pre-login messages.
-core::Status<> BnetFsm::on(const CompInfo1Request&)      { return core::ok(); }
+namespace {
+// Deterministic, always-nonzero per-session value used as the legacy/OLS
+// "session key". The oracle (conn_get_sessionkey) uses a random per-connection
+// value; only the SID/length is wire-observable to peers, so a stable nonzero
+// hash of the session id is faithful and reproducible. Distinct multiplier from
+// server_token_ so the two values do not coincide.
+std::uint32_t legacy_session_key(domain::SessionId id) {
+    return (static_cast<std::uint32_t>(id.value()) * 2246822519u) | 1u;
+}
+}  // namespace
+
+// CLIENT_COMPINFO1 (SID 0x05): first packet of the legacy/OLS retail login flow
+// (Starcraft/Diablo pre-NLS). The oracle's _client_compinfo1 always replies with
+// SERVER_COMPREPLY (the four magic registration constants) followed by
+// SERVER_SESSIONKEY1 carrying the connection's session key. v3 used to drop both
+// replies, stalling legacy clients — emit them to match.
+core::Status<> BnetFsm::on(const CompInfo1Request&) {
+    if (auto st = ctx_->send(ServerMessage{CompReply{}}); !st) {
+        return st;
+    }
+    return ctx_->send(
+        ServerMessage{SessionKey1{.sessionkey = legacy_session_key(session_id_)}});
+}
 core::Status<> BnetFsm::on(const ProgIdent&)             { return core::ok(); }
 core::Status<> BnetFsm::on(const AuthReq1&)              { return core::ok(); }
 core::Status<> BnetFsm::on(const CountryInfo1&)          { return core::ok(); }
-core::Status<> BnetFsm::on(const CompInfo2&)             { return core::ok(); }
+// CLIENT_COMPINFO2 (SID 0x1E): sibling of COMPINFO1. The oracle replies with
+// SERVER_COMPREPLY followed by SERVER_SESSIONKEY2 (sessionnum + sessionkey).
+core::Status<> BnetFsm::on(const CompInfo2&) {
+    if (auto st = ctx_->send(ServerMessage{CompReply{}}); !st) {
+        return st;
+    }
+    return ctx_->send(ServerMessage{SessionKey2{
+        .sessionnum = static_cast<std::uint32_t>(session_id_.value()),
+        .sessionkey = legacy_session_key(session_id_)}});
+}
 core::Status<> BnetFsm::on(const LoginReq1&)             { return core::ok(); }
 core::Status<> BnetFsm::on(const CreateAccount1Request& m) {
     // Legacy OLS account creation (SID_CREATEACCTREQ1). Permitted after the
