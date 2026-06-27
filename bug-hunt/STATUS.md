@@ -2948,3 +2948,21 @@ Second parallel-discovery batch (after a transient agent rate-limit cleared):
   middle-param form (channel as a param, single trailing colon) instead of the
   double-colon send_numeric produced; 475 glues "#name:Bad password" with no space
   (built via send_raw) [diff_wol_joingame_errs].
+
+## Waves 165-167: round-3 finder fixes (5 finders -> 4 applied; READUSERDATA decoder deferred)
+- w165 (wol_chat.cpp): WOL GAMEOPT to a #channel while not in any channel now
+  replies 403 ERR_NOSUCHCHANNEL instead of silently broadcasting to nobody
+  [diff_wol_gameopt_nochan].
+- w166 (fsm_chat.cpp + bnetd_service.cpp): /beep and /nobeep reply EID_INFO (were
+  the unknown-command EID_ERROR) [diff_beep]; EID_CHANNEL now carries the channel
+  type flags (CF_PUBLIC 0x01 / MODERATED 0x02 / RESTRICTED 0x04 / THEVOID 0x08 /
+  SYSTEM 0x20) mapped from the channel's domain flags, and predefined permanent
+  channels are seeded with the Public flag so they report CF_PUBLIC like the oracle
+  [diff_channel_flags, tested on the "Chat" channel both servers predefine].
+- w167 (dead code): removed unused domain::d2cs::GameInfo struct (namespace-exact
+  zero refs; distinct from connection::/game::/realm:: GameInfo).
+DEFERRED (round-3 finding, more invasive): READUSERDATA decoder is stricter than
+the oracle — a key_count larger than the keys actually present makes v3 DROP the
+packet (silent, hangs a real client) where the oracle still replies. Faithful fix
+needs the decoder to read leniently AND preserve the requested counts for the reply
+echo (message-struct change) — left for a focused follow-up.

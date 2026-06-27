@@ -859,6 +859,11 @@ core::Status<> WolFsm::on_gameopt(std::string_view params) {
         // Channel game-options: broadcast to the current channel's members
         // (the original keys off conn_get_channel, not the target name). No
         // self-echo. Mirrors channel_message_send(message_type_gameopt_talk).
+        // If the sender is not in a channel, the original replies 403
+        // ERR_NOSUCHCHANNEL rather than silently broadcasting to nobody.
+        if (channel_id_.value() == 0) {
+            return send_numeric(403, nick_, std::string(target) + " :No such channel");
+        }
         route_irc_line(line, current_channel_member_sessions(/*exclude_self=*/true));
         return core::ok();
     }
