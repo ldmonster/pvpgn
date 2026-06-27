@@ -171,6 +171,29 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
         return core::ok();
     }
 
+    // Send EID_CHANNEL event with the CANONICAL channel name (the stored name,
+    // set by the channel's creator), not the raw string this client typed. The
+    // original always echoes channel_get_name() — so joining "mychan" when the
+    // channel was created as "MyChan" reports "MyChan". The use-case resolves the
+    // canonical name in join_result.value().channel.name().
+    //
+    // ORDER MATTERS: the original (channel_add_connection, channel.cpp:460) sends
+    // message_type_channel = EID_CHANNEL as the VERY FIRST CHATEVENT, before any
+    // roster (USERFLAGS/SHOWUSER) entries. Real BNCS clients treat EID_CHANNEL as
+    // the "you are now in channel X / reset roster" signal and expect SHOWUSER
+    // entries to follow it, so EID_CHANNEL must precede the self-roster loop.
+    if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
+        /*event_id*/    kEidChannel,  // EID_CHANNEL (0x07)
+        /*flags*/       0,
+        /*ping_ms*/     0,
+        /*user_ip*/     0,
+        /*acct_number*/ 0,
+        /*registration*/0,
+        /*username*/    "",
+        /*text*/        join_result.value().channel.name()}}); !send_status) {
+        return send_status;
+    }
+
     // Send EID_SHOWUSER (0x01) for EACH member of the channel to this client,
     // INCLUDING the user who just joined — every real Battle.net client expects
     // its own entry so the joining user appears in their own channel roster (the
@@ -233,23 +256,6 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
                 return send_status;
             }
         }
-    }
-
-    // Send EID_CHANNEL event with the CANONICAL channel name (the stored name,
-    // set by the channel's creator), not the raw string this client typed. The
-    // original always echoes channel_get_name() — so joining "mychan" when the
-    // channel was created as "MyChan" reports "MyChan". The use-case resolves the
-    // canonical name in join_result.value().channel.name().
-    if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
-        /*event_id*/    kEidChannel,  // EID_CHANNEL (0x07)
-        /*flags*/       0,
-        /*ping_ms*/     0,
-        /*user_ip*/     0,
-        /*acct_number*/ 0,
-        /*registration*/0,
-        /*username*/    "",
-        /*text*/        join_result.value().channel.name()}}); !send_status) {
-        return send_status;
     }
 
     // Broadcast EID_JOIN to all other members via message_router

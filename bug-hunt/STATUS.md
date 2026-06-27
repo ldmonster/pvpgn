@@ -1999,3 +1999,18 @@ covers both SID_LEAVECHAT and disconnect-driven leaves. Mirrors the join-site fl
 computation and the /kick operator gating. New guard tests/diff/diff_leave_opflags.py
 asserts operator-leave=0x02 / normal-leave=0x00 against the oracle (PASS). Unit
 suite green (anongame/icon temp-file flakes pass on -j1); diff_leave still matches.
+
+## Wave 113 (LANDED) — JOINCHANNEL emits EID_CHANNEL (0x07) FIRST, before the self-roster
+On SID_JOINCHANNEL into a fresh channel, the oracle (channel_add_connection,
+channel.cpp:460) sends message_type_channel = EID_CHANNEL (0x07) as the VERY FIRST
+CHATEVENT, before any roster (USERFLAGS/SHOWUSER) entries. v3 emitted the self-roster
+EID_USERFLAGS(0x09)/EID_SHOWUSER(0x01) first and EID_CHANNEL dead last — an inverted
+wire-order. Real BNCS clients treat EID_CHANNEL as the "you are now in channel X /
+reset roster" signal and expect SHOWUSER entries to follow it, so v3's order was a
+fidelity bug. FIX: in BnetFsm::on(const JoinChannel&) (fsm_chat.cpp), relocate the
+EID_CHANNEL ctx_->send block to run BEFORE the self-roster member loop (just after the
+same-channel re-join no-op guard) instead of after it. Mechanical move, no new state;
+the no-use-case fallback path already sent EID_CHANNEL first. New guard
+tests/diff/diff_join_channel_first_event.py asserts the first post-JOIN CHATEVENT is
+0x07 on both servers (PASS). 3199/3199 unit tests green; diff_channel_join_edges and
+diff_join_userflags still match the oracle.
