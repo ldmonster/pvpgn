@@ -1627,40 +1627,6 @@ pvpgn_v3_add_library(infra_metrics
         Boost::system
 )
 
-# ---- infra/tracing (distributed tracing adapters: log + OTLP) -------------
-
-option(PVPGN_V3_WITH_OTLP
-    "Build the OTLP/HTTP trace exporter (requires Boost.Beast)"
-    OFF)
-
-set(_tracing_sources
-    infra/tracing/src/log_trace_sink.cpp
-)
-if(PVPGN_V3_WITH_OTLP)
-    list(APPEND _tracing_sources infra/tracing/src/otlp_trace_sink.cpp)
-endif()
-
-pvpgn_v3_add_library(infra_tracing
-    STATIC
-    SOURCES
-        ${_tracing_sources}
-    PUBLIC_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/infra/tracing/include
-    PUBLIC_DEPS
-        core
-        application_ports
-    DEPS
-        spdlog::spdlog
-)
-
-if(PVPGN_V3_WITH_OTLP)
-    target_compile_definitions(infra_tracing PUBLIC PVPGN_V3_WITH_OTLP)
-    target_link_libraries(infra_tracing PRIVATE Boost::system)
-    message(STATUS "pvpgn v3: OTLP trace exporter enabled")
-else()
-    message(STATUS "pvpgn v3: OTLP trace exporter disabled (PVPGN_V3_WITH_OTLP=OFF)")
-endif()
-
 # ---- infra/webui (JSON serialisers for channel/dashboard data) ------------
 
 # Header-only sub-library: JSON serialisers that do NOT require Boost.

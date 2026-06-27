@@ -2208,3 +2208,22 @@ tests/diff/diff_wol_verchk_arity.py: both conns send `CVERS 1 1000` first
 (classes WOL), then probe; asserts 461 for 3-param/1-param/trailing-only cases
 and 379/no-op for the 2-param normal path, all matching the oracle. 3199/3199
 unit tests green; diff_wol_login / diff_wol_needmoreparams still match.
+
+## Wave 123
+Removed the dead `infra_tracing` static library (src/infra/tracing/:
+log_trace_sink.cpp + otlp_trace_sink.cpp and their headers, providing
+LogTraceSink/OtlpTraceSink implementations of the domain trace_sink port).
+It was compiled into src/libinfra_tracing.a on every build but linked by
+nothing: `infra_tracing` appeared only in its own definition block
+(src/CMakeLists.txt:1630-1662) with no DEPS/target_link_libraries consumer,
+the classes/headers were referenced nowhere outside src/infra/tracing/, and in
+build.ninja libinfra_tracing.a appeared only in its own object/link/phony rules
+plus the `src/all` aggregate — never in an executable or test link line (the
+bnetd link line had zero tracing refs). Same class of dead lib purged in waves
+75/83/91/99/116. FIX: deleted src/infra/tracing/ and the infra_tracing CMake
+block including the orphaned PVPGN_V3_WITH_OTLP option; kept the live port
+src/domain/shared/include/domain/shared/ports/trace_sink.hpp. Reconfigure +
+relink clean (-Werror), build.ninja now has zero libinfra_tracing refs,
+3199/3199 unit tests green; diff_chat / diff_channellist still match the oracle
+(bnetd never linked the lib, so wire behavior is unchanged — pure build-level
+dead-code removal).
