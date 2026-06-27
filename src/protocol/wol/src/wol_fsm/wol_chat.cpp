@@ -268,21 +268,50 @@ core::Status<> WolFsm::on_mode(std::string_view params) {
     if (target.empty()) {
         return send_needmoreparams("MODE");
     }
-    // Channel mode query. The original returns a fixed "+tns" for a plain query
-    // and an empty ban list (368) for "MODE #chan b". Mode *changes* route
-    // through the operator commands and are not handled here.
+    // Channel mode query, mirroring the original _handle_mode_command channel
+    // branch exactly:
+    //   - not on any channel              -> 403 ERR_NOSUCHCHANNEL
+    //   - numparams == 1 ("MODE #c")      -> 324 RPL_CHANNELMODEIS "+tns"
+    //   - numparams == 2 ("MODE #c b")    -> 368 RPL_ENDOFBANLIST (empty)
+    //   - numparams == 2, sub != "b"      -> 472 ERR_UNKNOWNMODE
+    //   - numparams >= 3 (mode *changes*) -> not wired here; benign 324 echo.
     if (target[0] == '#') {
-        // Second token, if any (e.g. the "b" ban-list query).
-        auto rest = params;
-        auto sp = rest.find(' ');
-        std::string_view sub =
-            (sp == std::string_view::npos) ? std::string_view{}
-                                           : trim(rest.substr(sp + 1));
-        if (!sub.empty() && (sub[0] == 'b' || sub == "+b")) {
-            // 368 RPL_ENDOFBANLIST (empty ban list).
-            return send_numeric(368, std::string(nick_) + " " + std::string(target),
-                                "End of channel ban list");
+        const std::string chan_disp{target};
+        // The original looks up conn_get_channel(conn); when the client is not on
+        // a channel it answers 403 ERR_NOSUCHCHANNEL (NOT a "+tns" query reply).
+        if (channel_id_.value() == 0) {
+            return send_numeric(403, std::string(nick_) + " " + chan_disp,
+                                "No such channel");
         }
+        // Tokenize the params after the channel name to count them the way the
+        // original's numparams does. `sub` is the first token (params[1]); a
+        // non-empty `after2` means there is a params[2] as well.
+        std::string_view after;
+        if (auto s = params.find(' '); s != std::string_view::npos) {
+            after = trim(params.substr(s + 1));
+        }
+        auto sub = trim(first_token(after));
+        std::string_view after2;
+        if (auto s2 = after.find(' '); s2 != std::string_view::npos) {
+            after2 = trim(after.substr(s2 + 1));
+        }
+        if (!sub.empty() && after2.empty()) {
+            // numparams == 2: only the literal "b" yields the ban list; every
+            // other single mode token (incl. "+b") is an unknown mode char.
+            if (sub == "b") {
+                // 368 RPL_ENDOFBANLIST (empty ban list).
+                return send_numeric(368, std::string(nick_) + " " + chan_disp,
+                                    "End of channel ban list");
+            }
+            // 472 ERR_UNKNOWNMODE. The original's text carries the leading ':'
+            // itself (irc_send), which send_numeric injects, so the wire form is
+            // ":<server> 472 <nick> :<mode> is unknown mode char to me for <chan>".
+            return send_numeric(472, nick_,
+                                std::string(sub) +
+                                    " is unknown mode char to me for " + chan_disp);
+        }
+        // numparams == 1, or numparams >= 3 (mode changes route through the
+        // operator commands and are not handled here).
         // 324 RPL_CHANNELMODEIS: the mode is a plain param (no leading ':'), so
         // build the line directly rather than via send_numeric (which adds " :").
         std::string line = ":";
@@ -290,7 +319,7 @@ core::Status<> WolFsm::on_mode(std::string_view params) {
         line += " 324 ";
         line += nick_;
         line += ' ';
-        line += std::string(target);
+        line += chan_disp;
         line += " +tns";
         return send_raw(line);
     }

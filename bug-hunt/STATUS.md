@@ -5,6 +5,26 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 98 (LANDED) — WOL MODE channel-query faithfulness (403/472 vs 324 echo)
+DIVERGENCE (wrong reply), from the wave-93 fuzz-leftover list. v3's WolFsm::on_mode
+(wol_fsm/wol_chat.cpp) channel branch echoed 324 RPL_CHANNELMODEIS "+tns" for ALL
+channel MODE queries regardless of membership, and treated "+b" as a ban-list query.
+The original _handle_mode_command (irc.cpp) channel branch instead:
+  - 403 ERR_NOSUCHCHANNEL "<#c> :No such channel" when the client is not on a channel
+    (it dereferences conn_get_channel(conn) first);
+  - 324 "+tns" only for numparams==1 ("MODE #c");
+  - 368 RPL_ENDOFBANLIST only for the literal single token "b" ("MODE #c b");
+  - 472 ERR_UNKNOWNMODE ":<mode> is unknown mode char to me for <#c>" for any other
+    single mode token (incl. "+b", "+z", ...).
+Probe confirmed: oracle gives 403 for MODE #X before JOIN, 472 for MODE #M +z and
+MODE #M +b after JOIN; v3 gave 324 (or 368 for +b). Fix tokenizes the post-channel
+params to count them (params[1]/params[2]), gates on channel_id_ for membership, and
+emits 403/472/368/324 exactly like the original. numparams>=3 mode *changes* (op/ban
+/limit) are still not wired through here (benign 324 echo as before).
+New guard tests/diff/diff_wol_mode.py: off-channel 403 (query + char), on-channel
+324/368/472(+z)/472(+b) all match the oracle. 3199/3199 units green; WOL diff
+regression (timemode, login, part, names, kick, chat) all still match the oracle.
+
 ## Wave 97 (LANDED) — SID_MOTD_W3 (0x46) welcome reply (was a silent no-op)
 DIVERGENCE (silent where oracle replies), found auditing an untested BNCS opcode
 the v3 FSM "handles". A logged-in WarCraft III client sends CLIENT_MOTD_W3 (0x46,
