@@ -84,6 +84,19 @@ core::Status<> BnetFsm::on(const StartGame4Request& m) {
     auto s = require_clan_state(state_, "bnet fsm: STARTGAME4 before login");
     if (!s) return s;
 
+    // The original (_client_startgame4, SID_STARTADVEX3 0x1C) parts the host
+    // from its current chat channel before advertising the game ("Quick hack to
+    // make W3 part channels when creating a game"). This makes the remaining
+    // channel members get EID_LEAVE and stops the host ghosting in the channel
+    // roster while it hosts. Mirror it: if we are in a channel, leave it first
+    // (on(LeaveChannel) no-ops when not actually a member, so this is safe even
+    // if the subsequent advertise fails — matching the original's unconditional
+    // part-before-process order). The later on_disconnect leave then finds
+    // nothing to remove, so there is no double broadcast.
+    if (state_ == BnetState::InChat) {
+        (void)on(LeaveChannel{});
+    }
+
     if (!use_cases_.start_game) {
         state_ = BnetState::InGame;
         return ctx_->send(ServerMessage{StartGame4Ack{0x00u}});

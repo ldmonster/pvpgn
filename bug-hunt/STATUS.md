@@ -1282,3 +1282,32 @@ marks channel_flags_permanent channels as 1, but the permanent channel set diffe
 between servers and v3's ChannelInfo carries no permanent flag, so this is not
 directly comparable. The original also appends a games list to LIST (numparams==0);
 v3 lists only channels (no WOL game list yet).
+
+## Wave 80 (LANDED) — SID_STARTADVEX3 parts the chat channel when advertising a game
+DIVERGENCE (channel-membership ghost). The original (`_client_startgame4`,
+handle_bnet.cpp:4216) unconditionally parts the host from its current channel
+BEFORE advertising the game:
+    // Quick hack to make W3 part channels when creating a game
+    if (conn_get_channel(c)) conn_part_channel(c);
+so the remaining channel members receive EID_LEAVE and the host stops ghosting in
+the channel roster while it hosts. v3's `BnetFsm::on(StartGame4Request)`
+(SID_STARTADVEX3 / kSidStartGame4 0x1C) created/advertised the game but left the
+host IN the channel — a ghost member the oracle would have removed. Discovered
+while probing the kick-old-login lifecycle (the rest of which — kick closes old
+BNCS/WOL/W3 conn, channel-leave-on-kick, game-removal-on-kick, friend
+entered/left presence on kick, squelch clear, raw-disconnect channel+game
+cleanup — all already MATCH the oracle).
+Fix (src/protocol/bnet/src/fsm/fsm_game.cpp on(StartGame4Request)): after the
+login-state check and before start_game, if state_ == InChat call on(LeaveChannel{})
+(faithful to the original's unconditional part-before-process; on(LeaveChannel)
+no-ops when not actually a member, so the later on_disconnect leave finds nothing
+and there is no double broadcast). New guard tests/diff/diff_advertise_part.py:
+A,B join #chan; A advertises a game; B must see EID_LEAVE for A — matches the
+oracle (before: v3 emitted nothing). 3199/3199 units green (load_anongame/
+icon_req_loader temp-file flakes pass -j1); diff regression set (advertise_part,
+game_disconnect, gamelist, dup_create, leave, chat, talk, multichannel,
+channellist, channel_join_edges, emote, whisper, concurrent_login) all match.
+Note: the original also parts the channel on SID_JOINGAME (0x1D, line 3983) and
+arranged-team invite (2716); v3's on(JoinGame) is still a placeholder stub
+(game_id 0) and is not cleanly diffable yet — left for a later wave. STARTGAME1
+(0x08) / STARTGAME3 (0x1A) do NOT part the channel in the original (verified).
