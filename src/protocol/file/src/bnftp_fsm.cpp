@@ -216,10 +216,23 @@ core::Status<> BnftpFsm::try_dispatch() {
     const char* fname_start = reinterpret_cast<const char*>(body + 28);
     std::size_t fname_max   = static_cast<std::size_t>(pkt_size) - 4 - 28;
     std::size_t fname_len   = ::strnlen(fname_start, fname_max);
-    std::string filename(fname_start, fname_len);
 
     // Consume the packet from the buffer.
     buf_.erase(buf_.begin(), buf_.begin() + pkt_size);
+
+    // Original parity: packet_get_str_const (src/common/packet.cpp) scans for a
+    // NUL terminator within the declared packet size and returns NULL when none
+    // is found; handle_file_packet then logs "missing or too long filename" and
+    // returns -1 WITHOUT calling file_send, so the server sends NOTHING. Match
+    // that: if strnlen consumed the whole field without finding a NUL, the
+    // filename is unterminated — emit no reply and close gracefully.
+    if (fname_len == fname_max) {
+        state_ = State::Done;
+        ctx_->close();
+        return core::ok();
+    }
+
+    std::string filename(fname_start, fname_len);
 
     // Serve the file.
     state_ = State::Serving;

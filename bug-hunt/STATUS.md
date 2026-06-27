@@ -1,5 +1,26 @@
 # Bug Hunt — Status (final summary)
 
+## Wave 133 (LANDED) — BNFTP CLIENT_FILE_REQ filename must be NUL-terminated
+DIVERGENCE (bncs-opcode). A CLIENT_FILE_REQ whose filename is NOT NUL-terminated
+within the declared packet size diverged. Oracle: packet_get_str_const
+(src/common/packet.cpp) scans for a NUL within the packet size and returns NULL
+when none is found; handle_file_packet (src/bnetd/handle_file.cpp) then logs
+"missing or too long filename" and returns -1 WITHOUT calling file_send, so the
+server sends NOTHING. v3: BnftpFsm::try_dispatch used strnlen(fname_start,
+fname_max) and, with no NUL present, took ALL remaining packet bytes as the
+filename and served the file. Decisive observable (real 38-byte f38.bin, name
+'f38.bin' filling the packet to its end with NO trailing NUL): oracle returns 0
+bytes + close; v3 returned the full 70-byte reply. Control (same name, properly
+NUL-terminated) -> identical 70-byte reply on both. FIX
+(src/protocol/file/src/bnftp_fsm.cpp): after fname_len = strnlen(...), if
+fname_len == fname_max (no NUL found within the packet) emit no reply, set
+state_=Done, ctx_->close(), return core::ok() — matching the oracle's NULL path;
+only construct the filename and serve when a NUL was actually found. New guard
+tests/diff/diff_bnftp_nonul.py asserts both servers serve the NUL-terminated
+control (70 bytes) and both send zero bytes for the unterminated request.
+3203/3203 unit tests green (one parallel-run TcpAcceptor adopt flake passes
+isolated); diff_bnftp / diff_bnftp_missing still match the oracle.
+
 ## Wave 121 (LANDED) — SID_STARTGAME1/STARTGAME3 status=DONE must not ACK
 DIVERGENCE (bncs-opcode). BnetFsm::on(StartGame1Request)/on(StartGame3Request)
 ignored the inbound `status` field and UNCONDITIONALLY sent a SID_STARTGAME1
