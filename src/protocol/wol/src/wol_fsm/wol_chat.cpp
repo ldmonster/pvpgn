@@ -1079,7 +1079,8 @@ core::Status<> WolFsm::on_host(std::string_view params) {
                                 ? std::string_view{} : params.substr(sp + 1);
     if (!text.empty() && text[0] == ':') text.remove_prefix(1);
     target = trim(target);
-    if (target.empty()) return core::ok();  // original guard
+    // The original (_handle_host_command) replies 461 when no nick is given.
+    if (target.empty()) return send_needmoreparams("HOST");
 
     if (message_router_ && auth_.account_reader && auth_.session_registry) {
         auto name = domain::UserName::parse(std::string{target});
@@ -1111,7 +1112,8 @@ core::Status<> WolFsm::on_userip(std::string_view params) {
                             "You have not registered");
     }
     auto target = trim(first_token(params));
-    if (target.empty()) return core::ok();  // original guard
+    // The original (_handle_userip_command) replies 461 when no nick is given.
+    if (target.empty()) return send_needmoreparams("USERIP");
 
     if (auth_.account_reader && peer_store_) {
         auto name = domain::UserName::parse(std::string{target});
@@ -1144,7 +1146,8 @@ core::Status<> WolFsm::on_invmsg(std::string_view params) {
     }
     // INVMSG <channel> <flag> <invited,invited2,...>
     auto tok = split_ws(params);
-    if (tok.size() < 3) return core::ok();  // original guard (numparams >= 3)
+    // The original (_handle_invmsg_command) replies 461 when fewer than 3 params.
+    if (tok.size() < 3) return send_needmoreparams("INVMSG");
 
     const std::string chan_flag =
         std::string{tok[0]} + " " + std::string{tok[1]};  // "<channel> <flag>"

@@ -1517,6 +1517,25 @@ New guard tests/diff/diff_join_userflags.py: bob sees alice's first join as
 channel_op, kick_channel, channel_kick, leave, channel_join_edges, talk, emote,
 channelcmds, whoami, squelch) all still match the oracle.
 
+## Wave 90 (LANDED) — WOL HOST/USERIP/INVMSG send 461 on missing params
+DIVERGENCE (silent where oracle replies). Three WOL verbs had a `return
+core::ok();  // original guard` short-circuit for the too-few-params case, so a
+real client got NOTHING back where the original (handle_wol.cpp) sends the
+standard ":<server> 461 <nick> <CMD> :Not enough parameters". Affected:
+on_host (HOST, needs >=1 param), on_userip (USERIP, needs >=1 param), on_invmsg
+(INVMSG, needs >=3 params) — all in wol_fsm/wol_chat.cpp. The earlier wave-77/82
+needmoreparams work and diff_wol_needmoreparams.py covered JOIN/MODE/TOPIC/KICK/
+GAMEOPT/STARTG/PAGE/ADDBUDDY/DELBUDDY/GETINSIDER/ADVERTR/FINDUSER/FINDUSEREX but
+not these three. The oracle's _handle_{host,userip,invmsg}_command each fall to an
+`else irc_send(conn, ERR_NEEDMOREPARAMS, "<CMD> :Not enough parameters")`.
+Fix: replaced the three early `return core::ok()` with
+`return send_needmoreparams("HOST"/"USERIP"/"INVMSG")`. The happy paths (host
+relay, userip lookup/401, invmsg invitee relay) are untouched.
+New guard tests/diff/diff_wol_needmoreparams2.py: sends HOST/USERIP bare and
+INVMSG with 2 params to both servers, server-name-stripped 461 lines match
+byte-for-byte (before: v3 sent nothing). 3199/3199 units green; WOL diff
+regression (needmoreparams, invmsg, userip, chat, login) all still match.
+
 ## Wave 89 (LANDED) — SID_PING (CLIENT_ECHOREPLY 0x25) must NOT be echoed back
 DIVERGENCE (spurious reply). The server sends SERVER_ECHOREQ (0x25ff) and the
 client bounces it back as CLIENT_ECHOREPLY (SID 0x25). The original's
