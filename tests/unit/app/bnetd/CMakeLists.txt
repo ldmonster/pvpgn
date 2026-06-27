@@ -92,6 +92,24 @@ target_include_directories(test_app_bnetd_irc_session
 endif()  # TARGET protocol_irc
 
 # ---------------------------------------------------------------------------
+# BnetFramer stream-framing guard tests (size lower/upper bound -> wants_close)
+# ---------------------------------------------------------------------------
+
+pvpgn_v3_add_test(test_app_bnetd_bnet_framer
+    SOURCES bnet_framer_test.cpp
+    DEPS
+        core
+        protocol_bnet
+)
+
+# BnetFramer is a header-only template living under src/main/; expose the
+# app/bnetd src/ dir so the test can #include "main/bnet_framer.hpp".
+target_include_directories(test_app_bnetd_bnet_framer
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/app/bnetd/src
+)
+
+# ---------------------------------------------------------------------------
 # BnetConnectionAdapter tests (Round 140)
 # ---------------------------------------------------------------------------
 

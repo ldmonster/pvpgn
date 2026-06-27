@@ -2249,3 +2249,30 @@ empty-body (->space->still posts->eligible) and over-long/dropped lines
 tests/diff/diff_no_one_hears.py (alone talk/emote + two-user negative) PASSES on
 both servers; 3199/3199 unit green; diff_talk / diff_emote / diff_squelch still
 match the oracle.
+
+## Wave 125
+Hardening: a BNCS bnet packet whose 16-bit header length field exceeds the
+oracle's MAX_PACKET_SIZE (3072, field_sizes.h) is treated as corrupt by the
+oracle and the connection is destroyed. packet_get_size() (common/packet.cpp)
+returns 0 for any declared size > MAX_PACKET_SIZE; in net_recv_packet() the
+freshly-read header then yields total_size==0 < header_size(4) -> "corrupted
+packet received (closing connection)" -> conn destroyed right after the header,
+before the body is read. v3's BnetFramer only guarded the LOWER bound (size<4,
+wave 118); it accepted any size up to 65535 and kept the session fully open and
+serving.
+Observable (post full BNCS login, one packet declaring N bytes): N<=3072 both
+stay alive (SID_FRIENDSLIST 0x65 still replies); N in {3073,4000,60000} ORACLE
+closes (no 0x65, EOF) while V3 stayed alive. Boundary exactly 3072.
+FIX (src/app/bnetd/src/main/bnet_framer.hpp): add
+`static constexpr std::uint16_t kMaxPacketSize = 3072;`. Valid-header path:
+after reading pkt_size, `if (pkt_size > kMaxPacketSize) { wants_close=true;
+break; }` (close BEFORE awaiting/decoding the body, matching the oracle).
+Bad-marker resync path: extend the existing size<4 check to also close when
+bad_size > kMaxPacketSize (packet_get_size returns 0 for these too regardless of
+marker, so close rather than resync). wants_close is already wired to
+session->close() in bnet_bnftp_dispatch.cpp.
+Guards: tests/diff/diff_oversize_packet.py (sizes 100/3072 stay alive, 3073/
+4000/60000 close on both servers) PASSES on both; new unit test
+tests/unit/app/bnetd/bnet_framer_test.cpp (4 cases: upper-bound close,
+boundary-3072 no-close, lower-bound close, bad-marker oversize close).
+Full suite 3203/3203 green; diff_bad_marker_resync still matches the oracle.

@@ -18,10 +18,17 @@ namespace pvpgn::app::bnetd {
 
 struct BnetFramer {
     std::vector<std::byte> buf;
-    /// Set when an unrecoverably-corrupt header (declared size < 4) is seen;
-    /// the caller should close the session, mirroring the original server which
-    /// destroys connections whose total packet size is below the header size.
+    /// Set when an unrecoverably-corrupt header (declared size < 4 or
+    /// > kMaxPacketSize) is seen; the caller should close the session, mirroring
+    /// the original server which destroys connections whose total packet size is
+    /// below the header size or above MAX_PACKET_SIZE.
     bool wants_close = false;
+
+    /// Mirrors the original server's MAX_PACKET_SIZE (field_sizes.h): any bnet
+    /// packet declaring a size above this is treated as corrupt and the
+    /// connection is destroyed (packet_get_size() returns 0 -> total_size <
+    /// header_size -> "corrupted packet received").
+    static constexpr std::uint16_t kMaxPacketSize = 3072;
 
     /// Feed raw bytes; call `fn` for each complete decoded ClientMessage.
     template <class Fn>
@@ -42,8 +49,12 @@ struct BnetFramer {
                     core::ByteView{buf.data(), buf.size()}.subspan(2, 2));
                 if (!sz) break;  // cannot happen (buf.size() >= 4) — be safe
                 const std::uint16_t bad_size = sz.value();
-                if (bad_size < protocol::BnetHeader::kSize) {
+                if (bad_size < protocol::BnetHeader::kSize ||
+                    bad_size > kMaxPacketSize) {
                     // Truly corrupt: the original destroys such connections.
+                    // packet_get_size() returns 0 both for sizes below the
+                    // header and above MAX_PACKET_SIZE, regardless of marker, so
+                    // close rather than attempting to resync.
                     wants_close = true;
                     break;
                 }
@@ -55,6 +66,14 @@ struct BnetFramer {
             }
 
             const std::uint16_t pkt_size = hdr_result.value().size;
+            if (pkt_size > kMaxPacketSize) {
+                // The original server treats any packet declaring a size above
+                // MAX_PACKET_SIZE as corrupt and destroys the connection right
+                // after reading the header, before the body arrives. Mirror that
+                // by closing now rather than waiting for/decoding the body.
+                wants_close = true;
+                break;
+            }
             if (buf.size() < pkt_size) break;  // incomplete packet
 
             // We have a complete packet — parse_packet fills header + payload.
