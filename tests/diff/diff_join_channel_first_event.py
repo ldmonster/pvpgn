@@ -13,6 +13,11 @@ This asserts STRUCTURE only: the event_id of the first post-JOIN CHATEVENT is
 0x07 on BOTH servers (server names / statstrings / tempOP notices differ and are
 not compared here — see diff_channel_join_edges.py for the canonical-name check).
 
+It additionally asserts that the EID_CHANNEL event's USERNAME field carries the
+joining user's own chat name (the original's message_bnet_format
+message_type_channel sets tname = conn_get_chatname(me); message.cpp:1187-1190),
+NOT an empty string. v3 previously hardcoded username="" for that event.
+
 Run: python3 tests/diff/diff_join_channel_first_event.py
 """
 import argparse
@@ -54,11 +59,13 @@ def _join_events(client, channel, collect=12, settle=0.6):
 
 
 def scenario(host, port):
-    alice, _ = bc.full_login(host, port, "alice", "pw")
+    alice, uniq = bc.full_login(host, port, "alice", "pw")
     events = _join_events(alice, "ZZTOPCHAN")
     alice.close()
     first_eid = events[0][0] if events else None
-    return {"first_eid": first_eid, "count": len(events)}
+    first_user = events[0][1] if events else None
+    return {"first_eid": first_eid, "first_user": first_user,
+            "uniq": uniq, "count": len(events)}
 
 
 def main():
@@ -84,6 +91,10 @@ def main():
             ("first_event_id",
              None if o["first_eid"] is None else f"0x{o['first_eid']:02x}",
              None if n["first_eid"] is None else f"0x{n['first_eid']:02x}"),
+            # The EID_CHANNEL username must equal the joiner's own chat name.
+            ("first_user_eq_self",
+             o["first_user"] == o["uniq"],
+             n["first_user"] == n["uniq"]),
         ]
         print(f"{'field':<18}{'oracle':<12}{'v3':<12}match")
         print("-" * 50)
@@ -93,11 +104,16 @@ def main():
             all_ok &= same
             print(f"{name:<18}{str(ov):<12}{str(nv):<12}{'OK' if same else 'DIFF'}")
         print()
-        success = (all_ok and o["first_eid"] == EID_CHANNEL)
+        success = (
+            all_ok
+            and o["first_eid"] == EID_CHANNEL
+            and o["first_user"] == o["uniq"]
+            and n["first_user"] == n["uniq"])
         if success:
-            print("JOINCHANNEL first CHATEVENT is EID_CHANNEL (0x07) on both servers.")
+            print("JOINCHANNEL first CHATEVENT is EID_CHANNEL (0x07) carrying the "
+                  "joiner's name on both servers.")
             return 0
-        print("FAIL: JOINCHANNEL first-event ordering divergence.")
+        print("FAIL: JOINCHANNEL first-event ordering/username divergence.")
         return 1
     finally:
         v3.stop()

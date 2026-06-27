@@ -123,7 +123,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
             /*user_ip*/     0,
             /*acct_number*/ kChatEventAcctNum,
             /*registration*/kChatEventRegAuth,
-            /*username*/    "",
+            /*username*/    current_username_,
             /*text*/        m.channel}});
     }
 
@@ -201,7 +201,7 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
         /*user_ip*/     0,
         /*acct_number*/ kChatEventAcctNum,
         /*registration*/kChatEventRegAuth,
-        /*username*/    "",
+        /*username*/    current_username_,
         /*text*/        join_result.value().channel.name()}}); !send_status) {
         return send_status;
     }

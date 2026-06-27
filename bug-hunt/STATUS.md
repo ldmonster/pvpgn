@@ -2612,3 +2612,22 @@ unaffected. New diff guard tests/diff/diff_wol_list_gamechan.py asserts the
 JOINGAME channel is absent from the 327 section while the JOIN channel is present,
 on both servers. Build clean (-Werror); unit suite 3203/3203; diff_wol_chat /
 diff_wol_gameopt also pass.
+
+## Wave 143
+Fixed: the EID_CHANNEL (SID_CHATEVENT 0x07) announcing the channel a client just
+joined carried an empty USERNAME field. The original populates it with the
+joiner's own chat name (message_bnet_format, message_type_channel case:
+tname = conn_get_chatname(me); message.cpp:1187-1190, text = channel name). v3
+hardcoded username="" for that event. Probe (alice full_login, ENTERCHAT,
+JOINCHANNEL "ZZPROBECHAN"): oracle first CHATEVENT EID=0x07 user='alice'
+text='ZZPROBECHAN'; v3 user='' (every other field already matched). Fix: in
+BnetFsm::on(const JoinChannel&) (src/protocol/bnet/src/fsm/fsm_chat.cpp) set the
+EID_CHANNEL ChatEvent username from "" to current_username_ (the joiner's chat
+name, same value already used for the self-roster SHOWUSER/USERFLAGS), at both
+the join-success path (:204) and the no-use-case fallback (:126). No backend or
+config needed. Extended diff guard tests/diff/diff_join_channel_first_event.py to
+also assert the first event's username == the logged-in name on both servers.
+Build clean (-Werror); unit suite 3203/3203; diff_join_channel_first_event /
+diff_chatevent_fields / diff_channel_join_edges all pass. (The unrelated
+EID_INFO channel-MOTD line and self-roster MF_PLUG/statstring deltas seen in the
+same join stream are backend-dependent and left aside.)
