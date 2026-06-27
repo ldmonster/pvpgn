@@ -2572,3 +2572,25 @@ non-colon PRIVMSG is NOT relayed to a second channel member. Stale PRIVMSG
 exclusion note in diff_wol_needmoreparams.py updated to point at the new test.
 Build clean (-Werror); unit suite 3203/3203; diff_wol_privmsg /
 diff_wol_needmoreparams / diff_wol_chat all pass.
+
+## Wave 141
+BNFTP unknown file packet type must not close the connection. On a BNFTP
+connection (init 0x02), when a client sends a file packet whose type is neither
+CLIENT_FILE_REQ (0x0100) nor CLIENT_FILE_REQ2 (0x0200), the oracle's
+handle_file_packet conn_state_connected default case (src/bnetd/handle_file.cpp)
+logs an error but RETURNS 0, leaving the connection in conn_state_connected so
+the next packet is parsed normally and a subsequent valid CLIENT_FILE_REQ is
+served. v3's BnftpFsm::try_dispatch instead set state_=Done and called
+ctx_->close() on the `pkt_type != kClientFileReq` branch, tearing down the
+connection BEFORE serving anything and discarding a legitimate request that
+followed. Probe (init 0x02, then type=0x9999 junk, then valid REQ for a 50-byte
+probe.bin): oracle returned 84 bytes (34-byte SERVER_FILE_REPLY, filelen=50, +50
+body) with the socket open; v3 returned 0 bytes with the socket closed. Fix:
+mirror the oracle default case — consume just the unrecognized packet
+(buf_.erase) and re-invoke try_dispatch() to parse any remaining buffered/
+subsequent packets, instead of closing. (This is distinct from the accepted
+"v3 closes after serving one file vs oracle lingers" diff, which is unchanged.)
+New diff guard tests/diff/diff_bnftp_unktype.py asserts both servers serve the
+file that follows an unknown packet type (structure-normalized, timestamp
+ignored). Build clean (-Werror); unit suite 3203/3203; diff_bnftp_unktype /
+diff_bnftp_req2 / diff_bnftp all pass.

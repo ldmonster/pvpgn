@@ -189,10 +189,15 @@ core::Status<> BnftpFsm::try_dispatch() {
     }
 
     if (pkt_type != kClientFileReq) {
-        // Unknown request type — close gracefully.
-        state_ = State::Done;
-        ctx_->close();
-        return core::ok();
+        // Unknown request type. Original parity: handle_file_packet's
+        // conn_state_connected default case logs an error but RETURNS 0,
+        // leaving the connection in conn_state_connected — the next packet
+        // is parsed normally, so a subsequent valid CLIENT_FILE_REQ is still
+        // served (src/bnetd/handle_file.cpp). Mirror that: consume just this
+        // packet, stay in AwaitingRequest, and re-dispatch any remaining
+        // buffered bytes instead of tearing the connection down.
+        buf_.erase(buf_.begin(), buf_.begin() + pkt_size);
+        return try_dispatch();
     }
 
     // Minimum body: 4*5 + 8 + 1 (NUL-terminated filename) = 29 bytes after header.
