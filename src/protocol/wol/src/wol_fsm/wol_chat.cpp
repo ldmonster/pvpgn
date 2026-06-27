@@ -226,25 +226,39 @@ core::Status<> WolFsm::on_names(std::string_view params) {
     std::string chan_name{chan_sv};
     if (!chan_name.empty() && chan_name[0] == '#') chan_name.erase(0, 1);
 
+    if (!channel_reader_) return core::ok();
+
+    // Resolve the channel. The original's _handle_names_command falls back to
+    // the connection's CURRENT channel when the requested one is unknown, and
+    // stays completely silent (no 353/366) when the user is in no channel.
+    auto ch = channel_reader_->find_by_name(chan_name);
+    if (!ch) {
+        if (state_ == WolState::InChannel && !channel_.empty()) {
+            chan_disp = channel_;
+            chan_name = channel_;
+            if (!chan_name.empty() && chan_name[0] == '#') chan_name.erase(0, 1);
+            ch = channel_reader_->find_by_name(chan_name);
+        }
+        if (!ch) return core::ok();  // nothing resolves -> emit nothing
+    }
+
     // Build the member roster; the channel operator (tmpOP) gets an '@' prefix.
     std::string members;
-    if (channel_reader_) {
-        if (auto ch = channel_reader_->find_by_name(chan_name)) {
-            const auto op = ch.value().operator_id();
-            bool first = true;
-            for (const auto& mid : ch.value().member_ids()) {
-                std::string nm;
-                if (auth_.account_reader) {
-                    if (auto a = auth_.account_reader->find_by_id(mid)) {
-                        nm = std::string(a.value().name().display());
-                    }
+    {
+        const auto op = ch.value().operator_id();
+        bool first = true;
+        for (const auto& mid : ch.value().member_ids()) {
+            std::string nm;
+            if (auth_.account_reader) {
+                if (auto a = auth_.account_reader->find_by_id(mid)) {
+                    nm = std::string(a.value().name().display());
                 }
-                if (nm.empty()) nm = std::to_string(mid.value());
-                if (!first) members += ' ';
-                first = false;
-                if (op && op->value() == mid.value()) members += '@';
-                members += nm;
             }
+            if (nm.empty()) nm = std::to_string(mid.value());
+            if (!first) members += ' ';
+            first = false;
+            if (op && op->value() == mid.value()) members += '@';
+            members += nm;
         }
     }
 

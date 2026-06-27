@@ -1892,3 +1892,18 @@ codec_realm.cpp). Same class as wave 81 (realmlist) and wave 97/motd_w3.
 New guard tests/diff/diff_charlist.py asserts both servers reply on 0x37 with
 len>=12, unknown1==0, matching count (0). diff_realmlist + diff_motd_w3 still
 match; unit suite green (anongame/icon flakes pass on -j1).
+
+## Wave 107
+WOL NAMES on an unknown channel now mirrors the oracle's fallback. The original
+_handle_names_command (handle_wol.cpp:629-656) resolves the requested channel and,
+when it does not exist, falls back to the connection's CURRENT channel
+(`if ((!channel) && (!(channel = conn_get_channel(conn)))) continue;`), replying
+with that channel's roster+name; if the user is in no channel it emits NOTHING.
+v3 (WolFsm::on_names, wol_chat.cpp) always built a roster from the REQUESTED name
+and always emitted an empty 353+366. Fix: resolve the channel via
+channel_reader_->find_by_name; on miss, substitute the current channel
+(state_==InChannel && !channel_.empty()) and rebuild from it, else return
+core::ok() silently. 353+366 now use the resolved channel's name in both numerics.
+New guard tests/diff/diff_wol_names_unknown.py asserts Case A (fallback to current
+channel name+roster, op '@'-marked) and Case B (total silence). diff_wol_names +
+diff_wol_list still match; unit suite green (3199/3199).
