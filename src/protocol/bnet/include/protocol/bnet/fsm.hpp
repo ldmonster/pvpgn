@@ -203,6 +203,13 @@ private:
     void broadcast_chat_event(const ChatEvent& ev,
                               std::span<const domain::SessionId> sessions);
 
+    /// Compute the speaker's connection flags for the current channel, as carried
+    /// in the EID_TALK/EID_EMOTE ChatEvent `flags` field. Mirrors the original's
+    /// message_bnet_format using conn_get_flags(me): the channel operator (tmpOP,
+    /// the gavel) reports MF_GAVEL (0x02); everyone else 0. No-op (0) without a
+    /// channel_reader. v3 only models the tmpOP gavel (Channel::operator_id).
+    std::uint32_t speaker_channel_flags() const;
+
     /// Notify this account's MUTUAL, currently-online friends that it has
     /// entered (`entered == true`) or left Battle.net, by whispering each of
     /// them "Your friend <me> has entered/left <server_name>." — mirroring the

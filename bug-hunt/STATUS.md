@@ -2460,3 +2460,22 @@ matching the oracle. The existing guards only asserted the PRESENCE of code
 prefix + nick stripped) equals "Channel :Users Names" on both servers.
 Build clean (-Werror); unit suite 3203/3203 green; diff_wol_list.py,
 diff_wol_list_params.py, diff_wol_names.py all pass.
+
+## Wave 135
+EID_TALK (0x05) / EID_EMOTE (0x17) dropped the speaker's channel flags. When a
+channel OPERATOR (tmpOP, MF_GAVEL=0x02) spoke, the SID_CHATEVENT other members
+received hardcoded flags=0 (fsm_chat.cpp:536 TALK broadcast, :679 EMOTE
+ChatEvent), whereas the oracle's message_bnet_format (message.cpp,
+message_type_talk/message_type_emote) sets flags = conn_get_flags(me) | dstflags
+— and the first joiner of a fresh non-permanent channel is tmpOP with
+conn_get_flags == MF_GAVEL. Probing both servers (operator "opera" speaks,
+member "memberb" reads): ORACLE TALK/EMOTE flags=0x02, V3 flags=0x00.
+FIX: new private helper BnetFsm::speaker_channel_flags() looks up the channel via
+channel_reader->find_by_id(current_channel_id_) (the handle_whoami idiom) and
+returns chat::kMfGavel (0x02) when the speaker is the channel operator, else 0;
+its result feeds the TALK broadcast and EMOTE ChatEvent `flags` in place of the
+literal 0. Latency stays 0 (v3 has no per-conn latency model; non-deterministic,
+not diffable). New guard tests/diff/diff_talk_op_flags.py asserts both servers
+send flags=0x02 on the EID_TALK and EID_EMOTE an operator's channel-mate
+receives (flags compared, latency ignored); passes. Build clean (-Werror);
+unit suite 3203/3203 green; diff_talk.py and diff_join_userflags.py still pass.

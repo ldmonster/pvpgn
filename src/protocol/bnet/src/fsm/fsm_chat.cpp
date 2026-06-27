@@ -534,7 +534,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
         broadcast_chat_event(
             ChatEvent{
                 /*event_id*/    kEidTalk,   // EID_TALK (0x05)
-                /*flags*/       0,
+                /*flags*/       speaker_channel_flags(),
                 /*ping_ms*/     0,
                 /*user_ip*/     0,
                 /*acct_number*/ kChatEventAcctNum,
@@ -644,6 +644,24 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
     return core::ok();
 }
 
+std::uint32_t BnetFsm::speaker_channel_flags() const {
+    // Mirror the original message_bnet_format (message.cpp, message_type_talk /
+    // message_type_emote): the EID_TALK/EID_EMOTE other members receive carries
+    // the speaker's conn_get_flags. v3 models only the tmpOP gavel (MF_GAVEL,
+    // 0x02): the channel's operator reports it, everyone else 0.
+    if (!use_cases_.channel_reader) {
+        return 0x00u;
+    }
+    auto chan = use_cases_.channel_reader->find_by_id(current_channel_id_);
+    if (!chan) {
+        return 0x00u;
+    }
+    const auto op = chan.value().operator_id();
+    return (op && op->value() == current_account_id_.value())
+               ? chat::kMfGavel
+               : 0x00u;
+}
+
 core::Status<> BnetFsm::handle_emote(std::string_view body) {
     auto error_to_self = [this](std::string text) -> core::Status<> {
         return ctx_->send(ServerMessage{ChatEvent{
@@ -676,8 +694,9 @@ core::Status<> BnetFsm::handle_emote(std::string_view body) {
     }
 
     const std::string body_str{body};
-    const ChatEvent emote{kEidEmote, 0, 0, 0, kChatEventAcctNum,
-                          kChatEventRegAuth, current_username_, body_str};
+    const ChatEvent emote{kEidEmote, speaker_channel_flags(), 0, 0,
+                          kChatEventAcctNum, kChatEventRegAuth,
+                          current_username_, body_str};
 
     // Unlike TALK (which the original suppresses for the speaker,
     // channel.cpp:734), an EMOTE is echoed back to the sender too — so the
