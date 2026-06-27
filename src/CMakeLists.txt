@@ -1675,7 +1675,7 @@ else()
     message(STATUS "pvpgn v3: OTLP trace exporter disabled (PVPGN_V3_WITH_OTLP=OFF)")
 endif()
 
-# ---- infra/webui (REST API server + HTML dashboard) -----------------------
+# ---- infra/webui (JSON serialisers for channel/dashboard data) ------------
 
 # Header-only sub-library: JSON serialisers that do NOT require Boost.
 # Testable without a live IoRuntime.
@@ -1687,21 +1687,6 @@ pvpgn_v3_add_library(infra_webui_json
         application_ports
         domain_chat
 )
-
-if(PVPGN_V3_WITH_BOOST)
-    pvpgn_v3_add_library(infra_webui
-        STATIC
-        SOURCES
-            infra/webui/src/web_server.cpp
-        PUBLIC_DEPS
-            core
-            application_ports
-            infra_net
-            infra_webui_json
-        DEPS
-            Boost::system
-    )
-endif()
 
 # ---- tools (utilities for migration and administration) ----------------------
 

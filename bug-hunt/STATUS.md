@@ -1555,3 +1555,17 @@ SID_PING and asserts zero further packets on both servers — match (before: v3 
 one 0x25 back). 3199/3199 units green (load_anongame/multilocale temp-file flakes
 pass -j1); diff regression set (chat, w3_login, ols_login, whisper,
 concurrent_login) all still match the oracle.
+
+## Wave 91: removed dead infra/webui web_server (unlinked Boost HTTP lib)
+Dead-code removal. The `infra_webui` STATIC lib (src/CMakeLists.txt, the
+`if(PVPGN_V3_WITH_BOOST)` block) compiled `infra/webui/src/web_server.cpp` but no
+target linked it (libinfra_webui.a was built then dropped on the floor). Proven
+dead: `grep -rn infra_webui` over src/tests showed only the lib definition; no
+DEPS/target_link references it; `web_server.hpp`/`dashboard_html.hpp`/`WebServer`
+referenced nowhere outside infra/webui/src/web_server.cpp; the only webui test
+(channel_json) links the separate INTERFACE lib `infra_webui_json`. Removed the
+STATIC-lib CMake block + web_server.cpp + web_server.hpp + dashboard_html.hpp.
+KEPT `infra_webui_json` + channel_json.hpp (LIVE, tested). Reconfigure + full
+relink + 3199/3199 (load_anongame_infos temp-file flake passes -j1);
+channel_json test still 25 assertions green; diff_chat still matches the oracle
+(bnetd never linked infra_webui, so the binary is behaviorally unchanged).

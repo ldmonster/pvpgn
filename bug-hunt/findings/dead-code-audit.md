@@ -139,3 +139,18 @@ classes referenced nowhere outside their dir, no test dir, persistence
 backend_registration/adapter_registry don't reference it. Reconfigure + full
 relink + 3199/3199; bnetd never linked it (binary behaviorally unchanged,
 diff_chat still matches the oracle).
+
+## UPDATE wave 91: removed infra/webui web_server (unlinked Boost HTTP lib)
+Removed the `infra_webui` STATIC lib (src/CMakeLists.txt WITH_BOOST block) +
+src/infra/webui/src/web_server.cpp + include/infra/webui/{web_server,dashboard_html}.hpp.
+Proven dead: no target links infra_webui (only infra_webui_json INTERFACE lib is
+linked, by the channel_json test); web_server.hpp/WebServer/dashboard_html
+referenced nowhere outside web_server.cpp. KEPT infra_webui_json + channel_json.hpp
+(LIVE, tested). Reconfigure + full relink + 3199/3199; diff_chat still matches.
+Still NOT removed (need care): infra/crypto {peerchat.cpp/PeerchatCipher,
+wol_hash.cpp/wol_hash} — compiled into the LIVE infra_crypto lib but referenced
+nowhere (no consumer, no test); these are clean Battle.net/WOL primitive
+reimplementations that look like intentional migration scaffolding ("legacy
+headers stay until every consumer switched") — flag for a product decision before
+purging. infra/metrics/server_metrics.cpp (ServerMetrics referenced only within
+its own TU; lib itself is tested) also a candidate but needs per-TU care.
