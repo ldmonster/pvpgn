@@ -2670,3 +2670,22 @@ emit a PAGE targeting the nick. Extended guard tests/diff/diff_wol_unknown.py
 with after.has_page_to_nick (verb + target only; localized text not compared).
 Build clean (-Werror); unit suite 3203/3203 green; diff_wol_page /
 diff_wol_prelogin_gating still match the oracle.
+
+## Wave 146
+Dead-code removal: deleted the two compiled-but-unconsumed translation units in
+the live infra_crypto static lib — PeerchatCipher (peerchat.cpp/.hpp, the
+GameSpy/peerchat XOR-KSA stream cipher) and the free function wol_hash
+(wol_hash.cpp/.hpp, the WOL APGAR 8-byte hash). grep across src/ and tests/
+found only self-references (header decl + cpp impl + the CMake source lines + a
+stale comment); no consumer and no unit test ever existed (tests/unit/infra/
+crypto/ has bnet_hash/bnet_srp3/nls only — the wol_hash.hpp comment claiming
+"parity tests against pvpgn::wol_hash" referenced tests that were never written).
+The linker already excluded both: nm -C on the prebuilt bnetd showed 0 hits and
+no archive carried an undefined ("U") reference. Removed src/infra/crypto/src/
+{peerchat,wol_hash}.cpp + include/infra/crypto/{peerchat,wol_hash}.hpp and the
+two add_library source lines (src/CMakeLists.txt:348-349), and tidied the stale
+comments at :337-338 and :1507. Behavior-neutral by construction (the .o files
+were never linked): libinfra_crypto.a no longer contains peerchat.cpp.o /
+wol_hash.cpp.o, bnetd still has 0 references. Build clean (-Werror); unit suite
+3203/3203 green; diff_chat and diff_wol_login still match the oracle (the live
+WOL APGAR auth path uses a different impl, not the dead free function).

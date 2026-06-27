@@ -334,9 +334,8 @@ endif()
 #
 # Clean C++20 reimplementation of Battle.net cryptographic primitives
 # (Blizzard's broken-SHA1 hash, true SHA-1 helpers, ...). Replaces the
-# legacy src/common/{bnethash,bnethashconv,bnetsrp3,bigint,wolhash,
-# peerchat}.cpp. Migration is incremental -- legacy headers stay until
-# every consumer has switched.
+# legacy src/common/{bnethash,bnethashconv,bnetsrp3,bigint}.cpp. Migration
+# is incremental -- legacy headers stay until every consumer has switched.
 
 # Plan 08 / ADR 0008: the argon2id at-rest hasher is compiled only when
 # libsodium is available (SODIUM_FOUND is probed next to the `core` target
@@ -345,8 +344,6 @@ set(_infra_crypto_sources
     infra/crypto/src/bnet_hash.cpp
     infra/crypto/src/bnet_hash_conv.cpp
     infra/crypto/src/big_uint.cpp
-    infra/crypto/src/wol_hash.cpp
-    infra/crypto/src/peerchat.cpp
     infra/crypto/src/bnet_srp3.cpp
 )
 if(SODIUM_FOUND)
@@ -1504,7 +1501,7 @@ pvpgn_v3_add_library(infra_routing
 # `common` target that is never created (`add_subdirectory(common)` exists
 # nowhere), and uncompilable since Plan 02 purged their support headers
 # (common/{bn_type,eventlog,introtate,util,xstring}.h). The live v3 auth path
-# uses the src/infra/crypto reimplementations (bnet_hash / bnet_srp3 / wol_hash)
+# uses the src/infra/crypto reimplementations (bnet_hash / bnet_srp3)
 # instead. The legacy-vs-v3 parity tests went with them.
 
 # ---- integration/legacy_bnetd (DELETED in Phase 3) ----------------------
