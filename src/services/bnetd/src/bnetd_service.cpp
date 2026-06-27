@@ -132,6 +132,10 @@ BnetdService::BnetdService(
             domain::chat::ChannelPolicy policy;
             policy.flags.set(domain::chat::ChannelFlag::Permanent);
             policy.flags.set(domain::chat::ChannelFlag::AllowBots);
+            // The original sets channel_flags_public whenever a channel is
+            // permanent (channel.cpp channel_create), so the EID_CHANNEL flags
+            // carry CF_PUBLIC (0x01) for these predefined channels.
+            policy.flags.set(domain::chat::ChannelFlag::Public);
             // "The Void" is the legacy kicked/banned limbo channel: it exists
             // but the original server never advertises it in the channel list
             // (channel_flags_thevoid). Flag it so ListChannels hides it.

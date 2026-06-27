@@ -198,9 +198,21 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
     // roster (USERFLAGS/SHOWUSER) entries. Real BNCS clients treat EID_CHANNEL as
     // the "you are now in channel X / reset roster" signal and expect SHOWUSER
     // entries to follow it, so EID_CHANNEL must precede the self-roster loop.
+    // EID_CHANNEL carries the channel's type flags (the original's
+    // cflags_to_bncflags): CF_PUBLIC 0x01, CF_MODERATED 0x02, CF_RESTRICTED 0x04,
+    // CF_THEVOID 0x08, CF_SYSTEM 0x20. Temp/user channels have none of these → 0.
+    std::uint32_t chan_flags = 0;
+    {
+        const auto& jcf = join_result.value().channel.policy().flags;
+        if (jcf.has(domain::chat::ChannelFlag::Public))     chan_flags |= 0x01u;
+        if (jcf.has(domain::chat::ChannelFlag::Moderated))  chan_flags |= 0x02u;
+        if (jcf.has(domain::chat::ChannelFlag::Restricted)) chan_flags |= 0x04u;
+        if (jcf.has(domain::chat::ChannelFlag::TheVoid))    chan_flags |= 0x08u;
+        if (jcf.has(domain::chat::ChannelFlag::System))     chan_flags |= 0x20u;
+    }
     if (auto send_status = ctx_->send(ServerMessage{ChatEvent{
         /*event_id*/    kEidChannel,  // EID_CHANNEL (0x07)
-        /*flags*/       0,
+        /*flags*/       chan_flags,
         /*ping_ms*/     0,
         /*user_ip*/     0,
         /*acct_number*/ kChatEventAcctNum,
@@ -439,6 +451,16 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "unban") return handle_unban(info_args);
             if (cmd == "users" || cmd == "status") return handle_users();
             if (cmd == "time") return handle_time();
+            // /beep and /nobeep are stateless no-ops that the original answers
+            // with an EID_INFO acknowledgement (not the unknown-command error).
+            if (cmd == "beep")
+                return ctx_->send(ServerMessage{ChatEvent{
+                    kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum,
+                    kChatEventRegAuth, "", "Audible notification on."}});
+            if (cmd == "nobeep")
+                return ctx_->send(ServerMessage{ChatEvent{
+                    kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum,
+                    kChatEventRegAuth, "", "Audible notification off."}});
             if (cmd == "squelch" || cmd == "ignore")
                 return handle_squelch(info_args, /*add=*/true);
             if (cmd == "unsquelch" || cmd == "unignore")
