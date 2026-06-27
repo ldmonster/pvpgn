@@ -91,9 +91,29 @@ void D2CSTcpSession::start() {
     auto self = shared_from_this();
 
     tcp_->set_on_bytes([self](core::ByteView bv) {
-        // Feed raw bytes into the FSM reassembly buffer.
         const auto* data = reinterpret_cast<const uint8_t*>(bv.data());
-        auto result = self->fsm_->feed(data, bv.size());
+        size_t      size = bv.size();
+
+        // The connection opens with a single init class byte
+        // (CLIENT_INITCONN_CLASS_D2CS = 0x01) before any framed packet, like
+        // the BNCS/BNFTP listeners. Consume it once; anything else is a bad
+        // connection class and the original drops the connection.
+        if (!self->init_consumed_) {
+            if (size == 0) return;            // wait for the byte
+            if (data[0] != 0x01) {
+                std::cerr << "[d2cs] bad init class byte: "
+                          << static_cast<int>(data[0]) << "\n";
+                self->tcp_->close();
+                return;
+            }
+            self->init_consumed_ = true;
+            ++data;
+            --size;
+            if (size == 0) return;            // init byte arrived alone
+        }
+
+        // Feed the remaining raw bytes into the FSM reassembly buffer.
+        auto result = self->fsm_->feed(data, size);
         if (!result) {
             // Malformed packet or callback error — close the session.
             std::cerr << "[d2cs] session error: "

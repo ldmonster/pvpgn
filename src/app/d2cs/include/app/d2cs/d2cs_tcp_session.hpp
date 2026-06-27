@@ -134,6 +134,13 @@ private:
 
     /// Protocol layer: reassembles D2CS packets and fires callbacks.
     std::unique_ptr<protocol::d2cs::D2CSSessionFsm> fsm_;
+
+    /// A D2 client opens the connection by sending a single init class byte
+    /// (CLIENT_INITCONN_CLASS_D2CS = 0x01) BEFORE any framed packet, exactly as
+    /// it does for the BNCS/BNFTP listeners. The original d2cs consumes this in
+    /// handle_init; the FSM here only understands framed packets, so the session
+    /// strips the leading byte before feeding the stream. False until consumed.
+    bool init_consumed_ = false;
 };
 
 } // namespace pvpgn::app::d2cs

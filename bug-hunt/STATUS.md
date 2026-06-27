@@ -3027,3 +3027,29 @@ collapses to 0x00/0x01 (no 0x14 ALREADY_EXIST — needs richer domain error); D2
 char-name validation stricter than original (no -_. , max 15 vs 16); READUSERDATA
 strict key_count (drops vs oracle partial reply); WRITEUSERDATA auth_changeprofile
 (default-true, not observable under test config).
+
+## Wave 173: D2CS mock client + harness + init-byte fix
+Built the D2CS (Diablo II Character Server) mock client so the d2cs protocol
+surface becomes testable alongside BNCS/WOL/BNFTP.
+- tests/diff/d2cs_client.py: faithful mock — init class byte 0x01, [u16 size LE]
+  [u8 type] framing, LOGINREQ (full 11×u32 + secret_hash[5] + name), CREATECHARREQ
+  (chclass/u1/status u16 + name), CHARLISTREQ; reply parsers w/ result codes.
+- tests/diff/d2cs_server.py: V3D2cs (standalone pvpgn_v3_d2cs --port) +
+  OriginalD2cs (oracle d2cs in temp home; oracle REQUIRES a bnetd link for
+  LOGINREQ — starts standalone for init/listener probing).
+- Rebuilt the oracle with -DWITH_D2CS=ON -DWITH_D2DBS=ON (was OFF).
+- FIX (real bug): v3 d2cs fed raw TCP bytes straight into the packet framer and
+  never consumed the leading 0x01 init class byte that a real D2 client (and the
+  original) sends first — so the very first packet MISFRAMED (0x01 read as a
+  length byte) and the connection hung. D2CSTcpSession now strips the init byte
+  once at the session layer (FSM stays packet-only, unit tests unaffected); a bad
+  init class drops the connection like the original.
+- tests/diff/diff_d2cs_handshake.py: both servers accept the init handshake +
+  framing; v3 round-trips init->LOGINREQ->CREATECHARREQ->CHARLISTREQ.
+DOCUMENTED v3 d2cs divergences for follow-up (need the d2cs<->bnetd harness link
+and/or domain changes): CREATECHARREPLY collapses duplicate->0x01 (oracle 0x14
+ALREADY_EXIST) — needs CharacterCreateUseCase to return an enum not bool;
+char-name validation differs (v3 allows digits, rejects -_. ; original is the
+reverse w/ a buggy no-op length check); LOGINREQ fixed-field layout reads 8 bytes
+vs the real ~64; v3 auth is a stub (always success) so the success-path character
+flow is not yet differentially comparable against the bnetd-gated oracle.
