@@ -258,11 +258,15 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
         // first member of a non-permanent channel — in which case there are no
         // other members to notify, so this is normally 0).
         const auto& jc = join_result.value().channel;
-        const std::uint32_t joiner_flags =
+        std::uint32_t joiner_flags =
             (jc.operator_id() &&
              jc.operator_id()->value() == current_account_id_.value())
                 ? 0x02u
                 : 0x00u;
+        // "No-UDP plug" (MF_PLUG, 0x10): the original carries this on the very
+        // first EID_JOIN a connection produces (a fresh connection is created
+        // with MF_PLUG set and only sheds it on the first join). See plug_active_.
+        if (plug_active_) joiner_flags |= 0x10u;
         broadcast_chat_event(
             ChatEvent{
                 /*event_id*/    kEidJoin,   // EID_JOIN (0x02)
@@ -274,7 +278,36 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
                 /*username*/    current_username_,
                 /*text*/        ""},
             join_result.value().members_to_notify);
+
+        // channel_set_userflags clears MF_PLUG after the join, recomputing the
+        // member's flags to 0 (a normal user). It does so via BOTH
+        // conn_set_flags() (which broadcasts because the flags changed) AND a
+        // direct channel_update_userflags() — so other members observe TWO
+        // EID_USERFLAGS(0) for the joiner, but only on this first join (once the
+        // plug is shed, no later join changes the flags and none are sent).
+        if (plug_active_) {
+            for (int i = 0; i < 2; ++i) {
+                broadcast_chat_event(
+                    ChatEvent{
+                        /*event_id*/    kEidUserFlags,  // EID_USERFLAGS (0x09)
+                        /*flags*/       0,
+                        /*ping_ms*/     0,
+                        /*user_ip*/     0,
+                        /*acct_number*/ 0,
+                        /*registration*/0,
+                        /*username*/    current_username_,
+                        /*text*/        ""},
+                    join_result.value().members_to_notify);
+            }
+        }
     }
+
+    // The original clears MF_PLUG on the FIRST channel join regardless of how
+    // many other members witnessed it (channel_set_userflags runs on every
+    // join). Shed it here so subsequent joins broadcast flags=0 with no trailing
+    // USERFLAGS, matching the oracle. (A same-channel re-join returned early
+    // above, so it does not consume the plug.)
+    plug_active_ = false;
 
     return core::ok();
 }

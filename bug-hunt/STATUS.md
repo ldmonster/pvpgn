@@ -1484,3 +1484,35 @@ all 4 match (before: only the 100-char control matched). 3199/3199 units green;
 BNFTP diff regression set (bnftp, bnftp_resume, fileinfo) all still match.
 Remaining BNFTP gaps (need work/scope decisions, not cleanly diffable here):
 Finding 3 (REQ2/REQ3 W3 two-step), Finding 4 (localized/alias file resolution).
+
+## Wave 88 (LANDED) — MF_PLUG (no-UDP plug) on the FIRST channel join
+DIVERGENCE (channel-join userflags). The original creates every bnet connection
+with MF_PLUG (0x10, "tiny plug, no UDP") set (connection.cpp:383) and sheds it on
+the FIRST channel join via channel_set_userflags (handle_bnet.cpp:3704). What
+OTHER channel members observe for a freshly-connected normal (non-op) user is:
+first join -> EID_JOIN(flags=0x10) immediately followed by TWO EID_USERFLAGS(0)
+(channel_set_userflags double-broadcasts: conn_set_flags() fires
+channel_update_userflags because the flags changed, then it calls
+channel_update_userflags AGAIN directly — an upstream double-broadcast quirk);
+every subsequent join shows EID_JOIN(flags=0) with no trailing USERFLAGS (the
+plug is already gone). v3's BnetFsm::on(JoinChannel) (fsm_chat.cpp) broadcast only
+EID_JOIN with flags=0 and never emitted the plug or the trailing USERFLAGS, so a
+real client never saw the brief no-UDP plug icon on a user's first appearance.
+Found via a channel-join userflags probe (bob watches alice's first join, carol
+watches alice's second join) comparing the (eid,flags,name) stream other members
+receive: oracle first=[(2,16),(9,0),(9,0)] second=[(2,0)]; v3 gave [(2,0)] for
+both.
+Fix: new per-FSM bool plug_active_ (fsm.hpp), true until the first real
+(channel-changing) join. On(JoinChannel), when there are other members to notify,
+OR 0x10 into the broadcast EID_JOIN flags while plug_active_, then broadcast two
+EID_USERFLAGS(0) for the joiner (mirroring the double-broadcast). plug_active_ is
+cleared after every successful real join (a same-channel re-join returns early and
+does not consume the plug), so later joins broadcast flags=0 with no USERFLAGS.
+The joiner's own (self) roster path is unchanged — it already diverges in flag
+detail and is not what this diff measures; only the other-members' observable view
+is corrected here.
+New guard tests/diff/diff_join_userflags.py: bob sees alice's first join as
+[(2,16),(9,0),(9,0)], carol sees the second as [(2,0)] — match (before: v3 gave
+[(2,0)] for both). 3199/3199 units green; diff regression set (chat, multichannel,
+channel_op, kick_channel, channel_kick, leave, channel_join_edges, talk, emote,
+channelcmds, whoami, squelch) all still match the oracle.

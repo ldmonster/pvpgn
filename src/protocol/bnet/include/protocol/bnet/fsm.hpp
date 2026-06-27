@@ -301,6 +301,17 @@ private:
     /// Username stored at login time, used in broadcast ChatEvents.
     std::string current_username_;
 
+    /// "No-UDP plug" flag (MF_PLUG, 0x10). The original creates every bnet
+    /// connection with MF_PLUG set (connection.cpp:383) and clears it on the
+    /// FIRST channel join via channel_set_userflags (handle_bnet.cpp:3704). The
+    /// net effect other channel members observe is: the very first EID_JOIN for
+    /// this connection carries flags=0x10, immediately followed by two
+    /// EID_USERFLAGS(0) (channel_set_userflags both conn_set_flags->broadcasts
+    /// and then channel_update_userflags->broadcasts again — a double-broadcast
+    /// quirk); every subsequent join shows flags=0 with no trailing USERFLAGS.
+    /// true until the first real (channel-changing) join clears it.
+    bool plug_active_ = true;
+
     // --- WarCraft III SRP-3 challenge state -----------------------------
     // Held between SID_AUTH_ACCOUNTLOGON (0x53) and ..._PROOF (0x54). The
     // challenge step pre-computes the expected client proof M1 and the server
