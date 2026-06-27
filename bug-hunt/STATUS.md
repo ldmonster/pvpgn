@@ -2796,3 +2796,23 @@ offline target. Build clean (-Werror); full unit suite green (3204/3204); new
 tests/diff/diff_unsquelch_userflags.py (first_uf_count / first_uf_names_bob /
 second_uf_count all oracle==v3) passes; diff_squelch / diff_unsquelch_ghost still
 match.
+
+## Wave 152
+SID_GETLADDERDATA / CLIENT_LADDERREQ (0x2E) was an untested opcode that v3's FSM
+handled as a pure no-op (BnetFsm::on(LadderListRequest) at fsm_chat.cpp only
+called require_clan_state and returned ok, sending NOTHING), so a client
+requesting ladder data stalled. The oracle (_client_ladderreq, handle_bnet.cpp:4451)
+ALWAYS sends SERVER_LADDERREPLY (0x2E) regardless of ladder backend: it echoes the
+request's clienttag/id/type/startplace/count, then emits `count` t_ladder_entry
+rows (rows start..start+count-1). With no ladder data every row is all-zero except
+ttest[0], which carries the row index i; each row's trailing name is a single
+space (" "). Fix: wire on(LadderListRequest) to build a LadderListReply echoing the
+request header and pushing `count` LadderListEntry rows (ttest[0]=start+i,
+player_name=" "), clamped to the encoder's 1024-row guard, then ctx_->send. The
+LadderListReply message + encoder (codec_ladder.cpp:335) and request decode already
+existed; only the handler was unwired. Decisive probe (full OLS login, request
+id=STANDARD(1) type=HIGHESTRATED(0) start=0 count=10): oracle -> 0x2E reply, 840-byte
+body; v3 previously sent nothing, now sends a byte-identical 840-byte reply. Build
+clean (-Werror); full unit suite green (3204/3204); new tests/diff/diff_ladderreq.py
+(byte-exact body + header echo, oracle==v3) passes; diff_profile / diff_charlist /
+diff_motd_w3 still match.

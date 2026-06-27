@@ -1602,8 +1602,39 @@ core::Status<> BnetFsm::on(const MotdRequest&) {
     return ctx_->send(ServerMessage{std::move(reply)});
 }
 
-core::Status<> BnetFsm::on(const LadderListRequest&) {
-    return require_clan_state(state_, "bnet fsm: LADDERREQ before login");
+core::Status<> BnetFsm::on(const LadderListRequest& m) {
+    if (auto s = require_clan_state(state_, "bnet fsm: LADDERREQ before login");
+        !s) {
+        return s;
+    }
+    // SID_GETLADDERDATA (0x2E): the original (_client_ladderreq) ALWAYS answers
+    // SERVER_LADDERREPLY regardless of ladder backend. It echoes the request's
+    // clienttag/id/type/startplace/count, then emits `count` t_ladder_entry rows
+    // (rows start..start+count-1). With no ladder data every row is all-zero
+    // except ttest[0], which carries the row index i; the trailing name string
+    // is a single space (" ") so the client won't show the requester's own
+    // account. We reproduce this backend-independent, deterministic behaviour;
+    // a client otherwise stalls waiting for the reply.
+    LadderListReply reply;
+    reply.client_tag = m.client_tag;
+    reply.id         = m.id;
+    reply.type       = m.type;
+    reply.start      = m.start;
+    // Clamp the row count to the encoder's guard (the original has no cap, but
+    // real clients request small slices; clamping is safe hardening). Mirrors
+    // detail::kLadderListLimit in codec_ladder.cpp.
+    constexpr std::uint32_t kLadderRowLimit = 1024u;
+    std::uint32_t count = m.count;
+    if (count > kLadderRowLimit) count = kLadderRowLimit;
+    reply.count = count;
+    reply.entries.reserve(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        LadderListEntry e;
+        e.ttest[0]      = m.start + i;  // row index, mirrors original ttest[0]=i
+        e.player_name   = " ";
+        reply.entries.push_back(std::move(e));
+    }
+    return ctx_->send(ServerMessage{std::move(reply)});
 }
 
 core::Status<> BnetFsm::on(const CharListRequest&) {
