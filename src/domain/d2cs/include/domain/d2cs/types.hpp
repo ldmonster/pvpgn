@@ -131,22 +131,6 @@ struct LadderEntry {
 };
 
 // ---------------------------------------------------------------------------
-// GameInfo (D2CS-specific)
-// ---------------------------------------------------------------------------
-
-/// Metadata for a Diablo II game instance managed by D2CS.
-///
-/// This is distinct from `pvpgn::domain::connection::GameInfo` (which is
-/// Battle.net generic). D2CS games have difficulty and max-player limits.
-struct GameInfo {
-    std::string game_name;    ///< Game name (lobby title)
-    std::string game_pass;    ///< Game password (empty = public)
-    std::string game_desc;    ///< Game description / stats string
-    uint8_t     difficulty{0}; ///< 0=Normal, 1=Nightmare, 2=Hell
-    uint8_t     max_players{8}; ///< Maximum players (1–8)
-};
-
-// ---------------------------------------------------------------------------
 // RealmLogonResult
 // ---------------------------------------------------------------------------
 
