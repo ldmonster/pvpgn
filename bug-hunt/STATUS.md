@@ -2148,3 +2148,29 @@ route through reassign_operator_on_leave). New guard tests/diff/diff_op_no_trans
 Safe wrt wave 112 (EID_LEAVE op-flag snapshots the leaving op's flag before
 removal). 3199/3199 unit tests green; diff_channel_op / diff_channel_kick /
 diff_leave_opflags still match the oracle.
+
+## Wave 120
+Fixed SID_CHATEVENT (0x0F) fixed-field divergence. The oracle's
+message_bnet_format (bnetd/message.cpp:1005-1007) UNCONDITIONALLY writes a fixed
+wire layout into EVERY chat event: account_num (bn_int_nset
+SERVER_MESSAGE_ACCOUNT_NUM=0x0df0adba) and reg_auth (bn_int_set
+SERVER_MESSAGE_REG_AUTH=0xBAADF00D) both emit the identical on-wire bytes
+0D F0 AD BA (LE-decoded 0xBAADF00D), and message_type_info/error use an EMPTY
+username. v3 diverged on two fields: (1) EID_INFO (0x12) sent the literal
+"Battle.net" username instead of "" (its own comment already noted the original
+uses ""); (2) the dummy acct/reg fields carried 0xBADC0FFE for info/error and 0
+for join/talk/etc, vs the oracle's 0xBAADF00D everywhere. v3's ChatEvent codec
+writes both fields little-endian, so byte parity requires the LE value
+0xBAADF00D in both. FIX (fsm_chat.cpp): added named constants
+kChatEventAcctNum/kChatEventRegAuth (= chat::kServerMessageRegAuth) and routed
+ALL 26 ChatEvent emissions (info/error/join/talk/emote/whisper/whisperack/
+leave/userflags/showuser/channel/kick) through them; replaced the EID_INFO
+"Battle.net" username literal with "" at every info emitter. Decisive probe:
+oracle EID_INFO uname=b'' acct=reg=0xbaadf00d; v3 now identical (was
+uname=b'Battle.net' acct=reg=0xbadc0ffe). New guard
+tests/diff/diff_chatevent_fields.py asserts the fixed header
+(flags/latency/player_ip/account_num/reg_auth) + username match byte-for-byte
+for EID_INFO and EID_ERROR (text is charset-garbled, structure-only). 3199/3199
+unit tests green (anongame temp-file flakes pass -j1); diff_time / diff_chat /
+diff_whisper / diff_emote / diff_talk / diff_join_userflags / diff_channel_kick
+still match the oracle.

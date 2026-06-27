@@ -83,6 +83,17 @@ constexpr std::uint32_t kEidUserFlags = chat::kServerMessageTypeUserFlags; // 0x
 constexpr std::uint32_t kEidWhisperSent = chat::kServerMessageTypeWhisperAck; // 0x0a
 constexpr std::uint32_t kEidInfo     = chat::kServerMessageTypeInfo;     // 0x12
 constexpr std::uint32_t kEidError    = chat::kServerMessageTypeError;    // 0x13
+
+// SID_CHATEVENT dummy account/registration fields. The original's
+// message_bnet_format (bnetd/message.cpp) UNCONDITIONALLY writes a fixed byte
+// pattern into account_num (bn_int_nset SERVER_MESSAGE_ACCOUNT_NUM = 0x0df0adba)
+// and reg_auth (bn_int_set SERVER_MESSAGE_REG_AUTH = 0xBAADF00D) of EVERY chat
+// event; both encodings emit the identical 4 wire bytes 0D F0 AD BA. v3's
+// ChatEvent codec writes both fields little-endian, so to reproduce those exact
+// on-wire bytes both fields must carry the LE value 0xBAADF00D. Real clients
+// ignore these fields, but byte-for-byte parity with the oracle requires them.
+constexpr std::uint32_t kChatEventAcctNum = chat::kServerMessageRegAuth;  // wire 0D F0 AD BA
+constexpr std::uint32_t kChatEventRegAuth = chat::kServerMessageRegAuth;  // wire 0D F0 AD BA
 }  // namespace
 
 core::Status<> BnetFsm::on(const EnterChatRequest& m) {
@@ -109,8 +120,8 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0,
-            /*acct_number*/ 0,
-            /*registration*/0,
+            /*acct_number*/ kChatEventAcctNum,
+            /*registration*/kChatEventRegAuth,
             /*username*/    "",
             /*text*/        m.channel}});
     }
@@ -152,8 +163,8 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0,
-            /*acct_number*/ 0,
-            /*registration*/0,
+            /*acct_number*/ kChatEventAcctNum,
+            /*registration*/kChatEventRegAuth,
             /*username*/    "",
             /*text*/        error_msg}});
     }
@@ -187,8 +198,8 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
         /*flags*/       0,
         /*ping_ms*/     0,
         /*user_ip*/     0,
-        /*acct_number*/ 0,
-        /*registration*/0,
+        /*acct_number*/ kChatEventAcctNum,
+        /*registration*/kChatEventRegAuth,
         /*username*/    "",
         /*text*/        join_result.value().channel.name()}}); !send_status) {
         return send_status;
@@ -237,8 +248,8 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
                 /*flags*/       member_flags,
                 /*ping_ms*/     0,
                 /*user_ip*/     0x00000000u,
-                /*acct_number*/ 0xBADC0FFEu,
-                /*registration*/0xBADC0FFEu,
+                /*acct_number*/ kChatEventAcctNum,
+                /*registration*/kChatEventRegAuth,
                 /*username*/    member_name,
                 /*text*/        ""}}); !s) {
                 return s;
@@ -249,8 +260,8 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
                 /*flags*/       member_flags,
                 /*ping_ms*/     0,
                 /*user_ip*/     0x00000000u,
-                /*acct_number*/ 0xBADC0FFEu,
-                /*registration*/0xBADC0FFEu,
+                /*acct_number*/ kChatEventAcctNum,
+                /*registration*/kChatEventRegAuth,
                 /*username*/    member_name,
                 /*text*/        ""}}); !send_status) {
                 return send_status;
@@ -279,8 +290,8 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
                 /*flags*/       joiner_flags,
                 /*ping_ms*/     0,
                 /*user_ip*/     0,
-                /*acct_number*/ 0,
-                /*registration*/0,
+                /*acct_number*/ kChatEventAcctNum,
+                /*registration*/kChatEventRegAuth,
                 /*username*/    current_username_,
                 /*text*/        ""},
             join_result.value().members_to_notify);
@@ -299,8 +310,8 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
                         /*flags*/       0,
                         /*ping_ms*/     0,
                         /*user_ip*/     0,
-                        /*acct_number*/ 0,
-                        /*registration*/0,
+                        /*acct_number*/ kChatEventAcctNum,
+                        /*registration*/kChatEventRegAuth,
                         /*username*/    current_username_,
                         /*text*/        ""},
                     join_result.value().members_to_notify);
@@ -455,9 +466,9 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0x00000000u,
-            /*acct_number*/ 0xBADC0FFEu,
-            /*registration*/0xBADC0FFEu,
-            /*username*/    is_error ? "" : "Battle.net",
+            /*acct_number*/ kChatEventAcctNum,
+            /*registration*/kChatEventRegAuth,
+            /*username*/    "",
             /*text*/        result_text}});
     }
 
@@ -484,8 +495,8 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0,
-            /*acct_number*/ 0,
-            /*registration*/0,
+            /*acct_number*/ kChatEventAcctNum,
+            /*registration*/kChatEventRegAuth,
             /*username*/    "",
             /*text*/        text}});
     }
@@ -516,8 +527,8 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
                     /*flags*/       0,
                     /*ping_ms*/     0,
                     /*user_ip*/     0,
-                    /*acct_number*/ 0,
-                    /*registration*/0,
+                    /*acct_number*/ kChatEventAcctNum,
+                    /*registration*/kChatEventRegAuth,
                     /*username*/    current_username_,
                     /*text*/        std::string{chat_msg_result.value().text()}},
                 recipients);
@@ -532,7 +543,8 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
     // Helper: send an EID_ERROR (0x13) line back to the sender.
     auto error_to_self = [this](std::string text) -> core::Status<> {
         return ctx_->send(ServerMessage{ChatEvent{
-            kEidError, 0, 0, 0, 0, 0, "", std::move(text)}});
+            kEidError, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth, "",
+            std::move(text)}});
     };
 
     // Parse "<cmd> <target> <message...>". `rest` starts at the command word.
@@ -590,7 +602,8 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
 
     // Acknowledge to the sender with EID_WHISPERSENT (0x0a): username = target.
     (void)ctx_->send(ServerMessage{ChatEvent{
-        kEidWhisperSent, 0, 0, 0, 0, 0, std::string{target_name}, message_str}});
+        kEidWhisperSent, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth,
+        std::string{target_name}, message_str}});
 
     // Squelch parity: if the target is ignoring the sender, the original
     // message_send sets MF_X and message_type_whisper returns -1, silently
@@ -605,7 +618,8 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
     // Deliver EID_WHISPER (0x04) to the target: username = sender.
     const domain::SessionId one[1] = {target_session.value()};
     broadcast_chat_event(
-        ChatEvent{kEidWhisper, 0, 0, 0, 0, 0, current_username_, message_str},
+        ChatEvent{kEidWhisper, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth,
+                  current_username_, message_str},
         std::span<const domain::SessionId>{one, 1});
     return core::ok();
 }
@@ -613,7 +627,8 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
 core::Status<> BnetFsm::handle_emote(std::string_view body) {
     auto error_to_self = [this](std::string text) -> core::Status<> {
         return ctx_->send(ServerMessage{ChatEvent{
-            kEidError, 0, 0, 0, 0, 0, "", std::move(text)}});
+            kEidError, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth, "",
+            std::move(text)}});
     };
 
     // The original requires an empty-body /me to print usage; we treat an empty
@@ -641,7 +656,8 @@ core::Status<> BnetFsm::handle_emote(std::string_view body) {
     }
 
     const std::string body_str{body};
-    const ChatEvent emote{kEidEmote, 0, 0, 0, 0, 0, current_username_, body_str};
+    const ChatEvent emote{kEidEmote, 0, 0, 0, kChatEventAcctNum,
+                          kChatEventRegAuth, current_username_, body_str};
 
     // Unlike TALK (which the original suppresses for the speaker,
     // channel.cpp:734), an EMOTE is echoed back to the sender too — so the
@@ -754,8 +770,8 @@ core::Status<> BnetFsm::handle_friends(std::string_view rest,
 
     auto info = [&](std::string_view text) {
         return ctx_->send(ServerMessage{ChatEvent{
-            kEidInfo, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
-            "Battle.net", std::string{text}}});
+            kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+            "", std::string{text}}});
     };
 
     const bool is_add = (sub == "add" || sub == "a");
@@ -813,8 +829,8 @@ std::string_view rtrim_sv(std::string_view s) {
 core::Status<> BnetFsm::handle_who(std::string_view args) {
     auto info = [&](std::uint32_t eid, std::string text) {
         return ctx_->send(ServerMessage{ChatEvent{
-            eid, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
-            "Battle.net", std::move(text)}});
+            eid, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+            "", std::move(text)}});
     };
     const std::string chan{rtrim_sv(args)};
     if (chan.empty()) {
@@ -844,8 +860,8 @@ core::Status<> BnetFsm::handle_who(std::string_view args) {
 core::Status<> BnetFsm::handle_whois(std::string_view args) {
     auto info = [&](std::uint32_t eid, std::string text) {
         return ctx_->send(ServerMessage{ChatEvent{
-            eid, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
-            "Battle.net", std::move(text)}});
+            eid, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+            "", std::move(text)}});
     };
     const std::string who{rtrim_sv(args)};
     auto parsed = who.empty() ? std::nullopt
@@ -887,8 +903,8 @@ core::Status<> BnetFsm::handle_whois(std::string_view args) {
 core::Status<> BnetFsm::handle_whoami() {
     auto info = [&](std::uint32_t eid, std::string text) {
         return ctx_->send(ServerMessage{ChatEvent{
-            eid, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
-            "Battle.net", std::move(text)}});
+            eid, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+            "", std::move(text)}});
     };
     if (current_username_.empty()) {
         return info(kEidError, "Unknown user.");
@@ -918,7 +934,7 @@ core::Status<> BnetFsm::handle_whoami() {
 core::Status<> BnetFsm::handle_kick(std::string_view args) {
     auto err = [&](std::string text) {
         return ctx_->send(ServerMessage{ChatEvent{
-            kEidError, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+            kEidError, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
             "", std::move(text)}});
     };
     if (state_ != BnetState::InChat) {
@@ -972,14 +988,16 @@ core::Status<> BnetFsm::handle_kick(std::string_view args) {
     const auto& remaining = leave.value().members_to_notify;
     if (!remaining.empty()) {
         broadcast_chat_event(
-            ChatEvent{kEidLeave, 0, 0, 0, 0, 0, target_name, ""}, remaining);
+            ChatEvent{kEidLeave, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth,
+                      target_name, ""},
+            remaining);
     }
     // Notify the kicked user on their own session.
     if (target_session) {
         const domain::SessionId one[1] = {target_session.value()};
         broadcast_chat_event(
-            ChatEvent{kEidError, 0, 0, 0, 0, 0, "",
-                      "You have been kicked out of the channel."},
+            ChatEvent{kEidError, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth,
+                      "", "You have been kicked out of the channel."},
             std::span<const domain::SessionId>{one, 1});
     }
     return core::ok();
@@ -991,7 +1009,7 @@ core::Status<> BnetFsm::handle_ban(std::string_view) {
     // the command is always refused — matching the oracle's EID_ERROR refusal for
     // the channel-operator role (the only role v3 models).
     return ctx_->send(ServerMessage{ChatEvent{
-        kEidError, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+        kEidError, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
         "", "That command requires operator/admin privileges."}});
 }
 
@@ -1014,8 +1032,8 @@ core::Status<> BnetFsm::handle_users() {
         " users online, in " + std::to_string(games) + " games, and in " +
         std::to_string(channels) + " channels.";
     return ctx_->send(ServerMessage{ChatEvent{
-        kEidInfo, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
-        "Battle.net", std::move(text)}});
+        kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+        "", std::move(text)}});
 }
 
 core::Status<> BnetFsm::handle_time() {
@@ -1036,8 +1054,8 @@ core::Status<> BnetFsm::handle_time() {
     };
     auto info = [&](std::string text) {
         return ctx_->send(ServerMessage{ChatEvent{
-            kEidInfo, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
-            "Battle.net", std::move(text)}});
+            kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+            "", std::move(text)}});
     };
     // The original sends two EID_INFO lines for a Battle.net-class connection:
     // the server time, then the client's local time. v3 has no per-session
@@ -1051,8 +1069,8 @@ core::Status<> BnetFsm::handle_time() {
 core::Status<> BnetFsm::handle_squelch(std::string_view args, bool add) {
     auto info = [&](std::uint32_t eid, std::string text) {
         return ctx_->send(ServerMessage{ChatEvent{
-            eid, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
-            "Battle.net", std::move(text)}});
+            eid, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+            "", std::move(text)}});
     };
     const std::string who{rtrim_sv(args)};
     auto parsed = who.empty() ? std::nullopt
@@ -1295,8 +1313,8 @@ core::Status<> BnetFsm::on(const LeaveChannel&) {
                 /*flags*/       leaver_flags,
                 /*ping_ms*/     0,
                 /*user_ip*/     0,
-                /*acct_number*/ 0,
-                /*registration*/0,
+                /*acct_number*/ kChatEventAcctNum,
+                /*registration*/kChatEventRegAuth,
                 /*username*/    current_username_,
                 /*text*/        ""},
             remaining_members);
@@ -1383,7 +1401,8 @@ void BnetFsm::notify_friends_presence(bool entered) {
         if (!sess) continue;
         const domain::SessionId one[1] = {sess.value()};
         broadcast_chat_event(
-            ChatEvent{kEidWhisper, 0, 0, 0, 0, 0, current_username_, text},
+            ChatEvent{kEidWhisper, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth,
+                      current_username_, text},
             std::span<const domain::SessionId>{one, 1});
     }
 }
