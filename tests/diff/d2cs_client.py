@@ -106,13 +106,18 @@ class D2csClient:
 
     # -- requests ---------------------------------------------------------
     def login(self, account: str, sessionnum: int = 1, sessionkey: int = 0,
-              clienttag: str = "D2DV", secret_hash=(0, 0, 0, 0, 0)):
+              clienttag: str = "D2DV", secret_hash=(0, 0, 0, 0, 0),
+              secret_hash_raw=None, seqno: int = 0):
         """CLIENT_D2CS_LOGINREQ (0x01). Full fixed block (11 u32 + 5 u32 hash)
-        then the account name. Returns the u32 reply code or None."""
+        then the account name. `secret_hash_raw` (20 bytes from the BNCS
+        realm-join reply) is forwarded verbatim when provided. `seqno` MUST equal
+        the realm-join request seqno — bnetd issued the secret_hash using it as
+        the salt and re-derives the salt from it on validation. Returns the u32
+        reply code or None."""
         ctag = struct.unpack("<I", clienttag.encode("latin-1")[:4].ljust(4, b"\0"))[0]
         body = struct.pack(
             "<11I",
-            0,            # seqno
+            seqno,        # seqno (salt — must match realm-join seqno)
             0,            # u1
             0,            # bncs_addr1
             sessionnum,   # sessionnum
@@ -124,7 +129,10 @@ class D2csClient:
             0,            # bncs_addr2
             0,            # u6
         )
-        body += struct.pack("<5I", *secret_hash)
+        if secret_hash_raw is not None:
+            body += secret_hash_raw[:20].ljust(20, b"\x00")
+        else:
+            body += struct.pack("<5I", *secret_hash)
         body += _cstr(account)
         self.send(D2CS_LOGINREQ, body)
         rep = self.recv_type(D2CS_LOGINREPLY)

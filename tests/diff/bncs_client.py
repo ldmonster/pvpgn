@@ -251,6 +251,38 @@ def create_account_ols(client, username, password):
     return first_result_u32(res)
 
 
+SID_LOGONREALMEX = 0x3E  # CLIENT_REALMJOINREQ_109 / SERVER_REALMJOINREPLY_109
+
+
+def realm_join(client, realmname, seqno=1):
+    """SID_LOGONREALMEX (0x3e): join a D2 realm after a BNCS login. bnetd issues
+    the session credentials the client then presents to d2cs. Request body:
+    seqno(4) + seqnohash[5](20) + realmname. Reply (BNCS header already stripped
+    by recv) per t_server_realmjoinreply_109. Returns a dict or None."""
+    body = struct.pack("<I", seqno) + b"\x00" * 20 + cstring(realmname)
+    client.send(SID_LOGONREALMEX, body)
+    rep = _drain_until(client, SID_LOGONREALMEX)
+    if rep is None or len(rep) < 72:
+        return None
+    # offsets within the reply body:
+    #  seqno 0 | u1 4 | bncs_addr1 8 | sessionnum 12 | addr 16(BE) | port 20(BE)
+    #  u3 22 | sessionkey 24 | u5 28 | u6 32 | clienttag 36 | versionid 40
+    #  bncs_addr2 44 | u7 48 | secret_hash[5] 52..72 | account name 72+
+    import socket as _s
+    sessionnum  = struct.unpack_from("<I", rep, 12)[0]
+    addr_be     = struct.unpack_from(">I", rep, 16)[0]
+    port_be     = struct.unpack_from(">H", rep, 20)[0]
+    sessionkey  = struct.unpack_from("<I", rep, 24)[0]
+    secret_hash = rep[52:72]
+    return {
+        "sessionnum": sessionnum,
+        "sessionkey": sessionkey,
+        "d2cs_addr": _s.inet_ntoa(struct.pack(">I", addr_be)),
+        "d2cs_port": port_be,
+        "secret_hash": secret_hash,
+    }
+
+
 def login_ols(client, username, password, client_token, server_token):
     """SID_LOGONRESPONSE2 with hash2 = xsha1(client_token ‖ server_token ‖ hash1)."""
     h1 = hash_password(password)

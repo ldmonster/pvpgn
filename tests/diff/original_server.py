@@ -16,7 +16,7 @@ import time
 
 
 class OriginalBnetd:
-    def __init__(self, repo: str, port: int):
+    def __init__(self, repo: str, port: int, realm=None):
         self.repo = repo
         self.port = port
         # Westwood Online listeners (off by default in pvpgn). Enabled on
@@ -24,6 +24,10 @@ class OriginalBnetd:
         # "Westwood Chat" era (WCHT/C&C/RA1-2.00); wolv2 the rest.
         self.wolv1_port = port + 2
         self.wolv2_port = port + 3
+        # Optional D2 realm to advertise so a d2cs can link in: a dict
+        # {"name": str, "d2cs_port": int}. The realm IP is 127.0.0.1 so the
+        # d2cs (connecting from loopback) matches realmlist_find_realm_by_ip.
+        self.realm = realm
         self.proc = None
         self.home = None
 
@@ -60,6 +64,16 @@ class OriginalBnetd:
 
         self._rewrite_conf(os.path.join(etc, "bnetd.conf"), etc, var)
         self._create_support_files(os.path.join(var, "files"), etc)
+
+        # When a D2 realm is requested, overwrite realm.conf with a single entry
+        # pointing the client at the d2cs port. bnetd matches the linking d2cs by
+        # source IP (127.0.0.1), so the IP here must be loopback too.
+        if self.realm:
+            # realmlist_load rejects an empty description ("no valid
+            # description"), so always supply one.
+            with open(os.path.join(etc, "realm.conf"), "w") as f:
+                f.write('"{name}" "{name} realm" 127.0.0.1:{port}\n'.format(
+                    name=self.realm["name"], port=self.realm["d2cs_port"]))
 
     def _create_support_files(self, files_dir: str, etc: str) -> None:
         # bnetd's support_check_files aborts startup if any file listed in

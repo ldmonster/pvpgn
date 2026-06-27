@@ -3067,3 +3067,27 @@ STILL DEFERRED (needs the d2cs<->bnetd harness link or is debatable): char-name
 validation char-set/length (v3 allows digits, rejects -_. ; original is the reverse
 with a buggy no-op length check); LOGINREQ fixed-field layout (8 bytes vs ~64);
 stubbed auth (always success) blocks differential success-path comparison.
+
+## Wave 175: oracle bnetd<->d2cs link harness + realm-join mock + auth differential
+Wired the ORIGINAL bnetd<->d2cs server link in the harness so the d2cs login path
+is differentially testable for the first time:
+- OriginalBnetd(realm={name,d2cs_port}) writes a realm.conf entry (127.0.0.1 so
+  the linking d2cs matches realmlist_find_realm_by_ip; non-empty description or
+  realmlist_load rejects it). OriginalD2cs(bnetd_port, realm_name) sets bnetdaddr
+  + realmname and logs to a file. KEY GOTCHA: d2cs port must clear bnetd's
+  w3route(+1)/wol(+2,+3) listeners (use +20).
+- bncs_client.realm_join(): SID_LOGONREALMEX (0x3e) — bnetd issues sessionnum,
+  sessionkey, the d2cs addr/port, and a secret_hash (salt=join-seqno hashed with
+  the session secret + password). d2cs_client.login() gained secret_hash_raw
+  (forward bnetd's hash verbatim) + seqno (MUST equal the join seqno — it's the
+  salt bnetd re-derives on validation; mismatch -> BADPASS).
+- Verified end-to-end against the oracle: BNCS login -> realm-join -> d2cs login
+  = 0x00 SUCCEED; a tampered secret_hash or wrong account -> 0x0c BADPASS. So the
+  oracle does REAL auth and the harness drives it correctly.
+- diff_d2cs_auth.py asserts the oracle's real auth + v3 happy-path parity, and
+  reports the gap: v3 d2cs is still a permissive STUB (accepts tampered creds) —
+  the "real v3 d2cs auth" target (Stage 2).
+NOTE: CREATECHARREQ can't be differentially tested against the oracle — it needs
+real D2 newbie .d2s save templates (file_read failure -> d2char_create returns
+0x14), a binary asset the harness can't synthesise. Auth + char-list are the
+asset-free differential surface.

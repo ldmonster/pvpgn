@@ -75,12 +75,14 @@ class OriginalD2cs:
     start standalone (login will fail without a bnetd, but the listener and init
     handshake can still be probed).
     """
-    def __init__(self, repo: str, port: int, bnetd_port=None):
+    def __init__(self, repo: str, port: int, bnetd_port=None, realm_name="test"):
         self.repo = repo
         self.port = port
         self.bnetd_port = bnetd_port
+        self.realm_name = realm_name
         self.proc = None
         self.home = None
+        self.logpath = None
 
     def _bin(self) -> str:
         cand = os.path.join(self.repo, "build", "src", "d2cs", "d2cs")
@@ -119,6 +121,8 @@ class OriginalD2cs:
                 out.append(f"servaddrs = 127.0.0.1:{self.port}\n")
             elif key == "bnetdaddr" and self.bnetd_port:
                 out.append(f"bnetdaddr = 127.0.0.1:{self.bnetd_port}\n")
+            elif key == "realmname":
+                out.append(f'realmname = "{self.realm_name}"\n')
             elif key == "charsavedir":
                 out.append(f'charsavedir = "{var}/charsave"\n')
             elif key == "charinfodir":
@@ -137,16 +141,18 @@ class OriginalD2cs:
     def start(self, timeout: float = 15.0) -> None:
         self.setup()
         conf = os.path.join(self.home, "etc", "d2cs.conf")
+        self.logpath = os.path.join(self.home, "var", "d2cs.out")
+        self._logf = open(self.logpath, "a+")
         self.proc = subprocess.Popen(
             [self._bin(), "-f", "-c", conf],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            stdout=self._logf, stderr=subprocess.STDOUT,
             cwd=os.path.join(self.home, "etc"))
         deadline = time.time() + timeout
         while time.time() < deadline:
             if self.proc.poll() is not None:
-                out = self.proc.stdout.read().decode("utf-8", "replace")
+                self._logf.seek(0)
                 raise RuntimeError(
-                    f"original d2cs exited early (rc={self.proc.returncode}):\n{out[-3000:]}")
+                    f"original d2cs exited early (rc={self.proc.returncode}):\n{self._logf.read()[-3000:]}")
             try:
                 with socket.create_connection(("127.0.0.1", self.port), timeout=0.5):
                     return
