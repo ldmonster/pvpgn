@@ -227,6 +227,14 @@ core::Status<> BnftpFsm::try_dispatch() {
     std::size_t fname_max   = static_cast<std::size_t>(pkt_size) - 4 - 28;
     std::size_t fname_len   = ::strnlen(fname_start, fname_max);
 
+    // Materialize the filename into an owned string BEFORE erasing the packet:
+    // `fname_start` points into buf_, and the erase below memmoves the next
+    // (pipelined) packet's bytes onto that memory. Copying the name AFTER the
+    // erase read the WRONG request's name (use-after-erase) when two
+    // CLIENT_FILE_REQ packets arrived in a single TCP segment.
+    const bool unterminated = (fname_len == fname_max);
+    std::string filename(fname_start, unterminated ? 0 : fname_len);
+
     // Consume the packet from the buffer.
     buf_.erase(buf_.begin(), buf_.begin() + pkt_size);
 
@@ -236,13 +244,11 @@ core::Status<> BnftpFsm::try_dispatch() {
     // returns -1 WITHOUT calling file_send, so the server sends NOTHING. Match
     // that: if strnlen consumed the whole field without finding a NUL, the
     // filename is unterminated — emit no reply and close gracefully.
-    if (fname_len == fname_max) {
+    if (unterminated) {
         state_ = State::Done;
         ctx_->close();
         return core::ok();
     }
-
-    std::string filename(fname_start, fname_len);
 
     // Serve the file.
     state_ = State::Serving;
