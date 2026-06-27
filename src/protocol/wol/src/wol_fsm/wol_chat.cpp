@@ -591,6 +591,11 @@ core::Status<> WolFsm::on_privmsg(std::string_view params) {
     return send_numeric(401, nick_, tgt + " :No such nick");
 }
 
+// NOTE: on_privmsg's user-target 401 above mirrors handle_irc.cpp's PRIVMSG
+// whisper path (":No such user", no target) and is intentionally left as-is;
+// the WOL-command handlers (GAMEOPT/HOST/USERIP/ADDBUDDY) instead emit the
+// "<target> :No such nick" form below.
+
 void WolFsm::route_irc_line(const std::string& line,
                             const std::vector<domain::SessionId>& recipients) {
     if (!message_router_ || recipients.empty()) return;
@@ -672,8 +677,10 @@ core::Status<> WolFsm::on_gameopt(std::string_view params) {
             }
         }
     }
+    // ERR_NOSUCHNICK: ":<server> 401 <nick> <target> :No such nick" (target is
+    // a middle param), matching the original GAMEOPT user-whisper miss path.
     std::string tgt{target};
-    return send_numeric(401, nick_, tgt + " :No such nick");
+    return send_numeric(401, nick_ + " " + tgt, "No such nick");
 }
 
 namespace {
@@ -924,7 +931,10 @@ core::Status<> WolFsm::on_addbuddy(std::string_view params) {
         }
     }
     // Unknown account: 401 ERR_NOSUCHNICK (the original sends "<name> :No such nick").
-    return send_numeric(401, nick_, std::string(target) + " :No such nick");
+    // ERR_NOSUCHNICK wire form: ":<server> 401 <nick> <target> :No such nick".
+    // The target nick is a middle parameter (no leading ':'), matching the
+    // original's irc_send(ERR_NOSUCHNICK, "<target> :No such nick").
+    return send_numeric(401, nick_ + " " + std::string(target), "No such nick");
 }
 
 core::Status<> WolFsm::on_delbuddy(std::string_view params) {
@@ -1124,7 +1134,10 @@ core::Status<> WolFsm::on_host(std::string_view params) {
             }
         }
     }
-    return send_numeric(401, nick_, std::string(target) + " :No such nick");
+    // ERR_NOSUCHNICK wire form: ":<server> 401 <nick> <target> :No such nick".
+    // The target nick is a middle parameter (no leading ':'), matching the
+    // original's irc_send(ERR_NOSUCHNICK, "<target> :No such nick").
+    return send_numeric(401, nick_ + " " + std::string(target), "No such nick");
 }
 
 core::Status<> WolFsm::on_userip(std::string_view params) {
@@ -1157,7 +1170,10 @@ core::Status<> WolFsm::on_userip(std::string_view params) {
             }
         }
     }
-    return send_numeric(401, nick_, std::string(target) + " :No such nick");
+    // ERR_NOSUCHNICK wire form: ":<server> 401 <nick> <target> :No such nick".
+    // The target nick is a middle parameter (no leading ':'), matching the
+    // original's irc_send(ERR_NOSUCHNICK, "<target> :No such nick").
+    return send_numeric(401, nick_ + " " + std::string(target), "No such nick");
 }
 
 core::Status<> WolFsm::on_invmsg(std::string_view params) {

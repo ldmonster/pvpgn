@@ -5,6 +5,39 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 94 (LANDED) — WOL 401 ERR_NOSUCHNICK wire format (target is a middle param)
+DIVERGENCE (wrong wire format), follow-up to the wave-93 WOL fuzz sweep. Four WOL
+command handlers (USERIP/HOST/GAMEOPT/ADDBUDDY) reply with ERR_NOSUCHNICK when
+their target nick is not an online user. The original (handle_wol.cpp) builds each
+as irc_send(ERR_NOSUCHNICK, "<target> :No such nick"), so irc_send_cmd emits
+":<server> 401 <nick> <target> :No such nick" — the target nick is a MIDDLE
+parameter with NO leading ':'. v3's on_userip/on_host/on_gameopt/on_addbuddy
+(wol_fsm/wol_chat.cpp) instead passed the target into send_numeric's trailing-text
+field, which always injects " :", producing ":... 401 <nick> :<target> :No such
+nick" — a stray ':' before the target nick on every miss. A WOL client parsing
+the 401 saw a malformed reply (the target appeared as the trailing text, prefixed
+by ':'). Probe (USERIP/HOST/GAMEOPT/ADDBUDDY ghost): oracle "401 <nick> ghostx
+:No such nick", v3 "401 <nick> :ghostx :No such nick" on all four.
+Fix: the four call sites now pass the target as a middle param
+(send_numeric(401, nick_ + " " + target, "No such nick")), exactly like the
+existing send_needmoreparams helper. on_privmsg's user-target 401 is INTENTIONALLY
+left unchanged — the original PRIVMSG whisper-miss path uses a different text
+(":No such user", no target) and v3's PRIVMSG user path has a separate, larger
+gap (it 401s where the original whispers to an online user) deferred to its own
+wave; a code comment records this.
+New guard tests/diff/diff_wol_nosuchnick.py: USERIP/HOST/GAMEOPT/ADDBUDDY to a
+ghost nick, server-name-stripped 401 lines match the oracle byte-for-byte (before:
+v3 diverged on all four). 3199/3199 units green; WOL diff regression (userip,
+needmoreparams, needmoreparams2, buddy, page, chat, login, part, list, names,
+topic, kick, advertr, gameopt, finduser, invmsg, startg) all still match the
+oracle.
+Other wave-93 fuzz-surfaced WOL divergences still NOT fixed (each a separate
+behavior, none crash): PRIVMSG to an online user (oracle whispers vs v3 401),
+PRIVMSG to self (oracle echoes vs v3 401), JOIN of an unprefixed name (oracle 403
+vs v3 auto-creates), MODE +unknownchar (oracle 472 vs v3 324 echo), TOPIC with
+extra middle param (oracle 442 vs v3 sets), LIST with extra params (oracle empty
+list).
+
 ## FIXED (15 bugs across 5 commits)
 | # | Bug | Commit |
 |---|---|---|
