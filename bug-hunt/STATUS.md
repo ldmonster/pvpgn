@@ -5,6 +5,31 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 103 (LANDED) — WOL TOPIC for a channel you're not on -> 442 (was a 332 echo)
+DIVERGENCE (wrong reply numeric), one of the WOL fuzz items flagged in wave 93.
+The original (_handle_topic_command, irc.cpp, WOL branch) persists the topic on
+the client's CURRENT channel using the trailing text REGARDLESS of which channel
+name was typed, then derives its reply from the query path: it answers 332
+RPL_TOPIC only when the typed channel matches the channel the client is on,
+otherwise 442 ERR_NOTONCHANNEL "<name> :You're not on that channel" (the same 442
+it gives off-channel). v3's WolFsm::on_topic (wol_fsm/wol_chat.cpp) instead always
+echoed 332 with the typed name, so `TOPIC #other :x` while sitting in #lobby got a
+bogus success echo. Probe: in #LobbyA, `TOPIC #OtherChan :Hello` -> oracle "442
+... :You're not on that channel", v3 "332 ... :Hello".
+Fix: on_topic SET path now compares the typed channel (case-insensitive, iequals)
+to the current channel_; on a mismatch (or off-channel) it answers 442. The
+quirky shared side effect is preserved — the foreign-name SET still updates the
+current channel's topic (both servers do this; verified visible to a later
+joiner's 332), so only the reply numeric changed. The same-channel happy path
+(332 + persisted topic on join, diff_wol_topic) is untouched. (The iequals helper
+was relocated above on_topic so it is in scope; its existing callers are
+unaffected.) The bare-query path is left as v3's safe 332 — the oracle CRASHES on
+"TOPIC #chan" (std::string(NULL)) so there is no behavior to match there.
+New guard tests/diff/diff_wol_topic_notonchan.py: foreign-channel TOPIC -> 442
+(not 332), current-channel TOPIC -> 332, on both servers — match (before: v3 gave
+332 for the foreign channel). 3199/3199 units green (incl. all 63 wol units); WOL
+diff regression (topic, mode, kick, part, chat, login, names) all still match.
+
 ## Wave 102 (LANDED) — BNFTP missing/unsafe file sends NO reply (was a phantom header)
 DIVERGENCE (spurious reply). A BNFTP CLIENT_FILE_REQ for a file that does not
 exist — or a rawname containing a path separator — makes the original's

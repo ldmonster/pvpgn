@@ -41,6 +41,20 @@
 
 namespace pvpgn::protocol::wol {
 
+namespace {
+/// Case-insensitive equality (nick / channel-name comparison).
+bool iequals(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
 core::Status<> WolFsm::on_ping(std::string_view params) {
     // PING [token]  →  ":<server> PONG <server>[ :<token>]"
     //
@@ -426,12 +440,24 @@ core::Status<> WolFsm::on_topic(std::string_view params) {
     }
 
     if (has_topic) {
-        // SET: persist via the use-case (member-gated, <=255 chars), then echo
-        // 332 RPL_TOPIC to the setter — exactly what the original does.
+        // SET. The original (_handle_topic_command, WOL branch) persists the
+        // topic on the client's CURRENT channel (using the trailing text)
+        // regardless of which channel NAME was typed, then derives its reply from
+        // the query path: 332 RPL_TOPIC only when the named channel matches the
+        // one the client is actually on, otherwise 442 ERR_NOTONCHANNEL (the same
+        // 442 it gives when the client is on no channel at all). v3 mirrors both
+        // effects: persist on the current channel, then 332 on a name match /
+        // 442 on a mismatch (or off-channel).
+        const bool on_named =
+            channel_id_.value() != 0 && iequals(chan_disp, channel_);
         if (set_channel_topic_ && channel_id_.value() != 0) {
             application::chat::SetChannelTopicRequest req{
                 account_id_, channel_id_, new_topic};
             (void)set_channel_topic_->execute(req);
+        }
+        if (!on_named) {
+            return send_numeric(442, std::string(nick_) + " " + chan_disp,
+                                "You're not on that channel");
         }
         return send_numeric(332, std::string(nick_) + " " + chan_disp, new_topic);
     }
@@ -1049,19 +1075,6 @@ core::Status<> WolFsm::on_delbuddy(std::string_view params) {
     return send_raw_cmd(335, target);
 }
 
-namespace {
-/// Case-insensitive equality for nick comparison.
-bool iequals(std::string_view a, std::string_view b) {
-    if (a.size() != b.size()) return false;
-    for (std::size_t i = 0; i < a.size(); ++i) {
-        if (std::tolower(static_cast<unsigned char>(a[i])) !=
-            std::tolower(static_cast<unsigned char>(b[i]))) {
-            return false;
-        }
-    }
-    return true;
-}
-}  // namespace
 
 core::Status<> WolFsm::on_setcodepage(std::string_view params) {
     auto cp = trim(first_token(params));
