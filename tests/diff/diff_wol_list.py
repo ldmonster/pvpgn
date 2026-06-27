@@ -51,6 +51,7 @@ def _parse_list(lines, chan):
     chan is the '#'-prefixed channel token to look for (e.g. '#ListCh').
     """
     got_321 = got_323 = False
+    liststart_params = None  # 321 params after the nick (server prefix + nick stripped)
     entry = None  # (count, official) for the wanted channel
     for line in lines:
         parts = line.split()
@@ -59,6 +60,12 @@ def _parse_list(lines, chan):
         code = parts[1]
         if code == "321":
             got_321 = True
+            # ":<server> 321 <nick> Channel :Users Names" -> "Channel :Users Names".
+            # Split off only the prefix/code/nick (first 3 tokens) but preserve
+            # the trailing-param colon, so re-join from the raw line after them.
+            idx = line.find(parts[2], line.find(code) + len(code))
+            after_nick = line[idx + len(parts[2]):].strip()
+            liststart_params = after_nick
         elif code == "323":
             got_323 = True
         elif code == "327" and len(parts) >= 6:
@@ -73,6 +80,7 @@ def _parse_list(lines, chan):
                 entry = (parts[4], official)
     return {
         "got_321": got_321,
+        "liststart_params": liststart_params,
         "got_323": got_323,
         "user_chan_present": entry is not None,
         "user_chan_count": entry[0] if entry else None,
@@ -116,7 +124,7 @@ def main():
         if not o or not n:
             print("FAIL: login/setup failed")
             return 1
-        fields = ["got_321", "got_323", "user_chan_present",
+        fields = ["got_321", "liststart_params", "got_323", "user_chan_present",
                   "user_chan_count", "user_chan_official"]
         print(f"{'field':<20}{'oracle':<12}{'v3':<12}match")
         print("-" * 52)
@@ -127,7 +135,9 @@ def main():
             print(f"{f:<20}{str(o[f]):<12}{str(n[f]):<12}{'OK' if same else 'DIFF'}")
         print()
         success = (all_ok and o["got_321"] and o["got_323"]
-                   and o["user_chan_present"])
+                   and o["user_chan_present"]
+                   and o["liststart_params"] == "Channel :Users Names"
+                   and n["liststart_params"] == "Channel :Users Names")
         if success:
             print("WOL LIST matches the oracle "
                   "(321 + '#'-prefixed 327 entry + 323).")

@@ -2445,3 +2445,18 @@ application_init into the bnetd target. New guard tests/diff/diff_init_class.py
 asserts both servers CLOSE on 0x04/0x05/0x65/0x98/0xAB/0x00 and stay OPEN on
 0x01/0x02; passes. Build clean (-Werror); unit suite 3203/3203 green;
 diff_bnftp.py and diff_bad_marker_resync.py still pass.
+
+## Wave 134
+WOL LIST RPL_LISTSTART (321) emitted a spurious leading colon. The oracle
+(handle_wol.cpp) sends `:<server> 321 <nick> Channel :Users Names` where
+"Channel" is a middle parameter and "Users Names" the trailing one. v3's
+WolFsm::send_numeric (wol_fsm.cpp) always injects " :" before its text arg,
+so passing the whole "Channel :Users Names" string as the text yielded
+`:<server> 321 <nick> :Channel :Users Names` (everything collapsed into one
+trailing param). FIX: fold "Channel" into the target at wol_chat.cpp:161 ->
+send_numeric(321, std::string(nick_) + " Channel", "Users Names"), byte-
+matching the oracle. The existing guards only asserted the PRESENCE of code
+321; tightened diff_wol_list.py to assert the full 321 param string (server
+prefix + nick stripped) equals "Channel :Users Names" on both servers.
+Build clean (-Werror); unit suite 3203/3203 green; diff_wol_list.py,
+diff_wol_list_params.py, diff_wol_names.py all pass.

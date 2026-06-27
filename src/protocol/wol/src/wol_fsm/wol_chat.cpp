@@ -157,8 +157,12 @@ core::Status<> WolFsm::on_list(std::string_view params) {
     const bool list_channels =
         toks.empty() || (toks.size() == 2 && toks[0] != toks[1]);
 
-    // 321 RPL_LISTSTART
-    auto st = send_numeric(321, nick_, "Channel :Users Names");
+    // 321 RPL_LISTSTART. The oracle (handle_wol.cpp) emits
+    //   :<server> 321 <nick> Channel :Users Names
+    // where "Channel" is a middle parameter and "Users Names" the trailing
+    // one. send_numeric always injects " :" before its text argument, so fold
+    // "Channel" into the target to keep it a middle param.
+    auto st = send_numeric(321, std::string(nick_) + " Channel", "Users Names");
     if (!st) return st;
 
     // WOL lists chat channels with RPL_CHANNEL (327), NOT the standard IRC 322:
