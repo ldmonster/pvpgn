@@ -1434,3 +1434,24 @@ Note: check_empty_body still guards SID_NULL, CLOSEGAME/CLOSEGAME2 (0x02/0x1F)
 and Unknown24 (0x24); those generate no reply so a trailing-byte divergence there
 is not observable via the diff harness — left as-is (the oracle also uses
 minimum-size checks for them, but it is not cleanly diffable without a reply).
+
+## Wave 86 (LANDED) — BNFTP filename cap raised 128 -> 2047 (match legacy)
+DIVERGENCE (Finding 5 in findings/bnftp-file.md). v3's BnftpFsm capped the
+client-supplied filename at 128 chars (is_safe_filename, bnftp_fsm.cpp:35) with a
+comment falsely claiming it "matches legacy MAX_FILENAME_STR". The original caps
+at MAX_FILENAME_STR = 2048 incl. NUL (field_sizes.h:55; handle_file.cpp uses
+packet_get_str_const(packet, off, MAX_FILENAME_STR)). Any on-disk file whose name
+was 129..2047 chars was served by the oracle (filelen + full body) but rejected by
+v3 with a size-0 reply. Probe confirmed: a 150/200/250-char .bin name -> oracle
+(100,100), v3 (0,0) before the fix.
+Fix (src/protocol/file/src/bnftp_fsm.cpp): kMaxFilenameLen 128 -> 2047 (matches
+the legacy cap minus the NUL) and rewrote the misleading comment. Path-traversal
+protection (reject '/', '\\', '\0', empty) is unchanged, so the larger cap adds no
+new attack surface — the limiting factor in practice is the filesystem's 255-byte
+per-component limit, well under 2047. No unit test depended on the 128 value.
+New guard tests/diff/diff_bnftp_longname.py: places 100/150/200/250-char files in
+both servers' file dirs and asserts both serve the full body (filelen + bytes) —
+all 4 match (before: only the 100-char control matched). 3199/3199 units green;
+BNFTP diff regression set (bnftp, bnftp_resume, fileinfo) all still match.
+Remaining BNFTP gaps (need work/scope decisions, not cleanly diffable here):
+Finding 3 (REQ2/REQ3 W3 two-step), Finding 4 (localized/alias file resolution).

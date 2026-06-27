@@ -31,8 +31,12 @@ namespace pvpgn::protocol::file {
 
 namespace {
 
-// Maximum filename length accepted from the client (matches legacy MAX_FILENAME_STR).
-constexpr std::size_t kMaxFilenameLen = 128;
+// Maximum filename length accepted from the client. Mirrors the legacy
+// MAX_FILENAME_STR cap (field_sizes.h: 2048, including the terminating NUL),
+// so v3 serves the same range of names the original would (names between 129
+// and 2047 chars were previously rejected with a size-0 reply — a divergence
+// from the oracle for any on-disk file whose name exceeds 128 chars).
+constexpr std::size_t kMaxFilenameLen = 2047;
 
 // Read-buffer chunk size when streaming file data.
 constexpr std::size_t kChunkSize = 4096;
