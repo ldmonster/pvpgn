@@ -851,13 +851,7 @@ std::vector<std::string_view> split_ws(std::string_view s) {
     return out;
 }
 
-/// Mirror the original IRC line parser (handle_irc_common_line): the trailing
-/// param begins at a leading ':' or at the first " :" separator and is NOT
-/// counted in numparams (only the middle params are).
-struct IrcParams {
-    std::vector<std::string_view> middle;
-    bool has_text = false;
-};
+}  // namespace
 
 IrcParams split_irc_params(std::string_view params) {
     IrcParams out;
@@ -872,7 +866,6 @@ IrcParams split_irc_params(std::string_view params) {
     out.middle = split_ws(middle_part);
     return out;
 }
-}  // namespace
 
 core::Status<> WolFsm::on_joingame(std::string_view params) {
     if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {

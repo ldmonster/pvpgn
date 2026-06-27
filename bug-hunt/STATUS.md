@@ -2190,3 +2190,21 @@ for EID_INFO and EID_ERROR (text is charset-garbled, structure-only). 3199/3199
 unit tests green (anongame temp-file flakes pass -j1); diff_time / diff_chat /
 diff_whisper / diff_emote / diff_talk / diff_join_userflags / diff_channel_kick
 still match the oracle.
+
+## Wave 122
+WOL CVERS/VERCHK now enforce strict arity (EXACTLY 2 middle params), matching
+the oracle (handle_wol.cpp:688 CVERS `numparams==2`, :714 VERCHK
+`numparams==2`; any other count -> 461 ERR_NEEDMOREPARAMS). Before: v3's
+on_cvers/on_verchk (wol_auth.cpp) only checked for a single space (>=2 tokens)
+and otherwise proceeded, so a 3-param line slipped through:
+`VERCHK 1000 1.0 extra` -> v3 379 (oracle 461); `CVERS 1 1000 extra` -> v3
+silent (oracle 461). FIX: parse the param string with split_irc_params() (which
+excludes the trailing ':' text, mirroring the oracle's numparams) and require
+middle.size()==2, else send_needmoreparams(). Exposed split_irc_params()/
+IrcParams via wol_internal.hpp (moved out of wol_chat.cpp's anon namespace) so
+both TUs share the one faithful middle/trailing split — `VERCHK 1000 :1.0` is
+numparams==1 -> 461, which a raw whitespace token count would miss. New guard
+tests/diff/diff_wol_verchk_arity.py: both conns send `CVERS 1 1000` first
+(classes WOL), then probe; asserts 461 for 3-param/1-param/trailing-only cases
+and 379/no-op for the 2-param normal path, all matching the oracle. 3199/3199
+unit tests green; diff_wol_login / diff_wol_needmoreparams still match.

@@ -173,24 +173,25 @@ core::Status<> WolFsm::send_welcome_and_motd() {
 
 core::Status<> WolFsm::on_cvers(std::string_view params) {
     // CVERS <oldvernum> <SKU> — the SKU identifies the WOL product.
-    auto p = trim(params);
-    auto sp = p.find(' ');
-    if (sp == std::string_view::npos) {
+    // The original requires EXACTLY 2 middle params (handle_wol.cpp:688
+    // `if (numparams == 2)`); any other count yields ERR_NEEDMOREPARAMS.
+    auto parsed = split_irc_params(trim(params));
+    if (parsed.middle.size() != 2) {
         return send_needmoreparams("CVERS");
     }
-    auto sku_str = first_token(trim(p.substr(sp + 1)));
-    wol_sku_ = std::atoi(std::string(sku_str).c_str());
+    wol_sku_ = std::atoi(std::string(parsed.middle[1]).c_str());
     return core::ok();
 }
 
 core::Status<> WolFsm::on_verchk(std::string_view params) {
     // VERCHK <SKU> <version> — reply that no update is required (379 NONREQ).
-    auto p = trim(params);
-    auto sp = p.find(' ');
-    if (sp == std::string_view::npos) {
+    // The original requires EXACTLY 2 middle params (handle_wol.cpp:714
+    // `if (numparams == 2)`); any other count yields ERR_NEEDMOREPARAMS.
+    auto parsed = split_irc_params(trim(params));
+    if (parsed.middle.size() != 2) {
         return send_needmoreparams("VERCHK");
     }
-    int sku = std::atoi(std::string(first_token(p)).c_str());
+    int sku = std::atoi(std::string(parsed.middle[0]).c_str());
     if (sku != 0) wol_sku_ = sku;
     // Original wire text: "none none none 1 <SKU> NONREQ".
     std::string text = "none none none 1 ";

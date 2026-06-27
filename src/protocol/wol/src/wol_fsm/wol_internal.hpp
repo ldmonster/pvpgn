@@ -10,6 +10,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace pvpgn::protocol::wol {
 
@@ -36,5 +37,16 @@ std::string_view first_token(std::string_view params);
 
 /// Trim leading/trailing whitespace.
 std::string_view trim(std::string_view s);
+
+/// Mirror the original IRC line parser (handle_irc_common_line): the trailing
+/// param begins at a leading ':' or at the first " :" separator and is NOT
+/// counted in numparams (only the middle params are).
+struct IrcParams {
+    std::vector<std::string_view> middle;
+    bool has_text = false;
+};
+
+/// Split a params string into IRC middle params (+ trailing-text flag).
+IrcParams split_irc_params(std::string_view params);
 
 }  // namespace pvpgn::protocol::wol
