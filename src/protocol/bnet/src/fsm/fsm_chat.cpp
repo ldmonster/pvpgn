@@ -517,22 +517,31 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
 
     // Broadcast EID_TALK to all recipients via message_router, minus anyone who
     // has squelched the sender (broadcast-side ignore filter).
-    if (!post_result.value().recipients.empty()) {
-        auto recipients = filter_squelched(post_result.value().recipients,
-                                           current_account_id_);
-        if (!recipients.empty()) {
-            broadcast_chat_event(
-                ChatEvent{
-                    /*event_id*/    kEidTalk,   // EID_TALK (0x05)
-                    /*flags*/       0,
-                    /*ping_ms*/     0,
-                    /*user_ip*/     0,
-                    /*acct_number*/ kChatEventAcctNum,
-                    /*registration*/kChatEventRegAuth,
-                    /*username*/    current_username_,
-                    /*text*/        std::string{chat_msg_result.value().text()}},
-                recipients);
-        }
+    auto recipients = filter_squelched(post_result.value().recipients,
+                                       current_account_id_);
+    if (!recipients.empty()) {
+        broadcast_chat_event(
+            ChatEvent{
+                /*event_id*/    kEidTalk,   // EID_TALK (0x05)
+                /*flags*/       0,
+                /*ping_ms*/     0,
+                /*user_ip*/     0,
+                /*acct_number*/ kChatEventAcctNum,
+                /*registration*/kChatEventRegAuth,
+                /*username*/    current_username_,
+                /*text*/        std::string{chat_msg_result.value().text()}},
+            recipients);
+    } else {
+        // No one OTHER than the sender heard the line (alone in the channel, or
+        // every other member has squelched the sender — squelched recipients do
+        // NOT count, mirroring the original channel_message_send `heard` flag).
+        // The original then replies to the BNCS sender with a self EID_INFO
+        // (channel.cpp:763, gated on conn_get_wol==0) carrying "No one hears
+        // you." with an EMPTY username. WolFsm is a separate path, so being here
+        // already satisfies the BNCS-only gate.
+        (void)ctx_->send(ServerMessage{ChatEvent{
+            kEidInfo, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth, "",
+            "No one hears you."}});
     }
 
     return core::ok();
@@ -664,12 +673,18 @@ core::Status<> BnetFsm::handle_emote(std::string_view body) {
     // author sees their own "* alice waves" line. Send to self first, then
     // fan out to the other channel members.
     (void)ctx_->send(ServerMessage{emote});
-    if (!post_result.value().recipients.empty()) {
-        auto recipients = filter_squelched(post_result.value().recipients,
-                                           current_account_id_);
-        if (!recipients.empty()) {
-            broadcast_chat_event(emote, recipients);
-        }
+    auto recipients = filter_squelched(post_result.value().recipients,
+                                       current_account_id_);
+    if (!recipients.empty()) {
+        broadcast_chat_event(emote, recipients);
+    } else {
+        // No one OTHER than the sender heard the emote — the original replies
+        // with a self EID_INFO "No one hears you." (channel.cpp:763, BNCS-only),
+        // emitted AFTER the self-echo, with an EMPTY username. Squelched members
+        // are excluded from `recipients` and do not count as having heard.
+        (void)ctx_->send(ServerMessage{ChatEvent{
+            kEidInfo, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth, "",
+            "No one hears you."}});
     }
     return core::ok();
 }

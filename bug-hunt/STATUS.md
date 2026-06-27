@@ -2227,3 +2227,25 @@ relink clean (-Werror), build.ninja now has zero libinfra_tracing refs,
 3199/3199 unit tests green; diff_chat / diff_channellist still match the oracle
 (bnetd never linked the lib, so wire behavior is unchanged — pure build-level
 dead-code removal).
+
+## Wave 124
+BNCS: emit the "No one hears you." self EID_INFO when a channel talk/emote
+reaches no one but the sender. The oracle's channel_message_send
+(channel.cpp:763) tracks a `heard` flag set only when a line is delivered to a
+member OTHER than the sender (squelched recipients are skipped and do NOT
+count); gated on conn_get_wol==0 (BNCS only), for talk/emote when `!heard` it
+sends message_type_info to the sender with EMPTY username carrying "No one hears
+you.". v3's BnetFsm regular-message branch and handle_emote only broadcast to
+the post-squelch recipient set and emitted nothing when it was empty.
+Observable: alone-talk oracle [('0x12','')] vs v3 []; alone-emote oracle
+[('0x17','zoe'),('0x12','')] vs v3 [('0x17','zoe')]; two-user talk both [].
+FIX (src/protocol/bnet/src/fsm/fsm_chat.cpp): in both branches, after
+filter_squelched, when `recipients.empty()` send a self ChatEvent{kEidInfo,...,
+username="","No one hears you."}. Empty username matches the probe (distinct
+from v3's "Battle.net" command-output INFO). BNCS-only already (WolFsm is a
+separate path = oracle's conn_get_wol gate); only on the successful-post path so
+empty-body (->space->still posts->eligible) and over-long/dropped lines
+(ChatMessage::create fails->early return->no INFO) stay correct. Guard:
+tests/diff/diff_no_one_hears.py (alone talk/emote + two-user negative) PASSES on
+both servers; 3199/3199 unit green; diff_talk / diff_emote / diff_squelch still
+match the oracle.
