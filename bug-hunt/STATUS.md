@@ -2518,3 +2518,20 @@ verb pre-login, silently accept SETOPT, and emit no 421 post-login; passes.
 Updated 6 unit tests that encoded the old 451 expectation (LIST/JOIN -> 421,
 PRIVMSG con-table -> no 451/421). Build clean (-Werror); unit suite 3203/3203
 green; diff_wol_codepage_locale / setopt / list / unknown / login still pass.
+
+## Wave 138
+Removed the dead, compiled-but-unlinked CMake library infra_persistence_realm
+(src/infra/persistence/realm/: inmemory_character_repository.cpp,
+filesystem_save_store.cpp, inmemory_save_store.cpp + public headers; classes
+InmemoryCharacterRepository / FilesystemSaveStore / InmemorySaveStore). It was
+add_subdirectory'd at src/CMakeLists.txt:909 and so built (libinfra_persistence_realm.a)
+in every config, but NOTHING linked it: no production target, no unit/diff test,
+and zero source references its headers/symbols outside its own dir (build.ninja
+listed it only as a build product + phony aliases, never a link input). Same
+dead-lib category as waves 75/83/91/123/130. FIX: deleted the whole
+src/infra/persistence/realm/ subtree and removed the add_subdirectory line; also
+updated four stale "(infra/persistence/realm/, future)" doc-comment references in
+src/domain/d2cs and src/domain/d2dbs repository headers to "(future)".
+Behavior-neutral by construction: the bnetd binary rebuilt BYTE-FOR-BYTE identical
+(sha256 9d41840...), proving the lib contributed no linked symbols. Reconfigure +
+build clean (-Werror); unit suite 3203/3203 green; diff_chat / diff_bnftp still pass.

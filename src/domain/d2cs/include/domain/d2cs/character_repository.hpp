@@ -7,7 +7,7 @@
 /// `ICharacterRepository` is a pure-virtual port (hexagonal architecture).
 /// Concrete implementations live in the infrastructure layer:
 ///   - `InMemoryCharacterRepository` (this header, for tests)
-///   - `FilesystemCharacterRepository` (infra/persistence/realm/, future)
+///   - `FilesystemCharacterRepository` (future)
 ///
 /// The domain layer must NOT depend on any infrastructure headers.
 

@@ -906,7 +906,6 @@ pvpgn_v3_add_library(application_ports
 add_subdirectory(infra/persistence)
 
 # ---- infra/persistence/realm (D2CS character/save adapters) -------------
-add_subdirectory(infra/persistence/realm)
 
 # ---- application/auth (LoginUser) ---------------------------------------
 

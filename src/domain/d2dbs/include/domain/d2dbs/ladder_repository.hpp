@@ -7,7 +7,7 @@
 /// `ID2DBSLadderRepository` is a pure-virtual port (hexagonal architecture).
 /// Concrete implementations live in the infrastructure layer:
 ///   - `InMemoryD2DBSLadderRepository` (in_memory_repositories.hpp, for tests)
-///   - `FilesystemD2DBSLadderRepository` (infra/persistence/realm/, future)
+///   - `FilesystemD2DBSLadderRepository` (future)
 ///
 /// The domain layer must NOT depend on any infrastructure headers.
 

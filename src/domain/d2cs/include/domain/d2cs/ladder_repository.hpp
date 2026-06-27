@@ -7,7 +7,7 @@
 /// `ILadderRepository` is a pure-virtual port (hexagonal architecture).
 /// Concrete implementations live in the infrastructure layer:
 ///   - `InMemoryLadderRepository` (in_memory_repositories.hpp, for tests)
-///   - `FilesystemLadderRepository` (infra/persistence/realm/, future)
+///   - `FilesystemLadderRepository` (future)
 ///
 /// The domain layer must NOT depend on any infrastructure headers.
 

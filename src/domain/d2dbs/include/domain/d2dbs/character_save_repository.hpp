@@ -7,7 +7,7 @@
 /// `ICharacterSaveRepository` is a pure-virtual port (hexagonal architecture).
 /// Concrete implementations live in the infrastructure layer:
 ///   - `InMemoryCharacterSaveRepository` (in_memory_repositories.hpp, for tests)
-///   - `FilesystemCharacterSaveRepository` (infra/persistence/realm/, future)
+///   - `FilesystemCharacterSaveRepository` (future)
 ///
 /// The domain layer must NOT depend on any infrastructure headers.
 
