@@ -1,5 +1,21 @@
 # Bug Hunt — Status (final summary)
 
+## Wave 147 (LANDED) — /unsquelch of a ghost replies EID_INFO, not EID_ERROR
+DIVERGENCE (bncs-opcode). The "No such user." reply to a chat /unsquelch (or
+/unignore) of a nonexistent name diverged in its CHATEVENT event id. Oracle:
+_handle_unsquelch_command (src/bnetd/command.cpp) uses message_type_info ->
+EID_INFO (0x12) for the miss, while _handle_squelch_command uses
+message_type_error -> EID_ERROR (0x13). v3's shared BnetFsm::handle_squelch
+(src/protocol/bnet/src/fsm/fsm_chat.cpp) returned kEidError for the miss in BOTH
+directions, so /unsquelch <ghost> wrongly came back as an error event. FIX: the
+three miss replies ("No such user." for bad-parse/no-repo, account-not-found, and
+no-ignore-store) now use a direction-dependent event id — kEidError when add
+(squelch), kEidInfo when !add (unsquelch). Decisive observable: /unsquelch
+ghostuser999 -> oracle 0x12, v3 was 0x13 now 0x12; control /squelch ghostuser888
+-> 0x13 on both (match). Guard: tests/diff/diff_unsquelch_ghost.py. Build clean
+(-Werror); diff PASS on both servers; full unit suite green (anongame flake
+cleared -j1); diff_squelch/diff_whisper unaffected.
+
 ## Wave 133 (LANDED) — BNFTP CLIENT_FILE_REQ filename must be NUL-terminated
 DIVERGENCE (bncs-opcode). A CLIENT_FILE_REQ whose filename is NOT NUL-terminated
 within the declared packet size diverged. Oracle: packet_get_str_const

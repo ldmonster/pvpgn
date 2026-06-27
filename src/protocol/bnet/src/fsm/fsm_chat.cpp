@@ -1174,11 +1174,15 @@ core::Status<> BnetFsm::handle_squelch(std::string_view args, bool add) {
     const std::string who{rtrim_sv(args)};
     auto parsed = who.empty() ? std::nullopt
                               : std::optional{domain::UserName::parse(who)};
+    // Oracle: _handle_squelch_command uses message_type_error for a missing
+    // target, but _handle_unsquelch_command uses message_type_info. Mirror that
+    // direction split (kEidError for squelch, kEidInfo for unsquelch).
+    const std::uint32_t miss_eid = add ? kEidError : kEidInfo;
     if (!parsed || !*parsed || !use_cases_.account_repo) {
-        return info(kEidError, "No such user.");
+        return info(miss_eid, "No such user.");
     }
     auto acct = use_cases_.account_repo->find_by_name(parsed->value());
-    if (!acct) return info(kEidError, "No such user.");
+    if (!acct) return info(miss_eid, "No such user.");
     const domain::AccountId target = acct.value().id();
     const std::string name{acct.value().name().display()};
 
@@ -1186,7 +1190,7 @@ core::Status<> BnetFsm::handle_squelch(std::string_view args, bool add) {
         return info(kEidError, "You can't squelch yourself.");
     }
     if (!use_cases_.ignore_store) {
-        return info(kEidError, "No such user.");
+        return info(miss_eid, "No such user.");
     }
     if (add) {
         use_cases_.ignore_store->squelch(current_account_id_, target);
