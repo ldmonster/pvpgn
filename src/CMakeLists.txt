@@ -220,19 +220,6 @@ else()
     message(STATUS "pvpgn v3: libsodium not found — SecureRandom uses std::random_device")
 endif()
 
-# ---- core/* subdirectories (Plan 02: migrated from src/common/) -----------
-
-add_subdirectory(core/strings)
-add_subdirectory(core/encoding)
-add_subdirectory(core/types)
-add_subdirectory(core/time)
-add_subdirectory(core/net)
-add_subdirectory(core/util)
-add_subdirectory(core/debug)
-add_subdirectory(core/error)
-add_subdirectory(core/config)
-add_subdirectory(core/version)
-
 # ---- runtime (service host, peer-to-peer communication) -------------------
 
 pvpgn_v3_add_library(runtime

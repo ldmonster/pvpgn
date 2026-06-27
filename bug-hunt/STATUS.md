@@ -1907,3 +1907,23 @@ core::ok() silently. 353+366 now use the resolved channel's name in both numeric
 New guard tests/diff/diff_wol_names_unknown.py asserts Case A (fallback to current
 channel name+roster, op '@'-marked) and Case B (total silence). diff_wol_names +
 diff_wol_list still match; unit suite green (3199/3199).
+
+## Wave 108 (LANDED) — DEAD CODE: remove src/core/* sublib cluster (10 unlinked Plan-02 leftovers)
+Dead-code removal, same pattern as waves 75/83/91 but a whole cluster. The
+src/core/{strings,encoding,types,time,net,util,debug,error,config,version}
+directories were built via 10 add_subdirectory lines (src/CMakeLists.txt:225-234)
+producing 10 STATIC/INTERFACE libs (core_strings .. core_version) that formed a
+closed dependency sub-graph (core_config->core_util->core_net->core_strings;
+core_time->core_types; etc.) with NO target outside the cluster linking them.
+Proven dead: per-lib `grep core_<x>` over CMakeLists shows references only between
+cluster members; the roots (core_config/core_time/core_debug/core_encoding/
+core_error/core_version) have zero refs anywhere; no `v3::core_` alias use; the
+dir-local headers (conf.h/hexdump.h/util_hex.h/bnettime.h/util_time.h) are
+#included nowhere outside the cluster. Functionality was superseded by the `core`
+umbrella lib (header-only core/bnettime.hpp, core/hexdump.hpp, core/version.hpp
+used by bnetd + tests via DEPS core). Removed the 10 add_subdirectory lines + the
+10 dirs. KEPT src/core/{include,src} (the LIVE umbrella `core` lib). Reconfigure +
+full relink: bnetd/d2cs/d2dbs/all tests still link (none depended on the cluster)
+— linker proof of deadness. 3199/3199 unit tests green; diff_chat + diff_channellist
+still match the oracle (bnetd never linked these libs, so the binary is
+behaviorally unchanged).
