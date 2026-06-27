@@ -3011,3 +3011,19 @@ the request filter (no real bngtype in the v3 game model). WOL host-prefix
 (@Battle.net vs WWOL@<ip>) is an intentional v3 redesign across 11 verbs, left as-is.
 D2CS wire_types.hpp "dead" structs are a deliberate protocol opcode catalog
 (scaffolding for unimplemented opcodes), not removed.
+
+## Wave 172: WOL join-time RPL_NAMREPLY resolves usernames (was numeric account ids)
+The automatic 353 NAMES reply v3 sends on JOIN listed raw numeric account ids
+(std::to_string(mid.value()), a "// placeholder") instead of usernames — a joining
+client saw "123 456" rather than "alfa bravo". The standalone NAMES command path
+(on_names) already resolved names; the join path didn't. Fixed the join path to
+resolve via auth_.account_reader and prefix the channel operator (tmpOP) with '@',
+mirroring on_names. Also corrected the channel symbol in BOTH 353 paths to the
+original's rule (permanent ? '=' : '*'); join hardcoded '=', on_names hardcoded '*'.
+diff_wol_names.py extended to also capture/verify the join-time auto-353 roster.
+DEFERRED (round-6): WOLv2 member format name,clanid,ip (harness is WOLv1, bare
+names); LIST WOLv1 ':' vs WOLv2 '388' line terminator; D2CS CREATECHARREPLY result
+collapses to 0x00/0x01 (no 0x14 ALREADY_EXIST — needs richer domain error); D2CS
+char-name validation stricter than original (no -_. , max 15 vs 16); READUSERDATA
+strict key_count (drops vs oracle partial reply); WRITEUSERDATA auth_changeprofile
+(default-true, not observable under test config).

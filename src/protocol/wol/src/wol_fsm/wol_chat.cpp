@@ -280,9 +280,15 @@ core::Status<> WolFsm::on_names(std::string_view params) {
         }
     }
 
-    // 353 RPL_NAMREPLY: ":server 353 <nick> * <channel> :<members>"
-    if (auto s = send_numeric(353, std::string(nick_) + " * " + chan_disp,
-                              members); !s) {
+    // 353 RPL_NAMREPLY: ":server 353 <nick> <sym> <channel> :<members>".
+    // Symbol mirrors the original (_handle_names: permanent ? '=' : '*').
+    const char names_sym =
+        ch.value().policy().flags.has(domain::chat::ChannelFlag::Permanent)
+            ? '=' : '*';
+    if (auto s = send_numeric(
+            353,
+            std::string(nick_) + ' ' + names_sym + ' ' + chan_disp,
+            members); !s) {
         return s;
     }
     // 366 RPL_ENDOFNAMES: ":server 366 <nick> <channel> :End of NAMES list"
@@ -570,21 +576,38 @@ core::Status<> WolFsm::on_join(std::string_view params) {
             route_irc_line(join_bcast, join_result.value().members_to_notify);
         }
 
-        // 353 RPL_NAMREPLY  = <nick> = <channel> :<member1> <member2> ...
+        // 353 RPL_NAMREPLY: ":server 353 <nick> <sym> <channel> :<members>".
+        // The symbol mirrors the original (_handle_names: permanent ? '=' : '*')
+        // and the roster lists resolved usernames — NOT numeric account ids —
+        // with the channel operator (tmpOP) prefixed '@', exactly as on_names
+        // builds it. A WOLv1 roster is bare space-separated names.
+        const auto& jchan = join_result.value().channel;
+        const char names_sym =
+            jchan.policy().flags.has(domain::chat::ChannelFlag::Permanent)
+                ? '=' : '*';
         std::string names_line = ":";
         names_line += std::string(ctx_->server_name());
         names_line += " 353 ";
         names_line += nick_;
-        names_line += " = ";
+        names_line += ' ';
+        names_line += names_sym;
+        names_line += ' ';
         names_line += channel_;
         names_line += " :";
-        // List member names from the channel snapshot.
+        const auto names_op = jchan.operator_id();
         bool first = true;
-        for (const auto& mid : join_result.value().channel.member_ids()) {
+        for (const auto& mid : jchan.member_ids()) {
+            std::string nm;
+            if (auth_.account_reader) {
+                if (auto a = auth_.account_reader->find_by_id(mid)) {
+                    nm = std::string(a.value().name().display());
+                }
+            }
+            if (nm.empty()) nm = std::to_string(mid.value());
             if (!first) names_line += ' ';
             first = false;
-            // We only have account IDs here; use numeric string as placeholder.
-            names_line += std::to_string(mid.value());
+            if (names_op && names_op->value() == mid.value()) names_line += '@';
+            names_line += nm;
         }
         if (auto s = send_raw(names_line); !s) return s;
 

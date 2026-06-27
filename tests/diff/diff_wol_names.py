@@ -72,7 +72,10 @@ def scenario(host, port):
         a.close()
         return None
     b.send_line(f"JOIN {chan}")
-    time.sleep(0.4)
+    # bravo's own JOIN reply includes the auto RPL_NAMREPLY (353) the server
+    # sends on join. It MUST list resolved usernames (alfa @op + bravo), not
+    # numeric account ids — the bug this guards.
+    join_members, join_353, _ = _parse_names(_drain(b), chan)
     _drain(a)
     a.send_line(f"NAMES {chan}")
     members, got_353, got_366 = _parse_names(_drain(a), chan)
@@ -84,6 +87,10 @@ def scenario(host, port):
         "op_is_alfa": "@alfa" in members,
         "bravo_plain": "bravo" in members,
         "member_count": len(members),
+        # join-time auto-353 roster (the previously-buggy numeric-id path)
+        "join_353": join_353,
+        "join_op_is_alfa": "@alfa" in join_members,
+        "join_bravo_plain": "bravo" in join_members,
     }
 
 
@@ -109,7 +116,8 @@ def main():
         if not o or not n:
             print("FAIL: login/setup failed")
             return 1
-        fields = ["got_353", "got_366", "op_is_alfa", "bravo_plain", "member_count"]
+        fields = ["got_353", "got_366", "op_is_alfa", "bravo_plain", "member_count",
+                  "join_353", "join_op_is_alfa", "join_bravo_plain"]
         print(f"{'field':<16}{'oracle':<12}{'v3':<12}match")
         print("-" * 48)
         all_ok = True
@@ -119,7 +127,9 @@ def main():
             print(f"{f:<16}{str(o[f]):<12}{str(n[f]):<12}{'OK' if same else 'DIFF'}")
         print()
         success = (all_ok and o["got_353"] and o["got_366"]
-                   and o["op_is_alfa"] and o["bravo_plain"])
+                   and o["op_is_alfa"] and o["bravo_plain"]
+                   and o["join_353"] and o["join_op_is_alfa"]
+                   and o["join_bravo_plain"])
         if success:
             print("WOL NAMES matches the oracle (353 roster w/ operator '@' + 366).")
             return 0
