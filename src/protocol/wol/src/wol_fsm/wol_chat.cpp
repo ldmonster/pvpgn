@@ -950,7 +950,7 @@ core::Status<> WolFsm::on_joingame(std::string_view params) {
         auto join_result = join_channel_->execute(account_id_, game_name,
                                                   domain::ClientTag{});
         if (!join_result) {
-            return send_numeric(478, nick_, raw_name + " :JOINGAME failed");
+            return send_numeric(478, nick_ + " " + raw_name, "JOINGAME failed");
         }
         channel_      = raw_name;
         channel_id_   = join_result.value().channel.id();
@@ -991,26 +991,30 @@ core::Status<> WolFsm::on_joingame(std::string_view params) {
     // ----- JOIN mode: JOINGAME #name <something> [password]
     if (tok.size() == 2 || tok.size() == 3) {
         if (!wol_game_store_) {
-            return send_numeric(478, nick_, raw_name + " :Game channel has closed");
+            return send_numeric(478, nick_ + " " + raw_name, "Game channel has closed");
         }
         auto game = wol_game_store_->find(game_name);
         if (!game) {
-            return send_numeric(478, nick_, raw_name + " :Game channel has closed");
+            return send_numeric(478, nick_ + " " + raw_name, "Game channel has closed");
         }
         if (game->is_full()) {
-            return send_numeric(471, nick_, raw_name + " :Channel is full.");
+            return send_numeric(471, nick_ + " " + raw_name, "Channel is full.");
         }
         if (!game->password.empty()) {
             std::string supplied = tok.size() == 3 ? std::string{tok[2]} : "";
             if (supplied != game->password) {
-                return send_numeric(475, nick_, raw_name + " :Bad password");
+                // The original glues the colon directly to the channel name with
+                // NO space ("#name:Bad password"), which send_numeric (which always
+                // inserts " :") cannot produce — build it directly.
+                return send_raw(":" + std::string(ctx_->server_name()) + " 475 " +
+                                nick_ + " " + raw_name + ":Bad password");
             }
         }
 
         auto join_result = join_channel_->execute(account_id_, game_name,
                                                   domain::ClientTag{});
         if (!join_result) {
-            return send_numeric(478, nick_, raw_name + " :JOINGAME failed");
+            return send_numeric(478, nick_ + " " + raw_name, "JOINGAME failed");
         }
         channel_    = raw_name;
         channel_id_ = join_result.value().channel.id();
