@@ -2,14 +2,30 @@
 #include "application/chat/command_registry.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 
 namespace pvpgn::application::chat {
 
+namespace {
+// ASCII-lowercase a command name. The original server dispatches chat
+// slash-commands case-INsensitively (command.cpp strstart -> strncasecmp),
+// so command keys are normalized to lowercase both at registration and lookup.
+std::string to_lower_ascii(std::string_view s) {
+    std::string out;
+    out.reserve(s.size());
+    for (char ch : s) {
+        out.push_back(static_cast<char>(
+            std::tolower(static_cast<unsigned char>(ch))));
+    }
+    return out;
+}
+}  // namespace
+
 void CommandRegistry::register_command(std::string_view name,
                                        domain::moderation::Permission required_permission,
                                        CommandHandler handler) {
-    commands_[std::string(name)] = {required_permission, handler};
+    commands_[to_lower_ascii(name)] = {required_permission, handler};
 }
 
 core::Result<std::string, core::Error>
@@ -81,7 +97,8 @@ bool CommandRegistry::parse_command_line(std::string_view line, std::string& nam
         ++end;
     }
 
-    name = std::string(line.substr(start, end - start));
+    // Command-name lookup is case-insensitive (see to_lower_ascii note).
+    name = to_lower_ascii(line.substr(start, end - start));
 
     // Extract arguments
     while (end < line.size()) {

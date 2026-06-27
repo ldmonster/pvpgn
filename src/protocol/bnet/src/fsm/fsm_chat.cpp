@@ -331,8 +331,18 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
         // matching the original (command.cpp do_whisper / message.cpp EID map).
         {
             const auto cmd_end = rest.find(' ');
-            const std::string_view cmd =
+            const std::string_view cmd_raw =
                 (cmd_end == std::string_view::npos) ? rest : rest.substr(0, cmd_end);
+            // The original dispatches slash-commands case-INsensitively
+            // (command.cpp strstart -> strncasecmp). Normalize the command
+            // NAME to lowercase before matching; arguments (rest) keep their
+            // original case so user-supplied operands are preserved.
+            std::string cmd;
+            cmd.reserve(cmd_raw.size());
+            for (char ch : cmd_raw) {
+                cmd.push_back(static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(ch))));
+            }
             if (cmd == "w" || cmd == "whisper" || cmd == "msg" || cmd == "m") {
                 return handle_whisper(rest, cmd_end);
             }
@@ -411,7 +421,15 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             // No registry wired — minimal built-in fallback.
             // Extract command name (first word of rest).
             auto sp = rest.find(' ');
-            std::string_view cmd_name = (sp == std::string_view::npos) ? rest : rest.substr(0, sp);
+            std::string_view cmd_name_raw =
+                (sp == std::string_view::npos) ? rest : rest.substr(0, sp);
+            // Case-insensitive command-name match (see note above).
+            std::string cmd_name;
+            cmd_name.reserve(cmd_name_raw.size());
+            for (char ch : cmd_name_raw) {
+                cmd_name.push_back(static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(ch))));
+            }
 
             if (cmd_name == "help") {
                 result_text = "Available commands: /help /who /time";

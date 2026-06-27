@@ -1927,3 +1927,24 @@ full relink: bnetd/d2cs/d2dbs/all tests still link (none depended on the cluster
 — linker proof of deadness. 3199/3199 unit tests green; diff_chat + diff_channellist
 still match the oracle (bnetd never linked these libs, so the binary is
 behaviorally unchanged).
+
+## Wave 109 (LANDED) — BNCS slash-command dispatch made case-INsensitive (oracle parity)
+The oracle dispatches chat slash-commands case-insensitively: command.cpp's
+strstart() compares with strncasecmp() (util.cpp), so "/TIME", "/Time", "/WHOAMI",
+"/Me" all reach their handlers. v3's BnetFsm::on(ChatCommand) in fsm_chat.cpp
+extracted the command token and compared it case-SENSITIVELY against the "time"/
+"whoami"/"me"/... literals, and the CommandRegistry lookup (commands_.find(name))
+plus the no-registry fallback ("help") were also case-sensitive — so any
+non-lowercase spelling fell through to the EID_ERROR (0x13) "Unknown command"
+reply instead of running the handler. Decisive observable: "/TIME" -> oracle emits
+2x EID_INFO (0x12) "Server Time:"/"Your local time:"; v3 emitted 1x EID_ERROR.
+Same for "/Time", "/WHOAMI". FIX: lowercase only the command-NAME portion
+(arguments keep their case, matching the oracle's prefix-only strstart): in
+fsm_chat.cpp build an ASCII-lowercased `cmd`/`cmd_name` before the literal
+comparisons (both the intercept block and the no-registry fallback); in
+command_registry.cpp lowercase the key at both register_command() and
+parse_command_line() (new to_lower_ascii helper). New guard
+tests/diff/diff_command_case.py asserts /time,/TIME,/Time and /whoami,/WHOAMI,
+/WhoAmI all yield identical EID structure on both servers (PASS). 3199/3199 unit
+tests green; diff_time / diff_unknown_command / diff_emote / diff_squelch still
+match the oracle.
