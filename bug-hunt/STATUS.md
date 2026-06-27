@@ -2908,3 +2908,20 @@ parseable SERVER_FILE_REPLY (type 0, data_bytes==0, echoed name, agreeing
 filelen) for "" and ".". Build clean (-Werror); full unit suite green
 (3204/3204, the load_anongame_infos failure is the known parallel temp-file
 flake — passes on -j1); diff_bnftp_missing/_nonul/_mtime still match the oracle.
+
+## Waves 158-161: parallel-discovery round (10 finders) → serial apply
+First round of the direct 10-wide parallel-discovery orchestration. 10 read-only
+finder agents probed distinct surfaces concurrently; 7 cleanly-fixable divergences
+applied serially (build + unit 3204 + per-fix diff, all green):
+- w158 (fsm_chat.cpp, 4 fixes): SID_FRIENDINFO (0x66) sends NO reply for an empty
+  friend list or out-of-range index (was fabricating a zeroed reply) [diff_friendinfo];
+  GETADVLISTEX per-entry fixed constants unknown1=1/unknown3=2/unknown6=0x2b (were 0)
+  [diff_gamelist_fields]; /friends add+remove emit an EID_INFO confirmation like the
+  oracle [diff_friends_confirm]; the friend "has left" presence whisper now follows
+  the channel EID_LEAVE on disconnect (oracle conn_destroy order) [diff_presence_order].
+- w159 (bnftp_fsm.cpp): BNFTP filename materialized BEFORE the packet erase — fixes a
+  use-after-erase that served the wrong file for pipelined CLIENT_FILE_REQ packets
+  [diff_bnftp_pipeline].
+- w160 (fsm_auth.cpp): SID_CREATE_ACCT1 username >32 bytes is dropped with NO reply
+  (oracle UNCHECKED_NAME_STR cap), not answered NO [diff_create_overlong].
+- w161 (dead code): removed unreferenced d2dbs GameResultData struct.

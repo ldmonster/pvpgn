@@ -768,6 +768,11 @@ core::Status<> BnetFsm::on(const GameListRequest& m) {
                 if (!m.game_name.empty() && g.name != m.game_name) continue;
                 GameListEntry e;
                 e.gametype  = m.gametype;     // echo the requested type filter
+                // Fixed server->client constants the original always emits in
+                // each game record (SERVER_GAMELISTREPLY_GAME_UNKNOWN1/3/6).
+                e.unknown1  = 0x0001u;
+                e.unknown3  = 0x0002u;
+                e.unknown6  = 0x0000002bu;
                 e.status    = 0x04u;          // GAME_STATUS_OPEN
                 e.game_name = g.name;
                 e.info      = g.map_name;     // statstring / map
@@ -868,6 +873,11 @@ core::Status<> BnetFsm::handle_friends(std::string_view rest,
         if (!use_cases_.add_friend) return info("Friends are not available.");
         auto r = use_cases_.add_friend->execute(current_account_id_, target_id);
         if (!r) return info("Could not add that friend.");
+        // The original emits an EID_INFO confirmation in addition to the ack.
+        if (auto s = info("Added " + std::string{parsed.value().display()} +
+                          " to your friends list."); !s) {
+            return s;
+        }
         FriendAddAck ack;
         ack.name = std::string{parsed.value().display()};
         ack.status = 0;
@@ -892,6 +902,11 @@ core::Status<> BnetFsm::handle_friends(std::string_view rest,
     if (!use_cases_.remove_friend) return info("Friends are not available.");
     auto r = use_cases_.remove_friend->execute(current_account_id_, target_id);
     if (!r) return info("That user is not on your friends list.");
+    // The original emits an EID_INFO confirmation in addition to the ack.
+    if (auto s = info("Removed " + std::string{parsed.value().display()} +
+                      " from your friends list."); !s) {
+        return s;
+    }
     return ctx_->send(ServerMessage{FriendDelAck{slot}});
 }
 
@@ -1294,19 +1309,24 @@ core::Status<> BnetFsm::on(const FriendInfoRequest& m) {
     if (state_ != BnetState::InChat && state_ != BnetState::LoggedIn) {
         return reject("bnet fsm: FRIENDINFO before login");
     }
+    // The original (_client_friendinforeq) sends NO reply when the account has
+    // zero friends (`if (n==0) return 0;`) or when friend_num is out of range
+    // (logs "bad friend number", returns -1, no packet). Only an in-range index
+    // produces a SERVER_FRIENDINFOREPLY. Mirror that: never fabricate a reply for
+    // an empty list or a bogus index.
+    if (!use_cases_.list_friends) return core::ok();
+    auto result = use_cases_.list_friends->execute(current_account_id_);
+    if (!result || m.friend_num >= result.value().size()) {
+        return core::ok();
+    }
     FriendInfoReply reply;
     reply.friend_num = m.friend_num;
-    if (use_cases_.list_friends) {
-        auto result = use_cases_.list_friends->execute(current_account_id_);
-        if (result && m.friend_num < result.value().size()) {
-            const auto& f = result.value()[m.friend_num];
-            const auto e  = friend_to_entry(f);
-            reply.type       = e.status;     // FRIEND_TYPE_*
-            reply.status     = e.location;   // FRIENDSTATUS_* (location code)
-            reply.client_tag = e.client_tag;
-            reply.game_name  = e.location_name;
-        }
-    }
+    const auto& f = result.value()[m.friend_num];
+    const auto e  = friend_to_entry(f);
+    reply.type       = e.status;     // FRIEND_TYPE_*
+    reply.status     = e.location;   // FRIENDSTATUS_* (location code)
+    reply.client_tag = e.client_tag;
+    reply.game_name  = e.location_name;
     return ctx_->send(ServerMessage{reply});
 }
 
@@ -1500,11 +1520,6 @@ core::Status<> BnetFsm::on(const LeaveChannel&) {
 }
 
 void BnetFsm::on_disconnect() {
-    // Watch/presence: tell this account's mutual, online friends it has left,
-    // before any membership teardown (mirrors the original's conn_destroy ->
-    // WatchComponent::dispatch_whisper, ET_logout).
-    notify_friends_presence(/*entered=*/false);
-
     // A disconnect while in a channel is a channel part: reuse the LEAVECHANNEL
     // path so the remaining members get EID_LEAVE. We deliberately do NOT guard
     // on current_channel_id_ != 0 — the in-memory repo assigns channel id 0 to
@@ -1526,6 +1541,13 @@ void BnetFsm::on_disconnect() {
         (void)use_cases_.leave_game->execute(current_game_id_, current_account_id_);
         current_game_id_ = domain::GameId{0};
     }
+    // Watch/presence: tell this account's mutual, online friends it has left.
+    // The original's conn_destroy order is channel_del_connection -> game cleanup
+    // -> watchlist ET_logout dispatch, so the friend "has left" whisper must come
+    // AFTER the channel EID_LEAVE (an observer who is both a channel-mate and a
+    // mutual friend sees LEAVE then the whisper, not the reverse).
+    notify_friends_presence(/*entered=*/false);
+
     // The ignore/squelch list is per-connection in the original (conn_destroy
     // frees it). Our store is account-keyed and run-loop-scoped, so without this
     // a squelch would survive a disconnect/reconnect — diverging from the oracle,
