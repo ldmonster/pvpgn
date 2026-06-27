@@ -2631,3 +2631,26 @@ Build clean (-Werror); unit suite 3203/3203; diff_join_channel_first_event /
 diff_chatevent_fields / diff_channel_join_edges all pass. (The unrelated
 EID_INFO channel-MOTD line and self-roster MF_PLUG/statstring deltas seen in the
 same join stream are backend-dependent and left aside.)
+
+## Wave 144
+SID_CHANGECLIENT (0x5C) invalid client-switch must destroy the connection (v3
+no-oped). The oracle's _client_changeclient (handle_bnet.cpp, registered pre-login
+in bnet_htable_con) permits a switch ONLY when the conn's current tag == W3XP AND
+the requested new tag == WARCRAFT3 ("WAR3"); on any other combination it logs
+"invalid attempt to change client", conn_set_state(conn_state_destroy) and FINs
+the socket. On the valid path it just swaps the clienttag (no reply). v3's
+BnetFsm::on(const ChangeClient&) (src/protocol/bnet/src/fsm/fsm_misc.cpp:121) was
+an unconditional no-op `return core::ok()` that accepted every CHANGECLIENT and
+kept the connection alive. Fix: named the param, mirrored the oracle's validity
+test — client_tag_ == kWar3Xp AND requested == kWarcraft3. decode_change_client
+reads the tag little-endian (RD_U32), so wire "WAR3" arrives byte-reversed vs
+ClientTag's big-endian packed form; byte-swap (__builtin_bswap32) before comparing
+to kWarcraft3.packed_be(). Invalid combo -> reject() (Closing + ctx_->close()),
+valid combo -> set client_tag_ = kWarcraft3 and core::ok() with no reply. Also
+fixed the stale header doc comment (0x68 -> 0x5C). Probe (SEXP auth_handshake +
+CHANGECLIENT b"WAR3"): oracle closed / v3 was alive -> now both closed; control
+(no CHANGECLIENT) alive on both. Guard tests/diff/diff_changeclient.py asserts the
+invalid-path destroy + the control survival; the valid W3XP->WAR3 path is not
+reachable in this harness (oracle's post-auth clienttag isn't actually W3XP) so it
+is not asserted. Build clean (-Werror); unit suite green (anongame/multilocale
+flakes pass on -j1); diff_advertise_part / diff_cdkey still match the oracle.

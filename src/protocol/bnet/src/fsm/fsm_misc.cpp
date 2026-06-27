@@ -22,7 +22,7 @@
 ///   on(ReadMemoryReply)    — SID_READMEMORYREPLY (0x1B)
 ///   on(Unknown1B)          — SID_UNKNOWN_1B
 ///   on(Unknown24)          — SID_UNKNOWN_24
-///   on(ChangeClient)       — SID_CHANGECLIENT (0x68)
+///   on(ChangeClient)       — SID_CHANGECLIENT (0x5C)
 ///   on(CdKey3Request)      — SID_CDKEY3 (0x52)
 
 #include "fsm/fsm_internal.hpp"
@@ -118,7 +118,27 @@ core::Status<> BnetFsm::on(const ExtraWork&) {
 core::Status<> BnetFsm::on(const ReadMemoryReply&) { return core::ok(); }
 core::Status<> BnetFsm::on(const Unknown1B&)       { return core::ok(); }
 core::Status<> BnetFsm::on(const Unknown24&)       { return core::ok(); }
-core::Status<> BnetFsm::on(const ChangeClient&)    { return core::ok(); }
+
+core::Status<> BnetFsm::on(const ChangeClient& m) {
+    // SID_CHANGECLIENT (0x5C): the original (_client_changeclient,
+    // handle_bnet.cpp) permits a client switch ONLY when the connection's
+    // current tag is WAR3XP ("W3XP") and the requested new tag is WARCRAFT3
+    // ("WAR3"). Any other combination is logged as an "invalid attempt to
+    // change client" and the connection is destroyed. On the valid path it
+    // just swaps the clienttag and sends no reply.
+    //
+    // decode_change_client reads the requested tag little-endian (RD_U32), so
+    // the wire bytes "WAR3" arrive byte-reversed relative to ClientTag's
+    // big-endian packed form; byte-swap before comparing.
+    const std::uint32_t requested_be = __builtin_bswap32(m.clienttag);
+    const bool valid = client_tag_ == domain::tags::kWar3Xp &&
+                       requested_be == domain::tags::kWarcraft3.packed_be();
+    if (!valid) {
+        return reject("bnet fsm: invalid CHANGECLIENT");
+    }
+    client_tag_ = domain::tags::kWarcraft3;
+    return core::ok();
+}
 
 core::Status<> BnetFsm::on(const CdKey3Request&) {
     // CDKEY3 is the Diablo II 1.08+ third-key proof, part of pre-login auth.
