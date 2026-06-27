@@ -1383,3 +1383,26 @@ scaffolding). Remaining catalogued dead-code candidates (core legacy modules,
 infra/crypto/{peerchat,wol_hash}, infra/metrics/server_metrics,
 infra/webui/web_server, protocol/wolgameres stub) need per-symbol/lib-dependency
 care — see findings/dead-code-audit.md.
+
+## Wave 84 (LANDED) — whisper-to-self event ordering (WHISPERSENT before WHISPER)
+DIVERGENCE (event ordering on a single connection). The original do_whisper
+(command.cpp) sends the sender's acknowledgement FIRST
+(message_type_whisperack -> EID_WHISPERSENT 0x0a), THEN the target's message
+(message_type_whisper -> EID_WHISPER 0x04). It has no self-target special case,
+so when a user whispers to themselves (/w <self> ...) both lines land on the same
+socket and the client observes WHISPERSENT then WHISPER, in that order.
+v3's BnetFsm::handle_whisper (src/protocol/bnet/src/fsm/fsm_chat.cpp) emitted them
+in the REVERSE order: it broadcast EID_WHISPER to the target session, then sent
+EID_WHISPERSENT to the sender. For a whisper to ANOTHER user this is invisible
+(two separate connections), but a self-whisper exposed the reversed pair
+(0x04 before 0x0a vs the oracle's 0x0a before 0x04).
+Fix: reordered handle_whisper to ctx_->send the EID_WHISPERSENT to the sender
+first, then broadcast the EID_WHISPER to the target session (faithful to the
+original's whisperack-before-whisper sequence). Behaviour for the normal
+two-party whisper is byte-identical (still WHISPER to target + WHISPERSENT to
+sender); only the on-wire order for the same-socket self-whisper changes.
+New guard tests/diff/diff_whisper_self.py: alice whispers herself and asserts the
+(eid,name) sequence [(0x0a,alice),(0x04,alice)] on both servers — match (before:
+v3 gave [(0x04,alice),(0x0a,alice)]). 3199/3199 units green (load_anongame/
+multilocale/maplists temp-file flakes pass -j1); diff regression set (whisper,
+squelch, chat, talk, emote) all still match the oracle.

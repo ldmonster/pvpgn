@@ -509,15 +509,23 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
 
     const std::string message_str{message};
 
+    // Ordering matches the original do_whisper (command.cpp): the sender's
+    // EID_WHISPERSENT acknowledgement is emitted FIRST (message_type_whisperack),
+    // then the target's EID_WHISPER (message_type_whisper). For a whisper to
+    // ANOTHER user this is invisible (two separate connections), but for a
+    // whisper to oneself (target session == sender) both lines land on the same
+    // socket, and the original delivers WHISPERSENT before WHISPER.
+
+    // Acknowledge to the sender with EID_WHISPERSENT (0x0a): username = target.
+    (void)ctx_->send(ServerMessage{ChatEvent{
+        kEidWhisperSent, 0, 0, 0, 0, 0, std::string{target_name}, message_str}});
+
     // Deliver EID_WHISPER (0x04) to the target: username = sender.
     const domain::SessionId one[1] = {target_session.value()};
     broadcast_chat_event(
         ChatEvent{kEidWhisper, 0, 0, 0, 0, 0, current_username_, message_str},
         std::span<const domain::SessionId>{one, 1});
-
-    // Acknowledge to the sender with EID_WHISPERSENT (0x0a): username = target.
-    return ctx_->send(ServerMessage{ChatEvent{
-        kEidWhisperSent, 0, 0, 0, 0, 0, std::string{target_name}, message_str}});
+    return core::ok();
 }
 
 core::Status<> BnetFsm::handle_emote(std::string_view body) {
