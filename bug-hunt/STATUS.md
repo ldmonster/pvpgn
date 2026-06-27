@@ -2327,3 +2327,25 @@ that emits both lines (hint sent only for the not-found case, not banned-from).
 Guard: tests/diff/diff_who_nonexistent.py asserts both servers emit exactly two
 EID_ERROR and zero EID_INFO for "/who <bogus>" — PASSES on both. Full suite
 3203/3203 green; diff_whoami / diff_channelcmds still match the oracle.
+
+## Wave 129
+WOL unknown-verb (421 ERR_UNKNOWNCOMMAND) was malformed and matched the oracle
+in no path. v3's fallback in WolFsm::dispatch_line emitted
+`:pvpgn.v3 421 <nick> :FOOBAR :Unknown command` — a DOUBLE colon (send_numeric
+injects " :" and the caller also embedded a colon), echoing the command with the
+wrong text, in BOTH the before- and after-login paths. The oracle's behavior is
+state-dependent: before login it sends a well-formed
+`:<server> 421 <nick> :Unrecognized command (before login)` (single trailing
+colon, no command echo); after login it routes the unknown verb to the bnet
+chat-command handler ("/<verb>") and sends NO 421 (observable: a server PAGE
+message). FIX (wol_fsm.cpp): gate the fallback on WolState — before login
+(Connecting/Authenticating) emit the oracle's exact well-formed 421 text with no
+command echo; after login (Authenticated/InChannel/InGame) suppress the numeric
+(return core::ok()). Updated the two stale unit tests (before-login asserts the
+well-formed text + no FOOBAR echo; after-auth asserts no 421). Guard:
+tests/diff/diff_wol_unknown.py — before login both emit a well-formed,
+non-echoing 421; after login neither emits a 421 — PASSES on both servers. Full
+suite 3203/3203 green; diff_wol_part / diff_wol_chat still match the oracle.
+Corrects the false assumption in findings/wol-chat-lobby.md:469-472 that this
+421 was a sane shared default. Full chat-command forwarding of "/<verb>" after
+login (via fsm_chat.cpp dispatch) remains a deeper follow-up.

@@ -508,25 +508,32 @@ TEST_CASE("WolFsm: PRIVMSG after auth is accepted (stub)",
 // Unknown command
 // ---------------------------------------------------------------------------
 
-TEST_CASE("WolFsm: unknown command → 421 ERR_UNKNOWNCOMMAND",
+TEST_CASE("WolFsm: unknown command before login → well-formed 421",
           "[protocol][wol][fsm]") {
     auto ctx = std::make_shared<FakeWolContext>();
     WolFsm fsm{ctx};
 
+    // Before login the original server emits a well-formed
+    //   :<server> 421 <nick> :Unrecognized command (before login)
+    // with NO echo of the offending command and a single trailing colon.
     REQUIRE(feed_line(fsm, "FOOBAR :test").has_value());
     REQUIRE(ctx->has_line_containing("421"));
-    REQUIRE(ctx->has_line_containing("FOOBAR"));
+    REQUIRE(ctx->has_line_containing("Unrecognized command (before login)"));
+    // The command must NOT be echoed back into the reply.
+    REQUIRE(!ctx->has_line_containing("FOOBAR"));
 }
 
-TEST_CASE("WolFsm: unknown command after auth → 421",
+TEST_CASE("WolFsm: unknown command after auth → no 421",
           "[protocol][wol][fsm]") {
     auto ctx = std::make_shared<FakeWolContext>();
     WolFsm fsm{ctx};
     do_auth(fsm);
     ctx->lines.clear();
 
+    // After login the original routes the unknown verb to the chat-command
+    // handler (as "/<verb>") and sends NO 421, so v3 must not emit one either.
     REQUIRE(feed_line(fsm, "XYZZY").has_value());
-    REQUIRE(ctx->has_line_containing("421"));
+    REQUIRE(!ctx->has_line_containing("421"));
 }
 
 // ---------------------------------------------------------------------------

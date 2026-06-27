@@ -283,9 +283,18 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         if (cmd == kw) return core::ok();  // silently accept
     }
 
-    // 421 ERR_UNKNOWNCOMMAND
-    return send_numeric(421, nick_.empty() ? "*" : nick_,
-                        cmd + " :Unknown command");
+    // Unknown command. Mirror the original server's behaviour, which depends on
+    // login state:
+    //   - Before login (Connecting/Authenticating): emit a well-formed
+    //     421 ERR_UNKNOWNCOMMAND with no command echo and the original's text.
+    //   - After login (Authenticated/InChannel/InGame): the original routes the
+    //     unknown verb to its chat-command handler (as "/<verb>") and sends NO
+    //     421, so we suppress the numeric here.
+    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
+        return send_numeric(421, nick_.empty() ? "*" : nick_,
+                            "Unrecognized command (before login)");
+    }
+    return core::ok();
 }
 
 // ===========================================================================
