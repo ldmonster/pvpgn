@@ -117,10 +117,6 @@ core::Status<> WolFsm::on_quit(std::string_view /*params*/) {
 }
 
 core::Status<> WolFsm::on_list(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
 
     // The original _handle_list_command (handle_wol.cpp) decides what to list
     // from the COUNT and EQUALITY of the middle params, mirroring how various
@@ -232,10 +228,6 @@ core::Status<> WolFsm::on_list(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_names(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     auto chan_sv = trim(first_token(params));
     if (chan_sv.empty()) {
         // Bare NAMES lists every channel on the original; that set is config-
@@ -294,10 +286,6 @@ core::Status<> WolFsm::on_names(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_time() {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     // 391 RPL_TIME: ":server 391 <nick> <server> :<unixtime>" — mirrors the
     // original's _handle_time_command (time(NULL)). The server name is repeated
     // as a param, then the unix time as the trailing arg.
@@ -309,10 +297,6 @@ core::Status<> WolFsm::on_time() {
 }
 
 core::Status<> WolFsm::on_mode(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     auto target = trim(first_token(params));
     if (target.empty()) {
         return send_needmoreparams("MODE");
@@ -377,10 +361,6 @@ core::Status<> WolFsm::on_mode(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_kick(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     // Parse "#chan <victim> [:reason]".
     auto chan_sv = trim(first_token(params));
     std::string_view rest;
@@ -452,10 +432,6 @@ core::Status<> WolFsm::on_kick(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_topic(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     auto chan_sv = trim(first_token(params));
     if (chan_sv.empty()) {
         return send_needmoreparams("TOPIC");
@@ -521,10 +497,6 @@ core::Status<> WolFsm::on_topic(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_join(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
 
     auto chan_sv = trim(first_token(params));
     if (chan_sv.empty()) {
@@ -687,10 +659,6 @@ core::Status<> WolFsm::on_part(std::string_view /*params*/) {
 }
 
 core::Status<> WolFsm::on_privmsg(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
 
     // PRIVMSG <target> :<message>
     auto sp = params.find(' ');
@@ -797,10 +765,6 @@ WolFsm::current_channel_member_sessions(bool exclude_self) const {
 }
 
 core::Status<> WolFsm::on_gameopt(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
 
     // GAMEOPT <target> :<gameOptions>
     auto sp = params.find(' ');
@@ -885,10 +849,6 @@ IrcParams split_irc_params(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_joingame(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
 
     auto tok = split_ws(params);
     if (tok.empty()) {
@@ -1014,10 +974,6 @@ core::Status<> WolFsm::on_joingame(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_finduser(std::string_view params, bool ex) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
 
     auto target = trim(first_token(params));
     if (target.empty()) {
@@ -1079,10 +1035,6 @@ core::Status<> WolFsm::send_raw_cmd(int code, std::string_view params) {
 }
 
 core::Status<> WolFsm::on_getbuddy() {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     // Backtick-terminated buddy list (matches the original 333 payload).
     std::string list;
     if (list_friends_) {
@@ -1098,10 +1050,6 @@ core::Status<> WolFsm::on_getbuddy() {
 }
 
 core::Status<> WolFsm::on_addbuddy(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     auto target = trim(first_token(params));
     if (target.empty()) {
         return send_needmoreparams("ADDBUDDY");
@@ -1124,10 +1072,6 @@ core::Status<> WolFsm::on_addbuddy(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_delbuddy(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     auto target = trim(first_token(params));
     if (target.empty()) {
         return send_needmoreparams("DELBUDDY");
@@ -1199,10 +1143,6 @@ core::Status<> WolFsm::on_getinsider(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_page(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     // PAGE <target> :<message>
     auto sp = params.find(' ');
     if (sp == std::string_view::npos) {
@@ -1246,10 +1186,6 @@ core::Status<> WolFsm::on_page(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_chanchk(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     auto chan = trim(first_token(params));
     if (chan.empty()) return core::ok();  // original: no reply without a param
 
@@ -1271,10 +1207,6 @@ core::Status<> WolFsm::on_chanchk(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_host(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     // HOST <nick> [:<text>]
     auto sp = params.find(' ');
     std::string_view target = sp == std::string_view::npos
@@ -1314,10 +1246,6 @@ core::Status<> WolFsm::on_host(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_userip(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     auto target = trim(first_token(params));
     // The original (_handle_userip_command) replies 461 when no nick is given.
     if (target.empty()) return send_needmoreparams("USERIP");
@@ -1350,10 +1278,6 @@ core::Status<> WolFsm::on_userip(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_invmsg(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     // INVMSG <channel> <flag> <invited,invited2,...>
     auto tok = split_ws(params);
     // The original (_handle_invmsg_command) replies 461 when fewer than 3 params.
@@ -1440,10 +1364,6 @@ core::Status<> WolFsm::on_rungsearch(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_advertr(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     auto chan = trim(first_token(params));
     if (chan.empty()) {
         return send_needmoreparams("ADVERTR");
@@ -1457,10 +1377,6 @@ core::Status<> WolFsm::on_advertr(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_setopt(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     // SETOPT <find>,<page>  (16/17 = find off/on, 32/33 = page off/on). No reply.
     auto arg = trim(first_token(params));
     if (arg.empty() || !user_flags_store_ || account_id_.value() == 0) {
@@ -1478,10 +1394,6 @@ core::Status<> WolFsm::on_setopt(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_startg(std::string_view params) {
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(451, nick_.empty() ? "*" : nick_,
-                            "You have not registered");
-    }
     // STARTG <channel> <nick1,nick2,...>
     auto tok = split_ws(params);
     if (tok.size() < 2) {

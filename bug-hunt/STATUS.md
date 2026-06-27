@@ -2494,3 +2494,27 @@ layer, so replying NO (response=0) exactly matches the oracle's not-in-a-game pa
 the cleanly-diffable case. New guard tests/diff/diff_mapauth.py asserts both servers
 reply 0x32/0x3C with a >=4-byte body and response==0; passes. Build clean (-Werror);
 unit suite 3203/3203 green; diff_startgame_done.py still passes.
+
+## Wave 137
+WOL pre-login command gating did not mirror the oracle's con/log two-table model
+(handle_wol.cpp + handle_irc_common.cpp). The oracle splits verbs into a
+"connected" table valid in any state {NICK,USER,PASS,PING,PONG,QUIT,PRIVMSG,CVERS,
+VERCHK,APGAR,SETOPT,SERIAL,LISTSEARCH,RUNGSEARCH,HIGHSCORE} and a "logged in"
+table (LIST/TOPIC/JOIN/NAMES/PART/TIME/MODE/KICK/PAGE/FINDUSER/SET-GET CODEPAGE/
+LOCALE/GETINSIDER/...); a log-table verb sent before login gets exactly one
+"421 :Unrecognized command (before login)". v3 diverged three ways: (1) most
+log-table handlers replied 451 ERR_NOTREGISTERED (a numeric the oracle defines but
+NEVER sends); (2) the codepage/locale handlers (SET/GETCODEPAGE, SET/GETLOCALE,
+GETINSIDER) had NO guard and EXECUTED pre-login, leaking 328/329/309/310/399; (3)
+the con-table verb SETOPT was over-blocked with 451 where the oracle is silent.
+FIX: WolFsm::dispatch_line now applies a single two-table gate — con-table verbs
+dispatch in any state; every other recognized verb pre-login returns the 421
+"before login" numeric and nothing else. Deleted all 22 scattered per-handler 451
+"You have not registered" guards in wol_chat.cpp (dead under the gate; the 451 is
+never emitted). SETOPT now routes through as a silent-ok con verb (on_setopt is a
+no-op when account_id_==0), and the codepage/locale leak is closed. New guard
+tests/diff/diff_wol_prelogin_gating.py asserts both servers 421 every log-table
+verb pre-login, silently accept SETOPT, and emit no 421 post-login; passes.
+Updated 6 unit tests that encoded the old 451 expectation (LIST/JOIN -> 421,
+PRIVMSG con-table -> no 451/421). Build clean (-Werror); unit suite 3203/3203
+green; diff_wol_codepage_locale / setopt / list / unknown / login still pass.

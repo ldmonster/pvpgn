@@ -217,6 +217,30 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
 
     if (cmd.empty()) return core::ok();
 
+    // Two-table login gate, mirroring the original server's con/log split
+    // (handle_wol.cpp + handle_irc_common.cpp). A small set of "connected"
+    // verbs are valid in any state; every other recognized verb requires a
+    // completed login. handle_irc_common tries the con-table first, and if a
+    // verb is not there AND the connection is not yet logged in, it emits
+    // exactly one "421 ... :Unrecognized command (before login)". (The 451
+    // ERR_NOTREGISTERED numeric is defined by the original but never sent, so
+    // v3 must not emit it either.)
+    static constexpr std::string_view con_verbs[] = {
+        "NICK", "USER", "PASS", "PING", "PONG", "QUIT", "PRIVMSG", "CVERS",
+        "VERCHK", "APGAR", "SETOPT", "SERIAL", "LISTSEARCH", "RUNGSEARCH",
+        "HIGHSCORE",
+    };
+    bool is_con_verb = false;
+    for (auto v : con_verbs) {
+        if (cmd == v) { is_con_verb = true; break; }
+    }
+    const bool logged_in = !(state_ == WolState::Connecting ||
+                             state_ == WolState::Authenticating);
+    if (!is_con_verb && !logged_in) {
+        return send_numeric(421, nick_.empty() ? "*" : nick_,
+                            "Unrecognized command (before login)");
+    }
+
     if (cmd == "NICK")    return on_nick(params);
     if (cmd == "USER")    return on_user(params);
     if (cmd == "PASS")    return on_pass(params);
@@ -283,17 +307,10 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         if (cmd == kw) return core::ok();  // silently accept
     }
 
-    // Unknown command. Mirror the original server's behaviour, which depends on
-    // login state:
-    //   - Before login (Connecting/Authenticating): emit a well-formed
-    //     421 ERR_UNKNOWNCOMMAND with no command echo and the original's text.
-    //   - After login (Authenticated/InChannel/InGame): the original routes the
-    //     unknown verb to its chat-command handler (as "/<verb>") and sends NO
-    //     421, so we suppress the numeric here.
-    if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
-        return send_numeric(421, nick_.empty() ? "*" : nick_,
-                            "Unrecognized command (before login)");
-    }
+    // Unknown command, logged in. The original routes the unknown verb to its
+    // chat-command handler (as "/<verb>") and sends NO 421, so we suppress the
+    // numeric here. (The pre-login case is handled earlier by the two-table
+    // login gate, which already emitted 421 for non-con verbs.)
     return core::ok();
 }
 

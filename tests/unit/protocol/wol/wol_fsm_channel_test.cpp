@@ -9,7 +9,8 @@
 //   - PRIVMSG to nick: client sends private message, server responds with 401
 //   - JOIN non-existent channel: server responds with 403 (stub: channel created)
 //   - LIST with channels: 321 + 322 entries + 323
-//   - PRIVMSG before auth: 451 ERR_NOTREGISTERED
+//   - Pre-login gating: log-table verbs (LIST/JOIN) -> 421; PRIVMSG (con-table)
+//     is not gated (never 451 — the original defines but never sends it)
 //   - PRIVMSG with no params: 411 ERR_NORECIPIENT
 
 #include <cstddef>
@@ -190,13 +191,18 @@ TEST_CASE("WolFsm R307: LIST 327 entry contains channel name and WOL terminator"
     REQUIRE(line327.find("388") != std::string::npos);
 }
 
-TEST_CASE("WolFsm R307: LIST before auth returns 451 ERR_NOTREGISTERED",
+TEST_CASE("WolFsm R307: LIST before auth returns 421 (before login)",
           "[protocol][wol][fsm][channel][R307]") {
     auto ctx = std::make_shared<FakeWolCtx>();
     WolFsm fsm{ctx};
 
+    // LIST is a log-table verb: the original's two-table gate
+    // (handle_irc_common.cpp) rejects it pre-login with 421
+    // "Unrecognized command (before login)" — NOT 451 (ERR_NOTREGISTERED,
+    // which the original defines but never sends).
     REQUIRE(feed_line(fsm, "LIST").has_value());
-    REQUIRE(ctx->has_line_containing("451"));
+    REQUIRE(ctx->has_line_containing("421"));
+    REQUIRE(!ctx->has_line_containing("451"));
 }
 
 // ===========================================================================
@@ -263,13 +269,15 @@ TEST_CASE("WolFsm R307: JOIN echo contains nick prefix",
     REQUIRE(join_line.find("Alice") != std::string::npos);
 }
 
-TEST_CASE("WolFsm R307: JOIN before auth returns 451 ERR_NOTREGISTERED",
+TEST_CASE("WolFsm R307: JOIN before auth returns 421 (before login)",
           "[protocol][wol][fsm][channel][R307]") {
     auto ctx = std::make_shared<FakeWolCtx>();
     WolFsm fsm{ctx};
 
+    // JOIN is a log-table verb: rejected pre-login with 421, never 451.
     REQUIRE(feed_line(fsm, "JOIN #lobby").has_value());
-    REQUIRE(ctx->has_line_containing("451"));
+    REQUIRE(ctx->has_line_containing("421"));
+    REQUIRE(!ctx->has_line_containing("451"));
 }
 
 TEST_CASE("WolFsm R307: JOIN with no channel param returns 461 ERR_NEEDMOREPARAMS",
@@ -303,13 +311,18 @@ TEST_CASE("WolFsm R307: PRIVMSG to channel after JOIN is accepted without error"
     REQUIRE(!ctx->closed);
 }
 
-TEST_CASE("WolFsm R307: PRIVMSG to channel before auth returns 451",
+TEST_CASE("WolFsm R307: PRIVMSG before auth is a con-table verb (no 451/421)",
           "[protocol][wol][fsm][channel][R307]") {
     auto ctx = std::make_shared<FakeWolCtx>();
     WolFsm fsm{ctx};
 
+    // PRIVMSG is a "connected"-table verb in the original: it dispatches in any
+    // state, so the two-table gate does NOT reject it pre-login (no 421) and the
+    // 451 ERR_NOTREGISTERED numeric is never emitted. In skeleton mode the
+    // channel PRIVMSG is silently accepted (no post-message use-case wired).
     REQUIRE(feed_line(fsm, "PRIVMSG #lobby :hello").has_value());
-    REQUIRE(ctx->has_line_containing("451"));
+    REQUIRE(!ctx->has_line_containing("451"));
+    REQUIRE(!ctx->has_line_containing("421"));
 }
 
 TEST_CASE("WolFsm R307: PRIVMSG to channel after auth but before JOIN is accepted",
