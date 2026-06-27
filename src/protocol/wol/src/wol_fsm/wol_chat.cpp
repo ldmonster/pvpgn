@@ -42,12 +42,33 @@
 namespace pvpgn::protocol::wol {
 
 core::Status<> WolFsm::on_ping(std::string_view params) {
-    // PING <token>  →  PONG :<token>
-    auto token = trim(params);
-    if (!token.empty() && token[0] == ':') token.remove_prefix(1);
+    // PING [token]  →  ":<server> PONG <server>[ :<token>]"
+    //
+    // Mirrors the original irc.cpp _handle_ping_command + irc_send_pong: the
+    // server replies with its own hostname as the PONG source AND as the first
+    // PONG parameter, and only appends the client's token as a trailing param
+    // when one was supplied. The original takes the FIRST middle param when the
+    // argument is unprefixed, or the whole trailing text when it is ':'-prefixed;
+    // a bare "PING" yields no trailing token at all (not a stray empty ":").
+    auto rest = trim(params);
+    std::string token;
+    if (!rest.empty() && rest[0] == ':') {
+        token = std::string(rest.substr(1));        // trailing: keep as-is
+    } else if (!rest.empty()) {
+        const auto sp = rest.find(' ');
+        token = std::string(sp == std::string_view::npos ? rest
+                                                         : rest.substr(0, sp));
+    }
 
-    std::string pong = "PONG :";
-    pong += token;
+    const std::string sv{ctx_->server_name()};
+    std::string pong = ":";
+    pong += sv;
+    pong += " PONG ";
+    pong += sv;
+    if (!token.empty()) {
+        pong += " :";
+        pong += token;
+    }
     return send_raw(pong);
 }
 

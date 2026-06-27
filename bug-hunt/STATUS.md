@@ -1594,3 +1594,33 @@ multilocale temp-file flakes pass -j1); chat diff regression set (unknown_comman
 whoami, channelcmds, whisper, emote, squelch, leave, chat_edges, channel_join_edges)
 all still match the oracle. (Pre-existing: diff_talk hangs in this harness env on
 BOTH the clean and patched tree — unrelated, the non-slash text path is untouched.)
+
+## Wave 93 (LANDED) — WOL PING -> PONG wire format (server-name prefix + param)
+DIVERGENCE (wrong wire format), found via a NEW WOL malformed/edge-input fuzz
+sweep (truncated/extra-param/colon variants across PING/JOIN/MODE/PRIVMSG/USERIP/
+KICK/TOPIC/etc). The original (irc.cpp _handle_ping_command + irc_send_pong)
+answers a client PING with ":<server> PONG <server>[ :<token>]" — the server
+hostname is BOTH the message source AND the first PONG parameter, and the client
+token is appended as a trailing param only when supplied; a bare "PING" gets
+":<server> PONG <server>" with NO trailing colon. The original also takes the
+FIRST middle token for an unprefixed arg vs the whole trailing text for a
+':'-prefixed arg. v3's WolFsm::on_ping (wol_fsm/wol_chat.cpp) instead emitted a
+bare "PONG :<token>" — it dropped the ":<server> " source prefix, omitted the
+server-name parameter entirely, and emitted a stray empty ":" for a token-less
+PING. A real WOL client doing keep-alive PINGs got a malformed PONG.
+Probe: bare PING -> oracle ":<host> PONG <host>", v3 "PONG :"; PING :12345 ->
+oracle ":<host> PONG <host> :12345", v3 "PONG :12345".
+Fix: on_ping now builds ":<server> PONG <server>" and appends " :<token>" only
+when a token was parsed (trailing kept whole for a ':'-arg; first token only for
+an unprefixed arg), mirroring the original exactly.
+New guard tests/diff/diff_wol_ping.py: bare PING / PING :token / PING token,
+server-name-normalized to <S>, all three match the oracle byte-for-byte (before:
+v3 diverged on all three). 3199/3199 units green (incl. all 63 wol unit tests);
+WOL diff regression (login, chat, needmoreparams, part, list, userip, names,
+timemode, kick, topic) + diff_robustness all still match/survive.
+Other fuzz-surfaced WOL divergences NOT fixed this wave (left for follow-up; each
+is a separate behavior, not a crash): JOIN of an unprefixed name (oracle 403 vs
+v3 auto-creates), MODE +unknownchar (oracle 472 vs v3 324 echo), PRIVMSG to self
+(oracle echoes vs v3 401), TOPIC with extra middle param (oracle 442 vs v3 sets),
+401 ERR_NOSUCHNICK stray leading ':' before the nick in USERIP/PRIVMSG paths,
+LIST with extra params (oracle returns empty list). None crash or hang.
