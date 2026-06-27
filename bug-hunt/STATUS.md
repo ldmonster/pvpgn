@@ -1255,3 +1255,30 @@ expect filelen == full content size. New guard tests/diff/diff_bnftp_resume.py
 covers offsets 0 / mid-file / exact-EOF / past-EOF across two file sizes — all match
 the oracle (filelen + delivered bytes). 3199/3199 units green; existing diff_bnftp.py
 (offset 0, sizes 1..65536) still matches.
+
+## Wave 79 (LANDED) — WOL LIST channel names: '#' prefix + irc_convert_channel escaping
+DIVERGENCE (on-wire token): a logged-in WOL client's `LIST` got 327 RPL_CHANNEL
+lines whose channel name was the BARE store name — no leading '#' and with embedded
+spaces left intact. The original (src/bnetd/handle_wol.cpp _handle_list_command ->
+irc.cpp irc_convert_channel) prepends '#' and escapes the name (space -> '_', plus
+the %-escapes for `_ % \b \n \r : ,`) so each 327 token is a single, valid IRC
+channel name. v3 emitted e.g. `327 alfa ListCh 1 0 388` and `327 alfa Diablo II ...`
+(the space splits the token), where the oracle sends `327 alfa #ListCh 1 0:` /
+`#Diablo_II-1 ...`. v3 was also internally inconsistent: JOIN/NAMES/PART all keep
+the '#', only on_list dropped it.
+Fix (src/protocol/wol/src/wol_fsm/wol_chat.cpp on_list): added an irc_channel_name
+lambda that prepends '#' and applies the same escaping as the original
+irc_convert_channel, and routed emit_channel's name through it (tolerant of an
+already-'#'-prefixed fallback name). Pure wire-format correction; channel set /
+counts / official flag unchanged. New guard tests/diff/diff_wol_list.py joins a
+user channel and verifies the 321 + '#'-prefixed 327 entry (count 1, official 0) +
+323 envelope vs the oracle — match. The default/permanent channel SET and the WOLv1
+':' vs WOLv2 ' 388' terminator are config/environment-dependent, so the test
+compares the decisive user-channel observable, not the literal default list.
+3199/3199 units green; WOL diff regression set (wol_list, wol_names, wol_chat,
+wol_lobby, wol_part, wol_topic, wol_kick, wol_login) all match the oracle.
+Deferred (not cleanly diffable): v3 always emits official flag 0 — the original
+marks channel_flags_permanent channels as 1, but the permanent channel set differs
+between servers and v3's ChannelInfo carries no permanent flag, so this is not
+directly comparable. The original also appends a games list to LIST (numparams==0);
+v3 lists only channels (no WOL game list yet).

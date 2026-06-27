@@ -69,10 +69,36 @@ core::Status<> WolFsm::on_list(std::string_view /*params*/) {
     if (!st) return st;
 
     // WOL lists chat channels with RPL_CHANNEL (327), NOT the standard IRC 322:
-    //   :server 327 nick <name> <userCount> <official 0|1> 388
+    //   :server 327 nick <#name> <userCount> <official 0|1> 388
     // (WOLv2 ends the line with " 388"; WOLv1 with ":"). We emit the WOLv2 form.
     // The line is built with send_raw so the params follow the nick directly,
-    // exactly like the original irc_send_cmd (no leading ':' before <name>).
+    // exactly like the original irc_send_cmd (no leading ':' before <#name>).
+    //
+    // The channel name is converted exactly like the original irc_convert_channel:
+    // a leading '#' is prepended and the name is escaped (space -> '_', plus the
+    // %-escapes for the reserved set) so the token is a single, valid IRC channel
+    // name on the wire. Without this v3 emitted the bare store name, dropping the
+    // '#' and leaving embedded spaces that split the token (e.g. "Diablo II").
+    auto irc_channel_name = [](std::string_view name) -> std::string {
+        if (!name.empty() && name.front() == '#') name.remove_prefix(1);
+        std::string out;
+        out.reserve(name.size() + 1);
+        out += '#';
+        for (char c : name) {
+            switch (c) {
+                case ' ':  out += '_';  break;
+                case '_':  out += "%_"; break;
+                case '%':  out += "%%"; break;
+                case '\b': out += "%b"; break;
+                case '\n': out += "%n"; break;
+                case '\r': out += "%r"; break;
+                case ':':  out += "%="; break;
+                case ',':  out += "%-"; break;
+                default:   out += c;    break;
+            }
+        }
+        return out;
+    };
     auto emit_channel = [&](std::string_view name, std::size_t count)
         -> core::Status<> {
         std::string line = ":";
@@ -80,7 +106,7 @@ core::Status<> WolFsm::on_list(std::string_view /*params*/) {
         line += " 327 ";
         line += nick_;
         line += ' ';
-        line += name;
+        line += irc_channel_name(name);
         line += ' ';
         line += std::to_string(count);
         line += " 0 388";  // 0 = user channel; 388 = WOLv2 line terminator
