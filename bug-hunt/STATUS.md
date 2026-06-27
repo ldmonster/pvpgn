@@ -2076,3 +2076,17 @@ src/runtime/include/runtime/{capability_token,health_check,service_config_loader
 service_logger,service_metrics,composition_root}.hpp. No CMakeLists/include edits needed.
 Rebuild = "ninja: no work to do" (TUs never entered any target). 3199/3199 unit tests
 green; diff_chat and diff_concurrent_login still match the oracle.
+
+## Wave 117
+BNCS whisper now honors /squelch on the recipient side. The oracle's message_send
+sets MF_X for any dst ignoring src and message_type_whisper returns -1, so a
+squelched sender's /w is silently dropped for the recipient while the sender still
+gets EID_WHISPERSENT. v3's BnetFsm::handle_whisper delivered EID_WHISPER
+unconditionally. FIX (src/protocol/bnet/src/fsm/fsm_chat.cpp): after the
+unconditional WHISPERSENT ack and before broadcasting EID_WHISPER, drop the
+recipient delivery when use_cases_.ignore_store->ignores(target_id,
+current_account_id_) — mirroring filter_squelched. Sender ack preserved; self-
+whisper unaffected (no self-ignore). New guard tests/diff/diff_whisper_squelch.py:
+bob /squelch alice -> alice /w bob X -> bob gets NO EID_WHISPER, alice gets
+EID_WHISPERSENT, identical on both servers. 3199/3199 unit tests green; diff_whisper,
+diff_whisper_self, diff_squelch still match the oracle.

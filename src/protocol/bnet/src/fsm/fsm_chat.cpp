@@ -592,6 +592,16 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
     (void)ctx_->send(ServerMessage{ChatEvent{
         kEidWhisperSent, 0, 0, 0, 0, 0, std::string{target_name}, message_str}});
 
+    // Squelch parity: if the target is ignoring the sender, the original
+    // message_send sets MF_X and message_type_whisper returns -1, silently
+    // dropping the recipient delivery while the sender's WHISPERSENT ack
+    // (already sent above) is unaffected. Mirror that here.
+    if (use_cases_.ignore_store &&
+        use_cases_.ignore_store->ignores(account.value().id(),
+                                         current_account_id_)) {
+        return core::ok();  // recipient ignores sender — drop whisper (ack sent)
+    }
+
     // Deliver EID_WHISPER (0x04) to the target: username = sender.
     const domain::SessionId one[1] = {target_session.value()};
     broadcast_chat_event(
