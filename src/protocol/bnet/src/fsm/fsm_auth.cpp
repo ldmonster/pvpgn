@@ -19,6 +19,7 @@
 ///                         CreateAccount, NetGamePort)
 
 #include "protocol/bnet/fsm.hpp"
+#include "protocol/bnet/account_wire_types.hpp"
 
 #include <array>
 #include <cstdint>
@@ -160,31 +161,36 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
 
     auto login_result = use_cases_.login_user->execute(login_req);
     if (!login_result) {
-        // Login failed
-        uint32_t    error_code = 0x02;  // default to bad password
+        // Login failed. The OLS SID_LOGONRESPONSE2 reply only defines four
+        // result codes (success/nonexist/badpass/locked, per bnet_protocol.h);
+        // the original maps every access-denied reason that isn't "no such
+        // account" or "wrong password" onto the LOCKED code (0x06) with an
+        // explanatory message string — barred, already-logged-in, and locked
+        // all share it. Anything else degrades to bad-password.
+        uint32_t    error_code = account::kLoginReply2MessageBadPass;
         std::string reason;
 
         switch (login_result.error()) {
             case application::auth::LoginError::UnknownUser:
-                error_code = 0x01;
+                error_code = account::kLoginReply2MessageNonExist;
                 break;
             case application::auth::LoginError::InvalidCredentials:
-                error_code = 0x02;
+                error_code = account::kLoginReply2MessageBadPass;
                 break;
             case application::auth::LoginError::Locked:
-                error_code = 0x05;
+                error_code = account::kLoginReply2MessageLocked;
                 reason     = "Account is locked";
                 break;
             case application::auth::LoginError::Banned:
-                error_code = 0x06;
+                error_code = account::kLoginReply2MessageLocked;
                 reason     = "Account has been banned";
                 break;
             case application::auth::LoginError::MustChangePassword:
-                error_code = 0x07;
+                error_code = account::kLoginReply2MessageBadPass;
                 reason     = "Password must be changed";
                 break;
             default:
-                error_code = 0x02;
+                error_code = account::kLoginReply2MessageBadPass;
                 break;
         }
 

@@ -2966,3 +2966,18 @@ the oracle — a key_count larger than the keys actually present makes v3 DROP t
 packet (silent, hangs a real client) where the oracle still replies. Faithful fix
 needs the decoder to read leniently AND preserve the requested counts for the reply
 echo (message-struct change) — left for a focused follow-up.
+
+## Waves 168-169: round-4 finder fixes (4 finders; OLS locked-code + dead enum)
+- w168 (fsm_auth.cpp): SID_LOGONRESPONSE2 (OLS login) returned 0x05 for a locked
+  account, but bnet_protocol.h defines no 0x05 — the original uses LOCKED=0x06 for
+  locked/barred/already-logged-in. Switched the failure mapping to the named
+  account::kLoginReply2Message* constants (NonExist 0x01 / BadPass 0x02 / Locked
+  0x06), with Banned also folding onto Locked like the original, and the
+  unmodeled MustChangePassword degrading to BadPass. Verified vs original
+  handle_bnet.cpp:1700-1825 + account_wire_types_test (kLoginReply2MessageLocked==0x06).
+- w169 (dead code): GameServerStatus enum had `full` and `maintenance` enumerators
+  with zero references anywhere in src/tests (only online/offline are used). Removed.
+DEFERRED (round-4 findings, larger): WOL MODE +o/-o/+v/-b operator management is
+query-only in v3 (no actual mode changes); SID_CHANNELLIST product-tag filtering &
+50-channel cap; SID_MOTD_W3 news subsystem absent. WOL USERIP host prefix
+(@Battle.net vs sender IP) flagged for a later focused look.
