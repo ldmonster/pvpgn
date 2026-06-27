@@ -2867,3 +2867,22 @@ check the roster loop uses. New guard tests/diff/diff_join_tempop.py asserts
 EID_INFO(0x12) count==1 on a fresh channel and ==0 for a second member, plus the
 CHANNEL<INFO<roster placement, oracle==v3. Build clean (-Werror); full unit suite
 green (3204/3204); diff_join_userflags and diff_join_channel_first_event still match.
+
+## Wave 156
+WOL PRIVMSG to a '#'-channel while NOT in any channel: v3 wrongly replied
+404 ERR_CANNOTSENDTOCHAN with the channel shoved into the trailing param behind
+a stray ':' (":pvpgn.v3 404 <nick> :#Chat :Cannot send to channel"), where the
+oracle replies 403 ERR_NOSUCHCHANNEL with the channel as a MIDDLE param
+(":host 403 <nick> #Chat :No such channel"). The original _handle_privmsg_command
+(handle_wol.cpp:402-423) keys solely on conn_get_channel(conn): a client on no
+channel ALWAYS gets 403 and NEVER 404 for a channel target. Fix in
+src/protocol/wol/src/wol_fsm/wol_chat.cpp WolFsm::on_privmsg: gate the channel
+branch on channel_.empty() (the membership marker set on JOIN in BOTH the wired
+and stub paths, cleared on PART — works even when no JoinChannel use-case is
+wired, unlike channel_id_ which stays 0 in stub mode) and emit 403 with the
+channel as a middle param; also replaced the two remaining 404 relay-failure
+fallbacks with the same 403 form (the original never emits 404 for a channel
+target). New guard tests/diff/diff_wol_privmsg_nochannel.py asserts numeric 403
+with #Chat as a middle param on both servers. Build clean (-Werror); full unit
+suite green (3204/3204, R307 stub-mode PRIVMSG-after-JOIN still accepted);
+diff_wol_privmsg/_nouser/_chat/_mode/_part still match the oracle.

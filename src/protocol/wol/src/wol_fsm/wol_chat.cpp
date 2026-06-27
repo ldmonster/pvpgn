@@ -729,23 +729,37 @@ core::Status<> WolFsm::on_privmsg(std::string_view params) {
 
     // Channel message (target starts with '#').
     if (!target.empty() && target[0] == '#') {
+        // The original _handle_privmsg_command (handle_wol.cpp:402-423) keys
+        // solely on conn_get_channel(conn): a client that is not on any channel
+        // ALWAYS gets 403 ERR_NOSUCHCHANNEL (never 404 ERR_CANNOTSENDTOCHAN),
+        // with the channel as a MIDDLE param. Mirror that here, matching the
+        // already-correct on_mode 403 caller (wol_chat.cpp:321). "Am I in a
+        // channel" is tracked by channel_ (set on JOIN in both the wired and
+        // stub paths, cleared on PART), so this holds even when no JoinChannel
+        // use-case is wired (channel_id_ would still be 0 in that case).
+        if (channel_.empty()) {
+            return send_numeric(403,
+                                std::string(nick_) + " " + std::string(target),
+                                "No such channel");
+        }
         if (post_message_) {
             // Strip '#' to get the bare channel name for the domain.
             auto chat_msg_result = domain::ChatMessage::create(std::string{message});
             if (!chat_msg_result) {
-                // 404 ERR_CANNOTSENDTOCHAN
-                std::string chan{target};
-                return send_numeric(404, nick_,
-                                    chan + " :Cannot send to channel");
+                // The original never emits 404 for a channel target; on any
+                // failure to relay it falls back to 403 ERR_NOSUCHCHANNEL.
+                return send_numeric(403,
+                                    std::string(nick_) + " " + std::string(target),
+                                    "No such channel");
             }
 
             auto post_result = post_message_->execute(
                 channel_id_, account_id_, chat_msg_result.value());
 
             if (!post_result) {
-                std::string chan{target};
-                return send_numeric(404, nick_,
-                                    chan + " :Cannot send to channel");
+                return send_numeric(403,
+                                    std::string(nick_) + " " + std::string(target),
+                                    "No such channel");
             }
 
             // Relay to every other channel member's connection. WOL clients
