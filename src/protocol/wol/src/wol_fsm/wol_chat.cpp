@@ -79,11 +79,46 @@ core::Status<> WolFsm::on_quit(std::string_view /*params*/) {
     return st;
 }
 
-core::Status<> WolFsm::on_list(std::string_view /*params*/) {
+core::Status<> WolFsm::on_list(std::string_view params) {
     if (state_ == WolState::Connecting || state_ == WolState::Authenticating) {
         return send_numeric(451, nick_.empty() ? "*" : nick_,
                             "You have not registered");
     }
+
+    // The original _handle_list_command (handle_wol.cpp) decides what to list
+    // from the COUNT and EQUALITY of the middle params, mirroring how various
+    // Westwood clients pin down channels vs. games:
+    //   - numparams == 0                      -> list chat channels (and games)
+    //   - numparams == 2 && params[0]!=p[1]   -> list chat channels only
+    //   - numparams == 2 && params[0]==p[1]   -> list games only (no channels)
+    //   - any other count (1, 3, ...)         -> list NEITHER (empty envelope)
+    // v3 previously listed channels regardless of the params, so "LIST 0",
+    // "LIST 0 0", "LIST 0 0 0" all wrongly returned the channel set where the
+    // oracle returns just the 321/323 envelope. We don't list games here (v3
+    // has no WOL game listing wired), so the games-only case collapses to the
+    // empty envelope too — which matches the oracle whenever no games exist.
+    //
+    // Count the middle params the way irc_get_paramelems does: tokens of the
+    // substring before any " :" trailing marker, split on spaces (empties
+    // skipped). LIST normally carries no trailing text.
+    std::string_view middle = params;
+    if (auto tc = middle.find(" :"); tc != std::string_view::npos) {
+        middle = middle.substr(0, tc);
+    } else if (!middle.empty() && middle.front() == ':') {
+        middle = {};  // line is "LIST :text" -> no middle params
+    }
+    std::vector<std::string_view> toks;
+    {
+        std::size_t i = 0;
+        while (i < middle.size()) {
+            while (i < middle.size() && middle[i] == ' ') ++i;
+            std::size_t start = i;
+            while (i < middle.size() && middle[i] != ' ') ++i;
+            if (i > start) toks.push_back(middle.substr(start, i - start));
+        }
+    }
+    const bool list_channels =
+        toks.empty() || (toks.size() == 2 && toks[0] != toks[1]);
 
     // 321 RPL_LISTSTART
     auto st = send_numeric(321, nick_, "Channel :Users Names");
@@ -134,19 +169,21 @@ core::Status<> WolFsm::on_list(std::string_view /*params*/) {
         return send_raw(line);
     };
 
-    if (list_channels_) {
-        application::chat::ListChannelsRequest req;
-        req.max_results   = 100;
-        req.filter_by_tag = std::nullopt;
-        auto result = list_channels_->execute(req);
-        if (result) {
-            for (const auto& info : result.value()) {
-                if (auto s = emit_channel(info.name, info.member_count); !s)
-                    return s;
+    if (list_channels) {
+        if (list_channels_) {
+            application::chat::ListChannelsRequest req;
+            req.max_results   = 100;
+            req.filter_by_tag = std::nullopt;
+            auto result = list_channels_->execute(req);
+            if (result) {
+                for (const auto& info : result.value()) {
+                    if (auto s = emit_channel(info.name, info.member_count); !s)
+                        return s;
+                }
             }
+        } else if (state_ == WolState::InChannel && !channel_.empty()) {
+            if (auto s = emit_channel(channel_, 1); !s) return s;
         }
-    } else if (state_ == WolState::InChannel && !channel_.empty()) {
-        if (auto s = emit_channel(channel_, 1); !s) return s;
     }
 
     // 323 RPL_LISTEND

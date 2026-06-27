@@ -5,6 +5,30 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 95 (LANDED) — WOL LIST param-count gating (channels vs. empty envelope)
+DIVERGENCE (over-listing), follow-up to the wave-93 WOL fuzz sweep ("LIST with
+extra params -> oracle returns empty list"). The original _handle_list_command
+(handle_wol.cpp) decides what to list from the COUNT and EQUALITY of the middle
+params: numparams==0 lists chat channels (and games); numparams==2 with unequal
+params lists channels only; numparams==2 with EQUAL params lists games only (no
+channels); any other count (1, 3, ...) lists NEITHER — just the 321/323 envelope.
+v3's on_list (wol_fsm/wol_chat.cpp) ignored params entirely and always emitted the
+channel set, so "LIST 0", "LIST 0 0" and "LIST 0 0 0" wrongly returned channels
+where the oracle returns just 321+323. (Common real clients like Dune2000 send
+"LIST 0 0", which the oracle treats as games-only.)
+Fix: on_list now counts the middle params the way irc_get_paramelems does (tokens
+before any " :" trailing marker) and gates the channel-emitting block on
+list_channels = toks.empty() || (toks.size()==2 && toks[0]!=toks[1]). v3 has no
+WOL game listing wired, so the games-only case collapses to the empty envelope —
+which matches the oracle whenever no games exist (the differential case here).
+Probe across LIST / LIST 0 / LIST 0 0 / LIST 0 1 / LIST 0 0 0: before v3 listed
+the user channel in all five, after it matches the oracle (present only for the
+bare and two-unequal forms).
+New guard tests/diff/diff_wol_list_params.py: joins #PListCh and asserts the
+channel's 327 entry appears for bare + two-unequal and is absent for one/two-equal/
+three — match. 3199/3199 units green; WOL diff regression (list, chat, login,
+names, part, topic, kick) all still match the oracle.
+
 ## Wave 94 (LANDED) — WOL 401 ERR_NOSUCHNICK wire format (target is a middle param)
 DIVERGENCE (wrong wire format), follow-up to the wave-93 WOL fuzz sweep. Four WOL
 command handlers (USERIP/HOST/GAMEOPT/ADDBUDDY) reply with ERR_NOSUCHNICK when
