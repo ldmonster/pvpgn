@@ -1516,3 +1516,23 @@ New guard tests/diff/diff_join_userflags.py: bob sees alice's first join as
 [(2,0)] for both). 3199/3199 units green; diff regression set (chat, multichannel,
 channel_op, kick_channel, channel_kick, leave, channel_join_edges, talk, emote,
 channelcmds, whoami, squelch) all still match the oracle.
+
+## Wave 89 (LANDED) — SID_PING (CLIENT_ECHOREPLY 0x25) must NOT be echoed back
+DIVERGENCE (spurious reply). The server sends SERVER_ECHOREQ (0x25ff) and the
+client bounces it back as CLIENT_ECHOREPLY (SID 0x25). The original's
+_client_echoreply (handle_bnet.cpp:984) uses the cookie ONLY to compute round-trip
+latency (conn_set_latency) and sends nothing in response. v3's BnetFsm::on(Ping)
+(fsm_misc.cpp) instead mirrored the cookie verbatim back to the client as a 0x25
+packet — a phantom ECHOREQ a real client never expects. Probe: client logs in,
+drains/echoes any server-initiated pings, then sends one SID_PING(0x25): oracle
+replies with nothing, v3 replied with 0x25 carrying the cookie.
+Fix: on(Ping) is now a pure advisory no-op (return core::ok()) in every state,
+matching the original's record-latency-and-stay-silent behaviour. Updated the two
+unit tests that previously asserted the (wrong) echo to assert no reply, and the
+fsm_misc doc-comment. The golden_replay/codec Ping decode tests are unaffected
+(they exercise decoding, not the reply).
+New guard tests/diff/diff_ping_noreply.py: after a quiet login a client sends one
+SID_PING and asserts zero further packets on both servers — match (before: v3 sent
+one 0x25 back). 3199/3199 units green (load_anongame/multilocale temp-file flakes
+pass -j1); diff regression set (chat, w3_login, ols_login, whisper,
+concurrent_login) all still match the oracle.

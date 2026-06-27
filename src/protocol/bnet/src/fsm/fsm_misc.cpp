@@ -6,7 +6,7 @@
 /// silently in any non-Closing state so the wire stays alive.
 ///
 ///   on(Null)               — SID_NULL (0x00) keepalive
-///   on(Ping)               — SID_PING (0x25) echo
+///   on(Ping)               — SID_PING (0x25) CLIENT_ECHOREPLY (latency, no reply)
 ///   on(UdpOk)              — SID_UDPPINGRESPONSE (0x14)
 ///   on(AdRequest)          — SID_DISPLAYAD (0x21)
 ///   on(AdClick)            — SID_CLICKAD (0x22)
@@ -34,9 +34,14 @@ core::Status<> BnetFsm::on(const Null&) {
     return core::ok();
 }
 
-core::Status<> BnetFsm::on(const Ping& p) {
-    // Mirror the cookie verbatim; this is the canonical ECHOREPLY.
-    return ctx_->send(ServerMessage{Ping{p.ticks}});
+core::Status<> BnetFsm::on(const Ping&) {
+    // SID_PING (0x25) inbound is CLIENT_ECHOREPLY: the client echoes the cookie
+    // the server sent in SERVER_ECHOREQ so the server can measure round-trip
+    // latency. The original (_client_echoreply, handle_bnet.cpp) records the
+    // latency and sends NOTHING back — it does not bounce the cookie a second
+    // time. Echoing it here produced a spurious 0x25 packet the real client
+    // never expects, so this is purely advisory (no reply) in every state.
+    return core::ok();
 }
 
 core::Status<> BnetFsm::on(const UdpOk&) {

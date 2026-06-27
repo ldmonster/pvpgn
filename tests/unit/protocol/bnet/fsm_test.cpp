@@ -113,14 +113,15 @@ void reach_logged_in(BnetFsm& f, std::string_view username = "alice") {
 
 }  // namespace
 
-TEST_CASE("BnetFsm: Ping is mirrored verbatim in any state",
+TEST_CASE("BnetFsm: Ping (CLIENT_ECHOREPLY) is advisory with no reply",
           "[protocol][bnet][fsm]") {
+    // Inbound SID_PING (0x25) is the client echoing the server's ECHOREQ cookie;
+    // the original records latency and sends nothing back. v3 must not bounce it.
     auto session_ctx = std::make_shared<FakeContext>();
     auto use_case_ctx = make_test_context();
     BnetFsm f{session_ctx, use_case_ctx};
     REQUIRE(f.handle(ClientMessage{Ping{0xCAFEBABE}}).has_value());
-    REQUIRE(session_ctx->sent.size() == 1);
-    REQUIRE(std::get<Ping>(session_ctx->sent[0]).ticks == 0xCAFEBABE);
+    REQUIRE(session_ctx->sent.empty());
     REQUIRE(f.state() == BnetState::Init);
 }
 
@@ -516,9 +517,10 @@ TEST_CASE("BnetFsm: session_id passed to constructor is accepted",
     domain::SessionId sid{99};
     BnetFsm f{session_ctx, use_case_ctx, sid};
     REQUIRE(f.state() == BnetState::Init);
-    // Ping still works with a non-default session_id
+    // Ping (CLIENT_ECHOREPLY) is still accepted with a non-default session_id
+    // and, like the original, produces no reply.
     REQUIRE(f.handle(ClientMessage{Ping{0xDEAD}}).has_value());
-    REQUIRE(std::get<Ping>(session_ctx->sent.back()).ticks == 0xDEADu);
+    REQUIRE(session_ctx->sent.empty());
 }
 
 TEST_CASE("BnetFsm: Null message is accepted in every state",
