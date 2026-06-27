@@ -323,16 +323,35 @@ TEST_CASE("IrcTcpSession: normal CRLF-terminated line still parses after cap",
     CHECK(session->rx_buf_size() == 0);
 }
 
-TEST_CASE("IrcTcpSession: long-but-terminated line under cap is accepted",
+TEST_CASE("IrcTcpSession: terminated line under the flood cap is accepted",
           "[irc_session][dos]") {
     auto session =
         std::make_shared<IrcTcpSession>(nullptr, std::string{"pvpgn.server"});
 
-    // A line just under the cap, properly terminated, parses without tripping
-    // the guard (decode may reject it as malformed, but it must not close).
-    std::string line(kIrcMaxLineLen - 2, 'x');
+    // A line under the per-line flood cap (kIrcFloodLen = 612), properly
+    // terminated, parses without tripping the guard (decode may reject it as
+    // malformed, but it must not close). 500 content chars + "\r\n" yields a
+    // non-'\n' byte count of 501 (501 <= 612), well under the cap.
+    std::string line(500, 'x');
     line += "\r\n";
     const bool alive = session->on_bytes(core::as_byte_view(line));
     CHECK(alive == true);
+    CHECK(session->rx_buf_size() == 0);
+}
+
+TEST_CASE("IrcTcpSession: terminated line over the flood cap is dropped+closed",
+          "[irc_session][dos]") {
+    auto session =
+        std::make_shared<IrcTcpSession>(nullptr, std::string{"pvpgn.server"});
+
+    // Mirrors the original server's handle_irc_common_packet "excess flood":
+    // once a line's non-'\n' byte count exceeds 100 + MAX_IRC_MESSAGE_LEN
+    // (= 612 = kIrcFloodLen) the line is never handled and the connection is
+    // closed (zero bytes back). A 700-char line + CRLF (count 701 > 612) trips
+    // it even though it is well under the 2048-byte accumulation guard.
+    std::string line(700, 'x');
+    line += "\r\n";
+    const bool alive = session->on_bytes(core::as_byte_view(line));
+    CHECK(alive == false);
     CHECK(session->rx_buf_size() == 0);
 }

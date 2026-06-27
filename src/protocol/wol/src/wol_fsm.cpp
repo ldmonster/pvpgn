@@ -200,6 +200,29 @@ core::Status<> WolFsm::process_lines() {
 
         if (line.empty()) continue;
 
+        // Per-line "excess flood" protection, mirroring the original server's
+        // handle_irc_common_packet (handle_irc_common.cpp:336-345). The oracle
+        // accumulates every non-'\n' byte of the line (so a CRLF terminator's
+        // '\r' is counted too) and, once the running count exceeds
+        // 100 + MAX_IRC_MESSAGE_LEN (= 612), logs "excess flood" and returns -1,
+        // which the dispatch turns into conn_close_read() — the line is never
+        // handled and the connection is destroyed, sending zero bytes back.
+        // `consume - 1` is exactly that count (every consumed byte except the
+        // terminating '\n'): line.size() for a bare-LF line, line.size()+1 for
+        // CRLF. Mirror the oracle: drop the line, emit nothing, close the session.
+        if (consume - 1 > kMaxLineLen + 100) {
+            state_ = WolState::Disconnecting;
+            ctx_->close();
+            break;
+        }
+
+        // Below the flood cap but over the IRC line limit: the oracle stores the
+        // command into ircline[MAX_IRC_MESSAGE_LEN] while ircpos < 511, so the
+        // dispatched command is truncated to the first 511 chars. Match that.
+        if (line.size() > kMaxLineLen - 1) {
+            line.resize(kMaxLineLen - 1);
+        }
+
         auto st = dispatch_line(line);
         if (!st) return st;
 

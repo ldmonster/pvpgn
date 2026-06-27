@@ -58,6 +58,18 @@ namespace pvpgn::app::bnetd {
 /// grow `rx_buf_` without bound (remote OOM / DoS).
 inline constexpr std::size_t kIrcMaxLineLen = 512 * 4;  // 2048 bytes
 
+/// Per-line "excess flood" cap, mirroring the original server's
+/// handle_irc_common_packet (handle_irc_common.cpp:336-345): once a single
+/// line's non-'\n' byte count exceeds `100 + MAX_IRC_MESSAGE_LEN` (= 612) the
+/// oracle logs "excess flood" and returns -1, which the dispatch turns into
+/// conn_close_read() — the line is never handled and the connection is closed.
+inline constexpr std::size_t kIrcFloodLen = 512 + 100;  // 612 bytes
+
+/// The oracle stores the command into `ircline[MAX_IRC_MESSAGE_LEN]` only while
+/// `ircpos < MAX_IRC_MESSAGE_LEN - 1`, so a handled line is truncated to its
+/// first 511 chars before dispatch.
+inline constexpr std::size_t kIrcLineTruncate = 512 - 1;  // 511 bytes
+
 /// Owns one IRC connection: TcpSession + IrcFsm.
 ///
 /// Implements `protocol::irc::ISessionContext` so it can be passed
@@ -186,8 +198,25 @@ public:
             if (!frame_result) break;  // NeedMore
 
             const auto& frame = frame_result.value();
-            const std::string line{frame.line};
-            rx_buf_.erase(0, frame.consumed);
+            std::string line{frame.line};
+            const std::size_t consumed = frame.consumed;
+            rx_buf_.erase(0, consumed);
+
+            // Per-line excess-flood protection (see kIrcFloodLen). `consumed - 1`
+            // is the oracle's running byte count: every consumed byte except the
+            // terminating '\n' (so a CRLF's '\r' counts too). Past the cap the
+            // oracle drops the line and closes — emit nothing, close, stop.
+            if (consumed - 1 > kIrcFloodLen) {
+                rx_buf_.clear();
+                close();
+                return false;
+            }
+
+            // Below the flood cap but over the line limit: the oracle truncates
+            // the handled command to its first 511 chars. Match that.
+            if (line.size() > kIrcLineTruncate) {
+                line.resize(kIrcLineTruncate);
+            }
 
             auto msg_result = protocol::irc::decode(line);
             if (!msg_result) continue;  // malformed line — skip

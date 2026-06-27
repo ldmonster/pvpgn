@@ -2705,3 +2705,31 @@ were never linked): libinfra_crypto.a no longer contains peerchat.cpp.o /
 wol_hash.cpp.o, bnetd still has 0 references. Build clean (-Werror); unit suite
 3203/3203 green; diff_chat and diff_wol_login still match the oracle (the live
 WOL APGAR auth path uses a different impl, not the dead free function).
+
+## Wave 148
+WOL/IRC per-line "excess flood" disconnect (line >= 613 chars). The oracle's
+common line handler (handle_irc_common_packet, handle_irc_common.cpp:336-345)
+accumulates every non-'\n' byte of a line and, once the running count exceeds
+100 + MAX_IRC_MESSAGE_LEN (= 612), logs "excess flood" and returns -1 -> the
+server.cpp dispatch turns that into conn_close_read(): a single line of >= 613
+chars is NEVER handled and the connection is destroyed, sending zero reply bytes.
+v3's WolFsm had no per-line cap (only a 2048-byte no-newline accumulation guard
+in on_bytes), so a 613..2048-char line was treated as an ordinary unknown
+command -> 421 reply + connection stayed open. Decisive pre-login probe ("A"*N +
+"\n" to the WOL listener): N=612 BOTH reply 421 (control); N=613/700 oracle = 0
+bytes + closed, v3 = 421 + open. Fix: in WolFsm::process_lines (wol_fsm.cpp)
+after extracting the line, if its non-'\n' byte count (consume - 1, so a CRLF's
+'\r' is counted exactly like the oracle) exceeds kMaxLineLen + 100 (= 612), set
+Disconnecting + ctx_->close() + break (drop line, emit nothing); also truncate
+the handled line to 511 chars for the 512..612 range to mirror the oracle's
+ircline[512] truncation. Applied the matching cap to the analogous IRC TCP path
+(irc_tcp_session.hpp on_bytes): consumed-1 > kIrcFloodLen (612) -> clear buffer +
+close (return false); truncate to kIrcLineTruncate (511) below the cap. Updated
+the IRC session unit test (irc_session_test.cpp): the old "long-but-terminated
+line under cap is accepted" encoded the pre-fix behavior (2046-char line ->
+accepted) and is now split into "under the flood cap (500) is accepted" +
+"over the flood cap (700) is dropped+closed". New guard test
+tests/diff/diff_wol_flood.py asserts 612 -> 421 on both, 613/700 -> 0 bytes +
+closed on both. Build clean (-Werror); unit suite 3204/3204 green; diff_wol_flood
++ diff_wol_ping_overlong / diff_wol_prelogin_gating / diff_wol_login /
+diff_wol_unknown still match the oracle.
