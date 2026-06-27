@@ -2535,3 +2535,18 @@ src/domain/d2cs and src/domain/d2dbs repository headers to "(future)".
 Behavior-neutral by construction: the bnetd binary rebuilt BYTE-FOR-BYTE identical
 (sha256 9d41840...), proving the lib contributed no linked symbols. Reconfigure +
 build clean (-Werror); unit suite 3203/3203 green; diff_chat / diff_bnftp still pass.
+
+## Wave 139
+Fixed EID_WHISPERSENT (0x0a) target-name case canonicalization in
+BnetFsm::handle_whisper (src/protocol/bnet/src/fsm/fsm_chat.cpp). When a user
+whispered a target whose typed case differed from the registered account
+(e.g. `/w BOB hi` to account "bob"), v3 echoed the raw-typed 'BOB' in the
+sender's WHISPERSENT acknowledgement, while the oracle builds it from
+conn_get_chatcharname(me, dst) — the TARGET connection's canonical account
+name ('bob'). The target account is already resolved into `account` before the
+ack is sent, so the username argument now uses
+`account.value().name().display()` (same accessor used elsewhere in the file).
+The recipient-side EID_WHISPER (0x04) already matched (carries the sender name).
+New diff guard tests/diff/diff_whisper_case.py asserts `/w BOB hi` to account
+"bob" yields WHISPERSENT username 'bob' on both servers. Build clean (-Werror);
+unit suite 3203/3203; diff_whisper / diff_whisper_self / diff_whisper_case pass.

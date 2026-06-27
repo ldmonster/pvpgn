@@ -621,9 +621,12 @@ core::Status<> BnetFsm::handle_whisper(std::string_view rest,
     // socket, and the original delivers WHISPERSENT before WHISPER.
 
     // Acknowledge to the sender with EID_WHISPERSENT (0x0a): username = target.
+    // The original builds this from conn_get_chatcharname(me, dst) — the TARGET
+    // connection's canonical account name — so a case-mismatched target (e.g.
+    // "/w BOB" to account "bob") echoes the canonical 'bob', not the raw input.
     (void)ctx_->send(ServerMessage{ChatEvent{
         kEidWhisperSent, 0, 0, 0, kChatEventAcctNum, kChatEventRegAuth,
-        std::string{target_name}, message_str}});
+        std::string{account.value().name().display()}, message_str}});
 
     // Squelch parity: if the target is ignoring the sender, the original
     // message_send sets MF_X and message_type_whisper returns -1, silently
