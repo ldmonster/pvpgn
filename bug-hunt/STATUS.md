@@ -2886,3 +2886,25 @@ target). New guard tests/diff/diff_wol_privmsg_nochannel.py asserts numeric 403
 with #Chat as a middle param on both servers. Build clean (-Werror); full unit
 suite green (3204/3204, R307 stub-mode PRIVMSG-after-JOIN still accepted);
 diff_wol_privmsg/_nouser/_chat/_mode/_part still match the oracle.
+
+## Wave 157
+BNFTP CLIENT_FILE_REQ for an empty / directory-resolving filename ("" or ".")
+diverged: the oracle (src/bnetd/file.cpp file_send -> file_get_info) only
+rejects rawnames containing '/' or '\\', so an empty name passes; it stat()s
+filedir+"/"+rawname (which succeeds for a directory), takes st_size as filelen
+and st_mtime as the timestamp, then ALWAYS pushes the SERVER_FILE_REPLY header.
+fread() then fails (EISDIR) so zero payload follows and the connection lingers.
+v3 (src/protocol/file/src/bnftp_fsm.cpp) instead rejected the empty name in
+is_safe_filename and errored on std::filesystem::file_size() for a directory,
+sending NOTHING in both cases. Fix: (1) relaxed is_safe_filename to reject only
+'/', '\\', NUL and the >kMaxFilenameLen cap (dropped the empty-string reject);
+(2) replaced std::filesystem::file_size()+ec in handle_file_request with a
+single ::stat() — on success take full_len=st_size and filetime from st_mtime
+and ALWAYS send the reply header, streaming payload only when S_ISREG &&
+send_len>0 (directory/empty case -> header, no data, matching the oracle's
+fread-fails path). Missing-file behaviour (stat fails -> no reply) unchanged.
+New guard tests/diff/diff_bnftp_emptyname.py asserts both servers emit a
+parseable SERVER_FILE_REPLY (type 0, data_bytes==0, echoed name, agreeing
+filelen) for "" and ".". Build clean (-Werror); full unit suite green
+(3204/3204, the load_anongame_infos failure is the known parallel temp-file
+flake — passes on -j1); diff_bnftp_missing/_nonul/_mtime still match the oracle.

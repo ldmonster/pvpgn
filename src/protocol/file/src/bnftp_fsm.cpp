@@ -57,10 +57,13 @@ std::uint64_t mtime_to_filetime(std::time_t t) noexcept {
     return (static_cast<std::uint64_t>(t) + kEpochDelta) * kTicksPerSec;
 }
 
-/// Sanitise a client-supplied filename: reject path separators and
-/// empty names. Returns false if the name is unsafe.
+/// Sanitise a client-supplied filename: reject path separators and embedded
+/// NUL. Returns false if the name is unsafe. An EMPTY name is accepted: the
+/// original file_get_info (src/bnetd/file.cpp) only throws on '/' or '\\', so
+/// an empty rawname passes through and stat()s the files directory itself —
+/// mirror that here (the empty/dir case is handled in handle_file_request).
 bool is_safe_filename(std::string_view name) noexcept {
-    if (name.empty() || name.size() > kMaxFilenameLen) return false;
+    if (name.size() > kMaxFilenameLen) return false;
     for (char c : name) {
         if (c == '/' || c == '\\' || c == '\0') return false;
     }
@@ -265,36 +268,34 @@ core::Status<> BnftpFsm::handle_file_request(std::string_view filename,
         return core::ok();
     }
 
-    // Build the full path: files_dir_ / filename.
+    // Build the full path: files_dir_ / filename. An empty filename resolves
+    // to the files directory itself, exactly like the original (which builds
+    // "filedir/" + rawname and stat()s it — src/bnetd/file.cpp).
     std::filesystem::path full_path =
         std::filesystem::path(files_dir_) / std::string(filename);
 
-    // Stat the file to get size and mtime.
-    std::error_code ec;
-    auto file_size = std::filesystem::file_size(full_path, ec);
-    if (ec) {
-        // Original parity: a missing file makes file_get_info throw (stat
+    // Stat the target exactly the way the original does — via ::stat(), reading
+    // st_size for filelen and st_mtime (a whole-second POSIX time) for the
+    // timestamp. Using std::filesystem::file_size() instead would (a) error out
+    // on a directory and (b) convert mtime through system_clock, whose clock-
+    // domain subtraction truncates one second low on this libstdc++. The
+    // original computes filelen from sfile.st_size and time_to_bnettime(
+    // sfile.st_mtime, 0) directly from stat(), so do the same for byte-faithful
+    // parity — including the quirk that a directory (the empty/"." case) stats
+    // successfully and advertises its own st_size as filelen.
+    struct ::stat st {};
+    if (::stat(full_path.c_str(), &st) != 0) {
+        // Original parity: a missing target makes file_get_info throw (stat
         // fails), so file_send returns -1 BEFORE pushing any packet — the
         // server sends NOTHING for a not-found file (src/bnetd/file.cpp).
         // Match that: emit no reply (the caller closes afterwards).
         return core::ok();
     }
 
-    // Read the mtime exactly the way the original does — straight from
-    // stat()'s st_mtime (a whole-second POSIX time) — instead of converting a
-    // std::filesystem::file_time_type through system_clock. The latter relies
-    // on `last_write - file_clock::now() + system_clock::now()`, whose clock-
-    // domain subtraction truncates one second low on this libstdc++, leaving
-    // v3's SERVER_FILE_REPLY timestamp 10^7 ticks (1 s) below the oracle's.
-    // The original computes time_to_bnettime(sfile.st_mtime, 0) directly from
-    // stat() (src/bnetd/file.cpp), so do the same for byte-faithful parity.
-    struct ::stat st {};
-    std::uint64_t filetime = 0;
-    if (::stat(full_path.c_str(), &st) == 0) {
-        filetime = mtime_to_filetime(st.st_mtime);
-    }
+    std::uint64_t filetime = mtime_to_filetime(st.st_mtime);
+    auto file_size = static_cast<std::uintmax_t>(st.st_size);
 
-    // The reply's `filelen` always carries the FULL file size, independent of
+    // The reply's `filelen` always carries the FULL stat() size, independent of
     // start_offset, matching the original pvpgn (file_send sets filelen from
     // stat() and only then fseeks to startoffset — src/bnetd/file.cpp). The
     // streamed payload below is file_size - start_offset bytes.
@@ -308,7 +309,12 @@ core::Status<> BnftpFsm::handle_file_request(std::string_view filename,
     auto hdr_st = send_reply_header(full_len, ad_id, extension_tag, filetime, filename);
     if (!hdr_st) return hdr_st;
 
-    if (send_len == 0) return core::ok();
+    // Stream payload only for a regular file with bytes remaining. For a
+    // directory (empty/"." case) or a zero-length send, the original's
+    // file_send still fopen()s the path and the first fread() fails (EISDIR on
+    // Linux) so ZERO payload bytes follow — the header alone is sent and the
+    // connection stays open (src/bnetd/file.cpp). Mirror that: header, no data.
+    if (!S_ISREG(st.st_mode) || send_len == 0) return core::ok();
 
     // Stream the file data.
     return stream_file(full_path.string(), start_offset);
