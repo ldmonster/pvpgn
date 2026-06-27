@@ -338,7 +338,7 @@ TEST_CASE("BnetFsm R306: CHATCOMMAND /who returns EID_INFO (event_id=0x12)",
     REQUIRE(ev != nullptr);
 }
 
-TEST_CASE("BnetFsm R306: CHATCOMMAND /unknown_cmd returns EID_INFO (event_id=0x12)",
+TEST_CASE("BnetFsm R306: CHATCOMMAND /unknown_cmd returns EID_ERROR (event_id=0x13)",
           "[protocol][bnet][fsm][channel][R306]") {
     auto ctx = std::make_shared<FakeBnetCtx>();
     auto uc  = make_null_ctx();
@@ -348,8 +348,13 @@ TEST_CASE("BnetFsm R306: CHATCOMMAND /unknown_cmd returns EID_INFO (event_id=0x1
 
     REQUIRE(f.handle(ClientMessage{ChatCommand{"/xyzzy_unknown"}}).has_value());
 
-    const auto* ev = last_chat_event_with_id(ctx->sent, 0x12u);  // EID_INFO
+    // An unknown command is a FAILURE: the original answers via
+    // message_type_error (EID_ERROR 0x13) with an empty username, not an
+    // informational notice (bug-hunt wave 92).
+    const auto* ev = last_chat_event_with_id(ctx->sent, 0x13u);  // EID_ERROR
     REQUIRE(ev != nullptr);
+    REQUIRE(ev->username.empty());
+    REQUIRE(last_chat_event_with_id(ctx->sent, 0x12u) == nullptr);
 }
 
 // ===========================================================================

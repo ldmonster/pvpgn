@@ -1569,3 +1569,28 @@ KEPT `infra_webui_json` + channel_json.hpp (LIVE, tested). Reconfigure + full
 relink + 3199/3199 (load_anongame_infos temp-file flake passes -j1);
 channel_json test still 25 assertions green; diff_chat still matches the oracle
 (bnetd never linked infra_webui, so the binary is behaviorally unchanged).
+
+## Wave 92 (LANDED) — unknown/failed chat command -> EID_ERROR (not EID_INFO)
+DIVERGENCE (wrong event kind). The original routes command FAILURES (unknown
+command, deactivated, reserved-for-admins) through message_send_text(...,
+message_type_error, ...) which message_bnet_format (message.cpp:1305) emits as
+SERVER_MESSAGE_TYPE_ERROR (EID_ERROR 0x13) with flags=0 and an EMPTY username,
+whereas successful command OUTPUT goes out as message_type_info (EID_INFO 0x12,
+also empty username). v3's BnetFsm::on(ChatCommand) fallback (fsm_chat.cpp) had
+collapsed BOTH into a single EID_INFO reply carrying username="Battle.net", so a
+real client saw an unknown command ("/foobar") as an informational notice instead
+of an error. Probe: `/nonexistentcmd` -> oracle (eid=0x13, username=''), v3
+(eid=0x12, username='Battle.net').
+Fix: added a `bool is_error` set in the three registry error branches (NotFound ->
+"Unknown command", PermissionDenied, generic command-error) and in the no-registry
+unknown-command else; the final send now emits EID_ERROR with an empty username
+for failures and keeps EID_INFO for successful output. Updated the one unit test
+that asserted the old EID_INFO for an unknown command
+(fsm_channel_test.cpp R306) to assert EID_ERROR + empty username.
+New guard tests/diff/diff_unknown_command.py: `/nonexistentcmd` must come back as
+EID_ERROR with an empty username on both servers — match (before: v3 gave EID_INFO
+/'Battle.net'). 259/259 bnet units green; full unit suite green (load_anongame/
+multilocale temp-file flakes pass -j1); chat diff regression set (unknown_command,
+whoami, channelcmds, whisper, emote, squelch, leave, chat_edges, channel_join_edges)
+all still match the oracle. (Pre-existing: diff_talk hangs in this harness env on
+BOTH the clean and patched tree — unrelated, the non-slash text path is untouched.)

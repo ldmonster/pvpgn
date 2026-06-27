@@ -376,6 +376,15 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
         }
 
         std::string result_text;
+        // The original routes command FAILURES (unknown command, deactivated,
+        // reserved-for-admins) through message_send_text(..., message_type_error,
+        // ...) -> SERVER_MESSAGE_TYPE_ERROR (EID_ERROR 0x13) with an EMPTY
+        // username field (message.cpp message_bnet_format case message_type_error:
+        // flags=0, latency=0, username=""), whereas successful command OUTPUT goes
+        // out as message_type_info (EID_INFO 0x12, also username=""). v3 had
+        // collapsed both into a single EID_INFO reply, so a real client saw an
+        // unknown command as an informational notice instead of an error.
+        bool is_error = false;
 
         if (use_cases_.command_registry && use_cases_.permission_checker) {
             // Full dispatch: registry + permission check.
@@ -388,6 +397,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
                 result_text = std::move(dispatch_result).value();
             } else {
                 const auto& err = dispatch_result.error();
+                is_error = true;
                 if (err.code() == core::StatusCode::NotFound) {
                     result_text = "Unknown command. Type /help for a list of commands.";
                 } else if (err.code() == core::StatusCode::PermissionDenied) {
@@ -409,18 +419,21 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
                 result_text = "Channel member count unavailable (no registry).";
             } else {
                 result_text = "Unknown command. Type /help for a list of commands.";
+                is_error = true;
             }
         }
 
-        // Send result as SID_CHATEVENT EID_INFO (0x12).
+        // Failures -> EID_ERROR (0x13), successful output -> EID_INFO (0x12);
+        // both carry an empty username, mirroring the original's
+        // message_type_error / message_type_info bnet formatting.
         return ctx_->send(ServerMessage{ChatEvent{
-            /*event_id*/    kEidInfo,  // EID_INFO (0x12)
+            /*event_id*/    is_error ? kEidError : kEidInfo,
             /*flags*/       0,
             /*ping_ms*/     0,
             /*user_ip*/     0x00000000u,
             /*acct_number*/ 0xBADC0FFEu,
             /*registration*/0xBADC0FFEu,
-            /*username*/    "Battle.net",
+            /*username*/    is_error ? "" : "Battle.net",
             /*text*/        result_text}});
     }
 
