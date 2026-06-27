@@ -30,6 +30,27 @@ import wol_client as wc  # noqa: E402
 ROOM = "chkroom"
 
 
+def _norm(line):
+    """Normalize the leading ':<server>' source token so oracle/v3 compare equal."""
+    if line and line.startswith(":"):
+        rest = line.split(" ", 1)
+        if len(rest) == 2:
+            return ":<server> " + rest[1]
+    return line
+
+
+def _read_full(client, code, tries=20):
+    """Read until a reply with numeric `code`; return the full normalized line."""
+    for _ in range(tries):
+        line = client.read_line()
+        if line is None:
+            break
+        parts = line.split(" ", 2)
+        if len(parts) >= 2 and parts[1] == str(code):
+            return _norm(line)
+    return None
+
+
 def scenario(host, port, sku=1000):
     b = wc.wol_session(host, port, "hostb", "secretpass", sku=sku)
     a = wc.wol_session(host, port, "hosta", "secretpass", sku=sku)
@@ -38,11 +59,22 @@ def scenario(host, port, sku=1000):
             if c:
                 c.close()
         return {k: None for k in
-                ("chk_exists", "chk_absent", "host_delivered", "host_401")}
+                ("chk_exists", "chk_absent", "chk_absent_line",
+                 "chk_noparam_line", "host_delivered", "host_401")}
     try:
         wc.wol_join(a, f"#{ROOM}")
         chk_exists = wc.wol_chanchk(a, f"#{ROOM}")
-        chk_absent = wc.wol_chanchk(a, "#ghostchan_nope")
+
+        # Full-line probe: absent channel must put the channel in a MIDDLE param
+        # (only the trailing ':' that the server injects before the text), not a
+        # stray ':' before the channel name.
+        a.send_line("CHANCHK #ghostchan_nope")
+        chk_absent_line = _read_full(a, 403)
+        chk_absent = "403" if chk_absent_line else None
+
+        # Missing-param: bare CHANCHK must yield 461 ERR_NEEDMOREPARAMS.
+        a.send_line("CHANCHK")
+        chk_noparam_line = _read_full(a, 461)
 
         a.send_line("HOST hostb :hello")
         host_delivered = wc.wol_read_verb(b, "HOST") is not None
@@ -52,6 +84,8 @@ def scenario(host, port, sku=1000):
         return {
             "chk_exists": chk_exists,
             "chk_absent": chk_absent,
+            "chk_absent_line": chk_absent_line,
+            "chk_noparam_line": chk_noparam_line,
             "host_delivered": host_delivered,
             "host_401": host_401,
         }
@@ -83,14 +117,17 @@ def main():
         print(f"{'field':<16}{'original':<14}{'v3':<14}match")
         print("-" * 54)
         ok = True
-        for k in ("chk_exists", "chk_absent", "host_delivered", "host_401"):
+        for k in ("chk_exists", "chk_absent", "chk_absent_line",
+                  "chk_noparam_line", "host_delivered", "host_401"):
             ov, nv = str(o[k]), str(n[k])
             m = ov == nv
             ok = ok and m
-            print(f"{k:<16}{ov:<14}{nv:<14}{'OK' if m else 'DIFF'}")
+            print(f"{k:<18}{ov:<48}{nv:<48}{'OK' if m else 'DIFF'}")
         print()
 
         if (ok and o["chk_exists"] == "chanchk" and o["chk_absent"] == "403"
+                and o["chk_absent_line"]
+                and o["chk_noparam_line"]
                 and o["host_delivered"] is True and o["host_401"] is True):
             print("WOL CHANCHK + HOST match the oracle.")
             return 0

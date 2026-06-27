@@ -2816,3 +2816,23 @@ body; v3 previously sent nothing, now sends a byte-identical 840-byte reply. Bui
 clean (-Werror); full unit suite green (3204/3204); new tests/diff/diff_ladderreq.py
 (byte-exact body + header echo, oracle==v3) passes; diff_profile / diff_charlist /
 diff_motd_w3 still match.
+
+## Wave 153
+WOL CHANCHK (WolFsm::on_chanchk, src/protocol/wol/src/wol_fsm/wol_chat.cpp)
+diverged from the oracle (_handle_chanchk_command, handle_wol.cpp:1375) in two
+ways, both confirmed by probing logged-in WOL sessions on both servers. (1)
+MISSING-PARAM: with no channel arg the oracle sends `:<server> 461 <nick> CHANCHK
+:Not enough parameters`; v3 returned core::ok() (nothing), behind a comment that
+wrongly claimed the original sends no reply. Fixed by returning
+send_needmoreparams("CHANCHK"). (2) NOSUCHCHANNEL WIRE FORM: for an absent
+channel the oracle puts the channel name in a MIDDLE param
+(`:<server> 403 <nick> #ghostchan :No such channel`); v3 emitted a stray colon
+before the channel (`403 <nick> :#ghostchan :No such channel`) by passing
+`chan + " :No such channel"` as send_numeric's text arg. Same stray-colon class
+as waves 77/94/101. Fixed by calling
+send_numeric(403, nick_ + " " + chan, "No such channel"), mirroring the already
+correct on_join 403 caller (wol_chat.cpp:321) and the 401 callers. Build clean
+(-Werror); full unit suite green (3204/3204, anongame flake cleared on -j1);
+extended tests/diff/diff_wol_chanchk_host.py to compare the full
+server-name-normalized 461/403 lines (not just the numeric code) — oracle==v3;
+diff_wol_part still matches.

@@ -1238,7 +1238,7 @@ core::Status<> WolFsm::on_page(std::string_view params) {
 
 core::Status<> WolFsm::on_chanchk(std::string_view params) {
     auto chan = trim(first_token(params));
-    if (chan.empty()) return core::ok();  // original: no reply without a param
+    if (chan.empty()) return send_needmoreparams("CHANCHK");
 
     std::string bare{chan};
     if (!bare.empty() && bare[0] == '#') bare.erase(0, 1);
@@ -1254,7 +1254,7 @@ core::Status<> WolFsm::on_chanchk(std::string_view params) {
         line += std::string(chan);
         return send_raw(line);
     }
-    return send_numeric(403, nick_, std::string(chan) + " :No such channel");
+    return send_numeric(403, nick_ + " " + std::string(chan), "No such channel");
 }
 
 core::Status<> WolFsm::on_host(std::string_view params) {
