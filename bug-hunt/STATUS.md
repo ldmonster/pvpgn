@@ -5,6 +5,31 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 97 (LANDED) — SID_MOTD_W3 (0x46) welcome reply (was a silent no-op)
+DIVERGENCE (silent where oracle replies), found auditing an untested BNCS opcode
+the v3 FSM "handles". A logged-in WarCraft III client sends CLIENT_MOTD_W3 (0x46,
+body = u32 last_news_time) and BLOCKS for the response. The original
+(_client_motdw3, handle_bnet.cpp, logged-in handler table) answers with zero or
+more news entries (one SERVER_MOTD_W3 each) followed by a single "welcome" packet
+whose timestamp2 == SERVER_MOTD_W3_WELCOME (0). v3's BnetFsm::on(MotdRequest)
+(fsm_chat.cpp) was a bare `require_clan_state(...)` no-op and sent NOTHING — a W3
+client stalled after login. The MotdReply message struct + encoder + variant
+registration already existed (codec_ladder.cpp); only the FSM wiring was missing.
+Probe: post-login 0x46 -> oracle sends 2 packets (a "No news today" news entry +
+an empty-text welcome with timestamp2=0), v3 sent zero.
+Fix: on(MotdRequest) now (after the login gate) builds and sends one MotdReply
+welcome packet: msg_type=1, curr_time=std::time(now), first_news_time=0,
+timestamp=1 (first_news_time+1, matching the original's welcome math),
+timestamp2=0 (WELCOME marker), empty text (v3 has no news subsystem / bnmotd_w3
+file — equivalent to a no-news oracle config). Also corrected the stale header
+doc-comment opcode (SID_MOTDREQ 0x1A -> SID_MOTD_W3 0x46).
+New guard tests/diff/diff_motd_w3.py: compares config-independent observables
+(the harness oracle carries a stock news entry, so news-packet count/timestamps
+are intentionally not compared) — both servers send >=1 0x46, both send a welcome
+packet (timestamp2==0) with msg_type==1 and a plausible (>0) curr_time. Match
+(before: v3 sent nothing). 3199/3199 units green; diff regression
+(w3_login, realmlist, chat, whoami, channelcmds) all still match the oracle.
+
 ## Wave 96 (LANDED) — WOL QUIT reply wire format (607 RPL_QUIT :goodbye)
 DIVERGENCE (wrong reply), connection-lifecycle. The original _handle_quit_command
 (handle_wol.cpp) answers a client QUIT with the WOL-specific numeric RPL_QUIT

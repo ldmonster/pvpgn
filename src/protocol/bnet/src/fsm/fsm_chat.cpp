@@ -16,7 +16,7 @@
 ///   on(GameListRequest)       — SID_GETADVLISTEX (0x09)
 ///   on(LadderSearchRequest)   — SID_LADDERSEARCH (0x3C)
 ///   on(ProfileRequest)        — SID_PROFILEREQ (0x26)
-///   on(MotdRequest)           — SID_MOTDREQ (0x1A)
+///   on(MotdRequest)           — SID_MOTD_W3 (0x46)
 ///   on(LadderListRequest)     — SID_LADDERREQ (0x45)
 ///   on(CharListRequest)       — SID_CHARLIST (0x2A)
 ///   on(RealmListRequest)      — SID_REALMLISTREQ (0x40)
@@ -1371,7 +1371,22 @@ core::Status<> BnetFsm::on(const ProfileRequest& m) {
 }
 
 core::Status<> BnetFsm::on(const MotdRequest&) {
-    return require_clan_state(state_, "bnet fsm: MOTDREQ before login");
+    if (auto s = require_clan_state(state_, "bnet fsm: MOTDREQ before login"); !s)
+        return s;
+    // The original (_client_motdw3) answers SID_MOTD_W3 (0x46) with zero or more
+    // news entries (one packet each) followed by a single "welcome" packet whose
+    // timestamp2 == SERVER_MOTD_W3_WELCOME (0). v3 has no news subsystem, so it
+    // emits only that welcome packet — equivalent to an oracle with no news
+    // configured. A WarCraft III client BLOCKS waiting for this reply, so the
+    // previous no-op left such a client stalled after login.
+    MotdReply reply;
+    reply.msg_type        = 1;  // SERVER_MOTD_W3_MSGTYPE
+    reply.curr_time       = static_cast<std::uint32_t>(std::time(nullptr));
+    reply.first_news_time = 0;  // no news subsystem -> oldest-news time is 0
+    reply.timestamp       = 1;  // original sends first_news_time + 1 for welcome
+    reply.timestamp2      = 0;  // SERVER_MOTD_W3_WELCOME marker
+    reply.text.clear();         // no bnmotd_w3 file modelled -> empty welcome text
+    return ctx_->send(ServerMessage{std::move(reply)});
 }
 
 core::Status<> BnetFsm::on(const LadderListRequest&) {
