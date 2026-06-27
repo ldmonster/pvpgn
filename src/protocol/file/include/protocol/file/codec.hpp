@@ -29,8 +29,10 @@
 
 namespace pvpgn::protocol::file {
 
-inline constexpr std::uint16_t kClientFileReq    = 0x0100;
-inline constexpr std::uint16_t kServerFileReply  = 0x0000;
+inline constexpr std::uint16_t kClientFileReq      = 0x0100;
+inline constexpr std::uint16_t kClientFileReq2     = 0x0200;
+inline constexpr std::uint16_t kServerFileReply    = 0x0000;
+inline constexpr std::uint32_t kServerFileUnknown1 = 0xdeadbeef;
 
 struct FileHeader {
     std::uint16_t size = 0;

@@ -30,12 +30,16 @@ namespace pvpgn::protocol::file {
 ///
 /// States:
 ///   AwaitingRequest  — waiting for a complete CLIENT_FILE_REQ packet
+///   PendingRaw       — CLIENT_FILE_REQ2 acked with 0xdeadbeef; awaiting
+///                      the raw CLIENT_FILE_REQ3 record (War3 two-step DL).
+///                      Mirrors the oracle's conn_state_pending_raw.
 ///   Serving          — reply header sent; streaming file data
 ///   Done             — transfer complete or error; connection closing
 class BnftpFsm {
 public:
     enum class State : std::uint8_t {
         AwaitingRequest,
+        PendingRaw,
         Serving,
         Done,
     };

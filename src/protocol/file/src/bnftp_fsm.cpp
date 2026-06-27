@@ -3,6 +3,7 @@
 #include "protocol/file/bnftp_fsm.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -122,6 +123,12 @@ core::Status<> BnftpFsm::on_bytes(std::span<const std::byte> bytes) {
         return try_dispatch();
     }
 
+    // State::PendingRaw — we have acked a CLIENT_FILE_REQ2 with 0xdeadbeef
+    // and the oracle keeps the connection open in conn_state_pending_raw to
+    // await the raw CLIENT_FILE_REQ3 record. We mirror "keep open": accumulate
+    // any trailing bytes without closing. (Serving the W3 two-step download is
+    // not yet implemented; the connection simply idles, matching the oracle's
+    // behaviour for a client that never completes REQ3.)
     // State::Serving — we don't expect more client data after the request.
     return core::ok();
 }
@@ -160,6 +167,26 @@ core::Status<> BnftpFsm::try_dispatch() {
 
     // Wait for the full packet.
     if (buf_.size() < pkt_size) return core::ok();
+
+    if (pkt_type == kClientFileReq2) {
+        // CLIENT_FILE_REQ2 (0x0200): the War3 two-step download start.
+        // The oracle replies with a raw 4-byte SERVER_FILE_UNKNOWN1
+        // (0xdeadbeef, LE) and transitions to conn_state_pending_raw,
+        // keeping the connection open to await CLIENT_FILE_REQ3
+        // (src/bnetd/handle_file.cpp). Mirror that exactly.
+        buf_.erase(buf_.begin(), buf_.begin() + pkt_size);
+
+        std::array<std::byte, 4> reply{};
+        write_u32le(reply.data(), kServerFileUnknown1);
+        auto st = ctx_->send_bytes(std::span<const std::byte>{reply.data(), reply.size()});
+        if (!st) {
+            state_ = State::Done;
+            ctx_->close();
+            return st;
+        }
+        state_ = State::PendingRaw;
+        return core::ok();
+    }
 
     if (pkt_type != kClientFileReq) {
         // Unknown request type — close gracefully.

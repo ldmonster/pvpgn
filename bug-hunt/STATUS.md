@@ -1962,3 +1962,24 @@ tests/diff/diff_command_case.py asserts /time,/TIME,/Time and /whoami,/WHOAMI,
 /WhoAmI all yield identical EID structure on both servers (PASS). 3199/3199 unit
 tests green; diff_time / diff_unknown_command / diff_emote / diff_squelch still
 match the oracle.
+
+## Wave 111 (LANDED) — BNFTP CLIENT_FILE_REQ2 (0x0200) two-step handshake: 0xdeadbeef + keep-open
+A BNFTP connection (init byte 0x02) that sends a CLIENT_FILE_REQ2 packet
+(type 0x0200 — the War3 two-step download start) diverged decisively. ORACLE:
+replies with a raw 4-byte SERVER_FILE_UNKNOWN1 = 0xdeadbeef (wire `ef be ad de`)
+and KEEPS the connection open (enters conn_state_pending_raw to await
+CLIENT_FILE_REQ3), per src/bnetd/handle_file.cpp:82-93. V3: BnftpFsm::try_dispatch
+treated any pkt_type != kClientFileReq (0x0100) as unknown and closed the
+connection gracefully, sending ZERO bytes. Decisive observable: oracle -> 4 bytes
+0xdeadbeef, socket open; v3 -> 0 bytes, socket closed. This was Finding 3 of
+bug-hunt/findings/bnftp-file.md (open after waves 67/68/78/86/102). FIX: in
+src/protocol/file/src/bnftp_fsm.cpp try_dispatch, before the generic unknown-type
+close, add a branch for pkt_type == kClientFileReq2 that consumes the 20-byte
+packet, sends a raw 4-byte LE 0xdeadbeef via ctx_->send_bytes, and transitions
+to a new State::PendingRaw WITHOUT closing (mirrors conn_state_pending_raw).
+on_bytes idles in PendingRaw (keeps the socket open; the W3 REQ3 second half is
+not yet served, matching the oracle for a client that never completes REQ3). Added
+kClientFileReq2/kServerFileUnknown1 constants to codec.hpp and PendingRaw to the
+State enum. New guard tests/diff/diff_bnftp_req2.py asserts both servers return
+the 4-byte 0xdeadbeef and keep the socket open (PASS). 3199/3199 unit tests green;
+diff_bnftp / diff_bnftp_missing still match the oracle.
