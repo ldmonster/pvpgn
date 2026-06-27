@@ -34,9 +34,9 @@ from v3_server import V3Bnetd  # noqa: E402
 import wol_client as wc  # noqa: E402
 
 # Commands that require >=1 parameter and, when sent bare post-login, make the
-# original emit 461. (PRIVMSG is excluded: the original returns 461 but routes
-# through a different no-recipient path in v3 — out of scope for this format
-# test.)
+# original emit 461. (PRIVMSG also emits 461 here but has a richer trailing-text
+# rule — covered end-to-end by diff_wol_privmsg.py, so it is not duplicated in
+# this pure wire-format test.)
 COMMANDS = ["JOIN", "MODE", "TOPIC", "KICK", "GAMEOPT", "STARTG",
             "PAGE", "ADDBUDDY", "DELBUDDY", "GETINSIDER", "ADVERTR",
             "FINDUSER", "FINDUSEREX"]

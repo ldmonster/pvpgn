@@ -2550,3 +2550,25 @@ The recipient-side EID_WHISPER (0x04) already matched (carries the sender name).
 New diff guard tests/diff/diff_whisper_case.py asserts `/w BOB hi` to account
 "bob" yields WHISPERSENT username 'bob' on both servers. Build clean (-Werror);
 unit suite 3203/3203; diff_whisper / diff_whisper_self / diff_whisper_case pass.
+
+## Wave 140
+Fixed WOL PRIVMSG text-argument extraction to mirror the original's IRC trailing
+convention (WolFsm::on_privmsg, src/protocol/wol/src/wol_fsm/wol_chat.cpp). The
+oracle derives a command's `text` ONLY from a leading-colon param or the first
+" :" sequence (handle_irc_common.cpp:206-223) and _handle_privmsg_command then
+requires `numparams>=1 && text`, otherwise emitting
+`461 ... PRIVMSG :Not enough parameters` — never 411/412 and never relaying a
+non-trailing remainder. v3 had rolled its own "rest after first space, optional
+leading ':'" parser, diverging three ways: "PRIVMSG #chan" -> 411 (wrong numeric
++ false "no recipient"); "PRIVMSG #chan nocolon body" -> BROADCAST the body
+(over-acceptance of hostile input the oracle would never relay); "PRIVMSG #chan
+a:b" -> treated the mid-token colon as text. on_privmsg now applies the oracle's
+trailing rule (leading colon => no target => 461; else require a " :" with a
+non-empty target token before it) and the 411/412 branches are removed; the
+proper "PRIVMSG #chan :msg" form still broadcasts unchanged. New diff guard
+tests/diff/diff_wol_privmsg.py asserts all no-trailing-text forms collapse to an
+identical 461 on both servers, the trailing form emits no numeric, and a
+non-colon PRIVMSG is NOT relayed to a second channel member. Stale PRIVMSG
+exclusion note in diff_wol_needmoreparams.py updated to point at the new test.
+Build clean (-Werror); unit suite 3203/3203; diff_wol_privmsg /
+diff_wol_needmoreparams / diff_wol_chat all pass.

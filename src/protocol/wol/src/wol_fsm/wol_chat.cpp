@@ -661,19 +661,46 @@ core::Status<> WolFsm::on_part(std::string_view /*params*/) {
 core::Status<> WolFsm::on_privmsg(std::string_view params) {
 
     // PRIVMSG <target> :<message>
-    auto sp = params.find(' ');
-    if (sp == std::string_view::npos) {
-        return send_numeric(411, nick_, "No recipient given (PRIVMSG)");
+    //
+    // The original server derives the message `text` ONLY from the IRC trailing
+    // convention (handle_irc_common.cpp:206-223): the parameter string after the
+    // command is split so that `text` is non-NULL ONLY when it begins with a
+    // leading ':' (no preceding target) OR a " :" sequence is found (everything
+    // after it is the text). _handle_privmsg_command then requires
+    // `numparams>=1 && text` and otherwise emits
+    //   461 ... PRIVMSG :Not enough parameters (ERR_NEEDMOREPARAMS).
+    // It NEVER emits 411/412 here and NEVER relays a non-trailing remainder, so
+    // v3 must mirror that exactly: a recipient-without-trailing-text, a mid-token
+    // colon ("hello:world"), and a bare "PRIVMSG" all collapse to 461. Only the
+    // properly-trailing "PRIVMSG #chan :msg" form is relayed.
+    std::string_view target;
+    std::string_view message;
+    bool have_text = false;
+
+    if (!params.empty() && params[0] == ':') {
+        // Leading colon => trailing text but NO target parameter (numparams==0).
+        // The original requires numparams>=1, so this still yields 461.
+        target  = {};
+        message = {};
+        have_text = false;
+    } else {
+        // Look for the first " :" sequence; text is everything after it and the
+        // parameter zone (target lives here) is everything before it.
+        std::string_view zone = params;
+        auto sep = params.find(" :");
+        if (sep != std::string_view::npos) {
+            zone    = params.substr(0, sep);
+            message = params.substr(sep + 2);
+            target  = first_token(zone);
+            have_text = !target.empty();
+        } else {
+            // No trailing text at all -> text is NULL in the original -> 461.
+            have_text = false;
+        }
     }
 
-    std::string_view target  = params.substr(0, sp);
-    std::string_view rest    = params.substr(sp + 1);
-    // Strip leading ':' from the trailing parameter.
-    std::string_view message = rest;
-    if (!message.empty() && message[0] == ':') message.remove_prefix(1);
-
-    if (message.empty()) {
-        return send_numeric(412, nick_, "No text to send");
+    if (!have_text) {
+        return send_needmoreparams("PRIVMSG");
     }
 
     // Channel message (target starts with '#').
