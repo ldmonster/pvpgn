@@ -2751,3 +2751,24 @@ now 0 across 6 mtimes) and new tests/diff/diff_bnftp_mtime.py (oracle==v3 across
 5 whole-second mtimes). Build clean (-Werror); unit suite green
 (TcpAcceptor::adopt_native_handle parallel-flake passes isolated); diff_bnftp /
 diff_bnftp_resume / diff_bnftp_req2 still match the oracle.
+
+## Wave 150
+WOL JOIN was never broadcast to existing channel members (stale-roster ghost).
+WolFsm::on_join (src/protocol/wol/src/wol_fsm/wol_chat.cpp), in the join_channel_
+success branch, sent the self JOIN echo + 353 NAMES + 332 TOPIC + 366 only to the
+JOINER and silently dropped JoinChannelResult.members_to_notify — so existing
+members never learned of the newcomer and kept a stale roster until they manually
+re-NAMES/LIST. This was v3-internal asymmetry: on_part/on_kick already broadcast
+via route_irc_line(line, members_to_notify); JOIN did not. The oracle
+(channel_add_connection -> message_type_join) broadcasts the JOIN to every
+existing member. Fix: after the self echo, build the standard JOIN line and call
+route_irc_line(join_bcast, join_result.value().members_to_notify); members_to_notify
+excludes the joiner so there is no self-duplication. The broadcast names the
+channel as a plain trailing param WITHOUT the leading ':' the self-echo uses
+(matching the observed oracle wire ":<nick>!<host> JOIN #chan"). The source
+hostmask (oracle WCHT@<ip> vs v3 @Battle.net) is a separately-documented
+intentional deviation, untouched. Verified with scratchpad probe_wol_join_bcast.py
+(observer now sees the newcomer's JOIN; was empty) and new
+tests/diff/diff_wol_join_broadcast.py (member_sees_join / joiner_self_echo /
+no_self_dup_to_others all oracle==v3). Build clean (-Werror); full unit suite
+green (3204/3204); diff_wol_part / diff_wol_kick / diff_wol_names still match.

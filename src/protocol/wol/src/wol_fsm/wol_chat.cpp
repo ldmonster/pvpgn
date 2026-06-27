@@ -551,6 +551,25 @@ core::Status<> WolFsm::on_join(std::string_view params) {
         join_echo += channel_;
         if (auto s = send_raw(join_echo); !s) return s;
 
+        // Broadcast the JOIN to the OTHER channel members so their roster stays
+        // current, mirroring the original's channel_add_connection ->
+        // channel_message_log/irc_send -> message_type_join broadcast (and what
+        // v3's on_part/on_kick already do via route_irc_line). Without this the
+        // newcomer is a ghost to existing members until they manually re-NAMES.
+        // members_to_notify excludes the joiner (same contract as LeaveChannel),
+        // so there is no self-duplication. The original broadcasts the channel as
+        // a plain trailing param WITHOUT the leading ':' that the self-echo uses
+        // (observed wire: ":<nick>!<host> JOIN #chan").
+        {
+            std::string join_bcast = ":";
+            join_bcast += nick_;
+            join_bcast += "!";
+            join_bcast += nick_;
+            join_bcast += "@Battle.net JOIN ";
+            join_bcast += channel_;
+            route_irc_line(join_bcast, join_result.value().members_to_notify);
+        }
+
         // 353 RPL_NAMREPLY  = <nick> = <channel> :<member1> <member2> ...
         std::string names_line = ":";
         names_line += std::string(ctx_->server_name());
