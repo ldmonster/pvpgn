@@ -64,18 +64,4 @@ struct LadderUpdateEntry {
     uint32_t    flags{0};      ///< Character status flags (charstatus wire field)
 };
 
-// ---------------------------------------------------------------------------
-// GameResultData
-// ---------------------------------------------------------------------------
-
-/// Result data for a completed game session.
-///
-/// Recorded when a game ends so that D2DBS can update persistent state
-/// (e.g. unlock characters, flush saves).
-struct GameResultData {
-    std::string              game_name; ///< Game name / identifier
-    uint32_t                 result{0}; ///< Result code (0 = normal exit)
-    std::vector<std::string> players;   ///< Character names of participants
-};
-
 } // namespace pvpgn::domain::d2dbs
