@@ -1244,6 +1244,21 @@ core::Status<> BnetFsm::on(const LeaveChannel&) {
         return core::ok();
     }
 
+    // Channel operator (gavel) flag for the EID_LEAVE broadcast: the original
+    // carries the *departing* user's channel flags in the LEAVE event, so the
+    // tmpOP departs with MF_GAVEL (0x02). Must be queried BEFORE execute(),
+    // which migrates/clears operator_id_ in the aggregate as part of the leave.
+    // Mirrors the join-site computation (see EID_USERFLAGS above) and the /kick
+    // operator gating.
+    std::uint32_t leaver_flags = 0x00u;
+    if (use_cases_.channel_reader) {
+        auto chan = use_cases_.channel_reader->find_by_id(current_channel_id_);
+        if (chan && chan.value().operator_id() &&
+            chan.value().operator_id()->value() == current_account_id_.value()) {
+            leaver_flags = 0x02u;
+        }
+    }
+
     auto leave_result = use_cases_.leave_channel->execute(
         current_channel_id_, current_account_id_);
 
@@ -1261,7 +1276,7 @@ core::Status<> BnetFsm::on(const LeaveChannel&) {
         broadcast_chat_event(
             ChatEvent{
                 /*event_id*/    kEidLeave,   // EID_LEAVE (0x03)
-                /*flags*/       0,
+                /*flags*/       leaver_flags,
                 /*ping_ms*/     0,
                 /*user_ip*/     0,
                 /*acct_number*/ 0,

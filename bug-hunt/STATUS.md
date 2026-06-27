@@ -1983,3 +1983,19 @@ kClientFileReq2/kServerFileUnknown1 constants to codec.hpp and PendingRaw to the
 State enum. New guard tests/diff/diff_bnftp_req2.py asserts both servers return
 the 4-byte 0xdeadbeef and keep the socket open (PASS). 3199/3199 unit tests green;
 diff_bnftp / diff_bnftp_missing still match the oracle.
+
+## Wave 112 (LANDED) — EID_LEAVE (0x03) carries the departing operator's MF_GAVEL flag
+When a channel's tmpOP (operator) leaves or disconnects, the oracle broadcasts
+EID_LEAVE (0x03) to the remaining members with the leaving user's channel flags
+in the FLAGS u32 (offset 4): MF_GAVEL=0x02 for the operator, 0x00 for a normal
+member. v3 hardcoded flags=0, so remaining members saw the operator depart with
+flags=0. Leftover from wave 58, which added the gavel flag to
+EID_USERFLAGS/EID_SHOWUSER/EID_JOIN in fsm_chat.cpp but missed the EID_LEAVE site.
+FIX: in BnetFsm::on(const LeaveChannel&), BEFORE execute() (which migrates/clears
+operator_id_), query channel_reader->find_by_id and capture whether the leaver was
+the operator into leaver_flags (0x02 vs 0x00); pass leaver_flags as the EID_LEAVE
+ChatEvent flags. The on_disconnect path reuses on(LeaveChannel{}), so this one site
+covers both SID_LEAVECHAT and disconnect-driven leaves. Mirrors the join-site flag
+computation and the /kick operator gating. New guard tests/diff/diff_leave_opflags.py
+asserts operator-leave=0x02 / normal-leave=0x00 against the oracle (PASS). Unit
+suite green (anongame/icon temp-file flakes pass on -j1); diff_leave still matches.
