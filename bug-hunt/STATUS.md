@@ -2111,3 +2111,23 @@ guard tests/diff/diff_bad_marker_resync.py: post-login inject `00 25 08 00 AA AA
 AA AA` then a valid SID_FRIENDSLIST — both servers still reply 0x65 to that and a
 3rd packet, socket stays open. 3199/3199 unit tests green; diff_friends,
 diff_channelcmds still match the oracle.
+
+## Wave 79
+CLIENT_PROGIDENT (SID 0x06) legacy/pre-NLS login (Diablo / old Starcraft / D2)
+was a literal no-op on v3 (BnetFsm::on(const ProgIdent&) returned core::ok()
+with no reply), so a real legacy client blocked forever waiting for the
+SERVER_AUTHREQ1 versioncheck filename + CheckRevision equation it needs to
+proceed — the entire old login flow was dead. The oracle's _client_progident
+always answers with SERVER_AUTHREQ1 (SID 0x06: u64 timestamp + filename cstring
++ equation cstring); select_checkrevision returns a hard-coded default even
+without versioncheck config, so this is NOT backend-dependent. FIX
+(src/protocol/bnet/src/fsm/fsm_auth.cpp): record client identity
+(client_tag_ from packed-BE clienttag, version_id_ from versionid, mirroring
+conn_set_clienttag/versionid) and send an AuthReq1Server reply with the same
+fixed "ver-IX86-1.mpq" + representative equation v3's on(AuthInfo) already
+emits. encode(AuthReq1Server) + the ServerMessage variant entry already existed,
+no codec work. New guard tests/diff/diff_progident.py asserts both servers
+return a single SID 0x06 packet whose body parses as u64 + two non-empty
+NUL-terminated strings (structure only; timestamp/filename/equation are
+advisory). 3199/3199 unit tests green; diff_compinfo and diff_ols_login still
+match the oracle.

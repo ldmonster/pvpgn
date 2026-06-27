@@ -475,7 +475,30 @@ core::Status<> BnetFsm::on(const CompInfo1Request&) {
     return ctx_->send(
         ServerMessage{SessionKey1{.sessionkey = legacy_session_key(session_id_)}});
 }
-core::Status<> BnetFsm::on(const ProgIdent&)             { return core::ok(); }
+// CLIENT_PROGIDENT (SID 0x06): the first packet of the legacy/pre-NLS login
+// flow used by Diablo / old Starcraft / D2 clients. The oracle's
+// _client_progident records the client identity and always replies with
+// SERVER_AUTHREQ1 carrying the versioncheck filename + CheckRevision equation
+// (select_checkrevision returns a hard-coded default when no versioncheck
+// config is present). v3 used to drop the reply, stalling every legacy client
+// that waits forever for the filename/equation it needs to proceed.
+core::Status<> BnetFsm::on(const ProgIdent& m) {
+    // Record the client identity (parity with conn_set_clienttag /
+    // conn_set_versionid). game_id/clienttag is the 4-byte product tag in
+    // wire-packed big-endian form (e.g. 'STAR', 'D2DV').
+    if (auto tag = domain::ClientTag::from_packed_be(m.clienttag)) {
+        client_tag_ = tag.value();
+    }
+    version_id_ = m.versionid;
+
+    AuthReq1Server reply;
+    reply.timestamp = 0u;  // advisory; oracle uses the versioncheck file mtime
+    // Same fixed MPQ name + representative CheckRevision equation v3's
+    // on(AuthInfo) already emits — values are advisory under the test config.
+    reply.filename = "ver-IX86-1.mpq";
+    reply.equation = "A=1 B=1 C=1 4 A=A^S B=B^C C=C^A A=A^B";
+    return ctx_->send(ServerMessage{reply});
+}
 core::Status<> BnetFsm::on(const AuthReq1&)              { return core::ok(); }
 core::Status<> BnetFsm::on(const CountryInfo1&)          { return core::ok(); }
 // CLIENT_COMPINFO2 (SID 0x1E): sibling of COMPINFO1. The oracle replies with
