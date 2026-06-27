@@ -378,6 +378,25 @@ private:
     /// router. No sender reply. Mirrors `_handle_invmsg_command`.
     core::Status<> on_invmsg(std::string_view params);
 
+    /// HIGHSCORE — WOL ladder-server verb. The original
+    /// `_handle_highscore_command` has its whole body commented out and
+    /// UNCONDITIONALLY destroys the connection, so this always closes the
+    /// session (no reply), regardless of params.
+    core::Status<> on_highscore(std::string_view params);
+
+    /// LISTSEARCH <sku> :<names> — WOL ladder-server verb. The original
+    /// `_handle_listsearch_command` destroys the connection when it lacks a
+    /// first param or trailing text (numparams<1 || !params[0] || !text). The
+    /// success path needs a ladder backend (not implemented), so a well-formed
+    /// request is accepted as a no-op.
+    core::Status<> on_listsearch(std::string_view params);
+
+    /// RUNGSEARCH <start> <count> <?> <sku> — WOL ladder-server verb. The
+    /// original `_handle_rungsearch_command` destroys the connection when it has
+    /// fewer than 4 params. The success path needs a ladder backend (not
+    /// implemented), so a well-formed request is accepted as a no-op.
+    core::Status<> on_rungsearch(std::string_view params);
+
     /// ADVERTR <channel> — reply ":<server> ADVERTR 5 <channel>" (a game-ad
     /// refresh ack to the sender); 461 with no param. Mirrors
     /// `_handle_advertr_command`.

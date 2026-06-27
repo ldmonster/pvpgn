@@ -1,5 +1,28 @@
 # Bug Hunt — Status (final summary)
 
+## Wave 115 (LANDED) — WOL ladder verbs (HIGHSCORE/LISTSEARCH/RUNGSEARCH) must destroy the connection
+DIVERGENCE (connection lifecycle). The oracle's WOL ladder-server handlers
+(handle_wol.cpp) close (destroy) the client connection in backend-independent
+cases where v3 silently accepted and stayed connected (these verbs lived in the
+wol_known[] no-op list): HIGHSCORE (handle_wol.cpp:1854) has its whole body
+commented out and UNCONDITIONALLY conn_set_state(conn_state_destroy);
+LISTSEARCH (1669) destroys when numparams<1 || !params[0] || !text; RUNGSEARCH
+(1730) destroys when numparams<4. Decisive observable: on a logged-in WOL conn,
+after a bare ladder verb the oracle drops the socket (no PONG to a following
+PING), while v3 returned core::ok() and answered the PING. FIX (wol_fsm.cpp +
+wol_fsm/wol_chat.cpp): removed the three verbs from wol_known[], added explicit
+handlers on_highscore (always Disconnecting + ctx_->close(), mirroring the
+unconditional destroy), on_listsearch (close when no first param or no trailing
+text; success path needs an unimplemented ladder backend -> no-op), on_rungsearch
+(close when fewer than 4 middle params -> no-op otherwise). New helper
+split_irc_params mirrors handle_irc_common_line's middle-param/trailing split
+(trailing begins at leading ':' or first " :", not counted in numparams).
+SERIAL/ADVERTC/INVDEL stay no-ops (they genuinely no-op in the oracle). New guard
+tests/diff/diff_wol_ladder_destroy.py asserts BOTH servers drop the connection
+after each bare ladder verb while a control PING/TIME keeps it alive (PASS).
+3199/3199 unit tests green; diff_wol_advertr/chat/disconnect still match.
+
+
 Reference: `/home/cnupt/work/pvpgn-server` (upstream PvPGN-PRO) vs this repo's v3
 rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each under
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*

@@ -850,6 +850,28 @@ std::vector<std::string_view> split_ws(std::string_view s) {
     }
     return out;
 }
+
+/// Mirror the original IRC line parser (handle_irc_common_line): the trailing
+/// param begins at a leading ':' or at the first " :" separator and is NOT
+/// counted in numparams (only the middle params are).
+struct IrcParams {
+    std::vector<std::string_view> middle;
+    bool has_text = false;
+};
+
+IrcParams split_irc_params(std::string_view params) {
+    IrcParams out;
+    std::string_view middle_part = params;
+    if (!params.empty() && params.front() == ':') {
+        out.has_text = true;
+        middle_part = {};
+    } else if (auto pos = params.find(" :"); pos != std::string_view::npos) {
+        out.has_text = true;
+        middle_part = params.substr(0, pos);
+    }
+    out.middle = split_ws(middle_part);
+    return out;
+}
 }  // namespace
 
 core::Status<> WolFsm::on_joingame(std::string_view params) {
@@ -1366,6 +1388,43 @@ core::Status<> WolFsm::on_invmsg(std::string_view params) {
         }
         if (comma == std::string_view::npos) break;
         pos = comma + 1;
+    }
+    return core::ok();
+}
+
+core::Status<> WolFsm::on_highscore(std::string_view /*params*/) {
+    // _handle_highscore_command (handle_wol.cpp): the whole body is commented
+    // out and it UNCONDITIONALLY calls conn_set_state(conn, conn_state_destroy).
+    // So the connection is always closed, with no reply, regardless of params.
+    state_ = WolState::Disconnecting;
+    ctx_->close();
+    return core::ok();
+}
+
+core::Status<> WolFsm::on_listsearch(std::string_view params) {
+    // _handle_listsearch_command (handle_wol.cpp): requires
+    // (numparams >= 1) && params[0] && text, otherwise WARNs and
+    // conn_set_state(conn, conn_state_destroy). The success path needs a ladder
+    // backend (not implemented here), so a well-formed request is a no-op.
+    auto p = split_irc_params(params);
+    if (p.middle.empty() || !p.has_text) {
+        state_ = WolState::Disconnecting;
+        ctx_->close();
+        return core::ok();
+    }
+    return core::ok();
+}
+
+core::Status<> WolFsm::on_rungsearch(std::string_view params) {
+    // _handle_rungsearch_command (handle_wol.cpp): requires numparams >= 4,
+    // otherwise WARNs and conn_set_state(conn, conn_state_destroy). The success
+    // path needs a ladder backend (not implemented here), so a well-formed
+    // request is a no-op.
+    auto p = split_irc_params(params);
+    if (p.middle.size() < 4) {
+        state_ = WolState::Disconnecting;
+        ctx_->close();
+        return core::ok();
     }
     return core::ok();
 }

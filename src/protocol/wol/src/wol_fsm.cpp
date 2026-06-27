@@ -252,6 +252,9 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     if (cmd == "HOST") return on_host(params);
     if (cmd == "USERIP") return on_userip(params);
     if (cmd == "INVMSG") return on_invmsg(params);
+    if (cmd == "HIGHSCORE") return on_highscore(params);
+    if (cmd == "LISTSEARCH") return on_listsearch(params);
+    if (cmd == "RUNGSEARCH") return on_rungsearch(params);
     if (cmd == "STARTG") return on_startg(params);
     if (cmd == "SETOPT") return on_setopt(params);
     if (cmd == "ADVERTR") return on_advertr(params);
@@ -275,7 +278,6 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         "SERIAL",
         "ADVERTC",
         "INVDEL",
-        "LISTSEARCH", "RUNGSEARCH", "HIGHSCORE",
     };
     for (auto kw : wol_known) {
         if (cmd == kw) return core::ok();  // silently accept
