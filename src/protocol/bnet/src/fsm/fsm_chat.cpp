@@ -27,6 +27,7 @@
 #include "fsm/fsm_internal.hpp"
 
 #include <cctype>
+#include <ctime>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -334,6 +335,7 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "ban") return handle_ban(info_args);
             if (cmd == "unban") return handle_unban(info_args);
             if (cmd == "users" || cmd == "status") return handle_users();
+            if (cmd == "time") return handle_time();
             if (cmd == "squelch" || cmd == "ignore")
                 return handle_squelch(info_args, /*add=*/true);
             if (cmd == "unsquelch" || cmd == "unignore")
@@ -934,6 +936,36 @@ core::Status<> BnetFsm::handle_users() {
     return ctx_->send(ServerMessage{ChatEvent{
         kEidInfo, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
         "Battle.net", std::move(text)}});
+}
+
+core::Status<> BnetFsm::handle_time() {
+    // Format the current UTC time the way the original does
+    // (_handle_time_command: strftime "%a %b %d %H:%M:%S" over a gmtime).
+    auto fmt_now = []() -> std::string {
+        const std::time_t now = std::time(nullptr);
+        std::tm tm_buf{};
+#if defined(_WIN32)
+        if (gmtime_s(&tm_buf, &now) != 0) return "?";
+#else
+        if (::gmtime_r(&now, &tm_buf) == nullptr) return "?";
+#endif
+        char buf[64];
+        if (std::strftime(buf, sizeof(buf), "%a %b %d %H:%M:%S", &tm_buf) == 0)
+            return "?";
+        return std::string{buf};
+    };
+    auto info = [&](std::string text) {
+        return ctx_->send(ServerMessage{ChatEvent{
+            kEidInfo, 0, 0, 0x00000000u, 0xBADC0FFEu, 0xBADC0FFEu,
+            "Battle.net", std::move(text)}});
+    };
+    // The original sends two EID_INFO lines for a Battle.net-class connection:
+    // the server time, then the client's local time. v3 has no per-session
+    // timezone bias negotiated over this path, so both render in UTC — the two
+    // distinct lines (not the exact localized text) are the faithful observable.
+    const std::string stamp = fmt_now();
+    if (auto s = info("Server Time: " + stamp); !s) return s;
+    return info("Your local time: " + stamp);
 }
 
 core::Status<> BnetFsm::handle_squelch(std::string_view args, bool add) {

@@ -1435,6 +1435,35 @@ and Unknown24 (0x24); those generate no reply so a trailing-byte divergence ther
 is not observable via the diff harness — left as-is (the oracle also uses
 minimum-size checks for them, but it is not cleanly diffable without a reply).
 
+## Wave 87 (LANDED) — implement /time chat command (two EID_INFO lines)
+DIVERGENCE (missing command). v3 had no /time handler: the inline command
+dispatch in BnetFsm::on(ChatCommand) (fsm_chat.cpp) covered only who/whois/
+whoami/kick/ban/users/squelch/me/friends/whisper, and the generic
+CommandRegistry/permission-checker use-cases are not wired into bnetd, so /time
+fell through to the "Unknown command. Type /help for a list of commands."
+fallback — a single EID_INFO (0x12). The original _handle_time_command
+(bnetd/command.cpp) sends TWO EID_INFO lines for a Battle.net-class connection:
+"Server Time: <strftime %a %b %d %H:%M:%S over gmtime>" and "Your local time:
+<same, with the connection's tz bias>" (the second is gated on
+conn_get_class == conn_class_bnet, always true for a BNCS client). A real client
+expecting both lines saw only the bogus unknown-command line.
+Found via a command-battery probe (log in, join, fire ~25 read-only verbs at both
+servers, compare the EID-code structure of each reply). /time was the cleanest,
+fully self-contained divergence (no backend/permission dependency): oracle 2x
+0x12, v3 1x 0x12. (Side note: the oracle CRASHES on /news with no news file — a
+known upstream NULL-deref class; avoided in the probe. Many other verbs route
+through the unimplemented registry path and/or the oracle's command-group
+permission model — those are not cleanly diffable here and are left for later.)
+Fix: new BnetFsm::handle_time() (declared in fsm.hpp, dispatched on cmd=="time")
+emits the two EID_INFO lines using std::time + ::gmtime_r + strftime in the same
+"%a %b %d %H:%M:%S" format. v3 negotiates no per-session tz bias over this path,
+so both lines render in UTC — the two distinct lines (not the localized text,
+which the oracle charset-garbles in this harness) are the faithful observable.
+New guard tests/diff/diff_time.py: alice joins a channel, sends /time, both
+servers must emit exactly two EID_INFO events — match (before: v3 gave one).
+3199/3199 units green; diff regression set (channelcmds /who+/whois, whoami)
+still matches the oracle.
+
 ## Wave 86 (LANDED) — BNFTP filename cap raised 128 -> 2047 (match legacy)
 DIVERGENCE (Finding 5 in findings/bnftp-file.md). v3's BnftpFsm capped the
 client-supplied filename at 128 chars (is_safe_filename, bnftp_fsm.cpp:35) with a

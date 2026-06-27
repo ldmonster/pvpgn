@@ -256,6 +256,11 @@ private:
     /// Handle /users (alias /status) — server population stats.
     core::Status<> handle_users();
 
+    /// Handle /time — the current server time. For a Battle.net-class client the
+    /// original (_handle_time_command) sends TWO EID_INFO lines: "Server Time:"
+    /// (UTC + server tz bias) and "Your local time:" (the connection's tz bias).
+    core::Status<> handle_time();
+
     /// Handle /squelch <user> (alias /ignore) — add to the ignore list.
     core::Status<> handle_squelch(std::string_view args, bool add);
 
