@@ -9,7 +9,7 @@
 
 namespace pvpgn::application::realm {
 
-enum class GameServerStatus { online, offline, full, maintenance };
+enum class GameServerStatus { online, offline };
 
 struct GameServerInfo {
     std::string address;
