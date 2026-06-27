@@ -1311,3 +1311,30 @@ Note: the original also parts the channel on SID_JOINGAME (0x1D, line 3983) and
 arranged-team invite (2716); v3's on(JoinGame) is still a placeholder stub
 (game_id 0) and is not cleanly diffable yet — left for a later wave. STARTGAME1
 (0x08) / STARTGAME3 (0x1A) do NOT part the channel in the original (verified).
+
+## Wave 81 (LANDED) — SID_REALMLISTREQ replies (0x40 110-era + 0x34 legacy)
+DIVERGENCE (missing reply). A logged-in client's realm-list query got NOTHING
+from v3. The original answers BOTH variants unconditionally, even with no realms
+configured (_client_realmlistreq110 / _client_realmlistreq, handle_bnet.cpp,
+registered only in the logged-in handler table):
+  * CLIENT_REALMLISTREQ_110 (0x40, header-only) -> SERVER_REALMLISTREPLY_110 (0x40)
+  * CLIENT_REALMLISTREQ     (0x34, two u32 cookies) -> SERVER_REALMLISTREPLY (0x34)
+Both replies are a reserved u32 (== 0) + u32 realm count + `count` records; with
+the default config (no active realms) the body is exactly 8 bytes (00*8). v3's
+on(RealmListRequest)/on(RealmListLegacyRequest) only ran the login-state gate and
+returned core::ok() — sending nothing — so a D2 client would stall awaiting the
+realm list.
+Fix (src/protocol/bnet/src/fsm/fsm_chat.cpp): after the existing require_clan_state
+gate, both handlers now ctx_->send an empty reply — RealmListReply{} (0x40) /
+RealmListLegacyReply{} (0x34). The message types + encoders already existed
+(messages_realm.hpp, codec_realm.cpp); only the FSM handlers were wired. v3 has
+no realm subsystem, so the list is always empty (count 0) — faithful to an oracle
+with no active realms (which is the default; conf/realm.conf.in seeds none).
+New guard tests/diff/diff_realmlist.py: logs in, sends 0x40 then 0x34, and
+compares reply presence, >=8-byte head, reserved u32 == 0, and realm count vs the
+oracle — all 8 fields match. 3199/3199 units green; diff regression set
+(channellist, friends, profile, whoami, userdata, chat, whisper) still matches.
+Note: with realms configured the per-realm record layout (legacy 7-u32 vs 110
+1-u32 + name/desc strings) would need a v3 realm subsystem to diff — not present,
+so only the empty-list case is cleanly comparable. on(RealmJoinRequest) (0x3E)
+still no-ops (realm session handshake needs a d2cs backend; deferred).

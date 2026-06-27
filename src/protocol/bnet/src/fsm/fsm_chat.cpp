@@ -1298,7 +1298,14 @@ core::Status<> BnetFsm::on(const CharListRequest&) {
 }
 
 core::Status<> BnetFsm::on(const RealmListRequest&) {
-    return require_clan_state(state_, "bnet fsm: REALMLISTREQ before login");
+    if (auto s = require_clan_state(state_, "bnet fsm: REALMLISTREQ before login"); !s)
+        return s;
+    // The original (_client_realmlistreq110) unconditionally answers with
+    // SERVER_REALMLISTREPLY_110: a reserved u32 followed by the count of active
+    // realms (and one record per realm). v3 has no realm subsystem, so the list
+    // is always empty (count 0) — matching an oracle with no active realms
+    // configured. The client expects a reply and stalls without one.
+    return ctx_->send(ServerMessage{RealmListReply{}});
 }
 
 core::Status<> BnetFsm::on(const RealmJoinRequest&) {
@@ -1310,7 +1317,13 @@ core::Status<> BnetFsm::on(const WarcraftGeneralRequest&) {
 }
 
 core::Status<> BnetFsm::on(const RealmListLegacyRequest&) {
-    return require_clan_state(state_, "bnet fsm: REALMLISTREQ (legacy) before login");
+    if (auto s = require_clan_state(state_, "bnet fsm: REALMLISTREQ (legacy) before login");
+        !s)
+        return s;
+    // Pre-1.10 counterpart (_client_realmlistreq): SERVER_REALMLISTREPLY with a
+    // reserved u32 + active-realm count. Same empty-list semantics as the 0x40
+    // path above.
+    return ctx_->send(ServerMessage{RealmListLegacyReply{}});
 }
 
 }  // namespace pvpgn::protocol::bnet
