@@ -1338,3 +1338,24 @@ Note: with realms configured the per-realm record layout (legacy 7-u32 vs 110
 1-u32 + name/desc strings) would need a v3 realm subsystem to diff — not present,
 so only the empty-list case is cleanly comparable. on(RealmJoinRequest) (0x3E)
 still no-ops (realm session handshake needs a d2cs backend; deferred).
+
+## Wave 82 (LANDED) — WOL SETCODEPAGE/GETCODEPAGE/SETLOCALE/GETLOCALE no-param 461
+DIVERGENCE (missing reply). A logged-in WOL client that sends any of the four
+codepage/locale verbs with NO parameter got NOTHING from v3. The original
+(handle_wol.cpp _handle_set/get_codepage / _handle_set/get_locale) replies with
+ERR_NEEDMOREPARAMS in every no-param branch:
+    :<server> 461 <nick> <CMD> :Not enough parameters
+v3's on_setcodepage/on_getcodepage/on_setlocale/on_getlocale instead returned
+core::ok() silently — and carried a stale, factually-wrong comment ("original:
+no reply without a param"; the original source contradicts it). A real client
+awaiting the 461 would stall. (These four were the only param-requiring WOL
+verbs NOT covered by the wave-77 461 fix / diff_wol_needmoreparams.py.)
+Fix (src/protocol/wol/src/wol_fsm/wol_chat.cpp): the four empty-param branches
+now `return send_needmoreparams("<CMD>")` (the wave-77 helper that puts the
+command name in the middle IRC param, no stray colon). Pure missing-reply
+correction; the with-param paths (329/328/310/309 echo + set/get round-trip)
+are unchanged. New guard tests/diff/diff_wol_codepage_locale.py covers both the
+no-param 461 (all 4) and the set-then-get round-trip (codepage 1252, locale 5)
+— all match the oracle byte-for-byte (server-name stripped). 3199/3199 units
+green; WOL diff regression set (needmoreparams, chat, names, topic, kick, part,
+login) all still match.

@@ -944,14 +944,14 @@ bool iequals(std::string_view a, std::string_view b) {
 
 core::Status<> WolFsm::on_setcodepage(std::string_view params) {
     auto cp = trim(first_token(params));
-    if (cp.empty()) return core::ok();  // original: no reply without a param
+    if (cp.empty()) return send_needmoreparams("SETCODEPAGE");
     codepage_ = std::atoi(std::string{cp}.c_str());
     return send_raw_cmd(329, cp);
 }
 
 core::Status<> WolFsm::on_getcodepage(std::string_view params) {
     auto tok = split_ws(params);
-    if (tok.empty()) return core::ok();  // original: no reply without a param
+    if (tok.empty()) return send_needmoreparams("GETCODEPAGE");
     // "<nick>`<cp>`<nick>`<cp>" — own codepage for our nick, 0 for others
     // (v3 has no cross-session codepage registry).
     std::string payload;
@@ -967,14 +967,14 @@ core::Status<> WolFsm::on_getcodepage(std::string_view params) {
 
 core::Status<> WolFsm::on_setlocale(std::string_view params) {
     auto loc = trim(first_token(params));
-    if (loc.empty()) return core::ok();
+    if (loc.empty()) return send_needmoreparams("SETLOCALE");
     locale_ = std::atoi(std::string{loc}.c_str());
     return send_raw_cmd(310, loc);
 }
 
 core::Status<> WolFsm::on_getlocale(std::string_view params) {
     auto tok = split_ws(params);
-    if (tok.empty()) return core::ok();
+    if (tok.empty()) return send_needmoreparams("GETLOCALE");
     std::string payload;
     for (std::size_t i = 0; i < tok.size(); ++i) {
         if (i) payload += '`';
