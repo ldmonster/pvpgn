@@ -2349,3 +2349,25 @@ suite 3203/3203 green; diff_wol_part / diff_wol_chat still match the oracle.
 Corrects the false assumption in findings/wol-chat-lobby.md:469-472 that this
 421 was a sane shared default. Full chat-command forwarding of "/<verb>" after
 login (via fsm_chat.cpp dispatch) remains a deeper follow-up.
+
+## Wave 130
+Removed two dead composition-root static libraries: service_d2cs
+(src/services/d2cs/, class D2csComposition) and service_d2dbs
+(src/services/d2dbs/, class D2dbsComposition). Both were COMPILED via
+add_subdirectory in src/services/CMakeLists.txt but linked into NO executable,
+NO test, and NO other library. The real d2cs/d2dbs server binaries
+(src/app/d2cs, src/app/d2dbs) link app_d2cs/protocol_d2cs/domain_d2cs and
+app_d2dbs/domain_d2dbs directly — never the service_* libs. Whole-repo grep for
+service_d2cs/service_d2dbs returned only their own CMakeLists definition lines;
+grep for D2csComposition/D2dbsComposition returned only their own .cpp/.hpp plus
+a docs comment in combined_composition.hpp and src/runtime/README.md. The
+optional combined single-binary target (PVPGN_SINGLE_BINARY, default OFF)
+mentions them only in an architecture-diagram comment and does not link them.
+FIX: deleted src/services/d2cs/ and src/services/d2dbs/ entirely, removed the
+two add_subdirectory(d2cs)/(d2dbs) lines and tidied the documenting comment in
+src/services/CMakeLists.txt. Same category as wave 116 dead runtime/ scaffolding
+removal. No observable behavior change on either server: the three server
+binaries never linked these libs (linker confirms on relink), and no diff test
+applies. Reconfigure + full relink clean (-Werror); unit suite 3203/3203 green,
+including the pvpgn_v3_d2cs/d2dbs --help/--version smoke tests. If a future
+single-binary mode runs d2cs/d2dbs in-process, that wiring is re-added then.
