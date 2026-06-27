@@ -9,6 +9,8 @@
 #include <cstring>
 #include <ctime>
 #include <filesystem>
+
+#include <sys/stat.h>
 #include <string>
 #include <vector>
 
@@ -278,15 +280,18 @@ core::Status<> BnftpFsm::handle_file_request(std::string_view filename,
         return core::ok();
     }
 
-    auto last_write = std::filesystem::last_write_time(full_path, ec);
+    // Read the mtime exactly the way the original does — straight from
+    // stat()'s st_mtime (a whole-second POSIX time) — instead of converting a
+    // std::filesystem::file_time_type through system_clock. The latter relies
+    // on `last_write - file_clock::now() + system_clock::now()`, whose clock-
+    // domain subtraction truncates one second low on this libstdc++, leaving
+    // v3's SERVER_FILE_REPLY timestamp 10^7 ticks (1 s) below the oracle's.
+    // The original computes time_to_bnettime(sfile.st_mtime, 0) directly from
+    // stat() (src/bnetd/file.cpp), so do the same for byte-faithful parity.
+    struct ::stat st {};
     std::uint64_t filetime = 0;
-    if (!ec) {
-        // Convert file_time_type to time_t via system_clock.
-        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-            last_write - std::filesystem::file_time_type::clock::now()
-            + std::chrono::system_clock::now());
-        std::time_t t = std::chrono::system_clock::to_time_t(sctp);
-        filetime = mtime_to_filetime(t);
+    if (::stat(full_path.c_str(), &st) == 0) {
+        filetime = mtime_to_filetime(st.st_mtime);
     }
 
     // The reply's `filelen` always carries the FULL file size, independent of

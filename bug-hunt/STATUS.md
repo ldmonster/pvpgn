@@ -2733,3 +2733,21 @@ tests/diff/diff_wol_flood.py asserts 612 -> 421 on both, 613/700 -> 0 bytes +
 closed on both. Build clean (-Werror); unit suite 3204/3204 green; diff_wol_flood
 + diff_wol_ping_overlong / diff_wol_prelogin_gating / diff_wol_login /
 diff_wol_unknown still match the oracle.
+
+## Wave 149
+BNFTP SERVER_FILE_REPLY mtime was exactly 10^7 ticks (1.0 s) below the oracle's
+for an identical on-disk file. Root cause: BnftpFsm::handle_file_request
+(src/protocol/file/src/bnftp_fsm.cpp) derived the file mtime via the clock-domain
+hack `last_write - file_time_type::clock::now() + system_clock::now()` then
+`system_clock::to_time_t()`, which on this libstdc++ truncates one second low —
+so mtime_to_filetime() was fed st_mtime-1. The oracle reads the raw POSIX mtime
+directly: `time_to_bnettime(sfile.st_mtime, 0)` from stat() (src/bnetd/file.cpp).
+This is distinct from the FILETIME float-vs-integer math in findings/bnftp-file.md
+M1 (that math is correct/equal) and from wave 78's resume-filelen fix. Fix: read
+the mtime the oracle's way — `::stat(full_path.c_str(), &st)` and feed
+`st.st_mtime` to mtime_to_filetime() (added #include <sys/stat.h>); dropped the
+unused last_write_time block. Verified with scratchpad probe_ts.py (diff_ticks
+now 0 across 6 mtimes) and new tests/diff/diff_bnftp_mtime.py (oracle==v3 across
+5 whole-second mtimes). Build clean (-Werror); unit suite green
+(TcpAcceptor::adopt_native_handle parallel-flake passes isolated); diff_bnftp /
+diff_bnftp_resume / diff_bnftp_req2 still match the oracle.
