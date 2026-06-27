@@ -214,6 +214,11 @@ core::Status<> WolFsm::on_list(std::string_view params) {
             auto result = list_channels_->execute(req);
             if (result) {
                 for (const auto& info : result.value()) {
+                    // Mirror the original (handle_wol.cpp:576-578): game channels
+                    // are skipped in the plain RPL_CHANNEL (327) section; they are
+                    // only ever surfaced through the dedicated games-list path.
+                    if (wol_game_store_ && wol_game_store_->find(info.name))
+                        continue;
                     if (auto s = emit_channel(info.name, info.member_count); !s)
                         return s;
                 }

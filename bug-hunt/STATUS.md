@@ -2594,3 +2594,21 @@ New diff guard tests/diff/diff_bnftp_unktype.py asserts both servers serve the
 file that follows an unknown packet type (structure-normalized, timestamp
 ignored). Build clean (-Werror); unit suite 3203/3203; diff_bnftp_unktype /
 diff_bnftp_req2 / diff_bnftp all pass.
+
+## Wave 142
+Fixed: WOL game channels leaked into the plain LIST (327) RPL_CHANNEL section.
+The original (handle_wol.cpp:576-578) skips channels whose
+channel_wol_get_game_type() != 0 in the channel-list section — game lobbies are
+surfaced only through the dedicated games-list path. v3's WolFsm::on_list emitted
+every channel returned by list_channels_->execute(), so a JOINGAME-created lobby
+(stored both as an ordinary channel in the channel repo AND as a wol_game_store_
+entry) showed up mixed in with chat channels. Probe: host JOINGAME #wlgame,
+control JOIN #wlchat, observer LIST -> oracle 327 tokens exclude wlgame but
+include wlchat; v3 wrongly included wlgame. Fix: in on_list's emit loop, skip any
+channel for which wol_game_store_->find(info.name) returns a game, mirroring the
+oracle's game-type skip (the store key is the channel name without '#', which
+equals info.name from the channel repo). Normal-chat and games-only/empty paths
+unaffected. New diff guard tests/diff/diff_wol_list_gamechan.py asserts the
+JOINGAME channel is absent from the 327 section while the JOIN channel is present,
+on both servers. Build clean (-Werror); unit suite 3203/3203; diff_wol_chat /
+diff_wol_gameopt also pass.
