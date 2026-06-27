@@ -518,6 +518,14 @@ core::Status<> BnetFsm::on(const CreateAccount1Request& m) {
     if (state_ != BnetState::AuthInfoReceived) {
         return reject("bnet fsm: CREATEACCTREQ1 out of order");
     }
+    // Wire-field cap parity: the original reads the username with
+    // packet_get_str_const(..., UNCHECKED_NAME_STR=32), which returns NULL once
+    // the name exceeds 32 bytes → _client_createacctreq1 returns -1 →
+    // conn_close_read: NO reply, connection dropped. Match that (rather than
+    // sending a CREATEACCTREPLY1=NO with the connection left open).
+    if (m.player_name.size() > 32) {
+        return reject("bnet fsm: CREATEACCTREQ1 username too long");
+    }
     // No create-account use-case wired → cannot persist; refuse honestly
     // rather than ACK a creation that did not happen.
     if (!use_cases_.create_account) {
