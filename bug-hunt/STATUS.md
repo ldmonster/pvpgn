@@ -1878,3 +1878,17 @@ v3 auto-creates), MODE +unknownchar (oracle 472 vs v3 324 echo), PRIVMSG to self
 (oracle echoes vs v3 401), TOPIC with extra middle param (oracle 442 vs v3 sets),
 401 ERR_NOSUCHNICK stray leading ':' before the nick in USERIP/PRIVMSG paths,
 LIST with extra params (oracle returns empty list). None crash or hang.
+
+## Wave 106
+SID_CHARLIST (0x37): v3's BnetFsm::on(CharListRequest) gated on login then
+returned ok() with no reply, leaving a D2 client stalled. The oracle's
+_client_charlistreq UNCONDITIONALLY answers SERVER_UNKNOWN_37 (0x37) with
+unknown1=0, max_chars=8, count=#closed-chars (and one record each). A plain
+account has no closed-character list (account_get_closed_characterlist == NULL),
+so count=0 and the body is exactly 12 bytes — config/backend-independent. Fix:
+after the login gate, send ServerMessage{CharListReply{}} (defaults
+unknown1=0, max_chars=8, count=0, empty char_data; encoder already existed in
+codec_realm.cpp). Same class as wave 81 (realmlist) and wave 97/motd_w3.
+New guard tests/diff/diff_charlist.py asserts both servers reply on 0x37 with
+len>=12, unknown1==0, matching count (0). diff_realmlist + diff_motd_w3 still
+match; unit suite green (anongame/icon flakes pass on -j1).

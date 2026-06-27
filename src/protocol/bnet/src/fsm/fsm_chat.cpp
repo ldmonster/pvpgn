@@ -1395,7 +1395,14 @@ core::Status<> BnetFsm::on(const LadderListRequest&) {
 
 core::Status<> BnetFsm::on(const CharListRequest&) {
     // Legacy D2 charlist exchange happens after auth; gate on logged-in.
-    return require_clan_state(state_, "bnet fsm: CHARLIST before login");
+    if (auto s = require_clan_state(state_, "bnet fsm: CHARLIST before login"); !s)
+        return s;
+    // The original (_client_charlistreq) unconditionally answers with
+    // SERVER_UNKNOWN_37: unknown1 (== 0), max_chars (== 8) and the count of
+    // closed-realm characters (and one record each). A plain account has no
+    // closed-character list, so count is 0 — matching the CharListReply
+    // defaults. The client expects a reply and stalls without one.
+    return ctx_->send(ServerMessage{CharListReply{}});
 }
 
 core::Status<> BnetFsm::on(const RealmListRequest&) {
