@@ -2654,3 +2654,19 @@ invalid-path destroy + the control survival; the valid W3XP->WAR3 path is not
 reachable in this harness (oracle's post-auth clienttag isn't actually W3XP) so it
 is not asserted. Build clean (-Werror); unit suite green (anongame/multilocale
 flakes pass on -j1); diff_advertise_part / diff_cdkey still match the oracle.
+
+## Wave 145
+WOL logged-in unknown-verb feedback. For a fully-logged-in WOL client, an
+unrecognized verb makes the oracle route it to the bnet chat-command handler,
+which fails with message_type_error "Unknown command." and (for a WOL conn)
+renders it as a PAGE line (irc.cpp): `:<server> PAGE <nick> :Unknown command.`.
+v3's logged-in fall-through (wol_fsm.cpp:314) returned core::ok() silently, so it
+sent nothing. Fix: emit the PAGE line `:<server_name> PAGE <nick> :Unknown
+command.` (nick "*" if unset) via send_raw, mirroring the oracle. Pre-login
+unknown verbs still emit the well-formed 421; SERIAL/ADVERTC/INVDEL stay silent
+no-ops. Probe (full CVERS/VERCHK/APGAR/NICK/USER login then `ZZUNKNOWN ...`):
+oracle sent a PAGE-to-nick (text charset-garbled), v3 sent nothing -> now both
+emit a PAGE targeting the nick. Extended guard tests/diff/diff_wol_unknown.py
+with after.has_page_to_nick (verb + target only; localized text not compared).
+Build clean (-Werror); unit suite 3203/3203 green; diff_wol_page /
+diff_wol_prelogin_gating still match the oracle.

@@ -96,16 +96,37 @@ def before_login(host, port):
     }
 
 
+def _find_page_target(lines, nick):
+    """Return True if any line is a PAGE message targeting `nick`.
+
+    Wire form: ':<server> PAGE <nick> :<text>'. The text is localized (and
+    charset-garbled in this environment), so we only check the verb and target.
+    """
+    for ln in lines:
+        s = ln[1:] if ln.startswith(":") else ln
+        toks = s.split(" ", 3)
+        # toks: [server, "PAGE", nick, ":text"]
+        if len(toks) >= 3 and toks[1] == "PAGE" and toks[2] == nick:
+            return True
+    return False
+
+
 def after_login(host, port):
-    """Log in fully, then send the unknown verb. Oracle sends NO 421."""
-    c = wc.wol_session(host, port, "tester", "pw")
+    """Log in fully, then send the unknown verb. Oracle sends NO 421 but does
+    route the verb to its chat-command handler, which renders an 'unknown
+    command' error as a PAGE line targeting the nick."""
+    nick = "tester"
+    c = wc.wol_session(host, port, nick, "pw")
     if c is None:
         return None
     _drain(c, 0.3)
     c.send_line(UNKNOWN_VERB)
     out = _drain(c, 0.6)
     c.close()
-    return {"has_421": _find_421(out) is not None}
+    return {
+        "has_421": _find_421(out) is not None,
+        "has_page_to_nick": _find_page_target(out, nick),
+    }
 
 
 def main():
@@ -147,11 +168,13 @@ def main():
             print(f"{'before.' + f:<34}{str(o):<10}{str(n):<10}"
                   f"{'OK' if same else 'DIFF'}")
 
-        # After login: neither must emit a 421.
-        same = oa["has_421"] == na["has_421"]
-        all_ok &= same
-        print(f"{'after.has_421':<34}{str(oa['has_421']):<10}"
-              f"{str(na['has_421']):<10}{'OK' if same else 'DIFF'}")
+        # After login: neither must emit a 421, but BOTH must emit a PAGE
+        # message targeting the nick (the rendered "Unknown command." error).
+        for f in ("has_421", "has_page_to_nick"):
+            same = oa[f] == na[f]
+            all_ok &= same
+            print(f"{'after.' + f:<34}{str(oa[f]):<10}"
+                  f"{str(na[f]):<10}{'OK' if same else 'DIFF'}")
 
         print()
         # The oracle must actually exhibit the faithful behavior we expect, and
@@ -161,10 +184,11 @@ def main():
             and ob.get("well_formed_single_colon") is True
             and ob.get("echoes_command") is False
             and oa["has_421"] is False
+            and oa["has_page_to_nick"] is True
         )
         if all_ok and expected:
             print("WOL unknown-verb matches the oracle (well-formed 421 before "
-                  "login, no 421 after login).")
+                  "login, no 421 after login, PAGE error to nick after login).")
             return 0
         if not expected:
             print("FAIL: oracle did not exhibit the expected baseline behavior.")

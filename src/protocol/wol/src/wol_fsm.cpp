@@ -308,10 +308,18 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
     }
 
     // Unknown command, logged in. The original routes the unknown verb to its
-    // chat-command handler (as "/<verb>") and sends NO 421, so we suppress the
-    // numeric here. (The pre-login case is handled earlier by the two-table
-    // login gate, which already emitted 421 for non-con verbs.)
-    return core::ok();
+    // bnet chat-command handler, which fails with message_type_error
+    // "Unknown command." That error, for a WOL connection, is rendered as a
+    // PAGE line (irc.cpp), NOT a 421 numeric. Mirror that so a logged-in WOL
+    // client gets the same feedback as the oracle. (The pre-login case is
+    // handled earlier by the two-table login gate, which already emitted 421
+    // for non-con verbs.)
+    std::string page = ":";
+    page += ctx_->server_name();
+    page += " PAGE ";
+    page += nick_.empty() ? "*" : nick_;
+    page += " :Unknown command.";
+    return send_raw(page);
 }
 
 // ===========================================================================
