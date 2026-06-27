@@ -341,7 +341,8 @@ TEST_CASE("WolFsm R307: PRIVMSG to nick (not a channel) returns 401 ERR_NOSUCHNI
     REQUIRE(ctx->has_line_containing("401"));
 }
 
-TEST_CASE("WolFsm R307: PRIVMSG to nick contains target nick in 401 reply",
+TEST_CASE("WolFsm R307: PRIVMSG-to-nick 401 matches the original "
+          "(':No such user', no target middle param)",
           "[protocol][wol][fsm][channel][R307]") {
     auto ctx = std::make_shared<FakeWolCtx>();
     WolFsm fsm{ctx};
@@ -350,9 +351,13 @@ TEST_CASE("WolFsm R307: PRIVMSG to nick contains target nick in 401 reply",
 
     REQUIRE(feed_line(fsm, "PRIVMSG Alice :hey there").has_value());
 
+    // The original WOL handler (_handle_privmsg_command, handle_wol.cpp) replies
+    // irc_send(conn, ERR_NOSUCHNICK, ":No such user"): the wire line ends in
+    // ":No such user" with NO target middle param and NO target in the text.
     auto line401 = ctx->first_line_containing("401");
     REQUIRE(!line401.empty());
-    REQUIRE(line401.find("Alice") != std::string::npos);
+    REQUIRE(line401.find(":No such user") != std::string::npos);
+    REQUIRE(line401.find("Alice") == std::string::npos);
 }
 
 TEST_CASE("WolFsm R307: PRIVMSG to nick in Authenticated state returns 401",

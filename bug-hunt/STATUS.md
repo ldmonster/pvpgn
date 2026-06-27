@@ -5,6 +5,30 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 101 (LANDED) — WOL PRIVMSG-to-ghost 401 wire form (":No such user")
+DIVERGENCE (wrong reply), from the wave-100 WOL fuzz-leftover list. A post-login
+WOL whisper to a non-online nick ("PRIVMSG ghostuser :hi") takes the original's
+whisper branch (_handle_privmsg_command, handle_wol.cpp): target has no '#',
+connlist_find_connection_by_accountname misses, and it replies
+irc_send(conn, ERR_NOSUCHNICK, ":No such user") -> the wire line
+":<server> 401 <nick> :No such user" (NO target middle param; text "No such
+user"). v3's WolFsm::on_privmsg (wol_fsm/wol_chat.cpp) instead did
+send_numeric(401, nick_, tgt + " :No such nick"), producing
+":... 401 <nick> :<target> :No such nick" — a stray colon, the target echoed,
+and the wrong text. A stale code comment even claimed it already matched the
+original. Probe: oracle "401 pmprober :No such user"; v3
+"401 pmprober :ghostuser :No such nick".
+Fix: on_privmsg's user-target branch now does send_numeric(401, nick_,
+"No such user"), matching the original byte-for-byte; comment corrected. (v3 has
+no nick->session whisper routing yet, so an online recipient also falls to this
+miss path; the miss-form bytes are the cleanly-diffable part and are now right.)
+Updated the unit test "PRIVMSG to nick contains target nick in 401 reply" (which
+pinned the WRONG form) to assert the oracle form (':No such user' present, target
+absent). New guard tests/diff/diff_wol_privmsg_nouser.py: server-name-stripped
+401 line matches the oracle (before: v3 stray-colon + wrong text). 3199/3199
+units green; WOL diff regression (chat, nosuchnick, login, part, robustness)
+all still match the oracle.
+
 ## Wave 100 (LANDED) — WOL JOIN of a non-'#'-prefixed name -> 403 "JOIN failed"
 DIVERGENCE (silently auto-creates where oracle rejects). The original
 (irc.cpp _handle_join_command) runs the JOIN target through irc_convert_ircname(),

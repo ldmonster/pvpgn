@@ -670,14 +670,20 @@ core::Status<> WolFsm::on_privmsg(std::string_view params) {
         return core::ok();
     }
 
-    // Private message to a user; send 401 ERR_NOSUCHNICK.
-    std::string tgt{target};
-    return send_numeric(401, nick_, tgt + " :No such nick");
+    // Private message (whisper) to a non-online user. The original WOL handler
+    // (_handle_privmsg_command, handle_wol.cpp) answers with
+    //   irc_send(conn, ERR_NOSUCHNICK, ":No such user")
+    // i.e. the wire line ":<server> 401 <nick> :No such user" — there is NO
+    // target middle param, and the text is "No such user" (not "No such nick").
+    // (v3 has no nick->session whisper routing yet, so an online recipient also
+    //  falls through here; matching the miss form is the cleanly-diffable part.)
+    (void)target;
+    return send_numeric(401, nick_, "No such user");
 }
 
-// NOTE: on_privmsg's user-target 401 above mirrors handle_irc.cpp's PRIVMSG
-// whisper path (":No such user", no target) and is intentionally left as-is;
-// the WOL-command handlers (GAMEOPT/HOST/USERIP/ADDBUDDY) instead emit the
+// NOTE: on_privmsg's user-target 401 above matches handle_wol.cpp's PRIVMSG
+// whisper path (":No such user", no target middle param); the WOL-command
+// handlers (GAMEOPT/HOST/USERIP/ADDBUDDY) instead emit the
 // "<target> :No such nick" form below.
 
 void WolFsm::route_irc_line(const std::string& line,
