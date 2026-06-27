@@ -5,6 +5,27 @@ rewrite. 25 subsystems analyzed by a discovery fleet (one findings file each und
 `findings/`), triaged by the orchestrator, with confirmed *implemented-but-wrong*
 bugs fixed + regression-tested. Full unit suite green after every fix.
 
+## Wave 102 (LANDED) — BNFTP missing/unsafe file sends NO reply (was a phantom header)
+DIVERGENCE (spurious reply). A BNFTP CLIENT_FILE_REQ for a file that does not
+exist — or a rawname containing a path separator — makes the original's
+file_send (src/bnetd/file.cpp) throw inside file_get_info (stat() fails, or the
+'/'/'\\' guard fires) and return -1 BEFORE pushing any packet, so the oracle
+sends NOTHING and just lingers/closes. v3's BnftpFsm::handle_file_request
+(protocol/file/src/bnftp_fsm.cpp) instead emitted a phantom zero-length
+SERVER_FILE_REPLY header (filelen=0, echoed filename) for BOTH the not-found and
+unsafe-filename cases — a 47-byte reply a real client never sees from the oracle.
+Probe: request "does_not_exist.bin" -> oracle 0 bytes, v3 47-byte header.
+Fix: both error branches now `return core::ok()` with no send; the FSM still
+sets Done + closes (the same minor v3-closes-vs-oracle-lingers difference already
+accepted in diff_bnftp.py). Happy path (real file serve, resume, long name)
+untouched. Updated 4 unit tests that asserted the old zero-length reply to assert
+NO reply (file-not-found, two path-traversal, split-reassembly) plus the
+app-level not-found session test.
+New guard tests/diff/diff_bnftp_missing.py: missing file + '/'+'\\' traversal +
+"subdir/..." all return ZERO reply bytes on both servers (before: v3 sent a
+header). 3199/3199 units green; BNFTP diff regression (bnftp, resume, longname,
+fileinfo) + diff_chat all still match the oracle.
+
 ## Wave 101 (LANDED) — WOL PRIVMSG-to-ghost 401 wire form (":No such user")
 DIVERGENCE (wrong reply), from the wave-100 WOL fuzz-leftover list. A post-login
 WOL whisper to a non-online nick ("PRIVMSG ghostuser :hi") takes the original's

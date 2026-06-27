@@ -221,10 +221,13 @@ TEST_CASE("BnftpFsm: only 3 bytes (no header yet) — no dispatch",
 }
 
 // ---------------------------------------------------------------------------
-// File not found → zero-length reply header, then close
+// File not found → NO reply, then close (original parity)
 // ---------------------------------------------------------------------------
+// The original pvpgn (src/bnetd/file.cpp file_send) throws inside
+// file_get_info when stat() fails and returns -1 BEFORE pushing any packet,
+// so the server sends NOTHING for a missing file and simply closes/lingers.
 
-TEST_CASE("BnftpFsm: file not found sends zero-length reply and closes",
+TEST_CASE("BnftpFsm: file not found sends no reply and closes",
           "[protocol][file][bnftp]") {
     auto ctx = std::make_shared<FakeFileContext>();
     // Use a directory that definitely does not contain "missing.mpq".
@@ -234,18 +237,8 @@ TEST_CASE("BnftpFsm: file not found sends zero-length reply and closes",
     auto st  = fsm.on_bytes(std::span<const std::byte>{pkt.data(), pkt.size()});
 
     REQUIRE(st.has_value());
-    REQUIRE_FALSE(ctx->sent.empty());
-
-    // Parse the reply header.
-    auto reply = parse_reply_header(ctx->sent);
-    REQUIRE(reply.pkt_type == 0x0000u);   // SERVER_FILE_REPLY
-    REQUIRE(reply.filelen  == 0u);         // zero-length → file not found
-    REQUIRE(reply.adid     == 0xABCDu);
-    REQUIRE(reply.extensiontag == 0x1234u);
-    REQUIRE(reply.filename == "missing.mpq");
-
-    // No file data after the header.
-    REQUIRE(ctx->sent.size() == reply.header_bytes);
+    // No reply packet at all — matches the original's "no data, return -1".
+    REQUIRE(ctx->sent.empty());
 
     // FSM must be Done and connection closed.
     REQUIRE(fsm.state() == BnftpFsm::State::Done);
@@ -253,10 +246,12 @@ TEST_CASE("BnftpFsm: file not found sends zero-length reply and closes",
 }
 
 // ---------------------------------------------------------------------------
-// Unsafe filename (path traversal) → zero-length reply
+// Unsafe filename (path traversal) → NO reply (original parity)
 // ---------------------------------------------------------------------------
+// The original rejects a rawname containing '/' or '\\' by throwing in
+// file_get_info, again returning -1 before any packet is sent.
 
-TEST_CASE("BnftpFsm: path traversal filename sends zero-length reply",
+TEST_CASE("BnftpFsm: path traversal filename sends no reply",
           "[protocol][file][bnftp]") {
     auto ctx = std::make_shared<FakeFileContext>();
     BnftpFsm fsm{ctx, "/nonexistent_dir_pvpgn_test"};
@@ -265,17 +260,13 @@ TEST_CASE("BnftpFsm: path traversal filename sends zero-length reply",
     auto st  = fsm.on_bytes(std::span<const std::byte>{pkt.data(), pkt.size()});
 
     REQUIRE(st.has_value());
-    REQUIRE_FALSE(ctx->sent.empty());
-
-    auto reply = parse_reply_header(ctx->sent);
-    REQUIRE(reply.pkt_type == 0x0000u);
-    REQUIRE(reply.filelen  == 0u);
+    REQUIRE(ctx->sent.empty());
 
     REQUIRE(fsm.state() == BnftpFsm::State::Done);
     REQUIRE(ctx->closed);
 }
 
-TEST_CASE("BnftpFsm: backslash path traversal sends zero-length reply",
+TEST_CASE("BnftpFsm: backslash path traversal sends no reply",
           "[protocol][file][bnftp]") {
     auto ctx = std::make_shared<FakeFileContext>();
     BnftpFsm fsm{ctx, "/nonexistent_dir_pvpgn_test"};
@@ -284,10 +275,7 @@ TEST_CASE("BnftpFsm: backslash path traversal sends zero-length reply",
     auto st  = fsm.on_bytes(std::span<const std::byte>{pkt.data(), pkt.size()});
 
     REQUIRE(st.has_value());
-    REQUIRE_FALSE(ctx->sent.empty());
-
-    auto reply = parse_reply_header(ctx->sent);
-    REQUIRE(reply.filelen == 0u);
+    REQUIRE(ctx->sent.empty());
 
     REQUIRE(fsm.state() == BnftpFsm::State::Done);
     REQUIRE(ctx->closed);
@@ -407,12 +395,10 @@ TEST_CASE("BnftpFsm: packet split across two on_bytes calls is reassembled",
         std::span<const std::byte>{pkt.data() + half, pkt.size() - half});
     REQUIRE(st2.has_value());
 
-    // File not found → zero-length reply.
-    REQUIRE_FALSE(ctx->sent.empty());
-    auto reply = parse_reply_header(ctx->sent);
-    REQUIRE(reply.filelen == 0u);
-    REQUIRE(reply.filename == "split_test.mpq");
-
+    // Reassembly is proven by the FSM having parsed the full request and
+    // dispatched it: the (missing) file is requested and the FSM reaches Done.
+    // The file is not found, so — matching the original — nothing is sent.
+    REQUIRE(ctx->sent.empty());
     REQUIRE(fsm.state() == BnftpFsm::State::Done);
     REQUIRE(ctx->closed);
 }

@@ -178,8 +178,10 @@ TEST_CASE("BnftpFsm: on_bytes with file-not-found request transitions to Done",
     auto pkt = make_file_req("nonexistent_file_pvpgn_test_r126.mpq");
     (void)fsm.on_bytes(std::span<const std::byte>(pkt));
 
-    // File not found → FSM transitions to Done (error path)
+    // File not found → FSM transitions to Done (error path) and, matching the
+    // original (file_send returns -1 before pushing any packet), sends nothing.
     CHECK(fsm.state() == BnftpFsm::State::Done);
+    CHECK(ctx->sent.empty());
 }
 
 TEST_CASE("BnftpFsm: on_close() after Done is idempotent",

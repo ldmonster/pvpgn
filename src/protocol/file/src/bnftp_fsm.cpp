@@ -211,8 +211,11 @@ core::Status<> BnftpFsm::handle_file_request(std::string_view filename,
                                               std::uint32_t    extension_tag,
                                               std::uint32_t    start_offset) {
     if (!is_safe_filename(filename)) {
-        // Send a zero-length reply so the client doesn't hang.
-        return send_reply_header(0, ad_id, extension_tag, 0, filename);
+        // Original parity: an unsafe rawname (contains '/' or '\\') makes
+        // file_get_info throw, so file_send returns -1 BEFORE pushing any
+        // packet — the server sends NOTHING (src/bnetd/file.cpp). Match that:
+        // emit no reply at all (the caller closes the connection afterwards).
+        return core::ok();
     }
 
     // Build the full path: files_dir_ / filename.
@@ -223,8 +226,11 @@ core::Status<> BnftpFsm::handle_file_request(std::string_view filename,
     std::error_code ec;
     auto file_size = std::filesystem::file_size(full_path, ec);
     if (ec) {
-        // File not found — send zero-length reply.
-        return send_reply_header(0, ad_id, extension_tag, 0, filename);
+        // Original parity: a missing file makes file_get_info throw (stat
+        // fails), so file_send returns -1 BEFORE pushing any packet — the
+        // server sends NOTHING for a not-found file (src/bnetd/file.cpp).
+        // Match that: emit no reply (the caller closes afterwards).
+        return core::ok();
     }
 
     auto last_write = std::filesystem::last_write_time(full_path, ec);
