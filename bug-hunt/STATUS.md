@@ -2090,3 +2090,24 @@ whisper unaffected (no self-ignore). New guard tests/diff/diff_whisper_squelch.p
 bob /squelch alice -> alice /w bob X -> bob gets NO EID_WHISPER, alice gets
 EID_WHISPERSENT, identical on both servers. 3199/3199 unit tests green; diff_whisper,
 diff_whisper_self, diff_squelch still match the oracle.
+
+## Wave 118
+BNCS bad-marker packet no longer wedges the v3 framer. A single malformed-marker
+packet (any leading byte != 0xFF with a sane 16-bit size field) permanently
+disabled ALL further packet processing on a v3 connection while leaving the
+socket open: BnetFramer::feed did a bare `break` on header-parse failure without
+consuming the bytes or closing, so the junk sat at the head of the buffer forever
+and the framing loop never progressed (remote, unauth-able framing-desync DoS).
+The oracle's t_bnet_header is {bn_short type; bn_short size} and never validates
+the 0xFF marker — a non-0xFF byte just yields an unmatched type; it frames purely
+by the size field, consumes the unknown packet by its declared size (logged +
+ignored), and resyncs. FIX (src/app/bnetd/src/main/bnet_framer.hpp): on
+parse_bnet_header failure, peek the LE u16 size at offset 2; if size < 4 ->
+truly corrupt, set wants_close (caller closes, mirroring the oracle destroying
+such conns); else if fully buffered, erase `size` bytes and continue (drop +
+resync); else break to await more. Wired wants_close -> session->close() in the
+BNet set_on_bytes lambda (src/app/bnetd/src/main/bnet_bnftp_dispatch.cpp). New
+guard tests/diff/diff_bad_marker_resync.py: post-login inject `00 25 08 00 AA AA
+AA AA` then a valid SID_FRIENDSLIST — both servers still reply 0x65 to that and a
+3rd packet, socket stays open. 3199/3199 unit tests green; diff_friends,
+diff_channelcmds still match the oracle.

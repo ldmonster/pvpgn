@@ -126,11 +126,15 @@ void BnetBnftpDispatchFactory::operator()(
 
             // Rewire for future bytes
             session->set_on_bytes(
-                [fsm, framer, adapter](core::ByteView bv2) {
+                [fsm, framer, adapter, session](core::ByteView bv2) {
                     framer->feed(bv2,
                         [&fsm](protocol::bnet::ClientMessage m) {
                             (void)fsm->handle(m);
                         });
+                    // An unrecoverably-corrupt header (declared size < 4)
+                    // cannot be resynced; close the session, mirroring the
+                    // original server destroying such connections.
+                    if (framer->wants_close) session->close();
                 });
 
             // Keep tcp_conn_ctx, lua_ctx, and logging_ctx alive for the
