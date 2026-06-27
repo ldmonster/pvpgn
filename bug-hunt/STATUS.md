@@ -2851,3 +2851,19 @@ references in docs/developer/contexts/connection.md (rows 31/34/48) and
 scripts/v3_layering_check.sh (line 102). Build clean (-Werror); full unit suite
 green (3204/3204); diff_all_clients 19/19 oracle==v3 and diff_concurrent_login
 still match — confirming the connection layer is behaviorally unchanged.
+
+## Wave 155
+JOINCHANNEL: emit the "you are now tempOP for this channel" EID_INFO (0x12)
+notice when a user joins a brand-new non-permanent channel as its first member.
+The oracle (channel_add_connection, channel.cpp:460-471) sends, in order,
+EID_CHANNEL(0x07) -> EID_INFO(0x12) tempOP notice -> USERFLAGS/SHOWUSER roster,
+precisely when the joiner becomes the channel operator (non-permanent/void/clan,
+currmembers==1, not already a configured op/admin). v3 already detected this case
+(it sets the MF_GAVEL operator flag on the joiner) but skipped the EID_INFO,
+yielding 0x12 count=0 vs oracle 1. Fix in src/protocol/bnet/src/fsm/fsm_chat.cpp:
+after the EID_CHANNEL send and before the roster loop in BnetFsm::on(JoinChannel),
+emit the EID_INFO tempOP notice guarded by the same operator_id()==current_account_id_
+check the roster loop uses. New guard tests/diff/diff_join_tempop.py asserts
+EID_INFO(0x12) count==1 on a fresh channel and ==0 for a second member, plus the
+CHANNEL<INFO<roster placement, oracle==v3. Build clean (-Werror); full unit suite
+green (3204/3204); diff_join_userflags and diff_join_channel_first_event still match.

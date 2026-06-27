@@ -206,6 +206,34 @@ core::Status<> BnetFsm::on(const JoinChannel& m) {
         return send_status;
     }
 
+    // tempOP notice: the original (channel_add_connection, channel.cpp:462-471)
+    // sends an EID_INFO (0x12) "you are now tempOP for this channel" notice
+    // immediately AFTER EID_CHANNEL and BEFORE the USERFLAGS/SHOWUSER roster,
+    // precisely when the joiner became the channel's operator by creating a
+    // fresh non-permanent/non-void/non-clan channel (currmembers==1 and the
+    // account is not already a configured operator/admin). v3 detects exactly
+    // this case by marking the joiner as the channel's operator (gavel), so
+    // mirror that check here to reproduce the oracle's event ordering/count.
+    {
+        const auto& joined_channel = join_result.value().channel;
+        if (joined_channel.operator_id() &&
+            joined_channel.operator_id()->value() ==
+                current_account_id_.value()) {
+            if (auto s = ctx_->send(ServerMessage{ChatEvent{
+                /*event_id*/    kEidInfo,  // EID_INFO (0x12)
+                /*flags*/       0,
+                /*ping_ms*/     0,
+                /*user_ip*/     0,
+                /*acct_number*/ kChatEventAcctNum,
+                /*registration*/kChatEventRegAuth,
+                /*username*/    "",
+                /*text*/        "you are now tempOP for this channel"}});
+                !s) {
+                return s;
+            }
+        }
+    }
+
     // Send EID_SHOWUSER (0x01) for EACH member of the channel to this client,
     // INCLUDING the user who just joined — every real Battle.net client expects
     // its own entry so the joining user appears in their own channel roster (the
