@@ -2981,3 +2981,18 @@ DEFERRED (round-4 findings, larger): WOL MODE +o/-o/+v/-b operator management is
 query-only in v3 (no actual mode changes); SID_CHANNELLIST product-tag filtering &
 50-channel cap; SID_MOTD_W3 news subsystem absent. WOL USERIP host prefix
 (@Battle.net vs sender IP) flagged for a later focused look.
+
+## Wave 170: implement legacy OLS SID_LOGINREQ1 (0x29) + SID_CREATEACCTREQ2 (0x3D)
+Both opcodes were decoded and dispatched but their BnetFsm handlers were no-op
+stubs (`return core::ok();`) that sent NOTHING — a client authenticating/creating
+via the older OLS verbs (rather than CREATEACCTREQ1 0x2A / LOGONRESPONSE2 0x3A)
+would hang waiting for a reply the original always sends.
+- LoginReq1: mirrors the LOGONRESPONSE2 session-hash login but emits the older
+  SERVER_LOGINREPLY1 single result word (SUCCESS 1 / FAIL 0; original collapses
+  every refusal onto FAIL). Same login_user use-case, presence + kick-old-login.
+- CreateAccountRequest (CREATEACCTREQ2): mirrors CREATEACCTREQ1 with the
+  SERVER_CREATEACCTREPLY2 three-way result (OK 0 / INVALID 2 / EXIST 4); name
+  validation -> INVALID, create failure -> EXIST, over-long(>32) name dropped
+  with no reply (UNCHECKED_NAME_STR parity).
+e2e: tests/diff/diff_ols_legacy_auth.py — oracle and v3 both give create OK=0 /
+dup=4, login good=1 / bad=0 (byte-identical). diff_ols_login (0x3a) still matches.

@@ -517,7 +517,62 @@ core::Status<> BnetFsm::on(const CompInfo2&) {
         .sessionnum = static_cast<std::uint32_t>(session_id_.value()),
         .sessionkey = legacy_session_key(session_id_)}});
 }
-core::Status<> BnetFsm::on(const LoginReq1&)             { return core::ok(); }
+core::Status<> BnetFsm::on(const LoginReq1& m) {
+    // Legacy OLS login (SID_LOGINREQ1, the SERVER_LOGINREPLY1 sibling of
+    // LOGONRESPONSE2). It carries the same session-hash credential, but the
+    // reply is a single result word: SUCCESS (1) or FAIL (0). The original
+    // _client_loginreq1 collapses every refusal reason (no account, wrong
+    // password, corrupted hash, ...) onto FAIL for this older reply, so we do
+    // too. Previously this was a no-op stub that sent nothing, hanging any
+    // client that authenticates via LOGINREQ1 instead of LOGONRESPONSE2.
+    if (state_ != BnetState::AuthInfoReceived) {
+        return reject("bnet fsm: LOGINREQ1 out of order");
+    }
+    if (m.player_name.empty()) {
+        return ctx_->send(ServerMessage{LoginReply1{kLoginReply1MessageFail}});
+    }
+    if (!use_cases_.login_user) {
+        // No login use-case wired → accept (parity with LOGONRESPONSE2's
+        // no-use-case branch) so the handshake can proceed under test configs.
+        current_username_ = m.player_name;
+        state_            = BnetState::LoggedIn;
+        return ctx_->send(ServerMessage{LoginReply1{kLoginReply1MessageSuccess}});
+    }
+
+    auto username = domain::UserName::parse(m.player_name);
+    if (!username) {
+        return ctx_->send(ServerMessage{LoginReply1{kLoginReply1MessageFail}});
+    }
+    auto password_hash2 =
+        domain::BNHash::from_bytes(pack_hash1_le(m.password_hash2));
+    if (!password_hash2) {
+        return ctx_->send(ServerMessage{LoginReply1{kLoginReply1MessageFail}});
+    }
+
+    application::auth::LoginWithSessionHashRequest login_req{
+        .name           = username.value(),
+        .password_hash2 = password_hash2.value(),
+        .ticks          = m.ticks,
+        .sessionkey     = m.sessionkey,
+        .tag            = client_tag_,
+        .ip             = domain::IpAddress{},
+        .session        = session_id_,
+    };
+    auto login_result = use_cases_.login_user->execute(login_req);
+    if (!login_result) {
+        return ctx_->send(ServerMessage{LoginReply1{kLoginReply1MessageFail}});
+    }
+
+    current_account_id_ = login_result.value().id;
+    current_username_   = m.player_name;
+    if (login_result.value().kicked_session && use_cases_.message_router) {
+        (void)use_cases_.message_router->disconnect(
+            login_result.value().kicked_session.value());
+    }
+    state_ = BnetState::LoggedIn;
+    notify_friends_presence(/*entered=*/true);
+    return ctx_->send(ServerMessage{LoginReply1{kLoginReply1MessageSuccess}});
+}
 core::Status<> BnetFsm::on(const CreateAccount1Request& m) {
     // Legacy OLS account creation (SID_CREATEACCTREQ1). Permitted after the
     // version-check handshake, mirroring the LOGONRESPONSE2 ordering.
@@ -593,7 +648,68 @@ core::Status<> BnetFsm::on(const ChangePasswordRequest& m) {
     return ctx_->send(ServerMessage{ChangePasswordReply{code}});
 }
 core::Status<> BnetFsm::on(const Unknown39&)             { return core::ok(); }
-core::Status<> BnetFsm::on(const CreateAccountRequest&)  { return core::ok(); }
+core::Status<> BnetFsm::on(const CreateAccountRequest& m) {
+    // Legacy OLS account creation (SID_CREATEACCTREQ2, the hash1 sibling of
+    // CREATEACCTREQ1). The original _client_createacctreq2 validates the name
+    // and replies SERVER_CREATEACCTREPLY2 with OK / INVALID / EXIST. Previously
+    // a no-op stub that sent nothing, hanging the client.
+    if (state_ != BnetState::AuthInfoReceived) {
+        return reject("bnet fsm: CREATEACCTREQ2 out of order");
+    }
+    // Wire-field cap parity: the original reads the username with
+    // packet_get_str_const(..., UNCHECKED_NAME_STR=32); an over-long name
+    // returns NULL → return -1 → connection dropped with NO reply.
+    if (m.username.size() > 32) {
+        return reject("bnet fsm: CREATEACCTREQ2 username too long");
+    }
+    if (!use_cases_.create_account) {
+        // No create use-case → cannot persist; the original returns EXIST when
+        // creation is unavailable/disabled rather than ACKing a no-op.
+        return ctx_->send(
+            ServerMessage{CreateAccountReply{kCreateAccountResultExist}});
+    }
+
+    auto username = domain::UserName::parse(m.username);
+    if (!username) {
+        // Structural name failure → INVALID (account_check_name < 0).
+        return ctx_->send(
+            ServerMessage{CreateAccountReply{kCreateAccountResultInvalid}});
+    }
+    auto password = domain::BNHash::from_bytes(pack_hash1_le(m.password_hash1));
+    if (!password) {
+        return ctx_->send(
+            ServerMessage{CreateAccountReply{kCreateAccountResultInvalid}});
+    }
+
+    application::auth::CreateAccountRequest req{
+        .username      = username.value(),
+        .password_hash = password.value(),
+        .email         = "",
+        .locale        = domain::Locale{},
+        .client_tag    = client_tag_,
+        .peer_ip       = domain::IpAddress{},
+    };
+    auto result = use_cases_.create_account->execute(req);
+    if (result) {
+        return ctx_->send(
+            ServerMessage{CreateAccountReply{kCreateAccountResultOk}});
+    }
+    // Mirror _client_createacctreq2's three-way reply: name-validation failures
+    // collapse to INVALID, every creation failure (taken/disabled/persist) to
+    // EXIST.
+    std::uint32_t code = kCreateAccountResultExist;
+    switch (result.error()) {
+        case application::auth::CreateAccountError::UsernameTooShort:
+        case application::auth::CreateAccountError::UsernameTooLong:
+        case application::auth::CreateAccountError::UsernameInvalidChars:
+            code = kCreateAccountResultInvalid;
+            break;
+        default:
+            code = kCreateAccountResultExist;
+            break;
+    }
+    return ctx_->send(ServerMessage{CreateAccountReply{code}});
+}
 core::Status<> BnetFsm::on(const NetGamePort&)           { return core::ok(); }
 
 }  // namespace pvpgn::protocol::bnet
