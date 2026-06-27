@@ -144,4 +144,21 @@ enum class RealmLogonResult : uint32_t {
     AlreadyLoggedIn = 0x0E,  ///< Account already logged in
 };
 
+// ---------------------------------------------------------------------------
+// CharacterCreateResult
+// ---------------------------------------------------------------------------
+
+/// Outcome of a character-creation attempt (CREATECHARREPLY / 0x02).
+///
+/// The original server (d2cs handle_d2cs.cpp on_client_createcharreq) collapses
+/// BOTH an invalid name and an already-existing character onto ALREADY_EXIST
+/// (0x14) — its d2char_create() returns -1 for either — and only reports FAILED
+/// (0x01) for an internal post-create load error. We model the same three
+/// observable outcomes so the protocol layer can emit the faithful wire code.
+enum class CharacterCreateResult : uint8_t {
+    Succeed,    ///< 0x00 — character created
+    Rejected,   ///< 0x14 — bad name OR duplicate (original ALREADY_EXIST)
+    Failed,     ///< 0x01 — repository/persistence failure
+};
+
 } // namespace pvpgn::domain::d2cs

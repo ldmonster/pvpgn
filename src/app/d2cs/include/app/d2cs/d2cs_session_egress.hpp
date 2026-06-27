@@ -69,8 +69,11 @@ public:
 
     /// Send the result of a character-create (CREATECHARREPLY / 0x02).
     ///
-    /// @param success  `true` if the character was created.
-    virtual void send_char_create_result(bool success) = 0;
+    /// @param result  The create outcome; the implementation maps it to the
+    ///                wire result code (Succeed 0x00 / Rejected 0x14 / Failed
+    ///                0x01), mirroring the original server.
+    virtual void send_char_create_result(
+        domain::d2cs::CharacterCreateResult result) = 0;
 
     /// Send the result of a character-delete (DELETECHARREPLY / 0x0A).
     ///

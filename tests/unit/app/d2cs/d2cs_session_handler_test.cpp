@@ -50,7 +50,8 @@ struct MockD2CSEgress final : public ID2CSSessionEgress {
 
     // send_char_create_result
     bool char_create_called{false};
-    bool char_create_success{false};
+    domain::d2cs::CharacterCreateResult char_create_result{
+        domain::d2cs::CharacterCreateResult::Failed};
 
     // send_char_delete_result
     bool char_delete_called{false};
@@ -85,9 +86,10 @@ struct MockD2CSEgress final : public ID2CSSessionEgress {
         }
     }
 
-    void send_char_create_result(bool success) override {
-        char_create_called  = true;
-        char_create_success = success;
+    void send_char_create_result(
+        domain::d2cs::CharacterCreateResult result) override {
+        char_create_called = true;
+        char_create_result = result;
     }
 
     void send_char_delete_result(bool success) override {
@@ -270,7 +272,8 @@ TEST_CASE("D2CSSessionHandler: on_create_char success sends true",
     REQUIRE(f.cb.on_create_char(req).has_value());
 
     REQUIRE(f.egress.char_create_called);
-    CHECK(f.egress.char_create_success);
+    CHECK(f.egress.char_create_result ==
+          domain::d2cs::CharacterCreateResult::Succeed);
 
     // Verify the character was actually persisted.
     auto found = f.char_repo.find_character("Eve", "NewAmazon");
@@ -279,10 +282,10 @@ TEST_CASE("D2CSSessionHandler: on_create_char success sends true",
 }
 
 // ---------------------------------------------------------------------------
-// TC-06: on_create_char duplicate → send_char_create_result(false)
+// TC-06: on_create_char duplicate → send_char_create_result(Rejected/0x14)
 // ---------------------------------------------------------------------------
 
-TEST_CASE("D2CSSessionHandler: on_create_char duplicate sends false",
+TEST_CASE("D2CSSessionHandler: on_create_char duplicate sends Rejected",
           "[app][d2cs][handler]")
 {
     Fixture f;
@@ -298,7 +301,8 @@ TEST_CASE("D2CSSessionHandler: on_create_char duplicate sends false",
     REQUIRE(f.cb.on_create_char(req).has_value());
 
     REQUIRE(f.egress.char_create_called);
-    CHECK_FALSE(f.egress.char_create_success);
+    CHECK(f.egress.char_create_result ==
+          domain::d2cs::CharacterCreateResult::Rejected);
 }
 
 // ---------------------------------------------------------------------------

@@ -198,9 +198,16 @@ void D2CSTcpSession::send_char_select_result(
     send_raw(protocol::d2cs::D2CSSessionFsm::make_char_login_reply(code));
 }
 
-void D2CSTcpSession::send_char_create_result(bool success) {
-    // result_code: 0x00 = success, 0x01 = failed
-    const uint32_t code = success ? 0x00u : 0x01u;
+void D2CSTcpSession::send_char_create_result(
+    domain::d2cs::CharacterCreateResult result) {
+    // Map to the original CREATECHARREPLY wire codes: SUCCEED 0x00,
+    // ALREADY_EXIST 0x14 (bad name OR duplicate), FAILED 0x01.
+    uint32_t code = 0x01u;  // Failed
+    switch (result) {
+        case domain::d2cs::CharacterCreateResult::Succeed:  code = 0x00u; break;
+        case domain::d2cs::CharacterCreateResult::Rejected: code = 0x14u; break;
+        case domain::d2cs::CharacterCreateResult::Failed:   code = 0x01u; break;
+    }
     send_raw(protocol::d2cs::D2CSSessionFsm::make_create_char_reply(code));
 }
 

@@ -14,7 +14,7 @@ Two checks:
   2. V3 CONFORMANCE: against the v3 d2cs (standalone, stubbed auth) the full
      init -> LOGINREQ -> CREATECHARREQ -> CHARLISTREQ flow round-trips with
      reply types/codes matching the original wire format (LOGINREPLY succeed=0,
-     CREATECHARREPLY succeed=0 / duplicate-failed, CHARLISTREPLY lists the char).
+     CREATECHARREPLY succeed=0 / duplicate=0x14 ALREADY_EXIST, CHARLISTREPLY lists it).
 
 NOTE: a full DIFFERENTIAL character-flow test needs the original d2cs linked to a
 running bnetd (the original rejects LOGINREQ when bnetd_conn() is null) plus a
@@ -97,7 +97,7 @@ def main():
             o_hs and n_hs and
             rt["login"] == dc.LOGINREPLY_SUCCEED and
             rt["create"] == dc.CREATECHAR_SUCCEED and
-            rt["create_dup"] is not None and          # got a reply (not a hang)
+            rt["create_dup"] == dc.CREATECHAR_ALREADY_EXIST and  # 0x14, oracle parity
             rt["charlist_has_conan"] and
             rt["charlist_count"] == 1
         )

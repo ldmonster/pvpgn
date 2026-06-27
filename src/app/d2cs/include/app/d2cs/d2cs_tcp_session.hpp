@@ -102,7 +102,8 @@ public:
         bool success,
         const domain::d2cs::CharacterInfo* info) override;
 
-    void send_char_create_result(bool success) override;
+    void send_char_create_result(
+        domain::d2cs::CharacterCreateResult result) override;
 
     void send_char_delete_result(bool success) override;
 

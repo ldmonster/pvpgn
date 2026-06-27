@@ -3053,3 +3053,17 @@ char-name validation differs (v3 allows digits, rejects -_. ; original is the
 reverse w/ a buggy no-op length check); LOGINREQ fixed-field layout reads 8 bytes
 vs the real ~64; v3 auth is a stub (always success) so the success-path character
 flow is not yet differentially comparable against the bnetd-gated oracle.
+
+## Wave 174: D2CS CREATECHARREPLY result code (duplicate/bad-name -> 0x14 ALREADY_EXIST)
+v3 d2cs CREATECHARREPLY collapsed every create failure to 0x01 (FAILED); the
+original (handle_d2cs.cpp on_client_createcharreq) returns ALREADY_EXIST (0x14)
+for BOTH a duplicate AND an invalid name (its d2char_create returns -1 for either)
+and FAILED (0x01) only for an internal post-create load error. Modeled this with a
+domain CharacterCreateResult enum {Succeed, Rejected, Failed}; CharacterCreateUseCase
+now returns it (bad-name/duplicate -> Rejected, save failure -> Failed) and
+D2CSTcpSession maps Succeed->0x00 / Rejected->0x14 / Failed->0x01. Verified via the
+mock: duplicate create now replies 0x14 (was 0x01). diff_d2cs_handshake.py asserts it.
+STILL DEFERRED (needs the d2cs<->bnetd harness link or is debatable): char-name
+validation char-set/length (v3 allows digits, rejects -_. ; original is the reverse
+with a buggy no-op length check); LOGINREQ fixed-field layout (8 bytes vs ~64);
+stubbed auth (always success) blocks differential success-path comparison.

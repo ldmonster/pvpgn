@@ -122,23 +122,21 @@ public:
     ///
     /// @param account_name  The owning account name.
     /// @param info          Character metadata (name must pass validation).
-    /// @return  `true` on success.
-    ///          `false` if the name is invalid, the character already exists,
-    ///          or a repository error occurred.
-    [[nodiscard]] bool
+    /// @return  `Succeed` on success; `Rejected` if the name is invalid or the
+    ///          character already exists; `Failed` on a repository error.
+    [[nodiscard]] CharacterCreateResult
     execute(std::string_view account_name, const CharacterInfo& info) {
-        // Validate name
+        // Bad name and duplicate both surface as Rejected (original 0x14).
         if (!detail::is_valid_char_name(info.name)) {
-            return false;
+            return CharacterCreateResult::Rejected;
         }
-
-        // Check for duplicate
         auto existing = repo_.find_character(account_name, info.name);
         if (existing.has_value()) {
-            return false;  // character already exists
+            return CharacterCreateResult::Rejected;  // already exists
         }
-
-        return repo_.save_character(account_name, info);
+        return repo_.save_character(account_name, info)
+                   ? CharacterCreateResult::Succeed
+                   : CharacterCreateResult::Failed;
     }
 
 private:

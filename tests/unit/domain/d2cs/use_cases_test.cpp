@@ -199,8 +199,8 @@ TEST_CASE("CharacterCreateUseCase — success", "[d2cs][char_create]") {
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    bool ok = uc.execute("alice", make_char("NewChar", CharacterClass::Druid, 1, 0));
-    REQUIRE(ok);
+    auto ok = uc.execute("alice", make_char("NewChar", CharacterClass::Druid, 1, 0));
+    REQUIRE(ok == CharacterCreateResult::Succeed);
 
     // Verify it was actually stored
     auto found = repo.find_character("alice", "NewChar");
@@ -213,9 +213,9 @@ TEST_CASE("CharacterCreateUseCase — duplicate name returns false", "[d2cs][cha
     seed(repo, "alice", make_char("Existing"));
 
     CharacterCreateUseCase uc{repo};
-    bool ok = uc.execute("alice", make_char("Existing"));
+    auto ok = uc.execute("alice", make_char("Existing"));
 
-    CHECK_FALSE(ok);
+    CHECK(ok == CharacterCreateResult::Rejected);
     // Original should be unchanged
     auto found = repo.find_character("alice", "Existing");
     REQUIRE(found.has_value());
@@ -225,8 +225,8 @@ TEST_CASE("CharacterCreateUseCase — name too short (1 char) returns false", "[
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    bool ok = uc.execute("alice", make_char("X"));
-    CHECK_FALSE(ok);
+    auto ok = uc.execute("alice", make_char("X"));
+    CHECK(ok == CharacterCreateResult::Rejected);
     CHECK(repo.total_character_count() == 0);
 }
 
@@ -234,8 +234,8 @@ TEST_CASE("CharacterCreateUseCase — name too long (16 chars) returns false", "
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    bool ok = uc.execute("alice", make_char("TooLongCharName1"));  // 16 chars
-    CHECK_FALSE(ok);
+    auto ok = uc.execute("alice", make_char("TooLongCharName1"));  // 16 chars
+    CHECK(ok == CharacterCreateResult::Rejected);
     CHECK(repo.total_character_count() == 0);
 }
 
@@ -243,9 +243,9 @@ TEST_CASE("CharacterCreateUseCase — name with invalid chars returns false", "[
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    // Hyphen is not allowed
-    bool ok = uc.execute("alice", make_char("Bad-Name"));
-    CHECK_FALSE(ok);
+    // Hyphen is not allowed (current v3 rule)
+    auto ok = uc.execute("alice", make_char("Bad-Name"));
+    CHECK(ok == CharacterCreateResult::Rejected);
     CHECK(repo.total_character_count() == 0);
 }
 
@@ -253,8 +253,8 @@ TEST_CASE("CharacterCreateUseCase — name with space returns false", "[d2cs][ch
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    bool ok = uc.execute("alice", make_char("Bad Name"));
-    CHECK_FALSE(ok);
+    auto ok = uc.execute("alice", make_char("Bad Name"));
+    CHECK(ok == CharacterCreateResult::Rejected);
     CHECK(repo.total_character_count() == 0);
 }
 
@@ -263,12 +263,12 @@ TEST_CASE("CharacterCreateUseCase — valid boundary names (2 and 15 chars)", "[
     CharacterCreateUseCase uc{repo};
 
     // Exactly 2 chars — valid
-    bool ok2 = uc.execute("alice", make_char("Ab"));
-    CHECK(ok2);
+    auto ok2 = uc.execute("alice", make_char("Ab"));
+    CHECK(ok2 == CharacterCreateResult::Succeed);
 
     // Exactly 15 chars — valid
-    bool ok15 = uc.execute("alice", make_char("AbcdefghijklmNo"));  // 15 chars
-    CHECK(ok15);
+    auto ok15 = uc.execute("alice", make_char("AbcdefghijklmNo"));  // 15 chars
+    CHECK(ok15 == CharacterCreateResult::Succeed);
 
     CHECK(repo.total_character_count() == 2);
 }
@@ -277,8 +277,8 @@ TEST_CASE("CharacterCreateUseCase — underscore in name is valid", "[d2cs][char
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    bool ok = uc.execute("alice", make_char("My_Char"));
-    CHECK(ok);
+    auto ok = uc.execute("alice", make_char("My_Char"));
+    CHECK(ok == CharacterCreateResult::Succeed);
     CHECK(repo.total_character_count() == 1);
 }
 
@@ -517,22 +517,22 @@ TEST_CASE("CharacterCreateUseCase — numeric-only name is valid", "[d2cs][char_
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    bool ok = uc.execute("alice", make_char("12345"));
-    CHECK(ok);
+    auto ok = uc.execute("alice", make_char("12345"));
+    CHECK(ok == CharacterCreateResult::Succeed);
 }
 
 TEST_CASE("CharacterCreateUseCase — empty name returns false", "[d2cs][char_create][validation]") {
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    bool ok = uc.execute("alice", make_char(""));
-    CHECK_FALSE(ok);
+    auto ok = uc.execute("alice", make_char(""));
+    CHECK(ok == CharacterCreateResult::Rejected);
 }
 
 TEST_CASE("CharacterCreateUseCase — name with dot returns false", "[d2cs][char_create][validation]") {
     InMemoryCharacterRepository repo;
     CharacterCreateUseCase uc{repo};
 
-    bool ok = uc.execute("alice", make_char("Bad.Name"));
-    CHECK_FALSE(ok);
+    auto ok = uc.execute("alice", make_char("Bad.Name"));
+    CHECK(ok == CharacterCreateResult::Rejected);
 }

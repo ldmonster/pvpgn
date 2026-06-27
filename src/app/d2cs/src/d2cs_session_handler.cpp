@@ -162,8 +162,7 @@ core::Result<void, core::Error> D2CSSessionHandler::handle_create_char(
     info.last_played = 0;
 
     domain::d2cs::CharacterCreateUseCase uc{char_repo_};
-    const bool ok = uc.execute(account_name_, info);
-    egress_.send_char_create_result(ok);
+    egress_.send_char_create_result(uc.execute(account_name_, info));
     return {};
 }
 
