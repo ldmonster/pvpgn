@@ -209,18 +209,17 @@ private:
     std::vector<events::DomainEvent>                events_;
     /// The channel operator (gavel). The original makes the FIRST user to join a
     /// non-permanent channel its temporary operator (tmpOP); predefined/permanent
-    /// channels have no auto-operator. Migrated to a remaining member when the
-    /// operator leaves/is kicked, cleared when the channel empties.
+    /// channels have no auto-operator. The gavel is NEVER migrated to another
+    /// member: when the operator leaves/is kicked it is simply cleared, matching
+    /// the original (channel.cpp: on member removal it only does
+    /// conn_set_tmpOP_channel(connection, NULL) and promotes no one).
     std::optional<AccountId>                        operator_id_{};
 
-    /// On a member departure, keep the operator invariant: if `who` was the
-    /// operator, migrate the gavel to any remaining member (or clear it).
+    /// On a member departure, clear the gavel iff `who` was the operator. The
+    /// original performs no promotion of a remaining member, so neither do we.
     void reassign_operator_on_leave(AccountId who) {
-        if (!operator_id_ || operator_id_->value() != who.value()) return;
-        if (members_.empty()) {
+        if (operator_id_ && operator_id_->value() == who.value()) {
             operator_id_.reset();
-        } else {
-            operator_id_ = members_.begin()->first;
         }
     }
 };

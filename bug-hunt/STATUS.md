@@ -2131,3 +2131,20 @@ return a single SID 0x06 packet whose body parses as u64 + two non-empty
 NUL-terminated strings (structure only; timestamp/filename/equation are
 advisory). 3199/3199 unit tests green; diff_compinfo and diff_ols_login still
 match the oracle.
+
+## Wave 119
+Fixed channel operator (gavel) wrongly migrated to a remaining member when the
+op leaves/disconnects/is kicked. v3's reassign_operator_on_leave (channel.hpp)
+promoted members_.begin() to operator; the oracle promotes NO ONE — on member
+removal it only does conn_set_tmpOP_channel(connection, NULL)
+(channel.cpp:548-551), and grants tmpOP only at join when currmembers==1
+(channel.cpp:464-470). FIX: reassign_operator_on_leave now only clears the gavel
+iff the departing member was the operator (drop the begin() else-branch);
+corrected the two misleading comments. Decisive probe: alice (tmpOP) + bob join
+fresh "OpHunt", alice disconnects, carol joins and inspects SHOWUSER — oracle
+bob flags=0, v3 was=2, now=0. Covers /leave, disconnect, and /kick paths (all
+route through reassign_operator_on_leave). New guard tests/diff/diff_op_no_transfer.py
+(masks OP bit 0x02; oracle also toggles transient MF_PLUG 0x10 v3 doesn't model).
+Safe wrt wave 112 (EID_LEAVE op-flag snapshots the leaving op's flag before
+removal). 3199/3199 unit tests green; diff_channel_op / diff_channel_kick /
+diff_leave_opflags still match the oracle.
