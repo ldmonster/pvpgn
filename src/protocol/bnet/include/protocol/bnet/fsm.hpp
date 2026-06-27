@@ -261,6 +261,14 @@ private:
     /// (UTC + server tz bias) and "Your local time:" (the connection's tz bias).
     core::Status<> handle_time();
 
+    /// Handle /version — one EID_INFO line "PvPGN <version>" (mirrors the
+    /// original _handle_version_command; plain ASCII, not localized).
+    core::Status<> handle_version();
+
+    /// Handle /copyright (aliases /warranty, /license) — the fixed block of
+    /// plain-ASCII EID_INFO lines from the original _handle_copyright_command.
+    core::Status<> handle_copyright();
+
     /// Handle /squelch <user> (alias /ignore) — add to the ignore list.
     core::Status<> handle_squelch(std::string_view args, bool add);
 

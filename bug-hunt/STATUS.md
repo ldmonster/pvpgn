@@ -2371,3 +2371,28 @@ binaries never linked these libs (linker confirms on relink), and no diff test
 applies. Reconfigure + full relink clean (-Werror); unit suite 3203/3203 green,
 including the pvpgn_v3_d2cs/d2dbs --help/--version smoke tests. If a future
 single-binary mode runs d2cs/d2dbs in-process, that wiring is re-added then.
+
+## Wave 131
+Fixed the /version + /copyright slash-commands replying EID_ERROR (0x13)
+"Unknown command." instead of the oracle's EID_INFO (0x12) output. Root cause:
+BnetUseCaseContext.command_registry is never wired, so fsm_chat's full-dispatch
+branch (fsm_chat.cpp:416) is always false and every non-intercepted slash
+command falls into the dead-registry fallback (lines ~436-458) that only knows
+/help and /who. The oracle routes /version and /copyright (and the /warranty
+and /license aliases) through the CommandRegistry as plain-ASCII EID_INFO
+output, so both fell through to "Unknown command" on v3.
+FIX: intercept them in the fsm_chat slash-command block next to /who and /time
+(new handle_version / handle_copyright). /version emits one EID_INFO line
+"PvPGN <version>" (mirrors _handle_version_command PVPGN_SOFTWARE " "
+PVPGN_VERSION; v3 reports its own core::kVersionString, wire shape identical).
+/copyright emits the 15 fixed plain-ASCII lines byte-for-byte from
+_handle_copyright_command (also via /warranty, /license). Stayed faithful to
+the oracle's exact-token strstart() matching (no /ver alias — oracle has none).
+Did NOT implement /uptime (no server-uptime source plumbed into the fsm yet,
+and its seconds count is not cleanly diffable); it and the rest of the unrouted
+family (/away /dnd /games /channels /news /finger /watch ...) remain for a
+future wave that actually populates command_registry. New guard
+tests/diff/diff_version.py asserts /version -> single EID 0x12 with text
+starting "PvPGN", and /copyright -> identical EID sequence AND byte-identical
+text on both servers; passes. Build clean (-Werror); unit suite 3203/3203
+green; diff_command_case.py and diff_channelcmds.py still pass.

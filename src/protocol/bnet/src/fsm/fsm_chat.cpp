@@ -33,6 +33,7 @@
 #include <string_view>
 
 #include "protocol/bnet/chat_wire_types.hpp"
+#include "core/version.hpp"
 
 #include "application/auth/user_profile_store.hpp"
 #include "application/chat/join_channel.hpp"
@@ -391,6 +392,16 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "whois" || cmd == "where" || cmd == "whereis")
                 return handle_whois(info_args);
             if (cmd == "whoami") return handle_whoami();
+            // --- /version and /copyright family (plain-ASCII EID_INFO replies) ---
+            // The original routes these through the CommandRegistry
+            // (_handle_version_command / _handle_copyright_command). v3 never
+            // wires command_registry, so without these interceptors they fell
+            // through to the dead-registry fallback and wrongly returned
+            // EID_ERROR "Unknown command." Both produce non-localized ASCII
+            // output, so they are intercepted here next to /who and /time.
+            if (cmd == "version") return handle_version();
+            if (cmd == "copyright" || cmd == "warranty" || cmd == "license")
+                return handle_copyright();
             if (cmd == "kick") return handle_kick(info_args);
             if (cmd == "ban") return handle_ban(info_args);
             if (cmd == "unban") return handle_unban(info_args);
@@ -1088,6 +1099,48 @@ core::Status<> BnetFsm::handle_time() {
     const std::string stamp = fmt_now();
     if (auto s = info("Server Time: " + stamp); !s) return s;
     return info("Your local time: " + stamp);
+}
+
+core::Status<> BnetFsm::handle_version() {
+    // Mirrors the original _handle_version_command: one EID_INFO line
+    // "<software> <version>" (PVPGN_SOFTWARE " " PVPGN_VERSION). Plain ASCII,
+    // not localized. v3 reports its own version rather than the oracle's, but
+    // the wire shape (single EID_INFO, "PvPGN <version>" text) is identical.
+    std::string text = "PvPGN ";
+    text += core::kVersionString;
+    return ctx_->send(ServerMessage{ChatEvent{
+        kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+        "", std::move(text)}});
+}
+
+core::Status<> BnetFsm::handle_copyright() {
+    // Mirrors the original _handle_copyright_command (also reached via the
+    // /warranty and /license aliases): a fixed block of plain-ASCII EID_INFO
+    // lines, byte-for-byte identical to the oracle's static table.
+    static constexpr const char* kLines[] = {
+        " Copyright (C) 2002 - 2014  See source for details",
+        " ",
+        " PvPGN is free software; you can redistribute it and/or",
+        " modify it under the terms of the GNU General Public License",
+        " as published by the Free Software Foundation; either version 2",
+        " of the License, or (at your option) any later version.",
+        " ",
+        " This program is distributed in the hope that it will be useful,",
+        " but WITHOUT ANY WARRANTY; without even the implied warranty of",
+        " MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the",
+        " GNU General Public License for more details.",
+        " ",
+        " You should have received a copy of the GNU General Public License",
+        " along with this program; if not, write to the Free Software",
+        " Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.",
+    };
+    for (const char* line : kLines) {
+        auto s = ctx_->send(ServerMessage{ChatEvent{
+            kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum, kChatEventRegAuth,
+            "", std::string{line}}});
+        if (!s) return s;
+    }
+    return core::ok();
 }
 
 core::Status<> BnetFsm::handle_squelch(std::string_view args, bool add) {
