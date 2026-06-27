@@ -2276,3 +2276,16 @@ Guards: tests/diff/diff_oversize_packet.py (sizes 100/3072 stay alive, 3073/
 tests/unit/app/bnetd/bnet_framer_test.cpp (4 cases: upper-bound close,
 boundary-3072 no-close, lower-bound close, bad-marker oversize close).
 Full suite 3203/3203 green; diff_bad_marker_resync still matches the oracle.
+
+## Wave 126
+SID_ICONREQ (0x2D) icon filename was hardcoded "icons.bni" in v3 regardless of
+clienttag. The oracle (_client_iconreq, handle_bnet.cpp:1284-1295) picks
+prefs_get_war3_iconfile() (default "icons-WAR3.bni") for WAR3/W3XP clients and
+prefs_get_iconfile() (default "icons.bni") for all others.
+FIX (src/protocol/bnet/src/fsm/fsm_misc.cpp, BnetFsm::on(IconRequest)): choose
+the reply filename from the stored client_tag_ — "icons-WAR3.bni" when
+client_tag_ == kWarcraft3 || kWar3Xp, else "icons.bni". client_tag_ is already
+populated from AUTH_INFO and the tag constants already exist; no new plumbing.
+Guard: tests/diff/diff_iconreq.py asserts filename per product (SEXP/STAR ->
+"icons.bni", W3XP/WAR3 -> "icons-WAR3.bni") matching on both servers; PASSES.
+Full suite 3203/3203 green; diff_channellist still matches the oracle.

@@ -81,12 +81,16 @@ core::Status<> BnetFsm::on(const SetEmailReply&) {
 
 core::Status<> BnetFsm::on(const IconRequest&) {
     // SID_GETICONDATA (0x2D): the original (_client_iconreq) replies with
-    // SERVER_ICONREPLY carrying the icon file's mtime + name ("icons.bni") so the
-    // client can fetch it via BNFTP. v3 does not track the file's mtime at the
-    // protocol layer, so the timestamp is a placeholder; the filename matches.
+    // SERVER_ICONREPLY carrying the icon file's mtime + name so the client can
+    // fetch it via BNFTP. The filename is chosen by clienttag: WAR3/W3XP clients
+    // get prefs_get_war3_iconfile() (default "icons-WAR3.bni"); all others get
+    // prefs_get_iconfile() (default "icons.bni"). v3 does not track the file's
+    // mtime at the protocol layer, so the timestamp is a placeholder.
+    const bool is_war3 = client_tag_ == domain::tags::kWarcraft3 ||
+                         client_tag_ == domain::tags::kWar3Xp;
     return ctx_->send(ServerMessage{IconReply{
         /*timestamp*/ 0,
-        /*filename*/  "icons.bni"}});
+        /*filename*/  is_war3 ? "icons-WAR3.bni" : "icons.bni"}});
 }
 
 core::Status<> BnetFsm::on(const GetPasswordRequest&) {
