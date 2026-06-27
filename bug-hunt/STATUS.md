@@ -1359,3 +1359,27 @@ no-param 461 (all 4) and the set-then-get round-trip (codepage 1252, locale 5)
 — all match the oracle byte-for-byte (server-name stripped). 3199/3199 units
 green; WOL diff regression set (needmoreparams, chat, names, topic, kick, part,
 login) all still match.
+
+## Wave 83 (LANDED) — DEAD CODE: remove unlinked infra/shadow lib
+DEAD CODE (built-but-unlinked STATIC lib, same pattern as wave 75 infra/health).
+src/infra/shadow/ builds pvpgn_infra_shadow (ShadowAccountRepository +
+ShadowUnitOfWork + ShadowUnitOfWorkFactory — a shadow-write/dual-backend adapter
+for zero-downtime migration). Proven dead: the only references anywhere are the
+add_subdirectory in src/CMakeLists.txt (1473-1475); NO target links
+pvpgn_infra_shadow, NO `#include "infra/shadow/*"` exists anywhere, the three
+classes are referenced nowhere outside their own dir, and there is no test dir
+(grep over *.cpp/*.hpp/*.h/CMakeLists.txt + tests/ all clean). The persistence
+backend_registration/adapter_registry do not mention shadow either; siblings
+(infra/file, sqlite, mysql, postgres) ARE linked by bnetd/migrate/tests — shadow
+is the odd one out.
+Fix: removed the `if(NOT TARGET pvpgn_infra_shadow) add_subdirectory(infra/shadow)
+endif()` block from src/CMakeLists.txt and `git rm -r src/infra/shadow`.
+Reconfigure + full relink + 3199/3199 units green; bnetd never linked it so the
+binary is behaviorally unchanged — diff_chat still matches the oracle.
+Still present (have consumers/tests, do NOT remove): infra/file/sqlite/mysql/
+postgres (linked), infra/discovery (used by services/combined + test),
+infra/metrics + infra/webui_json (tested), infra/tracing (option-gated OTLP
+scaffolding). Remaining catalogued dead-code candidates (core legacy modules,
+infra/crypto/{peerchat,wol_hash}, infra/metrics/server_metrics,
+infra/webui/web_server, protocol/wolgameres stub) need per-symbol/lib-dependency
+care — see findings/dead-code-audit.md.

@@ -129,3 +129,13 @@ superseded duplicate of the live IrcFsm) — removed file + protocol_irc compile
 line. wolgameres was EXCLUDED (it has live refs: bnet_packet_pump/conn_class.hpp
 + a test). Fixed 2 stale doc-comments that pointed at the deleted infra/session.
 Reconfigure + full relink (incl. protocol_irc tests + bnetd) + suite: 3199/3199.
+
+## UPDATE wave 83: removed infra/shadow (unlinked shadow-write migration lib)
+Removed the pvpgn_infra_shadow STATIC lib (src/CMakeLists.txt block 1473-1475) +
+src/infra/shadow/ (ShadowAccountRepository / ShadowUnitOfWork[Factory] — a
+dual-backend shadow-write adapter for zero-downtime migration). Proven dead: no
+target links pvpgn_infra_shadow, no `#include "infra/shadow/*"` anywhere, the
+classes referenced nowhere outside their dir, no test dir, persistence
+backend_registration/adapter_registry don't reference it. Reconfigure + full
+relink + 3199/3199; bnetd never linked it (binary behaviorally unchanged,
+diff_chat still matches the oracle).
