@@ -102,11 +102,15 @@ core::Status<> BnetFsm::on(const EnterChatRequest& m) {
         return reject("bnet fsm: ENTERCHAT out of order");
     }
     state_ = BnetState::InChat;
-    // Echo a synthetic reply; the real handler will populate fields.
+    // The original (_client_playerinforeq) fills in the canonical logged-in name
+    // when the client sends an empty username (which real clients do): unique_name
+    // and account both become conn_get_loggeduser. Mirror that so the reply names
+    // the actual account rather than echoing the empty client field.
+    std::string who = m.username.empty() ? current_username_ : m.username;
     return ctx_->send(ServerMessage{EnterChatReply{
-        /*unique_name*/ m.username,
+        /*unique_name*/ who,
         /*statstring*/  m.statstring,
-        /*account*/     m.username}});
+        /*account*/     who}});
 }
 
 core::Status<> BnetFsm::on(const JoinChannel& m) {
@@ -1381,6 +1385,10 @@ core::Status<> BnetFsm::on(const UserDataReadRequest& m) {
             !current_username_.empty() &&
             ieq_ascii(target, current_username_);
         for (const auto& key : m.keys) {
+            // The original (_client_statsreq) skips an empty key entirely
+            // (`if (*key=='\0') continue;`) — it appends NO value string for it,
+            // so the reply carries fewer than name_count*key_count values.
+            if (key.empty()) continue;
             std::string value;
             const bool hidden =
                 !is_self && key.size() >= 4 && ieq_ascii(key.substr(0, 4), "BNET");

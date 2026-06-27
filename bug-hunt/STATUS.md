@@ -2935,3 +2935,16 @@ PAGE lines (GPL block byte-identical to the BNCS handle_copyright table; version
 from core::kVersionString). diff_wol_copyright.py: 15 copyright pages + 1 version
 page, matching the oracle. (Applied directly by the orchestrator during a transient
 agent-API rate-limit; round-2 finders had hit a rate limit + classifier outage.)
+
+## Waves 163-164: round-2 finder fixes (BNCS enterchat/userdata + WOL joingame errors)
+Second parallel-discovery batch (after a transient agent rate-limit cleared):
+- w163 (fsm_chat.cpp): SID_ENTERCHAT with an empty username now resolves the
+  logged-in account name for unique_name + account (real clients send empty)
+  [diff_enterchat]; READUSERDATA skips an empty key entirely (no "" value pushed),
+  matching the oracle's `if(*key=='\0')continue` [diff_userdata_emptykey].
+  (The ENTERCHAT statstring "BOON" product-playerinfo string is a separate,
+  unmodeled concern; unique_name/account are the decisive fix.)
+- w164 (wol_chat.cpp): WOL JOINGAME join-error replies 478/471/475 now use the IRC
+  middle-param form (channel as a param, single trailing colon) instead of the
+  double-colon send_numeric produced; 475 glues "#name:Bad password" with no space
+  (built via send_raw) [diff_wol_joingame_errs].
