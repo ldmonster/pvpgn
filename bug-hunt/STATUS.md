@@ -1406,3 +1406,31 @@ New guard tests/diff/diff_whisper_self.py: alice whispers herself and asserts th
 v3 gave [(0x04,alice),(0x0a,alice)]). 3199/3199 units green (load_anongame/
 multilocale/maplists temp-file flakes pass -j1); diff regression set (whisper,
 squelch, chat, talk, emote) all still match the oracle.
+
+## Wave 85 (LANDED) — SID_FRIENDSLIST tolerates trailing body bytes
+DIVERGENCE (missing reply on a padded request). A logged-in client that sends
+SID_FRIENDSLIST (0x65) with ANY trailing bytes after the (empty) body got
+NOTHING from v3, while the oracle still answered with the friends list. The
+original _client_friendslistreq (handle_bnet.cpp:2298) only enforces a *minimum*
+size — `packet_get_size(packet) < sizeof(t_client_friendslistreq)` (the bare
+header) — so it tolerates and ignores any extra bytes a client appends. v3's
+decode_friendslist_request (codec/codec_friends.cpp) instead called
+check_empty_body, which fails on a non-empty payload; decode_client then returned
+a codec error and the FSM dropped the packet (no reply). A real client that pads
+the request would never receive its friends list.
+Fix: decode_friendslist_request no longer rejects a non-empty body — it discards
+any trailing bytes and returns FriendsListRequest{} (faithful to the original's
+minimum-size leniency). The empty-body happy path is unchanged. Found via a new
+post-login malformed-field probe comparing reply (sid,len) streams vs the oracle
+across ~23 truncated/oversized BNCS bodies; FRIENDSLIST-with-trailing was the one
+cleanly-diffable reply divergence (the readuserdata truncation diffs route into
+the non-empty-reply count path and are not as crisply comparable).
+New guard tests/diff/diff_friendslist_trailing.py: empty / 2-byte-trailing /
+64-byte-trailing FRIENDSLISTREQ must all yield a 0x65 reply on both servers —
+match (before: v3 replied only to the empty one). 3199/3199 units green; diff
+regression set (friends, friends_watch, robustness, chat, whisper) all still
+match the oracle.
+Note: check_empty_body still guards SID_NULL, CLOSEGAME/CLOSEGAME2 (0x02/0x1F)
+and Unknown24 (0x24); those generate no reply so a trailing-byte divergence there
+is not observable via the diff harness — left as-is (the oracle also uses
+minimum-size checks for them, but it is not cleanly diffable without a reply).

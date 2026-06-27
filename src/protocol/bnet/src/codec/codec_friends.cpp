@@ -7,8 +7,14 @@ namespace pvpgn::protocol::bnet {
 namespace detail {
 
 core::Result<FriendsListRequest> decode_friendslist_request(const Packet& pkt) {
-    auto s = check_empty_body(pkt);
-    if (!s) return core::fail(s.error());
+    // SID_FRIENDSLIST (0x65) carries no body. The original server's
+    // _client_friendslistreq only enforces a *minimum* size
+    // (packet_get_size(packet) < sizeof(t_client_friendslistreq), which is the
+    // bare header), so it tolerates — and ignores — any trailing bytes a client
+    // appends, still replying with the friends list. Mirror that leniency: do
+    // not reject a non-empty body, just discard it. (A strict empty-body check
+    // here made v3 silently drop a padded request the oracle answers.)
+    (void)pkt;
     return FriendsListRequest{};
 }
 
