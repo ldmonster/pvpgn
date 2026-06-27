@@ -117,8 +117,14 @@ core::Status<> BnetFsm::on(const Unknown24&)       { return core::ok(); }
 core::Status<> BnetFsm::on(const ChangeClient&)    { return core::ok(); }
 
 core::Status<> BnetFsm::on(const CdKey3Request&) {
-    // CDKEY3 is part of pre-login auth; accept advisorily.
-    return core::ok();
+    // CDKEY3 is the Diablo II 1.08+ third-key proof, part of pre-login auth.
+    // The original (_client_cdkey3) ALWAYS answers with SERVER_CDKEYREPLY3:
+    // message = SERVER_CDKEYREPLY3_MESSAGE_OK (0x00) and an EMPTY trailing
+    // string (the original sends "" there, not the owner). The client expects
+    // this reply, so a silent accept would stall the handshake.
+    return ctx_->send(ServerMessage{CdKey3Reply{
+        /*message*/    0u,  // SERVER_CDKEYREPLY3_MESSAGE_OK
+        /*owner_name*/ ""}});
 }
 
 }  // namespace pvpgn::protocol::bnet

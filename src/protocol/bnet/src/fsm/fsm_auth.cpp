@@ -223,14 +223,20 @@ core::Status<> BnetFsm::on(const AuthCheckRequest&) {
     return ctx_->send(ServerMessage{AuthCheckReply{0u, ""}});
 }
 
-core::Status<> BnetFsm::on(const CdKey2Request&) {
+core::Status<> BnetFsm::on(const CdKey2Request& m) {
     // CDKEY2 is the LoD second-key proof; legal once AUTH_INFO has
     // been exchanged and before the user is logged in.
     if (state_ != BnetState::AuthInfoReceived &&
         state_ != BnetState::Init) {
         return reject("bnet fsm: CDKEY2 out of order");
     }
-    return core::ok();
+    // The original (_client_cdkey2) ALWAYS answers with SERVER_CDKEYREPLY2:
+    // result = SERVER_CDKEYREPLY2_MESSAGE_OK (0x01) and the owner string echoed
+    // back from the request. The real client waits for this reply before it
+    // continues the login flow, so a silent accept would hang it.
+    return ctx_->send(ServerMessage{CdKey2Reply{
+        /*result*/ 1u,  // SERVER_CDKEYREPLY2_MESSAGE_OK
+        /*owner*/  m.owner}});
 }
 
 core::Status<> BnetFsm::on(const FileInfoRequest& m) {
