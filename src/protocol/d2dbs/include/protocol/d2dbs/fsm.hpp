@@ -4,9 +4,8 @@
 /// @file fsm.hpp
 /// D2DBS session finite-state machine (D2GS → D2DBS direction).
 ///
-/// Packet type codes and wire layout are taken from
-/// `src/v3/protocol/d2dbs/include/protocol/d2dbs/wire_types.hpp`
-/// (which mirrors `src/d2dbs/dbspacket.h`).
+/// Packet type codes and wire layout are defined in `codec.hpp`
+/// (which mirrors `src/d2dbs/dbspacket.h` in the original server).
 ///
 /// The FSM owns a reassembly buffer and processes complete D2DBS packets
 /// received from a D2GS (game server) connection.

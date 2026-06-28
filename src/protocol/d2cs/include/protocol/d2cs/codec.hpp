@@ -99,7 +99,6 @@ struct CreateCharReq {
 inline constexpr std::uint32_t kCreateCharReplyOk            = 0x00;
 inline constexpr std::uint32_t kCreateCharReplyFailed        = 0x01;
 inline constexpr std::uint32_t kCreateCharReplyAlreadyExists = 0x14;
-inline constexpr std::uint32_t kCreateCharReplyNameRejected  = 0x15;
 
 struct CreateCharReply {
     std::uint32_t reply = kCreateCharReplyOk;

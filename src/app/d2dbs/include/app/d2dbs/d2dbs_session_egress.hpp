@@ -17,7 +17,7 @@
 ///
 /// ## Naming convention
 ///
-/// Method names mirror the D2DBS reply packet names from `wire_types.hpp`:
+/// Method names mirror the D2DBS reply packet names from `codec.hpp`:
 ///   send_char_save_result   → SAVE_DATA_REPLY (0x30)
 ///   send_char_load_result   → GET_DATA_REPLY  (0x31)
 ///   send_char_login_result  → lock acquired (CHAR_LOCK response)
