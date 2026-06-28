@@ -1461,18 +1461,9 @@ if(NOT TARGET pvpgn_infra_postgresql)
     add_subdirectory(infra/postgres)
 endif()
 
-# Wire backend_registration.cpp link dependencies now that the targets exist.
-# infra_persistence includes backend_registration.cpp which #includes headers
-# Wire backend_registration.cpp link dependencies now that the targets exist.
-# Disabled: `backend_registration.cpp` is no longer built (see
-# infra/persistence/CMakeLists.txt). The pvpgn_infra_sqlite / pvpgn_infra_file
-# targets are still defined so they can be opted into directly if needed.
-# if(TARGET pvpgn_infra_sqlite)
-#     target_link_libraries(infra_persistence PRIVATE pvpgn_infra_sqlite)
-# endif()
-# if(TARGET pvpgn_infra_file)
-#     target_link_libraries(infra_persistence PRIVATE pvpgn_infra_file)
-# endif()
+# The pvpgn_infra_sqlite / pvpgn_infra_file targets are defined so they can be
+# opted into directly if needed. (The old backend_registration.cpp glue that
+# wired them into infra_persistence was never built and has been removed.)
 
 # ---- infra/storage/repository (Phase 2 in-memory repositories) -----------
 
