@@ -25,9 +25,13 @@
 #include <boost/asio/error.hpp>
 #include <boost/system/error_code.hpp>
 
+#include <algorithm>
+#include <cstring>
+
 #include "core/bytes.hpp"
 #include "domain/d2cs/types.hpp"
 #include "protocol/d2cs/fsm.hpp"
+#include "protocol/d2cs/ladderreply_encoder.hpp"
 
 namespace pvpgn::app::d2cs {
 
@@ -254,16 +258,48 @@ void D2CSTcpSession::send_char_delete_result(bool success) {
 }
 
 void D2CSTcpSession::send_ladder(
-    const std::vector<domain::d2cs::LadderEntry>& /*entries*/) {
-    // TODO: implement LADDERREPLY encoder.
-    // For now send a minimal stub: 3-byte header with zero entries.
-    // Header: length(2 LE) + type(1)
-    // LADDERREPLY = 0x11, total length = 3 (header only)
-    std::vector<uint8_t> stub = {
-        0x03, 0x00,  // length = 3 (LE)
-        0x11         // type = LADDERREPLY
-    };
-    send_raw(std::move(stub));
+    const std::vector<domain::d2cs::LadderEntry>& entries) {
+    // LADDERREPLY (0x11). The legacy d2cs_send_client_ladder sends NO packet
+    // when the ladder is empty (npacket == 0); only the charladderreq lookup-
+    // miss path emits a 10-byte all-zero reply. The previous 3-byte header-only
+    // stub here was malformed (a real client underflows the 10-byte
+    // t_d2cs_client_ladderreply struct). Wire the byte-accurate encoder, and
+    // match the oracle's "empty -> silent" behaviour for the regular request.
+    namespace lr = protocol::d2cs::ladderreply;
+
+    if (entries.empty()) {
+        return;  // oracle sends nothing for an empty regular LADDERREQ
+    }
+
+    std::vector<lr::LadderInfo> infos;
+    infos.reserve(entries.size());
+    for (const auto& e : entries) {
+        lr::LadderInfo li{};
+        li.exp_low  = e.experience;
+        li.exp_high = 0;
+        li.status   = 0;  // domain LadderEntry carries no status flags
+        li.level    = e.level;
+        li.u1       = 0;
+        li.charname.fill('\0');
+        const std::size_t n =
+            std::min(li.charname.size(), e.character_name.size());
+        std::memcpy(li.charname.data(), e.character_name.data(), n);
+        infos.push_back(li);
+    }
+
+    // start_pos is the absolute (0-based) position of the first entry; derive
+    // it from the first entry's 1-based rank (0 = unranked -> top of list).
+    const std::uint16_t start_pos =
+        (entries.front().rank > 0)
+            ? static_cast<std::uint16_t>(entries.front().rank - 1)
+            : 0;
+
+    for (const auto& pkt : lr::encode(/*type=*/0, start_pos, infos)) {
+        std::vector<std::uint8_t> raw;
+        raw.reserve(pkt.bytes.size());
+        for (std::byte b : pkt.bytes) raw.push_back(static_cast<std::uint8_t>(b));
+        send_raw(std::move(raw));
+    }
 }
 
 } // namespace pvpgn::app::d2cs
