@@ -140,7 +140,14 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
     // Create login request with parsed credentials
     auto username_result = domain::UserName::parse(m.username);
     if (!username_result) {
-        return ctx_->send(ServerMessage{LogonResponse2Reply{0x01u, "Invalid username"}});
+        // An invalid-character username can never name an existing account, so
+        // the original treats it as NONEXIST (accountlist_find_account -> NULL)
+        // and answers SERVER_LOGINREPLY2 with the result code ONLY — the reply
+        // struct is fixed-size and carries no reason string. Send result=0x01
+        // with an empty reason (the encoder then emits no trailing string),
+        // matching the oracle byte-for-byte instead of appending "Invalid
+        // username".
+        return ctx_->send(ServerMessage{LogonResponse2Reply{0x01u, ""}});
     }
 
     // `m.password_hash` is the client's hash2 (the double-hash
