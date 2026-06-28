@@ -24,12 +24,6 @@ std::string_view trim_sv(std::string_view s) noexcept {
     return s;
 }
 
-/// Returns true if the line is a comment or blank.
-[[maybe_unused]] bool is_comment_or_blank(std::string_view line) noexcept {
-    line = trim_sv(line);
-    return line.empty() || line[0] == '#';
-}
-
 /// Returns true if the line is a TOML section header (e.g. "[storage]").
 bool is_section_header(std::string_view line) noexcept {
     line = trim_sv(line);
