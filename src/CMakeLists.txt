@@ -1221,6 +1221,7 @@ pvpgn_v3_add_library(application_social
         core
         application_ports
         domain_social
+        domain_gameplay
 )
 
 # ---- application/ladder -------------------------------------------------

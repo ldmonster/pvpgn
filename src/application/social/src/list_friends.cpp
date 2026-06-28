@@ -5,6 +5,8 @@
 #include "domain/social/ports.hpp"
 #include "domain/chat/ports.hpp"
 #include "domain/chat/channel.hpp"
+#include "domain/gameplay/ports.hpp"
+#include "domain/gameplay/game.hpp"
 
 namespace pvpgn::application::social {
 
@@ -51,10 +53,23 @@ ListFriends::execute(domain::AccountId owner) {
             .location_name = std::string{},
         };
 
-        // If online and a channel reader is wired, resolve the friend's current
-        // channel (the original reports FRIENDSTATUS_CHAT + the channel name).
-        // Game location (PUBLIC/PRIVATE_GAME) needs the game repo — a later slice.
-        if (is_online && channels_) {
+        // Resolve the friend's location. The original (_client_friendslistreq)
+        // checks conn_get_game FIRST: a friend hosting/in a game reports
+        // FRIENDSTATUS_PUBLIC_GAME + the game name, and that takes precedence
+        // over any channel. Only when not in a game does it fall back to the
+        // channel (FRIENDSTATUS_CHAT + channel name).
+        if (is_online && games_) {
+            if (auto active = games_->list_active()) {
+                for (const auto& g : active.value()) {
+                    if (g && g->contains(friend_id)) {
+                        info.current_game  = g->id();
+                        info.location_name = g->descriptor().name;
+                        break;
+                    }
+                }
+            }
+        }
+        if (is_online && !info.current_game.has_value() && channels_) {
             channels_->forEach([&](const domain::chat::Channel& c) {
                 for (const auto& mid : c.member_ids()) {
                     if (mid.value() == friend_id.value()) {

@@ -875,11 +875,13 @@ core::Status<> BnetFsm::on(const LadderSearchRequest&) {
 
 namespace {
 // FRIENDSTATUS_* location byte (handle_bnet.cpp): 0 offline, 1 online (in
-// chat/elsewhere), 2 in a channel. FRIEND_TYPE_* status byte: bit0 = mutual.
-constexpr std::uint8_t kFriendLocOffline = 0x00;
-constexpr std::uint8_t kFriendLocOnline  = 0x01;
-constexpr std::uint8_t kFriendLocChannel = 0x02;
-constexpr std::uint8_t kFriendTypeMutual = 0x01;
+// chat/elsewhere), 2 in a channel, 3 in a public game, 5 in a private game.
+// FRIEND_TYPE_* status byte: bit0 = mutual.
+constexpr std::uint8_t kFriendLocOffline    = 0x00;
+constexpr std::uint8_t kFriendLocOnline     = 0x01;
+constexpr std::uint8_t kFriendLocChannel    = 0x02;
+constexpr std::uint8_t kFriendLocPublicGame = 0x03;
+constexpr std::uint8_t kFriendTypeMutual    = 0x01;
 
 FriendsListEntry friend_to_entry(const application::social::FriendInfo& f) {
     FriendsListEntry e;
@@ -889,13 +891,19 @@ FriendsListEntry friend_to_entry(const application::social::FriendInfo& f) {
     e.status = f.is_mutual ? kFriendTypeMutual : std::uint8_t{0};
     if (!f.is_online) {
         e.location = kFriendLocOffline;
+    } else if (f.current_game.has_value()) {
+        // The original checks the game first: a friend in a game reports
+        // PUBLIC_GAME (0x03) — game takes precedence over channel. (PRIVATE_GAME
+        // 0x05 needs a private flag on the Game aggregate, not yet modelled, so
+        // every tracked game reports as public for now.)
+        e.location = kFriendLocPublicGame;
     } else if (f.current_channel.has_value()) {
         e.location = kFriendLocChannel;
     } else {
         e.location = kFriendLocOnline;
     }
     e.client_tag    = 0;  // friend's product — needs cross-session state (later)
-    e.location_name = f.location_name;  // channel name when in a channel
+    e.location_name = f.location_name;  // channel/game name when in one
     return e;
 }
 }  // namespace
