@@ -66,12 +66,18 @@ def oracle_auth(bnetd_port, d2cs_port):
 
 
 def v3_auth(d2cs_port):
+    # v3 d2cs validates a keyed token (no live bnetd link). A mock standing in
+    # for the realm-join computes the valid token; the tampered case sends a
+    # wrong hash and must be rejected.
+    sn, sq = 1, 7
     out = {}
     c = dc.D2csClient("127.0.0.1", d2cs_port)
-    out["valid"] = c.login("d2auth")
+    out["valid"] = c.login("d2auth", sessionnum=sn,
+                           secret_hash_raw=dc.d2cs_token("d2auth", sn, sq), seqno=sq)
     c.close()
     c = dc.D2csClient("127.0.0.1", d2cs_port)
-    out["tampered"] = c.login("d2auth", secret_hash_raw=b"\xde\xad" + b"\x00" * 18)
+    out["tampered"] = c.login("d2auth", sessionnum=sn,
+                              secret_hash_raw=b"\xde\xad" + b"\x00" * 18, seqno=sq)
     c.close()
     return out
 
@@ -103,19 +109,15 @@ def main():
         print(f"oracle: {o}")
         print(f"v3    : {n}")
 
-        # Required (passes today): the oracle does REAL auth and v3 accepts a
-        # valid login (happy-path parity).
+        # The oracle does REAL session-bound auth; v3 now does REAL keyed-token
+        # auth — BOTH accept a valid login and reject a tampered one (0x0c).
         oracle_real = (o and o["valid"] == SUCCEED and
                        o["tampered"] == BADPASS and o["wrong_account"] == BADPASS)
-        v3_accepts_valid = n["valid"] == SUCCEED
-        ok = oracle_real and v3_accepts_valid
-
-        v3_rejects_tampered = n["tampered"] == BADPASS
+        v3_real = (n["valid"] == SUCCEED and n["tampered"] == BADPASS)
+        ok = oracle_real and v3_real
         print(f"oracle real-auth (valid=0/tampered=0x0c/wrong=0x0c): {oracle_real}")
-        print(f"v3 accepts valid: {v3_accepts_valid}; "
-              f"v3 rejects tampered: {v3_rejects_tampered} "
-              f"({'real auth' if v3_rejects_tampered else 'STUB — Stage 2 target'})")
-        print("OK: oracle bnetd<->d2cs auth verified; v3 happy-path parity"
+        print(f"v3 real-auth (valid=0/tampered=0x0c): {v3_real}")
+        print("OK: oracle AND v3 do real d2cs auth (accept valid, reject tampered)"
               if ok else "FAIL")
         return 0 if ok else 1
     finally:

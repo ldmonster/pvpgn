@@ -19,6 +19,21 @@ both differentially test against the original d2cs and conformance-test v3.
 import socket
 import struct
 
+import bncs_client as _bc  # for blizzard_hash (shared with the v3 token derivation)
+
+# Shared realm secret — must match kRealmKey in d2cs_tcp_session.cpp. The v3 d2cs
+# validates a LOGINREQ by recomputing blizzard_hash(key ‖ account ‖ sessionnum ‖
+# seqno) and comparing it to secret_hash; a mock standing in for the realm-join
+# that issued the token computes the same value here.
+D2CS_REALM_KEY = b"pvpgn-v3-d2cs-realm-secret-v1"
+
+
+def d2cs_token(account: str, sessionnum: int, seqno: int) -> bytes:
+    """The 20-byte keyed LOGINREQ token the v3 d2cs expects (5 LE words)."""
+    buf = (D2CS_REALM_KEY + account.encode("latin-1") +
+           struct.pack("<II", sessionnum, seqno))
+    return struct.pack("<5I", *_bc.blizzard_hash(buf))
+
 # Connection init class byte (init_protocol.h CLIENT_INITCONN_CLASS_D2CS).
 INIT_D2CS = 0x01
 

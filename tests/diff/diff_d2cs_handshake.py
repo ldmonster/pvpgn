@@ -57,8 +57,11 @@ def accepts_handshake(host, port):
 def v3_roundtrip(host, port):
     c = dc.D2csClient(host, port)
     try:
+        sn, sq = 1, 7
+        tok = dc.d2cs_token("d2tester", sn, sq)
         out = {
-            "login": c.login("d2tester"),
+            "login": c.login("d2tester", sessionnum=sn,
+                             secret_hash_raw=tok, seqno=sq),
             "create": c.create_char("Conan", char_class=4),
             "create_dup": c.create_char("Conan", char_class=4),
         }

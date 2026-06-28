@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "app/d2cs/d2cs_session_handler.hpp"
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
 #include "core/result.hpp"
+#include "infra/crypto/bnet_hash.hpp"
 #include "domain/d2cs/types.hpp"
 #include "domain/d2cs/use_cases.hpp"
 #include "protocol/d2cs/fsm.hpp"
@@ -18,10 +20,12 @@ namespace pvpgn::app::d2cs {
 D2CSSessionHandler::D2CSSessionHandler(
     domain::d2cs::ICharacterRepository& char_repo,
     domain::d2cs::ILadderRepository&    ladder_repo,
-    ID2CSSessionEgress&                 egress) noexcept
+    ID2CSSessionEgress&                 egress,
+    std::string                         realm_key) noexcept
     : char_repo_(char_repo)
     , ladder_repo_(ladder_repo)
     , egress_(egress)
+    , realm_key_(std::move(realm_key))
 {}
 
 // ---------------------------------------------------------------------------
@@ -123,8 +127,34 @@ core::Result<void, core::Error> D2CSSessionHandler::handle_login(
     // Store the account name for subsequent callbacks in this session.
     account_name_ = req.account_name;
 
-    // Stub: real bnetd authentication is wired in a later round.
-    // Always report success so the FSM can advance to the authenticated state.
+    // Real auth: when a realm key is configured, the LOGINREQ secret_hash must
+    // equal the keyed token blizzard_hash(key ‖ account ‖ sessionnum ‖ seqno) —
+    // the token a realm-join issues to a client that authenticated via bnetd.
+    // A forged or tampered hash is rejected with InvalidPassword, mirroring the
+    // original d2cs<->bnetd ACCOUNTLOGINREQ validation. With no key configured
+    // (unit tests construct the handler without one) the check is skipped.
+    if (!realm_key_.empty()) {
+        std::vector<std::byte> buf;
+        const auto put_str = [&](std::string_view s) {
+            for (char ch : s)
+                buf.push_back(static_cast<std::byte>(static_cast<unsigned char>(ch)));
+        };
+        const auto put_u32 = [&](std::uint32_t v) {
+            for (int i = 0; i < 4; ++i)
+                buf.push_back(static_cast<std::byte>((v >> (8 * i)) & 0xFFu));
+        };
+        put_str(realm_key_);
+        put_str(req.account_name);
+        put_u32(req.sessionnum);
+        put_u32(req.seqno);
+        const auto token = pvpgn::v3::infra::crypto::blizzard_hash(buf);
+        if (token != req.secret_hash) {
+            egress_.send_realm_logon_result(
+                domain::d2cs::RealmLogonResult::InvalidPassword);
+            return {};
+        }
+    }
+
     egress_.send_realm_logon_result(domain::d2cs::RealmLogonResult::Success);
     return {};
 }

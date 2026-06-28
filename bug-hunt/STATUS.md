@@ -3155,3 +3155,20 @@ fsm_test login builders (added a login_payload() helper) + the handler-test req.
 This is Stage-2a: it captures the sessionnum + secret_hash that Stage-2b
 (keyed-token validation -> reject forged creds) will check. diff_d2cs_handshake +
 diff_d2cs_auth still pass. Build + 3204/3204 unit tests (serial).
+
+## Wave 180: REAL v3 d2cs auth (Stage-2b) — keyed-token validation
+v3 d2cs LOGINREQ was a permissive stub (accepted any credentials). Now it does
+real auth: when a realm key is configured, the LOGINREQ secret_hash must equal the
+keyed token blizzard_hash(key ‖ account ‖ sessionnum ‖ seqno); a forged/tampered
+hash is rejected with RealmLogonResult::InvalidPassword (0x0c), mirroring the
+original d2cs<->bnetd ACCOUNTLOGINREQ validation. Design (no live bnetd link
+needed): D2CSSessionHandler gains an optional realm_key (empty ⇒ skip, so unit
+tests are unchanged); d2cs_tcp_session passes the production key kRealmKey;
+app_d2cs links infra_crypto for blizzard_hash (pvpgn::v3::infra::crypto). The mock
+(d2cs_client.d2cs_token, same key) stands in for the realm-join that issues the
+token. diff_d2cs_auth now asserts FULL parity: oracle AND v3 accept valid + reject
+tampered (0x0c). C++ and Python blizzard_hash verified byte-identical (valid token
+from Python accepted by v3). diff_d2cs_handshake login uses the keyed token too.
+Build + 3204/3204 unit tests (serial). **The user's "wire bnetd<->d2cs link +
+implement real v3 d2cs auth" request is now COMPLETE** (oracle link in w175, real
+v3 auth here; LOGINREQ real layout in w179).

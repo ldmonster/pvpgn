@@ -33,6 +33,12 @@ namespace pvpgn::app::d2cs {
 
 namespace {
 
+// Shared realm secret used to derive/validate the d2cs LOGINREQ token
+// (blizzard_hash(key ‖ account ‖ sessionnum ‖ seqno)). A realm-join issues the
+// token with this key; the d2cs validates it here. Mirrors the original's
+// session-bound auth without a live bnetd link. Mock clients use the same key.
+constexpr const char* kRealmKey = "pvpgn-v3-d2cs-realm-secret-v1";
+
 // Portrait constants mirror the legacy d2cs encoding (d2charfile.cpp /
 // d2cs_d2gs_character.h):
 //   header = 0x8084 (LE bytes 0x84 0x80), gfx/color/u2 pad = 0xFF,
@@ -78,7 +84,7 @@ D2CSTcpSession::D2CSTcpSession(std::shared_ptr<infra::net::TcpSession> tcp)
     , char_repo_{}
     , ladder_repo_{}
     , handler_(std::make_unique<D2CSSessionHandler>(
-          char_repo_, ladder_repo_, *this))
+          char_repo_, ladder_repo_, *this, std::string{kRealmKey}))
     , fsm_(std::make_unique<protocol::d2cs::D2CSSessionFsm>(
           handler_->make_callbacks()))
 {}

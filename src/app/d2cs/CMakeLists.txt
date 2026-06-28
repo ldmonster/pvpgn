@@ -53,6 +53,7 @@ pvpgn_v3_add_library(app_d2cs
         protocol_d2gs
         domain_d2cs
         infra_config
+        infra_crypto
 )
 
 # ---------------------------------------------------------------------------

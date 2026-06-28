@@ -80,10 +80,16 @@ public:
     /// @param char_repo   Character repository (non-owning reference).
     /// @param ladder_repo Ladder repository (non-owning reference).
     /// @param egress      Outbound response sink (non-owning reference).
+    /// @param realm_key  Shared realm secret. When non-empty, LOGINREQ is
+    ///                   authenticated (the secret_hash must equal the keyed
+    ///                   token blizzard_hash(key ‖ account ‖ sessionnum ‖
+    ///                   seqno)); when empty (unit tests) the check is skipped
+    ///                   and login is accepted.
     explicit D2CSSessionHandler(
         domain::d2cs::ICharacterRepository& char_repo,
         domain::d2cs::ILadderRepository&    ladder_repo,
-        ID2CSSessionEgress&                 egress) noexcept;
+        ID2CSSessionEgress&                 egress,
+        std::string                         realm_key = {}) noexcept;
 
     // Non-copyable, non-movable (holds references).
     D2CSSessionHandler(const D2CSSessionHandler&)            = delete;
@@ -107,6 +113,7 @@ private:
     domain::d2cs::ICharacterRepository& char_repo_;
     domain::d2cs::ILadderRepository&    ladder_repo_;
     ID2CSSessionEgress&                 egress_;
+    std::string                         realm_key_;  ///< empty ⇒ skip auth
 
     // -----------------------------------------------------------------------
     // Callback implementations
