@@ -65,6 +65,10 @@ struct MockD2CSEgress final : public ID2CSSessionEgress {
     bool              logon_called{false};
     RealmLogonResult  logon_result{RealmLogonResult::Success};
 
+    // send_motd
+    bool              motd_called{false};
+    std::string       motd_text;
+
     void send_char_list(const std::vector<CharacterInfo>& chars) override {
         char_list_called = true;
         char_list_chars  = chars;
@@ -105,6 +109,11 @@ struct MockD2CSEgress final : public ID2CSSessionEgress {
     void send_realm_logon_result(RealmLogonResult result) override {
         logon_called = true;
         logon_result = result;
+    }
+
+    void send_motd(std::string_view message) override {
+        motd_called = true;
+        motd_text   = std::string(message);
     }
 
     void reset() {
@@ -302,6 +311,23 @@ TEST_CASE("D2CSSessionHandler: on_create_char duplicate sends Rejected",
     REQUIRE(f.egress.char_create_called);
     CHECK(f.egress.char_create_result ==
           domain::d2cs::CharacterCreateResult::Rejected);
+}
+
+// ---------------------------------------------------------------------------
+// on_motd → send_motd (MOTDREPLY) — the original always replies; v3 sends the
+// conventional default text.
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionHandler: on_motd sends a MOTD reply",
+          "[app][d2cs][handler]")
+{
+    Fixture f;
+    f.login("Moe");
+
+    protocol::d2cs::D2CSMotdRequest req;
+    REQUIRE(f.cb.on_motd(req).has_value());
+
+    REQUIRE(f.egress.motd_called);
+    CHECK(f.egress.motd_text == "No Message Of The Day Set");
 }
 
 // ---------------------------------------------------------------------------

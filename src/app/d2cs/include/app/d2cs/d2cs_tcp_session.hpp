@@ -113,6 +113,8 @@ public:
     void send_realm_logon_result(
         domain::d2cs::RealmLogonResult result) override;
 
+    void send_motd(std::string_view message) override;
+
 private:
     explicit D2CSTcpSession(std::shared_ptr<infra::net::TcpSession> tcp);
 

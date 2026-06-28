@@ -162,6 +162,10 @@ void D2CSTcpSession::send_realm_logon_result(
     send_raw(protocol::d2cs::D2CSSessionFsm::make_login_reply(code));
 }
 
+void D2CSTcpSession::send_motd(std::string_view message) {
+    send_raw(protocol::d2cs::D2CSSessionFsm::make_motd_reply(message));
+}
+
 // Default per-account character cap (legacy d2cs prefs_get_maxchar default).
 static constexpr uint16_t kDefaultMaxChar = 8;
 

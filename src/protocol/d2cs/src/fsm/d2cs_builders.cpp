@@ -113,11 +113,13 @@ std::vector<uint8_t> D2CSSessionFsm::make_delete_char_reply(uint32_t result_code
 }
 
 std::vector<uint8_t> D2CSSessionFsm::make_motd_reply(std::string_view message) {
-    // Header(3) + message (null-terminated)
-    const uint16_t total = static_cast<uint16_t>(3 + message.size() + 1);
+    // Per d2cs_protocol.h t_d2cs_client_motdreply: Header(3) + u1(1) + message
+    // (null-terminated). The original leaves the u1 byte zero.
+    const uint16_t total = static_cast<uint16_t>(3 + 1 + message.size() + 1);
     std::vector<uint8_t> v;
     v.reserve(total);
     push_header(v, total, D2CSPacketType::MOTDREPLY);
+    v.push_back(0x00);  // u1
     v.insert(v.end(), message.begin(), message.end());
     v.push_back(0x00);
     return v;

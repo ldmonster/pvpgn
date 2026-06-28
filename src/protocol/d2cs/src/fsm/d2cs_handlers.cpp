@@ -416,20 +416,14 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_char_list_110(
 core::Result<void, core::Error> D2CSSessionFsm::handle_motd(
     const uint8_t* payload, size_t len)
 {
-    // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    constexpr size_t kMinFixed = 4;
-    if (len < kMinFixed) {
-        return core::fail(
-            core::make_error(core::StatusCode::InvalidArgument,
-                             "D2CS MOTDREQ: payload too short"));
-    }
-
+    // The real CLIENT_D2CS_MOTDREQ (t_client_d2cs_motdreq) is just the 3-byte
+    // header with NO body — the previous 4-byte seqno requirement rejected a
+    // real client's request. An optional leading u32 is tolerated for forward
+    // compatibility but not required.
     D2CSMotdRequest req;
     size_t offset = 0;
-    if (!read_u32le(payload, len, offset, req.seqno)) {
-        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                           "D2CS MOTDREQ: cannot read seqno"));
+    if (len >= 4) {
+        (void)read_u32le(payload, len, offset, req.seqno);
     }
 
     if (callbacks_.on_motd) {

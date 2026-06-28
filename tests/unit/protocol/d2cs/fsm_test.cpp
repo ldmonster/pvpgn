@@ -876,11 +876,12 @@ TEST_CASE("D2CSSessionFsm - TC-29 make_delete_char_reply structure", "[protocol]
 TEST_CASE("D2CSSessionFsm - TC-30 make_motd_reply structure", "[protocol][d2cs]") {
     auto reply = D2CSSessionFsm::make_motd_reply("Welcome!");
 
-    // Header(3) + "Welcome!\0"(9) = 12
-    REQUIRE(reply.size() == 12);
+    // Header(3) + u1(1) + "Welcome!\0"(9) = 13
+    REQUIRE(reply.size() == 13);
     CHECK(reply[2] == 0x12);  // MOTDREPLY
-    CHECK(reply[3] == 'W');
-    CHECK(reply[11] == 0x00);  // null terminator
+    CHECK(reply[3] == 0x00);  // u1
+    CHECK(reply[4] == 'W');
+    CHECK(reply[12] == 0x00);  // null terminator
 }
 
 // ---------------------------------------------------------------------------

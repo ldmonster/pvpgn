@@ -25,6 +25,7 @@
 ///   send_ladder           → LADDERREPLY (0x11)
 ///   send_realm_logon_result → LOGINREPLY (0x01)
 
+#include <string_view>
 #include <vector>
 
 #include "domain/d2cs/types.hpp"
@@ -91,6 +92,11 @@ public:
     /// @param result  The logon result code.
     virtual void send_realm_logon_result(
         domain::d2cs::RealmLogonResult result) = 0;
+
+    /// Send the message-of-the-day (MOTDREPLY / 0x12).
+    ///
+    /// @param message  The MOTD text (may be empty).
+    virtual void send_motd(std::string_view message) = 0;
 };
 
 } // namespace pvpgn::app::d2cs

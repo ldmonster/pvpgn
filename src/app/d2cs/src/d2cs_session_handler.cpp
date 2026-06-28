@@ -309,7 +309,10 @@ core::Result<void, core::Error> D2CSSessionHandler::handle_game_info(
 core::Result<void, core::Error> D2CSSessionHandler::handle_motd(
     const protocol::d2cs::D2CSMotdRequest& /*req*/)
 {
-    // Stub — GetMotd use case wired in a later round.
+    // The original on_client_motdreq ALWAYS replies SERVER_MOTDREPLY with
+    // prefs_get_motd(); a no-op stub hung the client. v3 has no per-realm motd
+    // config yet, so it sends the conventional d2cs default text.
+    egress_.send_motd("No Message Of The Day Set");
     return {};
 }
 

@@ -3172,3 +3172,18 @@ from Python accepted by v3). diff_d2cs_handshake login uses the keyed token too.
 Build + 3204/3204 unit tests (serial). **The user's "wire bnetd<->d2cs link +
 implement real v3 d2cs auth" request is now COMPLETE** (oracle link in w175, real
 v3 auth here; LOGINREQ real layout in w179).
+
+## Wave 182: D2CS MOTDREQ (0x12) — accept bodyless request + reply with u1 byte
+Two protocol bugs + the hang: (1) handle_motd required a 4-byte seqno, but the
+real CLIENT_D2CS_MOTDREQ (t_client_d2cs_motdreq) is just the 3-byte header with NO
+body — v3 rejected a real client's request; now the leading u32 is optional.
+(2) make_motd_reply omitted the leading u1 byte that t_d2cs_client_motdreply has
+(Header + u1 + message) — added it (u1=0, as the original). (3) wired the app
+handler (was a no-op): on_motd now sends SERVER_MOTDREPLY with the conventional
+default "No Message Of The Day Set" (v3 has no per-realm motd config yet) via a
+new ID2CSSessionEgress::send_motd. Verified end-to-end on v3 (mock MOTDREQ ->
+u1=0 + default text) + unit tests (TC-15/TC-30 updated, new handler test).
+NOTE: a full oracle differential is BLOCKED — the original gates MOTDREQ on
+conn_state_char_authed, which needs a created character, which needs real D2
+newbie .d2s templates the harness can't synthesise. GAMELISTREQ/GAMEINFOREQ are
+similarly char_authed-gated (deferred). Build + 3205/3205 unit tests (serial).
