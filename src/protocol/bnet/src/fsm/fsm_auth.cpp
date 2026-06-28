@@ -505,7 +505,14 @@ core::Status<> BnetFsm::on(const ProgIdent& m) {
     reply.equation = "A=1 B=1 C=1 4 A=A^S B=B^C C=C^A A=A^B";
     return ctx_->send(ServerMessage{reply});
 }
-core::Status<> BnetFsm::on(const AuthReq1&)              { return core::ok(); }
+core::Status<> BnetFsm::on(const AuthReq1&) {
+    // Legacy version-check (SID_AUTHREQ1, 0x07; SC1.0 / D2 1.00-1.07). The
+    // original _client_authreq1 ALWAYS sends SERVER_AUTHREPLY1 — a no-op stub
+    // hung those clients. Version-check policy is not enforced under the test
+    // config (allow_bad_version/allow_unknown_version), so reply OK (the default;
+    // the encoder always appends the two trailing empty strings for parity).
+    return ctx_->send(ServerMessage{AuthReply1{}});
+}
 core::Status<> BnetFsm::on(const CountryInfo1&)          { return core::ok(); }
 // CLIENT_COMPINFO2 (SID 0x1E): sibling of COMPINFO1. The oracle replies with
 // SERVER_COMPREPLY followed by SERVER_SESSIONKEY2 (sessionnum + sessionkey).
@@ -617,7 +624,14 @@ core::Status<> BnetFsm::on(const CreateAccount1Request& m) {
     return ctx_->send(ServerMessage{CreateAccount1Reply{code}});
 }
 core::Status<> BnetFsm::on(const Unknown2B&)             { return core::ok(); }
-core::Status<> BnetFsm::on(const CdKeyLegacyRequest&)    { return core::ok(); }
+core::Status<> BnetFsm::on(const CdKeyLegacyRequest& m) {
+    // Legacy CD-key check (SID_CDKEY, 0x30). The original _client_cdkey always
+    // replies SERVER_CDKEYREPLY with MESSAGE_OK + the owner string (it stores
+    // the owner via conn_set_owner and does not validate the key under the test
+    // config); a no-op stub hung the client.
+    return ctx_->send(
+        ServerMessage{CdKeyLegacyReply{kCdKeyLegacyMessageOk, m.owner_name}});
+}
 core::Status<> BnetFsm::on(const ChangePasswordRequest& m) {
     // SID_CHANGEPASSWORD (0x31), legacy OLS: the client sends the old password
     // as a session-hash (double-hash of stored hash1 with ticks+sessionkey) and

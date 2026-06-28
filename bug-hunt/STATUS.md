@@ -3107,3 +3107,19 @@ AUTHREPLY1/CDKEYREPLY) — needs reply message structs + encoders added (AuthRep
 CdKeyReply don't exist yet). WOL ISON(303)/WHO(352+315)/WHOIS(311+318) silent in
 v3 vs original — implement next. runtime/peer_link + service_host + realm
 character_persistence are TODO stubs (incomplete features, not differential bugs).
+
+## Wave 177: wire legacy SID_AUTHREQ1 (0x07) + SID_CDKEY (0x30) replies (were no-op)
+Both were `return core::ok();` stubs that sent nothing — a legacy client
+(SC1.0/D2 1.0x version-check; old CD-key flow) hung. The reply message structs +
+encoders + variant entries (AuthReply1, CdKeyLegacyReply) already existed; only the
+handlers needed wiring.
+- on(CdKeyLegacyRequest): reply SERVER_CDKEYREPLY MESSAGE_OK (0x01) + the owner
+  string echoed, exactly as the original _client_cdkey (no key validation under
+  the test config). diff_cdkey_legacy.py: oracle=v3=(1,"OwnerGuy").
+- on(AuthReq1): reply SERVER_AUTHREPLY1 OK (the encoder always appends the 2
+  trailing empty strings for legacy parity). NOTE: a byte-exact AUTHREQ1
+  differential needs the legacy pre-handshake (CLIENT_AUTHREQ/PROGIDENT sets the
+  conn's archtag/clienttag/versionid that AUTHREQ1's sanity checks compare) +
+  versioncheck data — v3 models neither, so the message code (OK vs the harness
+  oracle's no-versioncheck BADVERSION) isn't cleanly diffable. The hang is fixed
+  (v3 now replies), which is the robustness win.
