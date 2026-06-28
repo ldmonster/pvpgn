@@ -3231,3 +3231,12 @@ v3 emitted ':server 439 <nick> SQUADINFO :ID does not exist'; the original
 irc_send(ERR_IDNOEXIST, ":ID does not exist") does NOT echo the command name.
 Fixed the send_numeric text to bare "ID does not exist". diff_wol_squadinfo.py:
 trailing matches, no command name in the middle params.
+
+## Wave 187: AUTH_INFO sends SERVER_ECHOREQ (0x25) before the 0x50 reply (fleet-found)
+The fleet found the original answers AUTH_INFO by first queuing a SERVER_ECHOREQ
+(0x25 PING latency cookie, handle_bnet.cpp:572) THEN SERVER_AUTHREQ_109 (0x50);
+v3 sent only the 0x50 reply. Now BnetFsm::on(AuthInfo) sends Ping{server_token_}
+before the AuthInfoReply (the client echoes it via CLIENT_ECHOREPLY, which
+on(Ping) already ignores). diff_auth_echoreq.py: both emit 0x25 then 0x50.
+Updated 2 fsm_test AUTH_INFO assertions (sent.size 1->2, Ping at [0]). OLS login +
+chat diffs still pass (the mock's _drain_until already echoed the oracle's ping).

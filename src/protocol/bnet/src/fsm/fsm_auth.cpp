@@ -100,6 +100,14 @@ core::Status<> BnetFsm::on(const AuthInfo& m) {
     // the returned checksum under the test config.
     reply.mpq_filename     = "ver-IX86-1.mpq";
     reply.checksum_formula = "A=1 B=1 C=1 4 A=A^S B=B^C C=C^A A=A^B";
+
+    // The original (handle_bnet.cpp) sends a SERVER_ECHOREQ (0x25) latency cookie
+    // BEFORE the AUTH_INFO reply — the client echoes it back via CLIENT_ECHOREPLY
+    // (0x25), which on(Ping) accepts and ignores. Mirror that ordering so a real
+    // client measures latency exactly as it does against the original.
+    if (auto st = ctx_->send(ServerMessage{Ping{server_token_}}); !st) {
+        return st;
+    }
     return ctx_->send(ServerMessage{reply});
 }
 
