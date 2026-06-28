@@ -3258,3 +3258,14 @@ cross-session away/dnd/clienttag/game state. EID roster-event per-recipient sque
 flag (MF_X 0x20) — needs per-recipient segmented delivery. W3/NLS locked-account
 check (0x54/0x56) — untestable (can't lock via mock), like the OLS locked code.
 JOINGAME game_id=0 placeholder + GETCODEPAGE/GETLOCALE other-users (cross-session).
+
+## Wave 189: SID_FRIENDSLIST mutual status bit (0x01) — friends-cluster part 1
+First slice of the fleet-2 FRIENDSLIST field cluster. The per-friend status byte
+was hardcoded 0; the original sets FRIEND_TYPE_MUTUAL (0x01) when the friend also
+lists the owner. This is pullable from the friend lists alone (no new presence
+port): ListFriends now cross-checks friend_lists_->find_by_owner(friend).contains
+(owner) -> FriendInfo.is_mutual; friend_to_entry maps it to status 0x01.
+diff_friends_mutual.py: A<->B mutual -> 0x01, A->C one-way -> 0x00, matching the
+oracle. (DND 0x02 / AWAY 0x04 status bits + client_tag + game/channel location +
+location_name still need a cross-session presence view — next slices.) Build +
+3206/3206 unit tests; diff_friends/friendinfo/trailing still match.

@@ -884,9 +884,9 @@ constexpr std::uint8_t kFriendTypeMutual = 0x01;
 FriendsListEntry friend_to_entry(const application::social::FriendInfo& f) {
     FriendsListEntry e;
     e.name = std::string{f.name.display()};
-    // Mutual-ness is not modelled per-entry here; report 0 (the differential
-    // compares names + online state, which is the stable observable).
-    e.status = 0;
+    // FRIEND_TYPE_MUTUAL (0x01) when the friend also lists the owner. (DND 0x02 /
+    // AWAY 0x04 need cross-session away/dnd state not yet exposed per account.)
+    e.status = f.is_mutual ? kFriendTypeMutual : std::uint8_t{0};
     if (!f.is_online) {
         e.location = kFriendLocOffline;
     } else if (f.current_channel.has_value()) {

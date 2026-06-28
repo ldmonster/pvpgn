@@ -33,10 +33,18 @@ ListFriends::execute(domain::AccountId owner) {
         auto session_result = registry_->session_for(friend_id);
         bool is_online = session_result.has_value();
 
+        // Mutual iff the friend also lists the owner (the original sets
+        // FRIEND_TYPE_MUTUAL 0x01 in the friend's status byte for this case).
+        bool is_mutual = false;
+        if (auto their_list = friend_lists_->find_by_owner(friend_id)) {
+            is_mutual = their_list.value().contains(owner);
+        }
+
         FriendInfo info{
             .id = friend_id,
             .name = account.name(),
             .is_online = is_online,
+            .is_mutual = is_mutual,
             .current_channel = std::nullopt,
             .current_game = std::nullopt,
         };

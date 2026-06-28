@@ -21,6 +21,7 @@ struct FriendInfo {
     domain::AccountId             id;
     domain::UserName              name;
     bool                          is_online;
+    bool                          is_mutual = false;  ///< friend also lists the owner
     std::optional<domain::ChannelId> current_channel;
     std::optional<domain::GameId>    current_game;
 };
