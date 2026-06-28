@@ -316,6 +316,11 @@ private:
     /// Username stored at login time, used in broadcast ChatEvents.
     std::string current_username_;
 
+    /// /away and /dnd toggle state: non-empty ⇒ the mode is active (the string
+    /// is the away/DND message). Mirrors the original's conn awaystr/dndstr.
+    std::string away_state_;
+    std::string dnd_state_;
+
     /// "No-UDP plug" flag (MF_PLUG, 0x10). The original creates every bnet
     /// connection with MF_PLUG set (connection.cpp:383) and clears it on the
     /// FIRST channel join via channel_set_userflags (handle_bnet.cpp:3704). The

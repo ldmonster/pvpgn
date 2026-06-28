@@ -461,6 +461,40 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
                 return ctx_->send(ServerMessage{ChatEvent{
                     kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum,
                     kChatEventRegAuth, "", "Audible notification off."}});
+            // /away and /dnd toggle the away/DND mode and acknowledge with an
+            // EID_INFO, mirroring _handle_away_command / _handle_dnd_command.
+            // With an argument the mode is set with that text; with no argument
+            // it toggles (and the OFF message differs from the ON message).
+            if (cmd == "away") {
+                std::string msg;
+                if (info_args.empty() && !away_state_.empty()) {
+                    away_state_.clear();
+                    msg = "You are no longer marked as away.";
+                } else {
+                    away_state_ = info_args.empty()
+                                      ? std::string{"Currently not available"}
+                                      : std::string{info_args};
+                    msg = "You are now marked as being away.";
+                }
+                return ctx_->send(ServerMessage{ChatEvent{
+                    kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum,
+                    kChatEventRegAuth, "", msg}});
+            }
+            if (cmd == "dnd") {
+                std::string msg;
+                if (info_args.empty() && !dnd_state_.empty()) {
+                    dnd_state_.clear();
+                    msg = "Do Not Disturb mode canceled.";
+                } else {
+                    dnd_state_ = info_args.empty()
+                                     ? std::string{"Not available"}
+                                     : std::string{info_args};
+                    msg = "Do Not Disturb mode engaged.";
+                }
+                return ctx_->send(ServerMessage{ChatEvent{
+                    kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum,
+                    kChatEventRegAuth, "", msg}});
+            }
             if (cmd == "squelch" || cmd == "ignore")
                 return handle_squelch(info_args, /*add=*/true);
             if (cmd == "unsquelch" || cmd == "unignore")

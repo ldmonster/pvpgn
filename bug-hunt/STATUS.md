@@ -3217,3 +3217,17 @@ fsm_test assertions (were pinning the wrong 0x00). NOTE: STARTGAME4's protocol
 constants are genuinely inverted (OK=0x00), so v3's StartGame4 0x00-on-success is
 CORRECT and was left as-is (that's why the fleet flagged only 1 & 3). Build +
 3206/3206 unit tests pass.
+
+## Wave 185: BNCS /away + /dnd commands (fleet-found) — EID_INFO toggle
+The fleet found /away and /dnd fell through to EID_ERROR "Unknown command" — the
+original (_handle_away_command/_handle_dnd_command) acknowledges with EID_INFO and
+toggles the mode. Added both to the slash-command interceptor with per-session
+away_state_/dnd_state_ on BnetFsm: no-arg toggles (ON msg differs from OFF msg),
+arg sets the message. diff_away_dnd.py: both reply EID_INFO (0x12) on toggle.
+(The away/dnd whisper-autoreply behaviour is a separate unmodeled feature.)
+
+## Wave 186: WOL SQUADINFO/CLANBYNAME 439 dropped the command name (fleet-found)
+v3 emitted ':server 439 <nick> SQUADINFO :ID does not exist'; the original
+irc_send(ERR_IDNOEXIST, ":ID does not exist") does NOT echo the command name.
+Fixed the send_numeric text to bare "ID does not exist". diff_wol_squadinfo.py:
+trailing matches, no command name in the middle params.
