@@ -29,6 +29,12 @@ namespace pvpgn::protocol::bnet {
 namespace {
 constexpr std::uint32_t kStartGameStatusMask = 0x0000000fu;
 constexpr std::uint32_t kStartGameStatusDone = 0x0000000cu;
+// The legacy SID_STARTGAME1/3 packets carry no max-players field (only status,
+// gametype, and the game/pass/info strings), and the original creates the game
+// unconditionally. Use a sensible default capacity so StartGame::execute's
+// 1..16 validation always passes — anything else made a status=OPEN with the
+// common gametype=0 fail the player-cap check and reply NO instead of OK.
+constexpr std::uint8_t kStartGameDefaultMaxPlayers = 8;
 }  // namespace
 
 core::Status<> BnetFsm::on(const StartGame1Request& m) {
@@ -56,7 +62,7 @@ core::Status<> BnetFsm::on(const StartGame1Request& m) {
     // Call start_game use-case with game parameters from request
     auto start_result = use_cases_.start_game->execute(
         current_account_id_, client_tag_,
-        m.game_name, "", static_cast<std::uint8_t>(m.gametype & 0xFFu));  // Empty map_name for now
+        m.game_name, "", kStartGameDefaultMaxPlayers);  // Empty map_name for now
 
     if (!start_result) {
         // Game start failed
@@ -93,7 +99,7 @@ core::Status<> BnetFsm::on(const StartGame3Request& m) {
     // Call start_game use-case with game parameters from request
     auto start_result = use_cases_.start_game->execute(
         current_account_id_, client_tag_,
-        m.game_name, "", static_cast<std::uint8_t>(m.gametype & 0xFFu));
+        m.game_name, "", kStartGameDefaultMaxPlayers);
 
     if (!start_result) {
         return ctx_->send(ServerMessage{StartGame3Ack{game::kStartGame3AckNo}});
