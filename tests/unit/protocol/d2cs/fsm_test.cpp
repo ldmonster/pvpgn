@@ -1326,9 +1326,10 @@ TEST_CASE("D2CSSessionFsm - TC-53 CHARLISTREQ110 on_char_list_110 callback invok
 }
 
 // ---------------------------------------------------------------------------
-// TC-54: CHARLISTREQ110 — both on_char_list AND on_char_list_110 are called
+// TC-54: CHARLISTREQ110 — fires ONLY the 110 callback when both are registered
+// (a 0x19 request must produce exactly one 0x19 reply, not also a 0x17 one).
 // ---------------------------------------------------------------------------
-TEST_CASE("D2CSSessionFsm - TC-54 CHARLISTREQ110 fires both callbacks", "[protocol][d2cs]") {
+TEST_CASE("D2CSSessionFsm - TC-54 CHARLISTREQ110 fires only the 110 callback", "[protocol][d2cs]") {
     bool called_base = false;
     bool called_110  = false;
 
@@ -1348,8 +1349,8 @@ TEST_CASE("D2CSSessionFsm - TC-54 CHARLISTREQ110 fires both callbacks", "[protoc
 
     auto r = feed(fsm, make_packet(0x19, payload));
     REQUIRE(r);
-    CHECK(called_base);
     CHECK(called_110);
+    CHECK_FALSE(called_base);  // base 0x17 handler must NOT also fire
 }
 
 // ---------------------------------------------------------------------------
@@ -1372,13 +1373,17 @@ TEST_CASE("D2CSSessionFsm - TC-55 CHARLISTREQ110 on_char_list_110 failure propag
 }
 
 // ---------------------------------------------------------------------------
-// TC-56: CHARLISTREQ110 — on_char_list failure stops before on_char_list_110
+// TC-56: CHARLISTREQ110 — when on_char_list_110 is registered it takes
+// precedence and the base on_char_list is never consulted (so a failing base
+// handler is irrelevant to a 0x19 request).
 // ---------------------------------------------------------------------------
-TEST_CASE("D2CSSessionFsm - TC-56 CHARLISTREQ110 base callback failure stops chain", "[protocol][d2cs]") {
-    bool called_110 = false;
+TEST_CASE("D2CSSessionFsm - TC-56 CHARLISTREQ110 ignores base when 110 registered", "[protocol][d2cs]") {
+    bool called_base = false;
+    bool called_110  = false;
 
     D2CSFsmCallbacks cb;
-    cb.on_char_list = [](const D2CSCharListRequest&) {
+    cb.on_char_list = [&](const D2CSCharListRequest&) {
+        called_base = true;
         return core::fail(
             core::make_error(core::StatusCode::PermissionDenied, "denied"));
     };
@@ -1392,9 +1397,31 @@ TEST_CASE("D2CSSessionFsm - TC-56 CHARLISTREQ110 base callback failure stops cha
     push_u32(payload, 1);
 
     auto r = feed(fsm, make_packet(0x19, payload));
-    CHECK_FALSE(r);
-    CHECK(r.error().code() == core::StatusCode::PermissionDenied);
-    CHECK_FALSE(called_110);  // on_char_list_110 must NOT be called after base fails
+    REQUIRE(r);                  // succeeds: only the 110 handler runs
+    CHECK(called_110);
+    CHECK_FALSE(called_base);    // base 0x17 handler must NOT fire for a 0x19 request
+}
+
+// ---------------------------------------------------------------------------
+// TC-56b: CHARLISTREQ110 — falls back to on_char_list when no 110 handler is
+// registered (backward compatibility).
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-56b CHARLISTREQ110 falls back to base callback", "[protocol][d2cs]") {
+    bool called_base = false;
+
+    D2CSFsmCallbacks cb;
+    cb.on_char_list = [&](const D2CSCharListRequest&) {
+        called_base = true;
+        return core::Result<void, core::Error>();
+    };
+    D2CSSessionFsm fsm(cb);
+
+    std::vector<uint8_t> payload;
+    push_u32(payload, 1);
+
+    auto r = feed(fsm, make_packet(0x19, payload));
+    REQUIRE(r);
+    CHECK(called_base);  // no 110 handler -> base handler is the fallback
 }
 
 // ---------------------------------------------------------------------------

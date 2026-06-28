@@ -137,3 +137,38 @@ TEST_CASE("charlistreply: portrait may contain non-printable bytes (no NUL)",
     CHECK(static_cast<std::uint8_t>(bytes[15]) == 0x80u);
     CHECK(static_cast<std::uint8_t>(bytes[16]) == 0u);
 }
+
+TEST_CASE("charlistreply_110: type byte 0x19 and per-char expire_time prefix",
+          "[protocol][d2cs][charlistreply]") {
+    clr::CharEntry e;
+    e.charname    = "X";
+    e.portrait    = { std::byte{0xAB} };
+    e.expire_time = 0x7FFFFFFFu;
+    auto bytes = clr::encode_110(/*maxchar_field=*/1, { e });
+
+    // Base 11 + expire_time 4 + "X\0" 2 + 1 portrait byte + portrait NUL 1 = 19.
+    REQUIRE(bytes.size() == 19u);
+    CHECK(static_cast<std::uint8_t>(bytes[2]) == clr::kPacketType110);  // 0x19
+    CHECK(u16le(bytes, 0) == 19);                                       // size
+    CHECK(u16le(bytes, 3) == 1);                                        // maxchar
+    CHECK(u16le(bytes, 5) == 1);                                        // currchar
+    CHECK(u16le(bytes, 7) == 0);                                        // u1
+    CHECK(u16le(bytes, 9) == 1);                                        // currchar2
+    // Per-char block: expire_time (LE u32) first, then name+NUL, portrait+NUL.
+    CHECK(static_cast<std::uint8_t>(bytes[11]) == 0xFFu);
+    CHECK(static_cast<std::uint8_t>(bytes[12]) == 0xFFu);
+    CHECK(static_cast<std::uint8_t>(bytes[13]) == 0xFFu);
+    CHECK(static_cast<std::uint8_t>(bytes[14]) == 0x7Fu);
+    CHECK(static_cast<char>(bytes[15]) == 'X');
+    CHECK(static_cast<std::uint8_t>(bytes[16]) == 0u);     // name NUL
+    CHECK(static_cast<std::uint8_t>(bytes[17]) == 0xABu);  // portrait byte
+    CHECK(static_cast<std::uint8_t>(bytes[18]) == 0u);     // portrait NUL
+}
+
+TEST_CASE("charlistreply_110: empty list still emits 0x19 base packet",
+          "[protocol][d2cs][charlistreply]") {
+    auto bytes = clr::encode_110(/*maxchar_field=*/0, /*entries=*/{});
+    REQUIRE(bytes.size() == clr::kReplyBaseSize);
+    CHECK(static_cast<std::uint8_t>(bytes[2]) == clr::kPacketType110);
+    CHECK(u16le(bytes, 5) == 0);  // currchar
+}

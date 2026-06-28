@@ -280,6 +280,13 @@ public:
         uint16_t maxchar_field,
         const std::vector<charlistreply::CharEntry>& entries);
 
+    /// Build a CHARLISTREPLY_110 packet (0x19, 1.10+ clients). Identical to
+    /// make_char_list_reply except the type byte is 0x19 and each entry is
+    /// prefixed with its 4-byte expire_time.
+    [[nodiscard]] static std::vector<uint8_t> make_char_list_reply_110(
+        uint16_t maxchar_field,
+        const std::vector<charlistreply::CharEntry>& entries);
+
     /// Build a CREATECHARREPLY packet.
     /// @param result_code  0x00 = success, 0x01 = failed, 0x14 = already exists
     [[nodiscard]] static std::vector<uint8_t> make_create_char_reply(uint32_t result_code);

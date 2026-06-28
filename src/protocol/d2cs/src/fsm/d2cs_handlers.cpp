@@ -424,16 +424,17 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_char_list_110(
                                            "D2CS CHARLISTREQ110: cannot read seqno"));
     }
 
-    // Fire the base on_char_list callback first (backward-compat: TC-34).
-    if (callbacks_.on_char_list) {
-        auto result = callbacks_.on_char_list(req);
+    // A 0x19 request must produce exactly ONE 0x19 reply. Fire the 1.10+
+    // callback when registered; only fall back to the base on_char_list
+    // callback when no 110-specific handler exists. (Firing both produced two
+    // replies — and both as the wrong 0x17 type — for a single 0x19 request.)
+    if (callbacks_.on_char_list_110) {
+        auto result = callbacks_.on_char_list_110(req);
         if (!result) {
             return core::fail(std::move(result).error());
         }
-    }
-    // Fire the 1.10+-specific callback if registered.
-    if (callbacks_.on_char_list_110) {
-        auto result = callbacks_.on_char_list_110(req);
+    } else if (callbacks_.on_char_list) {
+        auto result = callbacks_.on_char_list(req);
         if (!result) {
             return core::fail(std::move(result).error());
         }

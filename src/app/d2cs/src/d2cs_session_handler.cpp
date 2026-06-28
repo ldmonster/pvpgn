@@ -221,11 +221,19 @@ core::Result<void, core::Error> D2CSSessionHandler::handle_char_list(
 }
 
 core::Result<void, core::Error> D2CSSessionHandler::handle_char_list_110(
-    const protocol::d2cs::D2CSCharListRequest& req)
+    const protocol::d2cs::D2CSCharListRequest& /*req*/)
 {
-    // 1.10+ variant uses the same domain logic; the wire encoding difference
-    // is handled by the egress implementation.
-    return handle_char_list(req);
+    // 1.10+ variant: same domain logic as handle_char_list, but the reply must
+    // be the 0x19 packet (per-char expire_time), so route to send_char_list_110.
+    domain::d2cs::CharacterListUseCase uc{char_repo_};
+    auto result = uc.execute(account_name_);
+
+    if (result.has_value()) {
+        egress_.send_char_list_110(result.value());
+    } else {
+        egress_.send_char_list_result(false);
+    }
+    return {};
 }
 
 core::Result<void, core::Error> D2CSSessionHandler::handle_ladder(

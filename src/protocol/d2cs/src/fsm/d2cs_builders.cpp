@@ -94,6 +94,23 @@ std::vector<uint8_t> D2CSSessionFsm::make_char_list_reply(
     return v;
 }
 
+std::vector<uint8_t> D2CSSessionFsm::make_char_list_reply_110(
+    uint16_t maxchar_field,
+    const std::vector<charlistreply::CharEntry>& entries)
+{
+    // CHARLISTREPLY_110 (0x19): same header as 0x17 but each per-char entry is
+    // prefixed with a 4-byte LE expire_time (see charlistreply::encode_110 and
+    // the legacy on_client_charlistreq_110 in handle_d2cs.cpp).
+    const auto bytes = charlistreply::encode_110(maxchar_field, entries);
+
+    std::vector<uint8_t> v;
+    v.reserve(bytes.size());
+    for (std::byte b : bytes) {
+        v.push_back(static_cast<uint8_t>(b));
+    }
+    return v;
+}
+
 std::vector<uint8_t> D2CSSessionFsm::make_create_char_reply(uint32_t result_code) {
     // Header(3) + result_code(4) = 7 bytes
     std::vector<uint8_t> v;

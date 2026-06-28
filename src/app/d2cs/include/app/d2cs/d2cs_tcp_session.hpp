@@ -96,6 +96,9 @@ public:
     void send_char_list(
         const std::vector<domain::d2cs::CharacterInfo>& chars) override;
 
+    void send_char_list_110(
+        const std::vector<domain::d2cs::CharacterInfo>& chars) override;
+
     void send_char_list_result(bool success) override;
 
     void send_char_select_result(

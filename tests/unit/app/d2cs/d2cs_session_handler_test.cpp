@@ -74,6 +74,15 @@ struct MockD2CSEgress final : public ID2CSSessionEgress {
         char_list_chars  = chars;
     }
 
+    // send_char_list_110 (1.10+ variant, 0x19)
+    bool                        char_list_110_called{false};
+    std::vector<CharacterInfo>  char_list_110_chars;
+
+    void send_char_list_110(const std::vector<CharacterInfo>& chars) override {
+        char_list_110_called = true;
+        char_list_110_chars  = chars;
+    }
+
     void send_char_list_result(bool success) override {
         char_list_result_called  = true;
         char_list_result_success = success;
@@ -454,9 +463,11 @@ TEST_CASE("D2CSSessionHandler: on_char_list_110 sends char list (1.10+ variant)"
     req.seqno = 1;
     REQUIRE(f.cb.on_char_list_110(req).has_value());
 
-    REQUIRE(f.egress.char_list_called);
-    REQUIRE(f.egress.char_list_chars.size() == 1);
-    CHECK(f.egress.char_list_chars[0].name == "LeoChar");
+    // The 1.10+ request routes to the 0x19 egress path, NOT the 0x17 one.
+    REQUIRE(f.egress.char_list_110_called);
+    CHECK_FALSE(f.egress.char_list_called);
+    REQUIRE(f.egress.char_list_110_chars.size() == 1);
+    CHECK(f.egress.char_list_110_chars[0].name == "LeoChar");
 }
 
 // ---------------------------------------------------------------------------

@@ -53,6 +53,15 @@ public:
     virtual void send_char_list(
         const std::vector<domain::d2cs::CharacterInfo>& chars) = 0;
 
+    /// Send the character list to a 1.10+ client (CHARLISTREPLY_110 / 0x19).
+    ///
+    /// Differs from send_char_list only in the wire encoding: packet type 0x19
+    /// and a per-character 4-byte expire_time prefix.
+    ///
+    /// @param chars  All characters belonging to the account (may be empty).
+    virtual void send_char_list_110(
+        const std::vector<domain::d2cs::CharacterInfo>& chars) = 0;
+
     /// Send the result of a character-list request (success/failure flag).
     ///
     /// Used when the repository returns `std::nullopt` (error path).

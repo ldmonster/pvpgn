@@ -191,6 +191,32 @@ void D2CSTcpSession::send_char_list(
         maxchar_field, entries));
 }
 
+void D2CSTcpSession::send_char_list_110(
+    const std::vector<domain::d2cs::CharacterInfo>& chars) {
+    // Same as send_char_list but emits the 1.10+ reply (0x19) with a per-char
+    // expire_time. With character expiry disabled (the default config,
+    // char_expire_day = 0), the legacy server emits 0x7FFFFFFF for every char;
+    // the in-memory v3 realm has no per-char last-access time, so it mirrors
+    // that "never expires" sentinel.
+    constexpr std::uint32_t kNeverExpires = 0x7FFFFFFFu;
+
+    std::vector<protocol::d2cs::charlistreply::CharEntry> entries;
+    entries.reserve(chars.size());
+    for (const auto& c : chars) {
+        protocol::d2cs::charlistreply::CharEntry e;
+        e.charname    = c.name;
+        e.portrait    = build_portrait(c);
+        e.expire_time = kNeverExpires;
+        entries.push_back(std::move(e));
+    }
+
+    const uint16_t maxchar_field =
+        (chars.size() < kDefaultMaxChar) ? kDefaultMaxChar : 0;
+
+    send_raw(protocol::d2cs::D2CSSessionFsm::make_char_list_reply_110(
+        maxchar_field, entries));
+}
+
 void D2CSTcpSession::send_char_list_result(bool success) {
     // Send an empty char list on failure (client will show "no characters").
     if (!success) {
