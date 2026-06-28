@@ -178,16 +178,18 @@ TEST_CASE("d2dbs: 0x32 UPDATE_LADDER request round-trip",
 TEST_CASE("d2dbs: 0x33 CHAR_LOCK lock + unlock round-trip",
           "[protocol][d2dbs]") {
     CharLockRequest lock{};
-    lock.seqno      = 0x10000000u;
-    lock.lockstatus = 1;
-    lock.charname   = "Mage";
-    lock.realmname  = "EU";
+    lock.seqno       = 0x10000000u;
+    lock.lockstatus  = 1;
+    lock.accountname = "mageacct";
+    lock.charname    = "Mage";
+    lock.realmname   = "EU";
     round_trip_up<CharLockRequest, CharLockRequest>(lock);
 
     CharLockRequest unlock{};
-    unlock.seqno      = 0x10000001u;
-    unlock.lockstatus = 0;
-    unlock.charname   = "Mage";
-    unlock.realmname  = "EU";
+    unlock.seqno       = 0x10000001u;
+    unlock.lockstatus  = 0;
+    unlock.accountname = "mageacct";
+    unlock.charname    = "Mage";
+    unlock.realmname   = "EU";
     round_trip_up<CharLockRequest, CharLockRequest>(unlock);
 }

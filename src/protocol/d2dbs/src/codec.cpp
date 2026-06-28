@@ -155,6 +155,8 @@ core::Result<CharLockRequest> dec_char_lock(const D2dbsHeader& hdr,
     m.seqno = hdr.seqno;
     auto ls = r.read_le<std::uint32_t>(); if (!ls) return core::fail(ls.error());
     m.lockstatus = ls.value();
+    auto an = read_cstr(r); if (!an) return core::fail(an.error());
+    m.accountname = std::move(an.value());
     auto cn = read_cstr(r); if (!cn) return core::fail(cn.error());
     m.charname = std::move(cn.value());
     auto rn = read_cstr(r); if (!rn) return core::fail(rn.error());
@@ -348,10 +350,12 @@ core::Status<> encode(Writer& w, const UpdateLadderRequest& m) {
 core::Status<> encode(Writer& w, const CharLockRequest& m) {
     const std::uint16_t total = framed_size(
         std::size_t{4}
+        + m.accountname.size() + 1
         + m.charname.size() + 1
         + m.realmname.size() + 1);
     write_header(w, total, kCharLock, m.seqno);
     w.write_le<std::uint32_t>(m.lockstatus);
+    write_cstr(w, m.accountname);
     write_cstr(w, m.charname);
     write_cstr(w, m.realmname);
     return core::ok();

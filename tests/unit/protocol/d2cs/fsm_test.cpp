@@ -247,11 +247,16 @@ TEST_CASE("D2CSSessionFsm - TC-08 CREATEGAMEREQ callback and state transition", 
     };
     D2CSSessionFsm fsm(cb);
 
+    // Wire layout: u16 seqno, u32 gameflag, u8 u1, u8 leveldiff, u8 maxchar,
+    // then 3 cstrings. difficulty/hardcore/expansion are derived from gameflag
+    // bits (game.h): difficulty=(flag>>12)&7, hardcore=0x800, expansion=0x100000.
+    // gameflag 0x00101000 -> difficulty=1 (Nightmare), hardcore=0, expansion=1.
     std::vector<uint8_t> payload;
-    push_u32(payload, 99);  // seqno
-    payload.push_back(1);   // difficulty = Nightmare
-    payload.push_back(0);   // hardcore = false
-    payload.push_back(1);   // expansion = true
+    push_u16(payload, 99);          // seqno (bn_short)
+    push_u32(payload, 0x00101000);  // gameflag
+    payload.push_back(0);           // u1
+    payload.push_back(0);           // leveldiff
+    payload.push_back(0);           // maxchar
     push_cstr(payload, "MyGame");
     push_cstr(payload, "secret");
     push_cstr(payload, "A fun game");
@@ -286,7 +291,7 @@ TEST_CASE("D2CSSessionFsm - TC-09 JOINGAMEREQ callback and state transition", "[
     D2CSSessionFsm fsm(cb);
 
     std::vector<uint8_t> payload;
-    push_u32(payload, 55);  // seqno
+    push_u16(payload, 55);  // seqno (bn_short, per d2cs_protocol.h)
     push_cstr(payload, "ExistingGame");
     push_cstr(payload, "pass123");
 
@@ -584,15 +589,15 @@ TEST_CASE("D2CSSessionFsm - TC-17 CONVERTCHARREQ callback invoked", "[protocol][
     };
     D2CSSessionFsm fsm(cb);
 
+    // t_client_d2cs_convertcharreq is header-only — NO seqno; the char name
+    // begins at the first post-header byte.
     std::vector<uint8_t> payload;
-    push_u32(payload, 88);  // seqno
     push_cstr(payload, "ClassicChar");
 
     auto r = feed(fsm, make_packet(0x18, payload));
 
     REQUIRE(r);
     CHECK(called);
-    CHECK(captured.seqno == 88);
     CHECK(captured.char_name == "ClassicChar");
 }
 

@@ -141,6 +141,9 @@ struct CharLockRequest {
     std::uint32_t  seqno      = 0;
     /// Non-zero -> lock; zero -> unlock (matches legacy semantics).
     std::uint32_t  lockstatus = 0;
+    /// Variable tail order on the wire is AccountName, CharName, RealmName
+    /// (dbspacket.cpp dbs_packet_charlock reads all three, in that order).
+    std::string    accountname;
     std::string    charname;
     std::string    realmname;
     bool operator==(const CharLockRequest&) const = default;

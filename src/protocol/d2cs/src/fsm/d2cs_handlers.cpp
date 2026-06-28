@@ -115,15 +115,20 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_char_login(
 core::Result<void, core::Error> D2CSSessionFsm::handle_create_game(
     const uint8_t* payload, size_t len)
 {
-    // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    //   [4]     uint8_t   difficulty
-    //   [5]     uint8_t   hardcore
-    //   [6]     uint8_t   expansion
-    //   [7..]   char[]    game_name        (null-terminated)
+    // Wire layout (after 3-byte header), per t_client_d2cs_creategamereq:
+    //   [0..1]  uint16_t  seqno      (bn_short)
+    //   [2..5]  uint32_t  gameflag   (bn_int)
+    //   [6]     uint8_t   u1
+    //   [7]     uint8_t   leveldiff
+    //   [8]     uint8_t   maxchar
+    //   [9..]   char[]    game_name        (null-terminated)
     //   [..]    char[]    game_password    (null-terminated)
     //   [..]    char[]    game_description (null-terminated)
-    constexpr size_t kMinFixed = 7;
+    // difficulty/hardcore/expansion are NOT separate wire bytes — they are
+    // encoded in the gameflag bitfield (game.h gameflag_get_*). The previous
+    // 7-byte layout (u32 seqno + 3 invented bytes) omitted the gameflag and
+    // started the cstrings 2 bytes early, misframing name/pass/desc.
+    constexpr size_t kMinFixed = 9;
     if (len < kMinFixed) {
         return core::fail(
             core::make_error(core::StatusCode::InvalidArgument,
@@ -133,13 +138,22 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_create_game(
     D2CSCreateGameRequest req;
     size_t offset = 0;
 
-    if (!read_u32le(payload, len, offset, req.seqno)) {
+    std::uint16_t seqno16 = 0;
+    std::uint32_t gameflag = 0;
+    if (!read_u16le(payload, len, offset, seqno16) ||
+        !read_u32le(payload, len, offset, gameflag)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                           "D2CS CREATEGAMEREQ: cannot read seqno"));
+                                           "D2CS CREATEGAMEREQ: cannot read header"));
     }
-    req.difficulty = payload[offset++];
-    req.hardcore   = payload[offset++];
-    req.expansion  = payload[offset++];
+    req.seqno = seqno16;
+    offset += 3;  // u1, leveldiff, maxchar (consumed by the server from char-info)
+
+    // Derive difficulty/hardcore/expansion from the gameflag bitfield, mirroring
+    // game.h: difficulty = (flag >> 12) & 0x7, hardcore = bit 0x800,
+    // expansion = bit 0x100000.
+    req.difficulty = static_cast<uint8_t>((gameflag >> 0x0C) & 0x07);
+    req.hardcore   = static_cast<uint8_t>((gameflag & 0x00000800u) ? 1 : 0);
+    req.expansion  = static_cast<uint8_t>((gameflag & 0x00100000u) ? 1 : 0);
 
     if (!read_cstring(payload, len, offset, req.game_name)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
@@ -166,10 +180,13 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_join_game(
     const uint8_t* payload, size_t len)
 {
     // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    //   [4..]   char[]    game_name     (null-terminated)
+    //   [0..1]  uint16_t  seqno   (bn_short, per d2cs_protocol.h t_client_d2cs_joingamereq)
+    //   [2..]   char[]    game_name     (null-terminated)
     //   [..]    char[]    game_password (null-terminated)
-    constexpr size_t kMinFixed = 4;
+    // (The codec decoder reads u16 seqno too; the handler previously read u32,
+    //  shifting game_name/game_password by 2 bytes — same defect fixed for
+    //  GAMELISTREQ/GAMEINFOREQ.)
+    constexpr size_t kMinFixed = 2;
     if (len < kMinFixed) {
         return core::fail(
             core::make_error(core::StatusCode::InvalidArgument,
@@ -179,10 +196,12 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_join_game(
     D2CSJoinGameRequest req;
     size_t offset = 0;
 
-    if (!read_u32le(payload, len, offset, req.seqno)) {
+    std::uint16_t seqno16 = 0;
+    if (!read_u16le(payload, len, offset, seqno16)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
                                            "D2CS JOINGAMEREQ: cannot read seqno"));
     }
+    req.seqno = seqno16;
     if (!read_cstring(payload, len, offset, req.game_name)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
                                            "D2CS JOINGAMEREQ: unterminated game_name"));
@@ -465,21 +484,15 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_convert_char(
     const uint8_t* payload, size_t len)
 {
     // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    //   [4..]   char[]    char_name (null-terminated)
-    constexpr size_t kMinFixed = 4;
-    if (len < kMinFixed) {
-        return core::fail(
-            core::make_error(core::StatusCode::InvalidArgument,
-                             "D2CS CONVERTCHARREQ: payload too short"));
-    }
-
+    //   [0..]   char[]    char_name (null-terminated)
+    // The oracle's t_client_d2cs_convertcharreq is header-only — there is NO
+    // seqno; the char name begins at the first post-header byte (handle_d2cs.cpp
+    // reads it at sizeof(struct)=header). The previous 4-byte seqno read here was
+    // a fabrication that swallowed the first 4 bytes of the character name.
+    // The reply builder (make_convert_char_reply) carries only a result code and
+    // never echoes a seqno, so dropping it is safe.
     D2CSConvertCharRequest req;
     size_t offset = 0;
-    if (!read_u32le(payload, len, offset, req.seqno)) {
-        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                           "D2CS CONVERTCHARREQ: cannot read seqno"));
-    }
     if (!read_cstring(payload, len, offset, req.char_name)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
                                            "D2CS CONVERTCHARREQ: unterminated char_name"));
