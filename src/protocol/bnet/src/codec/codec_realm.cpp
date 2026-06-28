@@ -98,7 +98,13 @@ core::Result<RealmJoinReply> decode_realm_join_reply(const Packet& pkt) {
     RD_U32(m.u1);
     RD_U32(m.bncs_addr1);
     RD_U32(m.session_num);
-    RD_U32(m.addr);
+    {
+        // addr is network-order (big-endian), matching the encoder + the
+        // original's bn_int_nset. Keep encode/decode symmetric.
+        auto v = r.read_be<std::uint32_t>();
+        if (!v) return core::fail(v.error());
+        m.addr = v.value();
+    }
     {
         auto v = r.read_be<std::uint16_t>();
         if (!v) return core::fail(v.error());
@@ -290,7 +296,11 @@ core::Status<> encode(Writer& w, const RealmJoinReply& m) {
     w.write_le<std::uint32_t>(m.u1);
     w.write_le<std::uint32_t>(m.bncs_addr1);
     w.write_le<std::uint32_t>(m.session_num);
-    w.write_le<std::uint32_t>(m.addr);
+    // The realm (d2cs) address is a network-order IP, exactly like the port
+    // below — the original writes both with bn_*_nset (big-endian). (Latent
+    // until v3 grows a realm backend; addr is 0 today, but keep it correct and
+    // consistent with port.)
+    w.write_be<std::uint32_t>(m.addr);
     w.write_be<std::uint16_t>(m.port);
     w.write_le<std::uint16_t>(m.u3);
     w.write_le<std::uint32_t>(m.session_key);
