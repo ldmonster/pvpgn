@@ -69,6 +69,17 @@ static core::Result<size_t, core::Error> feed(D2CSSessionFsm& fsm,
     return fsm.feed(pkt.data(), pkt.size());
 }
 
+/// Build a real CLIENT_D2CS_LOGINREQ payload body: the 64-byte fixed block
+/// (16 little-endian u32 — seqno + 15 fields incl. secret_hash[5]) followed by
+/// the null-terminated account name.
+static std::vector<uint8_t> login_payload(uint32_t seqno, const char* account) {
+    std::vector<uint8_t> p;
+    push_u32(p, seqno);
+    for (int i = 0; i < 15; ++i) push_u32(p, 0);
+    push_cstr(p, account);
+    return p;
+}
+
 // ---------------------------------------------------------------------------
 // TC-01: Construction — initial state is connected
 // ---------------------------------------------------------------------------
@@ -139,11 +150,21 @@ TEST_CASE("D2CSSessionFsm - TC-05 LOGINREQ callback and state transition", "[pro
     };
     D2CSSessionFsm fsm(cb);
 
+    // Real CLIENT_D2CS_LOGINREQ layout: 64-byte fixed block + account name.
     std::vector<uint8_t> payload;
     push_u32(payload, 42);          // seqno
-    push_u32(payload, 0xDEADBEEF);  // session_key
+    push_u32(payload, 0);           // u1
+    push_u32(payload, 0);           // bncs_addr1
+    push_u32(payload, 7);           // sessionnum
+    push_u32(payload, 0xDEADBEEF);  // sessionkey
+    push_u32(payload, 0);           // cdkey_id
+    push_u32(payload, 0);           // u5
+    push_u32(payload, 0);           // clienttag
+    push_u32(payload, 0);           // bnversion
+    push_u32(payload, 0);           // bncs_addr2
+    push_u32(payload, 0);           // u6
+    for (uint32_t h : {1u, 2u, 3u, 4u, 5u}) push_u32(payload, h);  // secret_hash[5]
     push_cstr(payload, "TestUser");
-    push_cstr(payload, "Barbarian");
 
     auto pkt = make_packet(0x01, payload);
     auto r = feed(fsm, pkt);
@@ -152,9 +173,10 @@ TEST_CASE("D2CSSessionFsm - TC-05 LOGINREQ callback and state transition", "[pro
     CHECK(r.value() == pkt.size());
     CHECK(called);
     CHECK(captured.seqno == 42);
+    CHECK(captured.sessionnum == 7);
     CHECK(captured.session_key == 0xDEADBEEF);
+    CHECK(captured.secret_hash == std::array<uint32_t, 5>{1, 2, 3, 4, 5});
     CHECK(captured.account_name == "TestUser");
-    CHECK(captured.char_name == "Barbarian");
     CHECK(fsm.state() == D2CSSessionState::authenticating);
 }
 
@@ -169,11 +191,12 @@ TEST_CASE("D2CSSessionFsm - TC-06 LOGINREQ callback failure propagates", "[proto
     };
     D2CSSessionFsm fsm(cb);
 
+    // Full 64-byte fixed block (16 u32) + account name, so the parse reaches
+    // the callback (which then fails).
     std::vector<uint8_t> payload;
-    push_u32(payload, 1);
-    push_u32(payload, 0);
+    push_u32(payload, 1);                                   // seqno
+    for (int i = 0; i < 15; ++i) push_u32(payload, 0);      // rest of the block
     push_cstr(payload, "user");
-    push_cstr(payload, "char");
 
     auto r = feed(fsm, make_packet(0x01, payload));
     CHECK_FALSE(r);
@@ -606,10 +629,7 @@ TEST_CASE("D2CSSessionFsm - TC-19 multiple packets in one feed", "[protocol][d2c
     D2CSSessionFsm fsm(cb);
 
     // Build two packets back-to-back
-    std::vector<uint8_t> payload1;
-    push_u32(payload1, 1); push_u32(payload1, 0);
-    push_cstr(payload1, "u"); push_cstr(payload1, "c");
-    auto pkt1 = make_packet(0x01, payload1);
+    auto pkt1 = make_packet(0x01, login_payload(1, "u"));
 
     std::vector<uint8_t> payload2;
     push_u32(payload2, 2);
@@ -639,10 +659,7 @@ TEST_CASE("D2CSSessionFsm - TC-20 fragmented packet reassembly", "[protocol][d2c
     };
     D2CSSessionFsm fsm(cb);
 
-    std::vector<uint8_t> payload;
-    push_u32(payload, 5); push_u32(payload, 0);
-    push_cstr(payload, "acc"); push_cstr(payload, "chr");
-    auto pkt = make_packet(0x01, payload);
+    auto pkt = make_packet(0x01, login_payload(5, "acc"));
 
     // Feed first half
     size_t half = pkt.size() / 2;
@@ -895,11 +912,7 @@ TEST_CASE("D2CSSessionFsm - TC-33 LOGINREQ no callback state transitions", "[pro
     D2CSFsmCallbacks cb;  // no callbacks set
     D2CSSessionFsm fsm(cb);
 
-    std::vector<uint8_t> payload;
-    push_u32(payload, 1); push_u32(payload, 0);
-    push_cstr(payload, "u"); push_cstr(payload, "c");
-
-    auto r = feed(fsm, make_packet(0x01, payload));
+    auto r = feed(fsm, make_packet(0x01, login_payload(1, "u")));
     REQUIRE(r);
     CHECK(fsm.state() == D2CSSessionState::authenticating);
 }
@@ -1015,10 +1028,7 @@ TEST_CASE("D2CSSessionFsm - TC-40 full login flow state machine", "[protocol][d2
 
     // Step 1: LOGINREQ
     {
-        std::vector<uint8_t> p;
-        push_u32(p, 1); push_u32(p, 0xABCD);
-        push_cstr(p, "player"); push_cstr(p, "hero");
-        REQUIRE(feed(fsm, make_packet(0x01, p)));
+        REQUIRE(feed(fsm, make_packet(0x01, login_payload(1, "player"))));
         CHECK(fsm.state() == D2CSSessionState::authenticating);
     }
 

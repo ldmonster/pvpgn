@@ -19,6 +19,7 @@
 
 #include "core/result.hpp"
 #include "protocol/d2cs/charlistreply_encoder.hpp"
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -94,10 +95,11 @@ struct D2CSPacketHeader {
 // ---------------------------------------------------------------------------
 
 struct D2CSLoginRequest {
-    uint32_t    seqno;        ///< Sequence number
-    uint32_t    session_key;  ///< Session key from bnetd
-    std::string account_name; ///< Null-terminated account name
-    std::string char_name;    ///< Null-terminated character name
+    uint32_t                seqno       = 0;  ///< sequence / salt (bnetd realm-join seqno)
+    uint32_t                sessionnum  = 0;  ///< bnetd session number
+    uint32_t                session_key = 0;  ///< bnetd session key
+    std::array<uint32_t, 5> secret_hash{};    ///< realm-join secret (bnetd-issued)
+    std::string             account_name;     ///< Null-terminated account name
 };
 
 struct D2CSCharLoginRequest {

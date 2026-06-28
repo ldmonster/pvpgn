@@ -29,13 +29,17 @@ namespace pvpgn::protocol::d2cs {
 core::Result<void, core::Error> D2CSSessionFsm::handle_login(
     const uint8_t* payload, size_t len)
 {
-    // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    //   [4..7]  uint32_t  session_key
-    //   [8..]   char[]    account_name (null-terminated)
-    //   [..]    char[]    char_name    (null-terminated)
-    constexpr size_t kMinFixed = 8;
-    if (len < kMinFixed) {
+    // Wire layout (after the 3-byte header), per d2cs_protocol.h
+    // t_client_d2cs_loginreq — a fixed 64-byte block then the account name:
+    //   [0]  u32 seqno      [4]  u32 u1          [8]  u32 bncs_addr1
+    //   [12] u32 sessionnum [16] u32 sessionkey  [20] u32 cdkey_id
+    //   [24] u32 u5         [28] u32 clienttag   [32] u32 bnversion
+    //   [36] u32 bncs_addr2 [40] u32 u6          [44] u32 secret_hash[5]
+    //   [64] account_name (null-terminated)
+    // (The earlier 8-byte seqno+session_key layout was a fabrication that
+    //  misread a real client's account name from the middle of the fixed block.)
+    constexpr size_t kFixed = 64;
+    if (len < kFixed) {
         return core::fail(
             core::make_error(core::StatusCode::InvalidArgument,
                              "D2CS LOGINREQ: payload too short"));
@@ -43,22 +47,32 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_login(
 
     D2CSLoginRequest req;
     size_t offset = 0;
+    // len >= 64 guarantees these 16 little-endian reads stay in bounds.
+    auto rd32 = [&]() -> uint32_t {
+        const uint32_t v =
+            static_cast<uint32_t>(payload[offset]) |
+            (static_cast<uint32_t>(payload[offset + 1]) << 8) |
+            (static_cast<uint32_t>(payload[offset + 2]) << 16) |
+            (static_cast<uint32_t>(payload[offset + 3]) << 24);
+        offset += 4;
+        return v;
+    };
+    req.seqno = rd32();
+    rd32();  // u1
+    rd32();  // bncs_addr1
+    req.sessionnum  = rd32();
+    req.session_key = rd32();
+    rd32();  // cdkey_id
+    rd32();  // u5
+    rd32();  // clienttag
+    rd32();  // bnversion
+    rd32();  // bncs_addr2
+    rd32();  // u6
+    for (auto& word : req.secret_hash) word = rd32();
 
-    if (!read_u32le(payload, len, offset, req.seqno)) {
-        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                           "D2CS LOGINREQ: cannot read seqno"));
-    }
-    if (!read_u32le(payload, len, offset, req.session_key)) {
-        return core::fail(core::make_error(core::StatusCode::InvalidArgument,
-                                           "D2CS LOGINREQ: cannot read session_key"));
-    }
     if (!read_cstring(payload, len, offset, req.account_name)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
                                            "D2CS LOGINREQ: unterminated account_name"));
-    }
-    if (!read_cstring(payload, len, offset, req.char_name)) {
-        // char_name is optional in some client versions — treat as empty
-        req.char_name.clear();
     }
 
     if (callbacks_.on_login) {

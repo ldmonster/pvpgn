@@ -158,7 +158,6 @@ struct Fixture {
     void login(std::string account = "TestAccount") {
         D2CSLoginRequest req;
         req.account_name = std::move(account);
-        req.char_name    = "";
         req.seqno        = 1;
         req.session_key  = 0;
         REQUIRE(cb.on_login(req).has_value());
@@ -405,7 +404,6 @@ TEST_CASE("D2CSSessionHandler: on_login sends realm logon success",
 
     D2CSLoginRequest req;
     req.account_name = "Kate";
-    req.char_name    = "";
     req.seqno        = 1;
     req.session_key  = 0xDEADBEEF;
     REQUIRE(f.cb.on_login(req).has_value());

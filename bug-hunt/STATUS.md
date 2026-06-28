@@ -3140,3 +3140,18 @@ DEFERRED (round-8): RealmJoinRequest (0x3e) no-op is part of the realm/d2cs Stag
 work (needs realm data, not a zero reply). WOL JOINGAME ban-check (needs a ban set,
 no admin/ban model in v3). GameType::kTeamFFA dead enum value (marginal; used in a
 switch). profile_reply teamcount cast (cosmetic, capped).
+
+## Wave 179: D2CS LOGINREQ real wire layout (Stage-2a; foundation for real auth)
+The FSM's D2CSLoginRequest + handle_login parsed a FABRICATED 8-byte layout
+(seqno + session_key + account + char) — so a REAL client's account name was read
+from the middle of the fixed block (garbage), and sessionnum/secret_hash were
+never captured. Rewrote the parse to the real t_client_d2cs_loginreq layout: a
+64-byte fixed block (seqno, u1, bncs_addr1, sessionnum, sessionkey, cdkey_id, u5,
+clienttag, bnversion, bncs_addr2, u6, secret_hash[5]) then the account name.
+D2CSLoginRequest now carries seqno + sessionnum + session_key + secret_hash[5] +
+account_name (dropped the spurious char_name — the real LOGINREQ has none). The
+codec's separate LoginReq struct was already correct (unchanged). Updated the
+fsm_test login builders (added a login_payload() helper) + the handler-test req.
+This is Stage-2a: it captures the sessionnum + secret_hash that Stage-2b
+(keyed-token validation -> reject forged creds) will check. diff_d2cs_handshake +
+diff_d2cs_auth still pass. Build + 3204/3204 unit tests (serial).
