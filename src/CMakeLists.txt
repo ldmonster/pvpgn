@@ -192,7 +192,6 @@ pvpgn_v3_add_library(core
     STATIC
     SOURCES
         core/src/logging.cpp
-        core/src/error.cpp
         core/src/trace.cpp
         core/src/metrics.cpp
         core/src/crypto/secure_random.cpp   # Plan 08: canonical CSPRNG

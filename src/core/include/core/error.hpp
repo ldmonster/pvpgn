@@ -77,10 +77,6 @@ constexpr std::string_view to_string(StatusCode c) noexcept {
     return "?";
 }
 
-/// Translate a POSIX errno value to the closest StatusCode.
-/// Unknown errno values map to StatusCode::Internal.
-[[nodiscard]] StatusCode from_errno(int err_no) noexcept;
-
 /// Generic error: a code + an optional human-readable message.
 /// Cheap to move; intentionally not `constexpr` because of `std::string`.
 class Error {
