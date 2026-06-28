@@ -865,9 +865,13 @@ TEST_CASE("D2CSSessionFsm - TC-28 make_create_char_reply structure", "[protocol]
 TEST_CASE("D2CSSessionFsm - TC-29 make_delete_char_reply structure", "[protocol][d2cs]") {
     auto reply = D2CSSessionFsm::make_delete_char_reply(0x01);  // failed
 
-    REQUIRE(reply.size() == 7);
+    // Header(3) + u1(u16, always zero) + reply(u32) = 9 bytes, per
+    // d2cs_protocol.h t_d2cs_client_deletecharreply.
+    REQUIRE(reply.size() == 9);
     CHECK(reply[2] == 0x0A);  // DELETECHARREPLY
-    CHECK(reply[3] == 0x01);  // failed
+    CHECK(reply[3] == 0x00);  // u1 (low)
+    CHECK(reply[4] == 0x00);  // u1 (high)
+    CHECK(reply[5] == 0x01);  // reply code (LE low byte) = failed
 }
 
 // ---------------------------------------------------------------------------

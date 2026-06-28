@@ -104,10 +104,14 @@ std::vector<uint8_t> D2CSSessionFsm::make_create_char_reply(uint32_t result_code
 }
 
 std::vector<uint8_t> D2CSSessionFsm::make_delete_char_reply(uint32_t result_code) {
-    // Header(3) + result_code(4) = 7 bytes
+    // Per d2cs_protocol.h t_d2cs_client_deletecharreply: Header(3) + u1(u16,
+    // "always zero") + reply(u32) = 9 bytes. The previous 7-byte encoding
+    // omitted the u1 short, misframing the reply for a real D2 client.
     std::vector<uint8_t> v;
-    v.reserve(7);
-    push_header(v, 7, D2CSPacketType::DELETECHARREPLY);
+    v.reserve(9);
+    push_header(v, 9, D2CSPacketType::DELETECHARREPLY);
+    v.push_back(0x00);  // u1 (always zero)
+    v.push_back(0x00);
     push_u32le(v, result_code);
     return v;
 }
