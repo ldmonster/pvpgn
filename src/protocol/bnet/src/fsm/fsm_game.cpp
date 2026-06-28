@@ -15,6 +15,7 @@
 
 #include "fsm/fsm_internal.hpp"
 
+#include "protocol/bnet/game_wire_types.hpp"
 #include "application/game/join_game.hpp"
 #include "application/game/leave_game.hpp"
 #include "application/game/start_game.hpp"
@@ -48,7 +49,7 @@ core::Status<> BnetFsm::on(const StartGame1Request& m) {
     if (!use_cases_.start_game) {
         // No start_game use-case available - accept the request with fallback
         state_ = BnetState::InGame;
-        return ctx_->send(ServerMessage{StartGame1Ack{0x00}});  // success code
+        return ctx_->send(ServerMessage{StartGame1Ack{game::kStartGame1AckOk}});
     }
 
     // Use client_tag_ stored from AUTH_INFO
@@ -59,7 +60,7 @@ core::Status<> BnetFsm::on(const StartGame1Request& m) {
 
     if (!start_result) {
         // Game start failed
-        return ctx_->send(ServerMessage{StartGame1Ack{0x01}});  // error code
+        return ctx_->send(ServerMessage{StartGame1Ack{game::kStartGame1AckNo}});
     }
 
     // Store game ID and transition state
@@ -68,7 +69,7 @@ core::Status<> BnetFsm::on(const StartGame1Request& m) {
     state_ = BnetState::InGame;
 
     // Send success reply with game ID
-    return ctx_->send(ServerMessage{StartGame1Ack{0x00}});  // success code
+    return ctx_->send(ServerMessage{StartGame1Ack{game::kStartGame1AckOk}});
 }
 
 core::Status<> BnetFsm::on(const StartGame3Request& m) {
@@ -85,7 +86,7 @@ core::Status<> BnetFsm::on(const StartGame3Request& m) {
     if (!use_cases_.start_game) {
         // No start_game use-case available - accept the request with fallback
         state_ = BnetState::InGame;
-        return ctx_->send(ServerMessage{StartGame3Ack{0x00}});  // success code
+        return ctx_->send(ServerMessage{StartGame3Ack{game::kStartGame3AckOk}});
     }
 
     // Use client_tag_ stored from AUTH_INFO
@@ -95,14 +96,14 @@ core::Status<> BnetFsm::on(const StartGame3Request& m) {
         m.game_name, "", static_cast<std::uint8_t>(m.gametype & 0xFFu));
 
     if (!start_result) {
-        return ctx_->send(ServerMessage{StartGame3Ack{0x01}});
+        return ctx_->send(ServerMessage{StartGame3Ack{game::kStartGame3AckNo}});
     }
 
     const auto& start_res = start_result.value();
     current_game_id_ = start_res.game_id;
     state_ = BnetState::InGame;
 
-    return ctx_->send(ServerMessage{StartGame3Ack{0x00}});
+    return ctx_->send(ServerMessage{StartGame3Ack{game::kStartGame3AckOk}});
 }
 
 core::Status<> BnetFsm::on(const StartGame4Request& m) {

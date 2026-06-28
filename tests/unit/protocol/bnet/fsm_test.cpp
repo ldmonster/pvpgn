@@ -10,6 +10,7 @@
 #include "domain/connection/ports.hpp"
 #include "domain/shared/ids.hpp"
 #include "protocol/bnet/fsm.hpp"
+#include "protocol/bnet/game_wire_types.hpp"
 
 using namespace pvpgn;
 using namespace pvpgn::protocol::bnet;
@@ -492,7 +493,8 @@ TEST_CASE("BnetFsm: STARTGAME1 sends StartGame1Ack (no use-case)",
     REQUIRE(f.handle(ClientMessage{req}).has_value());
     REQUIRE(f.state() == BnetState::InGame);
     REQUIRE(std::holds_alternative<StartGame1Ack>(session_ctx->sent.back()));
-    REQUIRE(std::get<StartGame1Ack>(session_ctx->sent.back()).reply == 0x00u);
+    // OK code is 0x01 (SERVER_STARTGAME1_ACK_OK), not 0x00 (= NO/error).
+    REQUIRE(std::get<StartGame1Ack>(session_ctx->sent.back()).reply == game::kStartGame1AckOk);
 }
 
 TEST_CASE("BnetFsm: STARTGAME3 sends StartGame3Ack (no use-case)",
@@ -507,7 +509,8 @@ TEST_CASE("BnetFsm: STARTGAME3 sends StartGame3Ack (no use-case)",
     REQUIRE(f.handle(ClientMessage{req}).has_value());
     REQUIRE(f.state() == BnetState::InGame);
     REQUIRE(std::holds_alternative<StartGame3Ack>(session_ctx->sent.back()));
-    REQUIRE(std::get<StartGame3Ack>(session_ctx->sent.back()).reply == 0x00u);
+    // OK code is 0x01 (SERVER_STARTGAME3_ACK_OK), not 0x00 (= NO/error).
+    REQUIRE(std::get<StartGame3Ack>(session_ctx->sent.back()).reply == game::kStartGame3AckOk);
 }
 
 TEST_CASE("BnetFsm: session_id passed to constructor is accepted",

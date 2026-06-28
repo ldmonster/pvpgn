@@ -3205,3 +3205,15 @@ on VALID-UTF-8 malformed TOML (the generator's tokens are valid UTF-8: "é", NUL
 triple-quote) — a genuine toml++ parser bug, not fixable in our code without a
 toml++ upgrade. Config files are admin-controlled, so severity is low. Fix path:
 upgrade the vendored tomlplusplus.
+
+## Wave 184: STARTGAME1/3 ack inverted (fleet-found) — OK is 0x01 not 0x00
+The fleet sweep (workflow, 22 agents) found v3's STARTGAME1 (0x08) and STARTGAME3
+(0x1a) ack handlers sent 0x00 on success / 0x01 on error, but the original is
+SERVER_STARTGAME{1,3}_ACK_OK = 0x01, _NO = 0x00 — v3 told clients "failed" on a
+successful host. v3's OWN constants (game::kStartGame1AckOk=0x01) were correct; the
+handlers used inverted literals with wrong "// success code" comments. Fixed all
+6 sites in fsm_game.cpp to use the named constants; updated the two success-path
+fsm_test assertions (were pinning the wrong 0x00). NOTE: STARTGAME4's protocol
+constants are genuinely inverted (OK=0x00), so v3's StartGame4 0x00-on-success is
+CORRECT and was left as-is (that's why the fleet flagged only 1 & 3). Build +
+3206/3206 unit tests pass.
