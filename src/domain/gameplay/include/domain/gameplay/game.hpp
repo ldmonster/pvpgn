@@ -38,9 +38,12 @@ enum class GameState : std::uint8_t {
 };
 
 struct GameDescriptor {
-    std::string  name;
-    std::string  map;
-    std::uint8_t max_players = 8;
+    std::string   name;
+    std::string   map;
+    std::uint8_t  max_players = 8;
+    /// Client-supplied game type (BNet "bngtype" wire value from SID_STARTADVEX3),
+    /// echoed back in each SID_GETADVLISTEX record. 0 = unspecified/all.
+    std::uint16_t gametype = 0;
 };
 
 class Game {

@@ -854,7 +854,10 @@ core::Status<> BnetFsm::on(const GameListRequest& m) {
                 // lookup); empty name = list all.
                 if (!m.game_name.empty() && g.name != m.game_name) continue;
                 GameListEntry e;
-                e.gametype  = m.gametype;     // echo the requested type filter
+                // The original emits each game's ACTUAL type (gtype_to_bngtype
+                // of the stored game_type), NOT the requested filter — listing
+                // with filter=ALL(0) must still report each game's real type.
+                e.gametype  = g.bng_gametype;
                 // Fixed server->client constants the original always emits in
                 // each game record (SERVER_GAMELISTREPLY_GAME_UNKNOWN1/3/6).
                 e.unknown1  = 0x0001u;

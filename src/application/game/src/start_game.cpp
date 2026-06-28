@@ -8,7 +8,7 @@ namespace pvpgn::application::game {
 core::Result<StartGameResult, StartGameError>
 StartGame::execute(domain::AccountId host_account_id, domain::ClientTag client_tag,
                    const std::string& game_name, const std::string& map_name,
-                   std::uint8_t max_players) const {
+                   std::uint8_t max_players, std::uint16_t gametype) const {
     // 1. Validate game parameters
     if (game_name.empty()) {
         return core::fail(StartGameError::InvalidGameName);
@@ -22,6 +22,7 @@ StartGame::execute(domain::AccountId host_account_id, domain::ClientTag client_t
         .name = game_name,
         .map = map_name,
         .max_players = max_players,
+        .gametype = gametype,
     };
 
     // Use a simple ID generation strategy (in real impl, would use ID service)

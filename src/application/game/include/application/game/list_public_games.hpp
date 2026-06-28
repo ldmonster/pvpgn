@@ -30,6 +30,9 @@ struct GameInfo {
     std::string              game_type;
     std::string              map_name;
     bool                     is_private;
+    /// BNet "bngtype" wire game-type value (SID_STARTADVEX3), echoed in each
+    /// SID_GETADVLISTEX record. 0 = unspecified.
+    std::uint16_t            bng_gametype = 0;
     /// Lifecycle state of the hosted match. The protocol layer maps this (plus
     /// the player counts) to the SID_GETADVLISTEX status word — an in-progress
     /// or finished game must not be advertised as "open".

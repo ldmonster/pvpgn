@@ -650,6 +650,43 @@ def game_list(client, gametype=0x0000, name="", settle=0.4):
     return sorted(out, key=str.lower)
 
 
+def game_list_detailed(client, gametype=0x0000, name="", settle=0.4):
+    """Like game_list but returns [{name, gametype}] per record (gametype is the
+    first u16 of each entry header)."""
+    import time
+    body = struct.pack("<HHIII", gametype, 0, 0, 0, 0) + cstring(name) + cstring("")
+    client.send(SID_GETADVLISTEX, body)
+    time.sleep(settle)
+    reply = _drain_until(client, SID_GETADVLISTEX)
+    out = []
+    if reply is None or len(reply) < 8:
+        return out
+    count = struct.unpack_from("<I", reply, 0)[0]
+    pos = 8
+    for i in range(count):
+        if i > 0:
+            pos += 4  # spacer
+        if pos + 28 > len(reply):
+            break
+        rec_gametype = struct.unpack_from("<H", reply, pos)[0]
+        pos += 28
+        nul = reply.find(b"\x00", pos)
+        if nul < 0:
+            break
+        gname = reply[pos:nul].decode("latin-1", "replace")
+        pos = nul + 1
+        nul = reply.find(b"\x00", pos)   # password
+        if nul < 0:
+            break
+        pos = nul + 1
+        nul = reply.find(b"\x00", pos)   # info
+        if nul < 0:
+            break
+        pos = nul + 1
+        out.append({"name": gname, "gametype": rec_gametype})
+    return out
+
+
 def full_login(host, port, username, password, product=b"SEXP"):
     """Connect + OLS create + login + enter chat. Returns (client, unique_name)."""
     c = BncsClient(host, port)

@@ -62,7 +62,7 @@ core::Status<> BnetFsm::on(const StartGame1Request& m) {
     // Call start_game use-case with game parameters from request
     auto start_result = use_cases_.start_game->execute(
         current_account_id_, client_tag_,
-        m.game_name, "", kStartGameDefaultMaxPlayers);  // Empty map_name for now
+        m.game_name, "", kStartGameDefaultMaxPlayers, m.gametype);  // Empty map_name for now
 
     if (!start_result) {
         // Game start failed
@@ -99,7 +99,7 @@ core::Status<> BnetFsm::on(const StartGame3Request& m) {
     // Call start_game use-case with game parameters from request
     auto start_result = use_cases_.start_game->execute(
         current_account_id_, client_tag_,
-        m.game_name, "", kStartGameDefaultMaxPlayers);
+        m.game_name, "", kStartGameDefaultMaxPlayers, m.gametype);
 
     if (!start_result) {
         return ctx_->send(ServerMessage{StartGame3Ack{game::kStartGame3AckNo}});
@@ -140,7 +140,7 @@ core::Status<> BnetFsm::on(const StartGame4Request& m) {
     // the observable "open games appear in the list" behaviour.
     auto start_result = use_cases_.start_game->execute(
         current_account_id_, client_tag_, m.game_name, m.info,
-        /*max_players*/ 8u);
+        /*max_players*/ 8u, /*gametype*/ m.gametype);
     if (!start_result) {
         return ctx_->send(ServerMessage{StartGame4Ack{0x01u}});
     }

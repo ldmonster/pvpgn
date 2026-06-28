@@ -45,7 +45,7 @@ public:
     core::Result<StartGameResult, StartGameError>
     execute(domain::AccountId host_account_id, domain::ClientTag client_tag,
             const std::string& game_name, const std::string& map_name,
-            std::uint8_t max_players) const;
+            std::uint8_t max_players, std::uint16_t gametype = 0) const;
 
 private:
     domain::gameplay::IGameRepository& game_repo_;
