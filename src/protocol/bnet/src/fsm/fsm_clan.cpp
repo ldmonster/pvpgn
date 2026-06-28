@@ -54,8 +54,19 @@ core::Status<> BnetFsm::on(const ClanInviteRequest&) {
 core::Status<> BnetFsm::on(const ClanMemberRemoveRequest&) {
     return require_clan_state(state_, "bnet fsm: CLAN_MEMBER_REMOVE before login");
 }
-core::Status<> BnetFsm::on(const ClanMemberRankUpdateRequest&) {
-    return require_clan_state(state_, "bnet fsm: CLAN_RANKUPDATE before login");
+core::Status<> BnetFsm::on(const ClanMemberRankUpdateRequest& m) {
+    if (auto s = require_clan_state(state_, "bnet fsm: CLAN_RANKUPDATE before login"); !s)
+        return s;
+    // The original (_client_clanmember_rankupdatereq) ALWAYS answers
+    // SERVER_CLANMEMBER_RANKUPDATE_REPLY (count + result). A clanless caller (no
+    // account_get_clan) falls to the else branch -> RANKUPDATE_FAILED (0x01). v3
+    // has no clan backend so every caller is clanless: reply FAILED. Without a
+    // reply the client hangs.
+    ClanGenericResultReply reply;
+    reply.sid    = kSidClanMemberRankUpdate;  // 0x7A
+    reply.cookie = m.cookie;
+    reply.result = 0x01;  // SERVER_CLANMEMBER_RANKUPDATE_FAILED
+    return ctx_->send(ServerMessage{reply});
 }
 core::Status<> BnetFsm::on(const ClanMotdChange&) {
     return require_clan_state(state_, "bnet fsm: CLAN_MOTDCHG before login");

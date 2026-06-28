@@ -572,6 +572,22 @@ def clan_create_req(client, clan_tag=0x54414721, cookie=0x1234, settle=0.4):
     return {"cookie": rc, "check_result": check_result, "friends": friends}
 
 
+SID_CLANRANKUPDATE = 0x7A  # CLIENT_CLANMEMBER_RANKUPDATE_REQ / _REPLY
+
+
+def clan_rankupdate_req(client, name="someone", new_rank=2, cookie=0x55, settle=0.4):
+    """SID_CLANMEMBER_RANKUPDATE_REQ (0x7A): body count(u32)+name(cstr)+rank(u8).
+    Reply: count(u32) + result(u8). Returns {cookie, result} or None."""
+    import struct, time
+    client.send(SID_CLANRANKUPDATE,
+                struct.pack("<I", cookie) + cstring(name) + bytes([new_rank & 0xFF]))
+    time.sleep(settle)
+    body = _drain_until(client, SID_CLANRANKUPDATE)
+    if body is None or len(body) < 5:
+        return None
+    return {"cookie": struct.unpack_from("<I", body, 0)[0], "result": body[4]}
+
+
 def friends_add(client, name):
     """/friends add <name> via SID_CHATCOMMAND (drains the resulting ack)."""
     chat_command(client, f"/friends add {name}")
