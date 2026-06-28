@@ -89,20 +89,21 @@ TEST_CASE("d2cs send_gameinforeply_bnetd emits hdr + name\\0 + difficulty",
     ScopedSink scope;
     int m = 0;
     REQUIRE(::pvpgn_v3_d2cs_send_gameinforeply_bnetd(&m, 0x07u, "game1", 0x03u) == 1);
-    // 8 hdr + 5 chars + 1 NUL + 1 difficulty = 15
+    // Wire: 8 hdr + 1 difficulty + 5 chars + 1 NUL = 15. Per
+    // t_d2cs_bnetd_gameinforeply the difficulty byte precedes the gamename.
     REQUIRE(FakeSink::last_bytes.size() == 15u);
     REQUIRE(FakeSink::last_bytes[0] == 0x0f);
     REQUIRE(FakeSink::last_bytes[1] == 0x00);
     REQUIRE(FakeSink::last_bytes[2] == 0x12);
     REQUIRE(FakeSink::last_bytes[3] == 0x00);
     REQUIRE(FakeSink::last_bytes[4] == 0x07);
-    REQUIRE(FakeSink::last_bytes[8] == 'g');
-    REQUIRE(FakeSink::last_bytes[9] == 'a');
-    REQUIRE(FakeSink::last_bytes[10] == 'm');
-    REQUIRE(FakeSink::last_bytes[11] == 'e');
-    REQUIRE(FakeSink::last_bytes[12] == '1');
-    REQUIRE(FakeSink::last_bytes[13] == 0x00);
-    REQUIRE(FakeSink::last_bytes[14] == 0x03);
+    REQUIRE(FakeSink::last_bytes[8] == 0x03);   // difficulty (offset 8)
+    REQUIRE(FakeSink::last_bytes[9] == 'g');
+    REQUIRE(FakeSink::last_bytes[10] == 'a');
+    REQUIRE(FakeSink::last_bytes[11] == 'm');
+    REQUIRE(FakeSink::last_bytes[12] == 'e');
+    REQUIRE(FakeSink::last_bytes[13] == '1');
+    REQUIRE(FakeSink::last_bytes[14] == 0x00);  // gamename NUL
 }
 
 TEST_CASE("d2cs handle_bnetd bridges reject null inputs",
