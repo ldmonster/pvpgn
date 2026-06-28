@@ -230,6 +230,15 @@ core::Status<> BnetFsm::on(const LogonResponse2& m) {
     // Watch/presence: notify mutual online friends that we entered (mirrors the
     // original's conn_set_account -> WatchComponent::dispatch_whisper, ET_login).
     notify_friends_presence(/*entered=*/true);
+    // The original (loginreq2 -> client_init_email) queues an empty
+    // SERVER_SETEMAILREQ (0x59) BEFORE the login-ok packet when the account has
+    // no email on file, prompting the client to register one. v3 does not
+    // persist account email (on(SetEmailReply) is a no-op), so an account never
+    // has one — always send the prompt, matching the oracle's no-email path and
+    // its 0x59-before-0x3A ordering.
+    if (auto st = ctx_->send(ServerMessage{SetEmailRequest{}}); !st) {
+        return st;
+    }
     return ctx_->send(ServerMessage{LogonResponse2Reply{0x00u, ""}});
 }
 
