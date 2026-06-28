@@ -1859,8 +1859,19 @@ core::Status<> BnetFsm::on(const RealmListRequest&) {
     return ctx_->send(ServerMessage{RealmListReply{}});
 }
 
-core::Status<> BnetFsm::on(const RealmJoinRequest&) {
-    return require_clan_state(state_, "bnet fsm: REALMJOINREQ before login");
+core::Status<> BnetFsm::on(const RealmJoinRequest& m) {
+    if (auto s = require_clan_state(state_, "bnet fsm: REALMJOINREQ before login"); !s)
+        return s;
+    // The original (_client_realmjoinreq109) ALWAYS answers SID_LOGONREALMEX,
+    // even when the requested realm does not exist: it sends a
+    // SERVER_REALMJOINREPLY_109 with the request's seqno echoed and every other
+    // field zeroed plus an empty account name. v3 has no realm subsystem, so it
+    // always takes that "no active realm" path (mirroring the empty RealmList
+    // replies above). Without any reply a real D2 client hangs after BNCS login
+    // waiting for the realm-join result.
+    RealmJoinReply reply;
+    reply.seqno = m.seqno;
+    return ctx_->send(ServerMessage{reply});
 }
 
 core::Status<> BnetFsm::on(const WarcraftGeneralRequest&) {
