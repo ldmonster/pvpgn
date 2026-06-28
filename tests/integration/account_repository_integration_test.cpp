@@ -112,7 +112,7 @@ TEST_CASE("SqlAccountRepository over SQLite: save and find by name (on-disk)",
         [&conn](std::string_view sql) { return conn->exec(sql); },
         [&conn]() -> std::optional<std::uint32_t> {
             std::optional<std::uint32_t> version;
-            conn->query(
+            (void)conn->query(
                 "SELECT MAX(version) FROM _schema_migrations",
                 [&version](const infra::sqlite::Row& row) {
                     if (!row.is_null(0)) {
@@ -122,8 +122,8 @@ TEST_CASE("SqlAccountRepository over SQLite: save and find by name (on-disk)",
                 });
             return version;
         });
-    runner.ensure_migration_table();
-    runner.migrate_to_latest(infra::migrations::get_all_migrations());
+    (void)runner.ensure_migration_table();
+    (void)runner.migrate_to_latest(infra::migrations::get_all_migrations());
 
     auto driver = std::make_shared<infra::persistence::SqliteDriver>(conn);
     infra::persistence::SqlAccountRepository repo(driver);
@@ -147,7 +147,7 @@ TEST_CASE("SqlAccountRepository over SQLite: find non-existent returns error (on
         [&conn](std::string_view sql) { return conn->exec(sql); },
         [&conn]() -> std::optional<std::uint32_t> {
             std::optional<std::uint32_t> version;
-            conn->query(
+            (void)conn->query(
                 "SELECT MAX(version) FROM _schema_migrations",
                 [&version](const infra::sqlite::Row& row) {
                     if (!row.is_null(0)) {
@@ -157,8 +157,8 @@ TEST_CASE("SqlAccountRepository over SQLite: find non-existent returns error (on
                 });
             return version;
         });
-    runner.ensure_migration_table();
-    runner.migrate_to_latest(infra::migrations::get_all_migrations());
+    (void)runner.ensure_migration_table();
+    (void)runner.migrate_to_latest(infra::migrations::get_all_migrations());
 
     auto driver = std::make_shared<infra::persistence::SqliteDriver>(conn);
     infra::persistence::SqlAccountRepository repo(driver);
@@ -177,7 +177,7 @@ TEST_CASE("SqlAccountRepository over SQLite: save is an idempotent upsert (on-di
         [&conn](std::string_view sql) { return conn->exec(sql); },
         [&conn]() -> std::optional<std::uint32_t> {
             std::optional<std::uint32_t> version;
-            conn->query(
+            (void)conn->query(
                 "SELECT MAX(version) FROM _schema_migrations",
                 [&version](const infra::sqlite::Row& row) {
                     if (!row.is_null(0)) {
@@ -187,8 +187,8 @@ TEST_CASE("SqlAccountRepository over SQLite: save is an idempotent upsert (on-di
                 });
             return version;
         });
-    runner.ensure_migration_table();
-    runner.migrate_to_latest(infra::migrations::get_all_migrations());
+    (void)runner.ensure_migration_table();
+    (void)runner.migrate_to_latest(infra::migrations::get_all_migrations());
 
     auto driver = std::make_shared<infra::persistence::SqliteDriver>(conn);
     infra::persistence::SqlAccountRepository repo(driver);
@@ -226,7 +226,7 @@ TEST_CASE("SqlAccountRepository over SQLite: saving a name owned by another id "
         [&conn](std::string_view sql) { return conn->exec(sql); },
         [&conn]() -> std::optional<std::uint32_t> {
             std::optional<std::uint32_t> version;
-            conn->query(
+            (void)conn->query(
                 "SELECT MAX(version) FROM _schema_migrations",
                 [&version](const infra::sqlite::Row& row) {
                     if (!row.is_null(0)) {
@@ -236,8 +236,8 @@ TEST_CASE("SqlAccountRepository over SQLite: saving a name owned by another id "
                 });
             return version;
         });
-    runner.ensure_migration_table();
-    runner.migrate_to_latest(infra::migrations::get_all_migrations());
+    (void)runner.ensure_migration_table();
+    (void)runner.migrate_to_latest(infra::migrations::get_all_migrations());
 
     auto driver = std::make_shared<infra::persistence::SqliteDriver>(conn);
     infra::persistence::SqlAccountRepository repo(driver);
