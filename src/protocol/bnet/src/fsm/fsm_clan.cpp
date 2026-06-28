@@ -26,8 +26,21 @@
 
 namespace pvpgn::protocol::bnet {
 
-core::Status<> BnetFsm::on(const ClanCreateRequest&) {
-    return require_clan_state(state_, "bnet fsm: CLAN_CREATE before login");
+core::Status<> BnetFsm::on(const ClanCreateRequest& m) {
+    if (auto s = require_clan_state(state_, "bnet fsm: CLAN_CREATE before login"); !s)
+        return s;
+    // The original (clan_get_possible_member) ALWAYS answers SID_CLANCREATEREQ.
+    // For a clanless account requesting an unused tag it replies CHECK_OK (0x00)
+    // followed by the list of eligible (mutual + online) friends — empty when the
+    // account has none. v3 has no clan backend, so an account is always clanless
+    // and a tag is never taken: reply CHECK_OK with an empty candidate list. A
+    // real WC3 client opening the create-clan dialog hangs without this reply.
+    // (Populating the candidate-friend list is a refinement; the common path —
+    // no online mutual friends — matches the oracle byte-for-byte.)
+    ClanCreateReply reply;
+    reply.cookie       = m.cookie;
+    reply.check_result = 0x00;  // SERVER_CLAN_CREATEREPLY_CHECK_OK
+    return ctx_->send(ServerMessage{reply});
 }
 core::Status<> BnetFsm::on(const ClanDisbandRequest&) {
     return require_clan_state(state_, "bnet fsm: CLAN_DISBAND before login");

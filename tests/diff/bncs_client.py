@@ -545,6 +545,33 @@ def drain_chat(client, settle=0.5):
     return events
 
 
+SID_CLANCREATEREQ = 0x70  # CLIENT_CLAN_CREATEREQ / SERVER_CLAN_CREATEREPLY
+
+
+def clan_create_req(client, clan_tag=0x54414721, cookie=0x1234, settle=0.4):
+    """SID_CLANCREATEREQ (0x70): request body count(u32)+clantag(u32). Reply:
+    count(u32) + check_result(u8) + friend_count(u8) + friend names. Returns
+    {cookie, check_result, friends:[...]} or None."""
+    import struct, time
+    client.send(SID_CLANCREATEREQ, struct.pack("<II", cookie, clan_tag))
+    time.sleep(settle)
+    body = _drain_until(client, SID_CLANCREATEREQ)
+    if body is None or len(body) < 6:
+        return None
+    rc = struct.unpack_from("<I", body, 0)[0]
+    check_result = body[4]
+    friend_count = body[5]
+    friends = []
+    pos = 6
+    for _ in range(friend_count):
+        nul = body.find(b"\x00", pos)
+        if nul < 0:
+            break
+        friends.append(body[pos:nul].decode("latin-1", "replace"))
+        pos = nul + 1
+    return {"cookie": rc, "check_result": check_result, "friends": friends}
+
+
 def friends_add(client, name):
     """/friends add <name> via SID_CHATCOMMAND (drains the resulting ack)."""
     chat_command(client, f"/friends add {name}")
