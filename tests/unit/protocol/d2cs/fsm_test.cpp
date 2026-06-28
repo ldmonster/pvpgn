@@ -316,8 +316,8 @@ TEST_CASE("D2CSSessionFsm - TC-10 GAMELISTREQ callback invoked", "[protocol][d2c
     D2CSSessionFsm fsm(cb);
 
     std::vector<uint8_t> payload;
-    push_u32(payload, 11);  // seqno
-    push_u32(payload, 2);   // game_type
+    push_u16(payload, 11);  // seqno (bn_short, per d2cs_protocol.h)
+    push_u32(payload, 2);   // game_type (gameflag)
 
     auto r = feed(fsm, make_packet(0x05, payload));
 
@@ -343,7 +343,7 @@ TEST_CASE("D2CSSessionFsm - TC-11 GAMEINFOREQ callback invoked", "[protocol][d2c
     D2CSSessionFsm fsm(cb);
 
     std::vector<uint8_t> payload;
-    push_u32(payload, 22);  // seqno
+    push_u16(payload, 22);  // seqno (bn_short, per d2cs_protocol.h)
     push_cstr(payload, "TargetGame");
 
     auto r = feed(fsm, make_packet(0x06, payload));

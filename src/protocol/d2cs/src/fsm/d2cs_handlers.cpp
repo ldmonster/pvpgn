@@ -204,10 +204,13 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_join_game(
 core::Result<void, core::Error> D2CSSessionFsm::handle_game_list(
     const uint8_t* payload, size_t len)
 {
-    // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    //   [4..7]  uint32_t  game_type
-    constexpr size_t kMinFixed = 8;
+    // Wire layout (after 3-byte header), per d2cs_protocol.h
+    // t_client_d2cs_gamelistreq: bn_short seqno + bn_int gameflag.
+    //   [0..1]  uint16_t  seqno
+    //   [2..5]  uint32_t  game_type (gameflag)
+    // (The codec decoder reads u16 seqno too; the handler previously read u32,
+    // misframing the gameflag for a real client.)
+    constexpr size_t kMinFixed = 6;
     if (len < kMinFixed) {
         return core::fail(
             core::make_error(core::StatusCode::InvalidArgument,
@@ -216,7 +219,9 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_game_list(
 
     D2CSGameListRequest req;
     size_t offset = 0;
-    if (!read_u32le(payload, len, offset, req.seqno))      goto short_payload;
+    std::uint16_t seqno16 = 0;
+    if (!read_u16le(payload, len, offset, seqno16))        goto short_payload;
+    req.seqno = seqno16;
     if (!read_u32le(payload, len, offset, req.game_type))  goto short_payload;
 
     if (callbacks_.on_game_list) {
@@ -235,10 +240,12 @@ short_payload:
 core::Result<void, core::Error> D2CSSessionFsm::handle_game_info(
     const uint8_t* payload, size_t len)
 {
-    // Wire layout (after 3-byte header):
-    //   [0..3]  uint32_t  seqno
-    //   [4..]   char[]    game_name (null-terminated)
-    constexpr size_t kMinFixed = 4;
+    // Wire layout (after 3-byte header), per d2cs_protocol.h
+    // t_client_d2cs_gameinforeq: bn_short seqno + game_name cstring.
+    //   [0..1]  uint16_t  seqno
+    //   [2..]   char[]    game_name (null-terminated)
+    // (The codec decoder reads u16 seqno; the handler previously read u32.)
+    constexpr size_t kMinFixed = 2;
     if (len < kMinFixed) {
         return core::fail(
             core::make_error(core::StatusCode::InvalidArgument,
@@ -247,10 +254,12 @@ core::Result<void, core::Error> D2CSSessionFsm::handle_game_info(
 
     D2CSGameInfoRequest req;
     size_t offset = 0;
-    if (!read_u32le(payload, len, offset, req.seqno)) {
+    std::uint16_t seqno16 = 0;
+    if (!read_u16le(payload, len, offset, seqno16)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
                                            "D2CS GAMEINFOREQ: cannot read seqno"));
     }
+    req.seqno = seqno16;
     if (!read_cstring(payload, len, offset, req.game_name)) {
         return core::fail(core::make_error(core::StatusCode::InvalidArgument,
                                            "D2CS GAMEINFOREQ: unterminated game_name"));
