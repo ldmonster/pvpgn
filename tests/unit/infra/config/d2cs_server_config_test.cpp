@@ -24,7 +24,7 @@ TEST_CASE("d2cs config: empty input yields defaults", "[infra][config][d2cs]") {
     REQUIRE(c.realm.allow_convert           == false);
     REQUIRE(c.realm.account_allowed_symbols == "-_[]");
     REQUIRE(c.log.levels                    == "fatal,error,warn,info");
-    REQUIRE(c.misc.motd                     == "No Message Of The Day Set");
+    REQUIRE(c.misc.motd                     == "No MOTD yet");
     REQUIRE(c.misc.allow_newchar            == true);
     REQUIRE(c.misc.check_multilogin         == false);
     REQUIRE(c.misc.maxchar                  == 8u);

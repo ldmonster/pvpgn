@@ -5,16 +5,16 @@
 /// Each make_*() method constructs a fully-framed D2CS reply packet
 /// (3-byte header + payload) ready to be written to the wire.
 ///
-///   make_login_reply()         — LOGINREPLY (0x02)
-///   make_char_login_reply()    — CHARLOGINREPLY (0x0B)
-///   make_create_game_reply()   — CREATEGAMEREPLY (0x0D)
-///   make_join_game_reply()     — JOINGAMEREPLY (0x0E)
+///   make_login_reply()         — LOGINREPLY (0x01)
+///   make_char_login_reply()    — CHARLOGINREPLY (0x07)
+///   make_create_game_reply()   — CREATEGAMEREPLY (0x03)
+///   make_join_game_reply()     — JOINGAMEREPLY (0x04)
 ///   make_char_list_reply()     — CHARLISTREPLY (0x17)
-///   make_create_char_reply()   — CREATECHARREPLY (0x03)
-///   make_delete_char_reply()   — DELETECHARREPLY (0x04)
-///   make_motd_reply()          — MOTDREPLY (0x13)
-///   make_create_game_wait()    — CREATEGAMEWAIT (0x0F)
-///   make_convert_char_reply()  — CONVERTCHARREPLY (0x1A)
+///   make_create_char_reply()   — CREATECHARREPLY (0x02)
+///   make_delete_char_reply()   — DELETECHARREPLY (0x0A)
+///   make_motd_reply()          — MOTDREPLY (0x12)
+///   make_create_game_wait()    — CREATEGAMEWAIT (0x14)
+///   make_convert_char_reply()  — CONVERTCHARREPLY (0x18)
 
 #include "protocol/d2cs/fsm.hpp"
 

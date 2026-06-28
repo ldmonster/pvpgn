@@ -20,6 +20,7 @@
 #include "core/bytes.hpp"
 #include "protocol/d2dbs/codec.hpp"
 #include "protocol/d2dbs/fsm.hpp"
+#include "app/d2dbs/legacy_d2dbs_bridges/d2dbs_prefs_bridge.hpp"
 
 namespace pvpgn::app::d2dbs {
 
@@ -140,8 +141,18 @@ void D2DBSTcpSession::send_char_load_result(
     const std::uint32_t creattime = (success && data) ? data->timestamp : 0u;
     const std::vector<std::uint8_t> blob =
         (success && data) ? data->data : std::vector<std::uint8_t>{};
+    // allowladder mirrors the oracle (dbspacket.cpp dbs_packet_getdata): on a
+    // successful load it is 1 iff the character's create_time >= the configured
+    // ladderinit_time, else 0; on failure it stays 0. With the default
+    // ladderinit_time = 0 every loaded character is ladder-eligible (matching
+    // the original). The previous hardcoded 0 reported every char as
+    // ladder-ineligible to the D2GS.
+    const std::uint32_t allowladder =
+        (success && data &&
+         creattime >= pvpgn_v3_d2dbs_prefs_get_ladderinit_time())
+            ? 1u : 0u;
     send_raw(protocol::d2dbs::D2DBSSessionFsm::make_get_data_reply(
-        cur_seqno_, result, creattime, /*allowladder*/ 0u,
+        cur_seqno_, result, creattime, allowladder,
         cur_datatype_, cur_char_name_, blob));
 }
 

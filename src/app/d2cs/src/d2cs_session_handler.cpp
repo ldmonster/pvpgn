@@ -10,6 +10,7 @@
 #include "domain/d2cs/types.hpp"
 #include "domain/d2cs/use_cases.hpp"
 #include "protocol/d2cs/fsm.hpp"
+#include "app/d2cs/legacy_d2cs_bridges/d2cs_prefs_bridge.hpp"
 
 namespace pvpgn::app::d2cs {
 
@@ -318,9 +319,15 @@ core::Result<void, core::Error> D2CSSessionHandler::handle_motd(
     const protocol::d2cs::D2CSMotdRequest& /*req*/)
 {
     // The original on_client_motdreq ALWAYS replies SERVER_MOTDREPLY with
-    // prefs_get_motd(); a no-op stub hung the client. v3 has no per-realm motd
-    // config yet, so it sends the conventional d2cs default text.
-    egress_.send_motd("No Message Of The Day Set");
+    // prefs_get_motd() (default "No MOTD yet"), clamped to MAX_MOTD_LENGTH=511.
+    // Read it through the existing prefs bridge instead of a hardcoded literal.
+    const char* m = pvpgn_v3_d2cs_prefs_get_motd();
+    std::string motd = (m != nullptr && *m != '\0') ? std::string(m)
+                                                     : std::string("No MOTD yet");
+    if (motd.size() > 511) {
+        motd.resize(511);  // legacy clamp: clients can crash on a longer MOTD
+    }
+    egress_.send_motd(motd);
     return {};
 }
 

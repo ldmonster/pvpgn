@@ -79,7 +79,7 @@ struct D2csFilesSection {
 // ── [misc] ───────────────────────────────────────────────────────────────────
 
 struct D2csMiscSection {
-    std::string   motd                 = "No Message Of The Day Set";
+    std::string   motd                 = "No MOTD yet";  // matches legacy D2CS_MOTD
     bool          allow_newchar        = true;
     bool          check_multilogin     = false;
     std::uint32_t maxchar              = 8;

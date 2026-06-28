@@ -125,7 +125,7 @@ extern "C" const char* pvpgn_v3_d2cs_prefs_get_charsave_newbie_druid(void)      
 extern "C" const char* pvpgn_v3_d2cs_prefs_get_charsave_newbie_assasin(void)     { STR_GET(newbiefile_assasin, ""); }
 
 // ── [misc] ───────────────────────────────────────────────────────────────────
-extern "C" const char*  pvpgn_v3_d2cs_prefs_get_motd(void)              { STR_GET(motd, "No Message Of The Day Set"); }
+extern "C" const char*  pvpgn_v3_d2cs_prefs_get_motd(void)              { STR_GET(motd, "No MOTD yet"); }
 extern "C" unsigned int pvpgn_v3_d2cs_prefs_allow_newchar(void)          { BOOL_GET(allow_newchar); }
 extern "C" unsigned int pvpgn_v3_d2cs_prefs_check_multilogin(void)       { BOOL_GET(check_multilogin); }
 extern "C" unsigned int pvpgn_v3_d2cs_prefs_get_maxchar(void)            { U32_GET(maxchar, 8); }

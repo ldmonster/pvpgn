@@ -83,7 +83,7 @@ TEST_CASE("D2csLegacyPrefs exposes defaults for an empty config",
     REQUIRE(p.allow_convert()                       == false);
     REQUIRE(std::string{p.account_allowed_symbols()} == "-_[]");
     REQUIRE(std::string{p.loglevels()}              == "fatal,error,warn,info");
-    REQUIRE(std::string{p.motd()}                   == "No Message Of The Day Set");
+    REQUIRE(std::string{p.motd()}                   == "No MOTD yet");
     REQUIRE(p.allow_newchar()                       == true);
     REQUIRE(p.maxchar()                             == 8u);
     REQUIRE(p.idletime()                            == 3600u);

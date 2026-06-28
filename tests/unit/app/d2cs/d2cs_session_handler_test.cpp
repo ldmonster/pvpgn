@@ -336,7 +336,7 @@ TEST_CASE("D2CSSessionHandler: on_motd sends a MOTD reply",
     REQUIRE(f.cb.on_motd(req).has_value());
 
     REQUIRE(f.egress.motd_called);
-    CHECK(f.egress.motd_text == "No Message Of The Day Set");
+    CHECK(f.egress.motd_text == "No MOTD yet");
 }
 
 // ---------------------------------------------------------------------------
