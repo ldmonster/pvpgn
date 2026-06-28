@@ -469,9 +469,14 @@ int main(int argc, char* argv[]) {
             use_cases.remove_friend =
                 std::make_shared<application::social::RemoveFriend>(
                     no_delete_friends, no_delete_bus);
+            auto no_delete_chan_reader =
+                std::shared_ptr<domain::chat::IChannelReader>(
+                    &channel_repo,
+                    [](domain::chat::IChannelReader*) noexcept {});
             use_cases.list_friends =
                 std::make_shared<application::social::ListFriends>(
-                    no_delete_friends, no_delete_sessions, no_delete_reader);
+                    no_delete_friends, no_delete_sessions, no_delete_reader,
+                    no_delete_chan_reader);
             // Realm/server name for the friend presence whisper text
             // ("Your friend X has entered <server_name>.").
             use_cases.server_name = cfg.server_name;

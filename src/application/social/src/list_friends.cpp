@@ -3,7 +3,8 @@
 
 #include "domain/identity/ports.hpp"
 #include "domain/social/ports.hpp"
-#include "domain/identity/ports.hpp"
+#include "domain/chat/ports.hpp"
+#include "domain/chat/channel.hpp"
 
 namespace pvpgn::application::social {
 
@@ -47,13 +48,23 @@ ListFriends::execute(domain::AccountId owner) {
             .is_mutual = is_mutual,
             .current_channel = std::nullopt,
             .current_game = std::nullopt,
+            .location_name = std::string{},
         };
 
-        // If online, get current channel and game
-        if (is_online) {
-            [[maybe_unused]] const auto& session = session_result.value();
-            // Note: these would be populated by the session registry impl
-            // For now, set to nullopt
+        // If online and a channel reader is wired, resolve the friend's current
+        // channel (the original reports FRIENDSTATUS_CHAT + the channel name).
+        // Game location (PUBLIC/PRIVATE_GAME) needs the game repo — a later slice.
+        if (is_online && channels_) {
+            channels_->forEach([&](const domain::chat::Channel& c) {
+                for (const auto& mid : c.member_ids()) {
+                    if (mid.value() == friend_id.value()) {
+                        info.current_channel = c.id();
+                        info.location_name   = c.name();
+                        return false;  // stop iteration
+                    }
+                }
+                return true;
+            });
         }
 
         result.push_back(info);

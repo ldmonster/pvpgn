@@ -894,8 +894,8 @@ FriendsListEntry friend_to_entry(const application::social::FriendInfo& f) {
     } else {
         e.location = kFriendLocOnline;
     }
-    e.client_tag    = 0;
-    e.location_name = "";  // channel/game name not resolved here
+    e.client_tag    = 0;  // friend's product — needs cross-session state (later)
+    e.location_name = f.location_name;  // channel name when in a channel
     return e;
 }
 }  // namespace

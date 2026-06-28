@@ -3269,3 +3269,14 @@ diff_friends_mutual.py: A<->B mutual -> 0x01, A->C one-way -> 0x00, matching the
 oracle. (DND 0x02 / AWAY 0x04 status bits + client_tag + game/channel location +
 location_name still need a cross-session presence view — next slices.) Build +
 3206/3206 unit tests; diff_friends/friendinfo/trailing still match.
+
+## Wave 190: SID_FRIENDSLIST channel location + name — friends-cluster part 2
+A friend in a channel must report FRIENDSTATUS_CHAT (0x02) + the channel name; v3
+left current_channel unpopulated so an in-channel friend showed as plain ONLINE
+(0x01) with an empty location_name. Wired an optional IChannelReader into
+ListFriends (default null ⇒ unchanged for tests); execute() scans the shared
+channel repo for each online friend's id (like WOL finduser) and sets
+current_channel + location_name = channel name. friend_to_entry now emits the real
+location_name. diff_friends_location.py: friend-in-channel -> 0x02 on both. (Game
+location 0x03/0x05 needs the game repo; client_tag + away/dnd status need a
+cross-session presence view — remaining slices.) Build + 3206/3206 unit tests.
