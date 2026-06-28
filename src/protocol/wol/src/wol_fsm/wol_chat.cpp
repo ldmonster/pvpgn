@@ -627,7 +627,8 @@ core::Status<> WolFsm::on_join(std::string_view params) {
         }
 
         // 366 RPL_ENDOFNAMES
-        return send_numeric(366, channel_, "End of /NAMES list");
+        return send_numeric(366, std::string(nick_) + " " + channel_,
+                            "End of NAMES list");
     }
 
     // Stub / no use-case: accept the join locally.
@@ -658,7 +659,7 @@ core::Status<> WolFsm::on_join(std::string_view params) {
     }
 
     // 332 RPL_TOPIC (empty topic for stub)
-    st = send_numeric(332, channel_, "");
+    st = send_numeric(332, std::string(nick_) + " " + channel_, "");
     if (!st) return st;
 
     // 366 RPL_ENDOFNAMES

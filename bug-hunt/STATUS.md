@@ -3240,3 +3240,21 @@ before the AuthInfoReply (the client echoes it via CLIENT_ECHOREPLY, which
 on(Ping) already ignores). diff_auth_echoreq.py: both emit 0x25 then 0x50.
 Updated 2 fsm_test AUTH_INFO assertions (sent.size 1->2, Ping at [0]). OLS login +
 chat diffs still pass (the mock's _drain_until already echoed the oracle's ping).
+
+## Wave 188: WOL JOIN-flow 366/332 missing <nick> param (fleet-2-found)
+The auto 366 RPL_ENDOFNAMES / 332 RPL_TOPIC v3 sends during JOIN omitted the
+leading <nick> param (and the 366 used "End of /NAMES list" with a stray slash).
+The original (irc.cpp) sends ":server 366 <nick> <channel> :End of NAMES list" —
+irc_send always prepends the nick. A client parsing ":server 366 <channel> :..."
+would mistake the channel for the nick. Fixed the wired+stub join 366 to
+send_numeric(366, nick+" "+channel, "End of NAMES list") and the stub 332 to
+include the nick (the wired 332 + the standalone on_names/on_topic were already
+correct). Differential probe: join 366 now byte-matches the oracle
+([nick,channel] + "End of NAMES list"). diff_wol_names still passes; 3206 tests.
+DEFERRED (fleet 2, architectural/cluster): SID_FRIENDSLIST per-friend fields
+(status mutual/dnd/away byte, client_tag, game-location 0x03/0x05, location_name)
+— all hardcoded 0/empty; needs FriendInfo + ISessionRegistry extended to expose
+cross-session away/dnd/clienttag/game state. EID roster-event per-recipient squelch
+flag (MF_X 0x20) — needs per-recipient segmented delivery. W3/NLS locked-account
+check (0x54/0x56) — untestable (can't lock via mock), like the OLS locked code.
+JOINGAME game_id=0 placeholder + GETCODEPAGE/GETLOCALE other-users (cross-session).
