@@ -315,8 +315,11 @@ core::Status<> WolFsm::dispatch_line(std::string_view line) {
         if (first_token(params).empty()) {
             return send_needmoreparams(cmd);
         }
+        // The original irc_send(conn, ERR_IDNOEXIST, ":ID does not exist") emits
+        // ":server 439 <nick> :ID does not exist" — the command name is NOT
+        // included in the reply. send_numeric supplies the leading ':'.
         return send_numeric(439, nick_.empty() ? "*" : nick_,
-                            std::string(cmd) + " :ID does not exist");
+                            "ID does not exist");
     }
 
     // COPYRIGHT / WARRANTY / LICENSE / VERSION: the original routes these through
