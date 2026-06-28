@@ -24,6 +24,9 @@ class OriginalBnetd:
         # "Westwood Chat" era (WCHT/C&C/RA1-2.00); wolv2 the rest.
         self.wolv1_port = port + 2
         self.wolv2_port = port + 3
+        # IRC listener (off by default: BNETD_IRC_ADDRS == ""). Enabled on a
+        # derived test port so a raw IRC mock can drive the oracle's IRC dialect.
+        self.irc_port = port + 4
         # Optional D2 realm to advertise so a d2cs can link in: a dict
         # {"name": str, "d2cs_port": int}. The realm IP is 127.0.0.1 so the
         # d2cs (connecting from loopback) matches realmlist_find_realm_by_ip.
@@ -143,6 +146,7 @@ class OriginalBnetd:
         # rewrite loop above never sees them — append explicit test-port lines.
         out.append(f'wolv1addrs = 127.0.0.1:{self.wolv1_port}\n')
         out.append(f'wolv2addrs = 127.0.0.1:{self.wolv2_port}\n')
+        out.append(f'ircaddrs = 127.0.0.1:{self.irc_port}\n')
         with open(conf_path, "w") as f:
             f.writelines(out)
 

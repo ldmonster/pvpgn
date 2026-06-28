@@ -68,10 +68,26 @@ core::Status<> IrcFsm::try_complete_registration() {
     }
 
     state_ = IrcState::Registered;
-    // 001 RPL_WELCOME
-    std::string text = ":Welcome to PvPGN, ";
-    text += nick_;
-    return send_numeric(1, text);
+    // The original (handle_irc_welcome) sends the FULL registration burst, not
+    // just RPL_WELCOME: 001 welcome, 002 yourhost, 003 created, 004 myinfo,
+    // 005 isupport, then the MOTD (375 [/ 372 lines] / 376). Many IRC clients
+    // block until they see 004 RPL_MYINFO or the end-of-MOTD, so emitting only
+    // 001 left a real client waiting. Match the numeric sequence — the host/
+    // version/time text is environment-specific and not byte-compared.
+    const std::string sv{ctx_->server_name()};
+    if (auto s = send_numeric(1, ":Welcome to the " + sv + " IRC Network " + nick_);
+        !s) return s;
+    if (auto s = send_numeric(2, ":Your host is " + sv + ", running pvpgn-v3");
+        !s) return s;
+    if (auto s = send_numeric(3, ":This server was created at startup"); !s) return s;
+    if (auto s = send_numeric(4, sv + " pvpgn-v3 - -"); !s) return s;
+    if (auto s = send_numeric(5,
+            "NICKLEN=15 TOPICLEN=255 CHANNELLEN=255 CHANTYPES=#& NETWORK=" + sv +
+            " IRCD=pvpgn :are supported by this server"); !s) return s;
+    // MOTD framing (375 start / 376 end). v3 has no MOTD content line (372);
+    // the original, with a configured MOTD file, additionally sends 372.
+    if (auto s = send_numeric(375, ":- " + sv + " Message of the day -"); !s) return s;
+    return send_numeric(376, ":End of /MOTD command.");
 }
 
 // ---------------------------------------------------------------------------

@@ -157,13 +157,22 @@ TEST_CASE("IrcFsm: NICK+USER completes registration with 001 RPL_WELCOME",
     REQUIRE(f.handle(msg("NICK", {"alice"})).has_value());
     REQUIRE(f.handle(msg("USER", {"alice", "0", "*", "Alice"})).has_value());
     REQUIRE(f.state() == IrcState::Registered);
-    REQUIRE(ctx.sent.size() == 1);
+    // Registration emits the full welcome burst (001 welcome, 002 yourhost,
+    // 003 created, 004 myinfo, 005 isupport, 375/376 MOTD), matching the
+    // original's handle_irc_welcome — not just RPL_WELCOME.
+    REQUIRE(ctx.sent.size() == 7);
     const auto& welcome = ctx.sent[0];
     REQUIRE(welcome.prefix  == "pvpgn.test");
     REQUIRE(welcome.command == "001");
     REQUIRE(welcome.params.front() == "alice");
     // Welcome text must contain the nick.
     REQUIRE(welcome.params.back().find("alice") != std::string::npos);
+    // The burst includes RPL_MYINFO (004) and ends the MOTD (376) — the
+    // numerics real clients block on before proceeding.
+    std::vector<std::string> codes;
+    for (const auto& m2 : ctx.sent) codes.push_back(m2.command);
+    REQUIRE(std::find(codes.begin(), codes.end(), "004") != codes.end());
+    REQUIRE(std::find(codes.begin(), codes.end(), "376") != codes.end());
 }
 
 TEST_CASE("IrcFsm: USER+NICK (reversed) also completes registration",
@@ -174,7 +183,8 @@ TEST_CASE("IrcFsm: USER+NICK (reversed) also completes registration",
     REQUIRE(f.state() == IrcState::Greeting);
     REQUIRE(f.handle(msg("NICK", {"bob"})).has_value());
     REQUIRE(f.state() == IrcState::Registered);
-    REQUIRE(ctx.sent.size() == 1);
+    // Full welcome burst (see above); 001 is first and names the nick.
+    REQUIRE(ctx.sent.size() == 7);
     REQUIRE(ctx.sent[0].command == "001");
     REQUIRE(ctx.sent[0].params.front() == "bob");
 }
