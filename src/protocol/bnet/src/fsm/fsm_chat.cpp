@@ -437,6 +437,20 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
             if (cmd == "whois" || cmd == "where" || cmd == "whereis")
                 return handle_whois(info_args);
             if (cmd == "whoami") return handle_whoami();
+            // --- /join //channel //j: join (or create) a channel ---
+            // The original maps /channel //join //j to _handle_channel_command,
+            // which calls conn_set_channel -> the normal join (EID_CHANNEL +
+            // roster). Reuse the SID_JOINCHANNEL path. With no argument the
+            // original only prints a usage line; we no-op rather than emit a
+            // spurious channel change. info_args preserves internal spaces, so a
+            // multi-word channel name ("Clan Recruitment") is kept intact.
+            if (cmd == "join" || cmd == "channel" || cmd == "j") {
+                std::string_view chan = info_args;
+                while (!chan.empty() && (chan.back() == ' ' || chan.back() == '\r'))
+                    chan.remove_suffix(1);
+                if (chan.empty()) return core::ok();
+                return on(JoinChannel{0u, std::string{chan}});
+            }
             // --- /version and /copyright family (plain-ASCII EID_INFO replies) ---
             // The original routes these through the CommandRegistry
             // (_handle_version_command / _handle_copyright_command). v3 never
