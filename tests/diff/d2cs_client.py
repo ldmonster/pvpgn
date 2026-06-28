@@ -44,6 +44,8 @@ D2CS_CREATECHARREQ = 0x02
 D2CS_CREATECHARREPLY = 0x02
 D2CS_CHARLISTREQ   = 0x17
 D2CS_CHARLISTREPLY = 0x17
+D2CS_CHARLISTREQ_110   = 0x19
+D2CS_CHARLISTREPLY_110 = 0x19
 
 # LOGINREPLY result codes.
 LOGINREPLY_SUCCEED = 0x00
@@ -189,4 +191,37 @@ class D2csClient:
             "u1": u1,
             "currchar2": currchar2,
             "names": names,
+        }
+
+    def char_list_110(self, maxchar: int = 8):
+        """CLIENT_D2CS_CHARLISTREQ_110 (0x19). The 1.10+ variant: the reply type
+        is 0x19 and each per-character entry is prefixed with a 4-byte LE
+        expire_time before the name+portrait. Returns the parsed reply or None."""
+        body = struct.pack("<HH", maxchar, 0)
+        self.send(D2CS_CHARLISTREQ_110, body)
+        rep = self.recv_type(D2CS_CHARLISTREPLY_110)
+        if rep is None or len(rep) < 8:
+            return None
+        maxc, currchar, u1, currchar2 = struct.unpack_from("<HHHH", rep, 0)
+        names = []
+        expires = []
+        pos = 8
+        for _ in range(currchar):
+            if pos + 4 > len(rep):
+                break
+            expires.append(struct.unpack_from("<I", rep, pos)[0])
+            pos += 4
+            nul = rep.find(b"\x00", pos)
+            if nul < 0:
+                break
+            names.append(rep[pos:nul].decode("latin-1", "replace"))
+            pos = nul + 1
+            pos += 33  # portrait block follows each name
+        return {
+            "maxchar": maxc,
+            "currchar": currchar,
+            "u1": u1,
+            "currchar2": currchar2,
+            "names": names,
+            "expires": expires,
         }
