@@ -4,10 +4,10 @@
 /// Implementation of `D2CSTcpSession`.
 ///
 /// Egress serialisation uses the static packet-builder methods on
-/// `D2CSSessionFsm` where they exist. For replies that have no dedicated
-/// builder yet (char-select, ladder) a minimal 3-byte stub header is sent
-/// so the client does not hang. The exact wire format will be refined in
-/// later rounds.
+/// `D2CSSessionFsm` (and the byte-accurate `ladderreply` encoder) for the
+/// client-facing replies. The game-lobby replies (create/join/list/info game)
+/// have no egress path yet — they require the D2CS<->D2GS server link and a
+/// d2cs game store, deferred as a subsystem feature.
 
 #include "app/d2cs/d2cs_tcp_session.hpp"
 
