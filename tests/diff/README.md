@@ -16,6 +16,17 @@ ground truth rather than against v3's own assumptions.
 - `diff_ols_login.py` — runs the OLS create+login scenario against both and
   prints a field-by-field comparison, asserting login *outcomes* match the oracle.
 
+### Realm servers (D2CS / D2DBS)
+- `d2cs_server.py` / `d2cs_client.py` — launchers + mock client for the Diablo II
+  realm server (`diff_d2cs_*.py`).
+- `d2dbs_server.py` / `d2dbs_client.py` — launchers + a mock D2GS for the Diablo II
+  character DB server. `diff_d2dbs_handshake.py` drives the 0x65 connect-class
+  handshake, 8-byte framing, and a `GET_DATA` for a missing character, asserting
+  the v3 d2dbs reply is **byte-identical** to the oracle. (The oracle advances one
+  connection phase per socket read, so the client sends the connect byte, pauses,
+  then the request — faithful to a real D2GS.) Needs the oracle built with
+  `-DWITH_D2DBS=ON` (binary at `pvpgn-server/build/src/d2dbs/d2dbs`).
+
 ## Prerequisites
 Build the original server once (file-storage backend, ZLIB only):
 ```
