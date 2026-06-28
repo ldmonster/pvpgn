@@ -266,3 +266,19 @@ hashtable_size = 127
     REQUIRE(account->get_or<int64_t>("max_friends", 0) == 50);
     REQUIRE(account->get_or<int64_t>("hashtable_size", 0) == 127);
 }
+
+// ── UTF-8 validation ───────────────────────────────────────────────────────────
+// The TOML spec requires UTF-8 input and toml++ has undefined behaviour on some
+// malformed byte sequences; load_string rejects invalid UTF-8 up front.
+
+TEST_CASE("Config::load_string: invalid UTF-8 returns nullopt",
+          "[infra][config][Config][utf8]") {
+    // Lone continuation byte, truncated 2-byte lead, overlong NUL, and a bare
+    // 0xFF are all invalid UTF-8 and must be rejected before reaching toml++.
+    CHECK_FALSE(Config::load_string("key = \x80"sv).has_value());
+    CHECK_FALSE(Config::load_string("\xC3"sv).has_value());
+    CHECK_FALSE(Config::load_string("\xC0\x80"sv).has_value());
+    CHECK_FALSE(Config::load_string("\xFF\xFE"sv).has_value());
+    // A valid multi-byte UTF-8 value still parses.
+    CHECK(is_valid_utf8("name = \"\xC3\xA9\""sv));
+}

@@ -34,6 +34,48 @@
 
 namespace pvpgn::infra::config {
 
+/// Validate that a byte string is well-formed UTF-8 (RFC 3629): rejects
+/// overlong encodings, surrogate halves, and code points > U+10FFFF.
+///
+/// toml++ assumes its input is valid UTF-8 and reaches a `__builtin_unreachable`
+/// (undefined behaviour) on certain malformed byte sequences. The TOML spec
+/// requires UTF-8 input, so we reject invalid input up front rather than feed it
+/// to the parser — this both matches the spec and hardens the parser entry
+/// points against malformed config bytes (verified by the UBSan property tests).
+[[nodiscard]] inline bool is_valid_utf8(std::string_view s) noexcept {
+    const auto* p   = reinterpret_cast<const unsigned char*>(s.data());
+    const auto* end = p + s.size();
+    while (p < end) {
+        const unsigned char c = *p;
+        if (c < 0x80) { ++p; continue; }            // ASCII
+        int len;
+        if ((c & 0xE0) == 0xC0) {                    // 2-byte
+            if (c < 0xC2) return false;              //   overlong
+            len = 2;
+        } else if ((c & 0xF0) == 0xE0) {             // 3-byte
+            len = 3;
+        } else if ((c & 0xF8) == 0xF0) {             // 4-byte
+            if (c > 0xF4) return false;              //   > U+10FFFF
+            len = 4;
+        } else {
+            return false;                            // 0x80-0xBF stray / 0xF5+
+        }
+        if (end - p < len) return false;             // truncated
+        for (int i = 1; i < len; ++i) {
+            if ((p[i] & 0xC0) != 0x80) return false; // bad continuation
+        }
+        if (len == 3) {
+            if (c == 0xE0 && p[1] < 0xA0) return false;   // overlong
+            if (c == 0xED && p[1] >= 0xA0) return false;  // UTF-16 surrogate
+        } else if (len == 4) {
+            if (c == 0xF0 && p[1] < 0x90) return false;   // overlong
+            if (c == 0xF4 && p[1] >= 0x90) return false;  // > U+10FFFF
+        }
+        p += len;
+    }
+    return true;
+}
+
 /// Immutable view over a TOML table (or sub-table).
 ///
 /// A `Config` wraps a `toml::table` by value. When constructed via
@@ -48,6 +90,11 @@ public:
     [[nodiscard]] static std::optional<Config>
     load_string(std::string_view toml_text) noexcept
     {
+        // toml++ requires valid UTF-8 and has UB on some malformed sequences;
+        // reject invalid input before parsing (treated as a parse error).
+        if (!is_valid_utf8(toml_text)) {
+            return std::nullopt;
+        }
         try {
             return Config{toml::parse(toml_text)};
         } catch (...) {
