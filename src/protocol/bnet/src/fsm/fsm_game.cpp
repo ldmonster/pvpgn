@@ -149,33 +149,20 @@ core::Status<> BnetFsm::on(const StartGame4Request& m) {
     return ctx_->send(ServerMessage{StartGame4Ack{0x00u}});
 }
 
-core::Status<> BnetFsm::on(const JoinGame& m) {
+core::Status<> BnetFsm::on(const JoinGame&) {
     auto s = require_clan_state(state_, "bnet fsm: JOINGAME before login");
     if (!s) return s;
 
-    if (!use_cases_.join_game) {
-        // No join_game use-case available - accept the request with fallback
-        state_ = BnetState::InGame;
-        return ctx_->send(ServerMessage{StartGame4Ack{0x00u}});
-    }
-
-    // Parse game ID from message (game_name in the request)
-    // For now, use a placeholder game ID
-    domain::GameId game_id{0};
-
-    auto join_result = use_cases_.join_game->execute(game_id, current_account_id_);
-
-    if (!join_result) {
-        // Join failed — send SID_STARTADVEX3 with non-zero error code
-        return ctx_->send(ServerMessage{StartGame4Ack{0x01u}});
-    }
-
-    // Join succeeded - store game ID and transition to InGame
-    current_game_id_ = game_id;
+    // CLIENT_JOIN_GAME (0x22): the original (_client_joingame) records the join
+    // (conn_set_game) and returns WITHOUT sending any reply — the client joins
+    // the hosted game peer-to-peer and does not expect a server ack here. v3
+    // used to send a spurious SID_STARTADVEX3 (0x1C) StartGame4Ack, an
+    // unsolicited packet the real client never expects. Mirror the oracle:
+    // transition to in-game and reply nothing. (Join-by-name isn't modelled —
+    // v3 tracks no game id for the joiner, so current_game_id_ stays 0 and the
+    // on-disconnect leave_game path correctly finds nothing to tear down.)
     state_ = BnetState::InGame;
-
-    // Send SID_STARTADVEX3 (0x1C) success reply
-    return ctx_->send(ServerMessage{StartGame4Ack{0x00u}});
+    return core::ok();
 }
 
 core::Status<> BnetFsm::on(const CloseGame&) {

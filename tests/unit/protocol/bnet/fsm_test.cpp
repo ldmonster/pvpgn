@@ -371,37 +371,38 @@ TEST_CASE("BnetFsm: username is stored at login (no use-case path)",
     REQUIRE(std::get<LogonResponse2Reply>(session_ctx->sent.back()).result == 0u);
 }
 
-TEST_CASE("BnetFsm: JOINGAME sends StartGame4Ack on success (no use-case)",
+TEST_CASE("BnetFsm: JOINGAME records the join silently (no reply)",
           "[protocol][bnet][fsm][joingame]") {
     auto session_ctx = std::make_shared<FakeContext>();
     auto use_case_ctx = make_test_context();
     BnetFsm f{session_ctx, use_case_ctx};
     reach_logged_in(f);
+    const auto before = session_ctx->sent.size();
 
     JoinGame jg{};
     jg.game_name = "testgame";
     REQUIRE(f.handle(ClientMessage{jg}).has_value());
     REQUIRE(f.state() == BnetState::InGame);
 
-    // Must send StartGame4Ack, NOT ChatEvent
-    REQUIRE(std::holds_alternative<StartGame4Ack>(session_ctx->sent.back()));
-    REQUIRE(std::get<StartGame4Ack>(session_ctx->sent.back()).reply == 0x00u);
+    // The original (_client_joingame) records the join and sends NO reply — the
+    // joiner reaches the host peer-to-peer. v3 must not emit a spurious ack.
+    REQUIRE(session_ctx->sent.size() == before);
 }
 
-TEST_CASE("BnetFsm: JOINGAME reply is StartGame4Ack not ChatEvent",
+TEST_CASE("BnetFsm: JOINGAME emits no StartGame4Ack or ChatEvent",
           "[protocol][bnet][fsm][joingame]") {
     auto session_ctx = std::make_shared<FakeContext>();
     auto use_case_ctx = make_test_context();
     BnetFsm f{session_ctx, use_case_ctx};
     reach_logged_in(f);
+    const auto before = session_ctx->sent.size();
 
     JoinGame jg{};
     jg.game_name = "g";
     REQUIRE(f.handle(ClientMessage{jg}).has_value());
 
-    // Explicitly verify it is NOT a ChatEvent
-    REQUIRE_FALSE(std::holds_alternative<ChatEvent>(session_ctx->sent.back()));
-    REQUIRE(std::holds_alternative<StartGame4Ack>(session_ctx->sent.back()));
+    // No new packet of any kind (the original is silent on CLIENT_JOIN_GAME).
+    REQUIRE(session_ctx->sent.size() == before);
 }
 
 TEST_CASE("BnetFsm: JOINCHANNEL sends EID_CHANNEL reply (no use-case)",
