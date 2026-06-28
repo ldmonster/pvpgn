@@ -1474,9 +1474,14 @@ core::Status<> WolFsm::on_advertr(std::string_view params) {
 }
 
 core::Status<> WolFsm::on_setopt(std::string_view params) {
-    // SETOPT <find>,<page>  (16/17 = find off/on, 32/33 = page off/on). No reply.
+    // SETOPT <find>,<page>  (16/17 = find off/on, 32/33 = page off/on). No reply
+    // on success. The original (handle_wol.cpp) sends 461 ERR_NEEDMOREPARAMS when
+    // called with no parameter.
     auto arg = trim(first_token(params));
-    if (arg.empty() || !user_flags_store_ || account_id_.value() == 0) {
+    if (arg.empty()) {
+        return send_needmoreparams("SETOPT");
+    }
+    if (!user_flags_store_ || account_id_.value() == 0) {
         return core::ok();
     }
     auto comma = arg.find(',');

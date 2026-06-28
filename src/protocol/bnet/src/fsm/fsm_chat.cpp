@@ -1379,11 +1379,27 @@ core::Status<> BnetFsm::on(const FriendInfoRequest& m) {
     return ctx_->send(ServerMessage{reply});
 }
 
-core::Status<> BnetFsm::on(const ClanInfoRequest&) {
+core::Status<> BnetFsm::on(const ClanInfoRequest& m) {
     if (state_ != BnetState::InChat && state_ != BnetState::LoggedIn) {
         return reject("bnet fsm: CLANINFO before login");
     }
-    return core::ok();
+    // The original _client_claninforeq drops the packet when the queried account
+    // does not exist, otherwise ALWAYS replies SERVER_CLANINFOREPLY. fail is a
+    // "does the requested clan tag match the account's?" check: fail=0 when
+    // request.clantag == the account's clan tag (INCLUDING both being 0, i.e. a
+    // clanless account queried with tag 0), else fail=1. v3 models no clans, so
+    // every account's tag is 0 -> fail=0 iff the request tag is 0. A no-op stub
+    // hung the client.
+    if (use_cases_.account_repo) {
+        auto name = domain::UserName::parse(m.player_name);
+        if (!name || !use_cases_.account_repo->find_by_name(name.value())) {
+            return core::ok();  // unknown account -> original drops (no reply)
+        }
+    }
+    ClanInfoReply reply;
+    reply.cookie = m.cookie;
+    reply.fail   = (m.clan_tag == 0) ? 0 : 1;  // tag-match against a clanless acct
+    return ctx_->send(ServerMessage{reply});
 }
 
 core::Status<> BnetFsm::on(const UserDataReadRequest& m) {

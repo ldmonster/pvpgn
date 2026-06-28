@@ -3123,3 +3123,20 @@ handlers needed wiring.
   versioncheck data — v3 models neither, so the message code (OK vs the harness
   oracle's no-versioncheck BADVERSION) isn't cleanly diffable. The hang is fixed
   (v3 now replies), which is the robustness win.
+
+## Wave 178: SID_CLANINFO reply (was no-op) + WOL SETOPT paramless 461
+- SID_CLANINFO (0x82): v3's handler was `return core::ok();` (silent) — the
+  original _client_claninforeq drops the packet if the queried account doesn't
+  exist, else ALWAYS replies SERVER_CLANINFOREPLY. fail is a tag-match test:
+  fail=0 when request.clantag == the account's clan tag (BOTH 0 for a clanless
+  account queried with tag 0), else fail=1. v3 models no clans (tag always 0), so
+  fail = (request.clan_tag==0)?0:1; unknown account -> drop (match original). The
+  ClanInfoReply struct/encoder already existed. diff_claninfo.py: tag0->fail0,
+  nonzero->fail1, cookie echoed — byte-match both servers.
+- WOL SETOPT with no parameter now sends 461 ERR_NEEDMOREPARAMS (was a silent
+  return), matching handle_wol.cpp. diff_wol_setopt_461.py; diff_wol_setopt
+  (normal path) still matches.
+DEFERRED (round-8): RealmJoinRequest (0x3e) no-op is part of the realm/d2cs Stage-2
+work (needs realm data, not a zero reply). WOL JOINGAME ban-check (needs a ban set,
+no admin/ban model in v3). GameType::kTeamFFA dead enum value (marginal; used in a
+switch). profile_reply teamcount cast (cosmetic, capped).
