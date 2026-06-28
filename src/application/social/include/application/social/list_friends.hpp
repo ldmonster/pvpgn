@@ -18,6 +18,7 @@
 
 namespace pvpgn::domain::chat { class IChannelReader; }
 namespace pvpgn::domain::gameplay { class IGameRepository; }
+namespace pvpgn::domain::connection { class IAccountPresenceStore; }
 
 namespace pvpgn::application::social {
 
@@ -29,6 +30,12 @@ struct FriendInfo {
     std::optional<domain::ChannelId> current_channel;
     std::optional<domain::GameId>    current_game;
     std::string                   location_name;  ///< channel (or game) name, if any
+    /// Live presence sourced from the friend's connection (only meaningful when
+    /// online): product tag (big-endian-packed) + away/DND flags. Zero/false
+    /// when the friend is offline or no presence store is wired.
+    std::uint32_t                 client_tag = 0;
+    bool                          away = false;
+    bool                          dnd  = false;
 };
 
 enum class ListFriendsError : std::uint8_t {
@@ -42,9 +49,11 @@ public:
                 std::shared_ptr<domain::identity::ISessionRegistry> registry,
                 std::shared_ptr<domain::identity::IAccountReader> accounts,
                 std::shared_ptr<domain::chat::IChannelReader> channels = nullptr,
-                std::shared_ptr<domain::gameplay::IGameRepository> games = nullptr)
+                std::shared_ptr<domain::gameplay::IGameRepository> games = nullptr,
+                std::shared_ptr<domain::connection::IAccountPresenceStore> presence
+                    = nullptr)
         : friend_lists_(friend_lists), registry_(registry), accounts_(accounts),
-          channels_(channels), games_(games) {}
+          channels_(channels), games_(games), presence_(presence) {}
 
     core::Result<std::vector<FriendInfo>, ListFriendsError>
     execute(domain::AccountId owner);
@@ -55,6 +64,8 @@ private:
     std::shared_ptr<domain::identity::IAccountReader> accounts_;
     std::shared_ptr<domain::chat::IChannelReader> channels_;  ///< null ⇒ no location
     std::shared_ptr<domain::gameplay::IGameRepository> games_;  ///< null ⇒ no game loc
+    std::shared_ptr<domain::connection::IAccountPresenceStore> presence_;
+    ///< null ⇒ no clienttag/away/dnd
 };
 
 }  // namespace pvpgn::application::social

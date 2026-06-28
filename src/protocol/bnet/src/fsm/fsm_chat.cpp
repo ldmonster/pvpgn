@@ -49,6 +49,7 @@
 #include "application/social/remove_friend.hpp"
 #include "domain/chat/ports.hpp"
 #include "domain/chat/channel.hpp"
+#include "domain/connection/account_presence_store.hpp"
 #include "domain/identity/ports.hpp"
 #include "domain/shared/user_name.hpp"
 #include "domain/chat/ports/command_registry.hpp"
@@ -476,6 +477,12 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
                                       : std::string{info_args};
                     msg = "You are now marked as being away.";
                 }
+                // Publish the away flag so friends see FRIEND_TYPE_AWAY (0x04).
+                if (use_cases_.presence_store &&
+                    current_account_id_.value() != 0) {
+                    use_cases_.presence_store->set_away(current_account_id_,
+                                                        !away_state_.empty());
+                }
                 return ctx_->send(ServerMessage{ChatEvent{
                     kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum,
                     kChatEventRegAuth, "", msg}});
@@ -490,6 +497,12 @@ core::Status<> BnetFsm::on(const ChatCommand& m) {
                                      ? std::string{"Not available"}
                                      : std::string{info_args};
                     msg = "Do Not Disturb mode engaged.";
+                }
+                // Publish the DND flag so friends see FRIEND_TYPE_DND (0x02).
+                if (use_cases_.presence_store &&
+                    current_account_id_.value() != 0) {
+                    use_cases_.presence_store->set_dnd(current_account_id_,
+                                                       !dnd_state_.empty());
                 }
                 return ctx_->send(ServerMessage{ChatEvent{
                     kEidInfo, 0, 0, 0x00000000u, kChatEventAcctNum,
@@ -882,13 +895,20 @@ constexpr std::uint8_t kFriendLocOnline     = 0x01;
 constexpr std::uint8_t kFriendLocChannel    = 0x02;
 constexpr std::uint8_t kFriendLocPublicGame = 0x03;
 constexpr std::uint8_t kFriendTypeMutual    = 0x01;
+constexpr std::uint8_t kFriendTypeDnd       = 0x02;
+constexpr std::uint8_t kFriendTypeAway      = 0x04;
 
 FriendsListEntry friend_to_entry(const application::social::FriendInfo& f) {
     FriendsListEntry e;
     e.name = std::string{f.name.display()};
-    // FRIEND_TYPE_MUTUAL (0x01) when the friend also lists the owner. (DND 0x02 /
-    // AWAY 0x04 need cross-session away/dnd state not yet exposed per account.)
-    e.status = f.is_mutual ? kFriendTypeMutual : std::uint8_t{0};
+    // FRIEND_TYPE_* status bits: MUTUAL (0x01) when the friend also lists the
+    // owner; DND (0x02) / AWAY (0x04) from the friend's live connection state
+    // (the original ORs conn_get_dndstr / conn_get_awaystr into the byte). The
+    // away/DND flags are only meaningful while the friend is online.
+    e.status = 0;
+    if (f.is_mutual)            e.status |= kFriendTypeMutual;
+    if (f.is_online && f.dnd)   e.status |= kFriendTypeDnd;
+    if (f.is_online && f.away)  e.status |= kFriendTypeAway;
     if (!f.is_online) {
         e.location = kFriendLocOffline;
     } else if (f.current_game.has_value()) {
@@ -902,7 +922,10 @@ FriendsListEntry friend_to_entry(const application::social::FriendInfo& f) {
     } else {
         e.location = kFriendLocOnline;
     }
-    e.client_tag    = 0;  // friend's product — needs cross-session state (later)
+    // Friend's product tag (big-endian-packed, e.g. STAR) from the presence
+    // store; 0 when offline / not wired. write_le matches the original's
+    // bn_int_set wire order.
+    e.client_tag    = f.is_online ? f.client_tag : 0u;
     e.location_name = f.location_name;  // channel/game name when in one
     return e;
 }
@@ -1668,9 +1691,24 @@ void BnetFsm::on_disconnect() {
     if (use_cases_.ignore_store && current_account_id_.value() != 0) {
         use_cases_.ignore_store->clear_owner(current_account_id_);
     }
+    // Drop our live-presence entry (clienttag/away/dnd) so friends stop seeing
+    // us as online with a product tag. kick-old keeps a single live session per
+    // account, so removing on this session's disconnect is safe.
+    if (use_cases_.presence_store && current_account_id_.value() != 0) {
+        use_cases_.presence_store->remove(current_account_id_);
+    }
 }
 
 void BnetFsm::notify_friends_presence(bool entered) {
+    // Publish this session's product tag on login so a friend listing us sees
+    // our clienttag (away/DND default to available on a fresh login). Done here
+    // because every login-success path calls notify_friends_presence(true); the
+    // matching teardown (remove) lives in on_disconnect.
+    if (entered && use_cases_.presence_store &&
+        current_account_id_.value() != 0) {
+        use_cases_.presence_store->set_client_tag(current_account_id_,
+                                                  client_tag_.packed_be());
+    }
     if (!use_cases_.list_friends || !use_cases_.session_registry ||
         !use_cases_.message_router || current_account_id_.value() == 0 ||
         current_username_.empty()) {

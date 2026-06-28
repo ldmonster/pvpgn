@@ -32,6 +32,10 @@ namespace pvpgn::domain::chat {
 class IChannelReader;
 }  // namespace pvpgn::domain::chat
 
+namespace pvpgn::domain::connection {
+class IAccountPresenceStore;
+}  // namespace pvpgn::domain::connection
+
 namespace pvpgn::application::chat {
 class JoinChannel;
 class PostMessage;
@@ -92,6 +96,10 @@ struct BnetUseCaseContext {
     std::shared_ptr<application::social::AddFriend>    add_friend;
     std::shared_ptr<application::social::RemoveFriend> remove_friend;
     std::shared_ptr<application::social::ListFriends>  list_friends;
+    /// Live per-account presence (product tag + away/DND) published by each
+    /// logged-in session and read back by ListFriends to fill a friend's
+    /// clienttag/away/dnd. Null when not wired (those fields stay 0/false).
+    std::shared_ptr<domain::connection::IAccountPresenceStore> presence_store;
     /// Server/realm display name, used in the friend presence whisper text
     /// ("Your friend X has entered <server_name>."). Empty falls back to a
     /// generic label. Mirrors the original's prefs_get_servername().

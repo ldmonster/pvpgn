@@ -7,6 +7,7 @@
 #include "domain/chat/channel.hpp"
 #include "domain/gameplay/ports.hpp"
 #include "domain/gameplay/game.hpp"
+#include "domain/connection/account_presence_store.hpp"
 
 namespace pvpgn::application::social {
 
@@ -69,6 +70,17 @@ ListFriends::execute(domain::AccountId owner) {
                 }
             }
         }
+        // Live presence (product tag + away/DND) for an online friend, sourced
+        // from that friend's connection via the presence store. The original
+        // reads conn_get_clienttag / conn_get_awaystr / conn_get_dndstr.
+        if (is_online && presence_) {
+            if (auto p = presence_->get(friend_id)) {
+                info.client_tag = p->client_tag;
+                info.away       = p->away;
+                info.dnd        = p->dnd;
+            }
+        }
+
         if (is_online && !info.current_game.has_value() && channels_) {
             channels_->forEach([&](const domain::chat::Channel& c) {
                 for (const auto& mid : c.member_ids()) {

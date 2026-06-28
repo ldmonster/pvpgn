@@ -118,6 +118,7 @@
 #include "infra/inmemory/session_registry.hpp"
 #include "infra/inmemory/srp3_credential_store.hpp"
 #include "infra/inmemory/peer_address_store.hpp"
+#include "infra/inmemory/account_presence_store.hpp"
 #include "infra/inmemory/in_memory_topic_store.hpp"
 #include "infra/inmemory/user_profile_store.hpp"
 #include "infra/inmemory/wol_credential_store.hpp"
@@ -361,6 +362,8 @@ int main(int argc, char* argv[]) {
         infra::inmemory::InMemoryGameRepository     game_repo;
         infra::inmemory::InMemoryEventBus           event_bus;
         infra::inmemory::InMemoryIpBanRepository    ip_ban_repo;
+        // Live per-account presence (product tag + away/DND) for the friend list.
+        infra::inmemory::InMemoryAccountPresenceStore presence_store;
         // WarCraft III SRP-3 salt/verifier store (SID_AUTH_ACCOUNTCREATE writes,
         // SID_AUTH_ACCOUNTLOGON reads). Lives for the whole run loop.
         infra::inmemory::InMemorySrp3CredentialStore srp3_store;
@@ -482,10 +485,15 @@ int main(int argc, char* argv[]) {
                 std::shared_ptr<domain::gameplay::IGameRepository>(
                     &game_repo,
                     [](domain::gameplay::IGameRepository*) noexcept {});
+            auto no_delete_presence =
+                std::shared_ptr<domain::connection::IAccountPresenceStore>(
+                    &presence_store,
+                    [](domain::connection::IAccountPresenceStore*) noexcept {});
+            use_cases.presence_store = no_delete_presence;
             use_cases.list_friends =
                 std::make_shared<application::social::ListFriends>(
                     no_delete_friends, no_delete_sessions, no_delete_reader,
-                    no_delete_chan_reader, no_delete_games);
+                    no_delete_chan_reader, no_delete_games, no_delete_presence);
             // Realm/server name for the friend presence whisper text
             // ("Your friend X has entered <server_name>.").
             use_cases.server_name = cfg.server_name;

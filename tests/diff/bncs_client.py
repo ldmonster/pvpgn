@@ -486,7 +486,8 @@ def request_friends_list(client, settle=0.4):
     """SID_FRIENDSLIST (0x65): request the friends list and parse the reply.
     Wire: count(u8) then per friend: name\\0, status(u8), location(u8),
     client_tag(u32 LE), location_name\\0. Returns a list of dicts sorted by name:
-    [{name, status, location}]."""
+    [{name, status, location, client_tag}]."""
+    import struct
     import time
     client.send(SID_FRIENDSLIST, b"")
     time.sleep(settle)
@@ -506,12 +507,14 @@ def request_friends_list(client, settle=0.4):
             break
         status = body[pos]
         location = body[pos + 1]
+        client_tag = struct.unpack_from("<I", body, pos + 2)[0]
         pos += 1 + 1 + 4  # status, location, client_tag
         nul2 = body.find(b"\x00", pos)
         if nul2 < 0:
             break
         pos = nul2 + 1
-        out.append({"name": name, "status": status, "location": location})
+        out.append({"name": name, "status": status, "location": location,
+                    "client_tag": client_tag})
     return sorted(out, key=lambda f: f["name"].lower())
 
 
