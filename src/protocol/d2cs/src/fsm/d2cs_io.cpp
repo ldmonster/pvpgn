@@ -80,6 +80,13 @@ void D2CSSessionFsm::push_u32le(std::vector<uint8_t>& v, uint32_t val) {
     v.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
 }
 
+void D2CSSessionFsm::push_u32be(std::vector<uint8_t>& v, uint32_t val) {
+    v.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
+    v.push_back(static_cast<uint8_t>((val >> 16) & 0xFF));
+    v.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
+    v.push_back(static_cast<uint8_t>(val & 0xFF));
+}
+
 void D2CSSessionFsm::push_header(
     std::vector<uint8_t>& v, uint16_t total_len, D2CSPacketType type)
 {

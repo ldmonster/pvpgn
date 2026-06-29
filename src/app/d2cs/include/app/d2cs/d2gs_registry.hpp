@@ -92,12 +92,6 @@ public:
         return p;
     }
 
-    /// Assign the next game id (monotonic, matching the original's game number).
-    std::uint32_t next_game_id() {
-        std::lock_guard<std::mutex> lk(mu_);
-        return next_gameid_++;
-    }
-
     /// A created game, mapping its name to the D2GS hosting it.
     struct GameRec {
         std::uint32_t                 gameid = 0;
@@ -126,7 +120,6 @@ private:
     std::unordered_map<std::uint32_t, Pending> pending_;
     std::unordered_map<std::string, GameRec> games_;
     std::uint32_t next_corr_   = 1;
-    std::uint32_t next_gameid_ = 1;
     std::size_t   rr_          = 0;
 };
 

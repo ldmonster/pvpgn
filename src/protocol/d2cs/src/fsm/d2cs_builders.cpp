@@ -44,17 +44,17 @@ std::vector<uint8_t> D2CSSessionFsm::make_char_login_reply(uint32_t result_code)
 }
 
 std::vector<uint8_t> D2CSSessionFsm::make_create_game_reply(
-    uint32_t seqno, uint32_t game_id, uint32_t result_code)
+    uint32_t seqno, uint32_t game_id, uint32_t result_code, uint16_t u1)
 {
     // Per t_d2cs_client_creategamereply (and wire_types CreateGameReply):
-    // Header(3) + seqno(u16) + gameid(u16) + u1(u16=0) + reply(u32) = 13 bytes.
+    // Header(3) + seqno(u16) + gameid(u16) + u1(u16) + reply(u32) = 13 bytes.
     // seqno/gameid/u1 are bn_short (u16) on the wire, NOT u32.
     std::vector<uint8_t> v;
     v.reserve(13);
     push_header(v, 13, D2CSPacketType::CREATEGAMEREPLY);
     push_u16le(v, static_cast<uint16_t>(seqno));
     push_u16le(v, static_cast<uint16_t>(game_id));
-    push_u16le(v, 0);           // u1 (reserved)
+    push_u16le(v, u1);
     push_u32le(v, result_code);
     return v;
 }
@@ -72,7 +72,7 @@ std::vector<uint8_t> D2CSSessionFsm::make_join_game_reply(
     push_u16le(v, static_cast<uint16_t>(seqno));
     push_u16le(v, static_cast<uint16_t>(game_id));
     push_u16le(v, 0);           // u1 (reserved)
-    push_u32le(v, gs_ip);
+    push_u32be(v, gs_ip);       // addr: network/big-endian (oracle bn_int_nset)
     push_u32le(v, token);
     push_u32le(v, result_code);
     return v;

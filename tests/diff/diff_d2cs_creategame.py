@@ -136,11 +136,19 @@ def main():
                     r["reply"]["reply"] == CREATEGAME_SUCCEED and
                     0x20 in r["d2gs_saw"])
 
-        ok = routed_ok(o) and routed_ok(n)
+        routed = routed_ok(o) and routed_ok(n)
+        # Byte-exact field parity on the CREATEGAMEREPLY: the oracle sends
+        # seqno(echoed), gameid=1, u1=1, reply=SUCCEED on the d2gs-reply path;
+        # v3 now matches all four (wave 226 audit fixes).
+        fields_match = (o is not None and n is not None and
+                        o["reply"] == n["reply"])
+        ok = routed and fields_match
         print(f"oracle routes 0x20 + CREATEGAMEREPLY SUCCEED: {routed_ok(o)}")
         print(f"v3     routes 0x20 + CREATEGAMEREPLY SUCCEED: {routed_ok(n)}")
-        print("OK: oracle AND v3 route CREATEGAMEREQ to the D2GS (0x20) and reply "
-              "the client CREATEGAMEREPLY SUCCEED" if ok else "FAIL")
+        print(f"CREATEGAMEREPLY fields byte-identical (seqno/gameid/u1/reply): "
+              f"{fields_match}")
+        print("OK: oracle AND v3 route CREATEGAMEREQ (0x20) and emit a "
+              "byte-identical CREATEGAMEREPLY" if ok else "FAIL")
         return 0 if ok else 1
     finally:
         v3.stop(); od.stop(); bnetd.stop()

@@ -312,26 +312,25 @@ void D2CSTcpSession::feed_d2gs(const uint8_t* data, std::size_t size) {
                 gameid = b[4] | (b[5] << 8) | (b[6] << 16) |
                          (static_cast<std::uint32_t>(b[7]) << 24);
             }
-            (void)gameid;  // the D2GS's internal id; d2cs assigns its own below
             if (registry_) {
                 if (auto pending = registry_->take_pending(seqno)) {
                     if (auto client = pending->client.lock()) {
                         const bool ok = (result == kD2gsCreateGameSucceed);
-                        // d2cs assigns the client-facing game id (like the
-                        // original's d2cs_game_get_id), not the D2GS's internal one.
-                        const std::uint32_t client_gameid =
-                            ok ? registry_->next_game_id() : 0u;
                         const std::uint32_t client_result =
                             ok ? protocol::d2cs::wire::kCreateGameReplySucceed
                                : protocol::d2cs::wire::kCreateGameReplyFailed;
                         if (ok) {
-                            // Record the game so a later JOINGAMEREQ finds its
-                            // host (this D2GS-link session).
-                            registry_->add_game(pending->game_name, client_gameid,
+                            // Record the game keyed by name; store the D2GS's own
+                            // game id (used in the JOINGAMEREQ forward, like the
+                            // original's game_set_d2gs_gameid).
+                            registry_->add_game(pending->game_name, gameid,
                                                 weak_from_this());
                         }
+                        // Oracle on_d2gs_creategamereply sends gameid=1, u1=1
+                        // (literal) on this d2gs-reply path regardless of result.
                         client->send_create_game_reply(
-                            pending->client_seqno, client_gameid, client_result);
+                            pending->client_seqno, /*gameid*/ 1u, client_result,
+                            /*u1*/ 1u);
                     }
                 }
             }
@@ -358,7 +357,7 @@ void D2CSTcpSession::feed_d2gs(const uint8_t* data, std::size_t size) {
                         // plumbs the real gs endpoint).
                         client->send_join_game_reply(
                             pending->client_seqno, gameid,
-                            /*gs_ip*/ 0x0100007Fu /*127.0.0.1*/,
+                            /*gs_ip host order*/ 0x7F000001u /*127.0.0.1*/,
                             /*token*/ gameid, client_result);
                     }
                 }
@@ -382,8 +381,10 @@ core::Result<void, core::Error> D2CSTcpSession::route_create_game(
         registry_ ? registry_->choose_d2gs() : nullptr;
     if (!gs) {
         // No game server available — reply FAILED rather than hang the client.
+        // Oracle's no-d2gs path (handle_d2cs.cpp) sends gameid=0, u1=0.
         send_create_game_reply(client_seqno, 0,
-                               protocol::d2cs::wire::kCreateGameReplyFailed);
+                               protocol::d2cs::wire::kCreateGameReplyFailed,
+                               /*u1*/ 0u);
         return core::Result<void, core::Error>();
     }
 
@@ -419,9 +420,10 @@ void D2CSTcpSession::send_d2gs_request(std::uint16_t type, std::uint32_t corr,
 
 void D2CSTcpSession::send_create_game_reply(std::uint16_t client_seqno,
                                             std::uint32_t game_id,
-                                            std::uint32_t result) {
+                                            std::uint32_t result,
+                                            std::uint16_t u1) {
     send_raw(protocol::d2cs::D2CSSessionFsm::make_create_game_reply(
-        client_seqno, game_id, result));
+        client_seqno, game_id, result, u1));
 }
 
 core::Result<void, core::Error> D2CSTcpSession::route_join_game(

@@ -246,10 +246,15 @@ public:
 
     /// Build a CREATEGAMEREPLY packet.
     /// @param seqno        Sequence number echoed from request
-    /// @param game_id      Assigned game ID (0 on failure)
+    /// @param game_id      Game ID field (oracle sends 1 on the d2gs-reply
+    ///                     path, 0 on the no-d2gs path)
     /// @param result_code  0x00 = success, 0x01 = failed
+    /// @param u1           Reserved short (oracle sends 1 on the d2gs-reply
+    ///                     path, 0 on the no-d2gs path; struct comment says
+    ///                     "always zero" but the live code contradicts it)
     [[nodiscard]] static std::vector<uint8_t> make_create_game_reply(
-        uint32_t seqno, uint32_t game_id, uint32_t result_code);
+        uint32_t seqno, uint32_t game_id, uint32_t result_code,
+        uint16_t u1 = 0);
 
     /// Build a JOINGAMEREPLY packet.
     /// @param seqno        Sequence number echoed from request
@@ -375,6 +380,11 @@ private:
 
     /// Write a little-endian uint32_t into a vector.
     static void push_u32le(std::vector<uint8_t>& v, uint32_t val);
+
+    /// Write a big-endian (network-order) uint32_t into a vector. Used for the
+    /// JOINGAMEREPLY game-server address, which the original writes via
+    /// bn_int_nset (network order), unlike the LE token/reply fields.
+    static void push_u32be(std::vector<uint8_t>& v, uint32_t val);
 
     /// Write a 3-byte packet header (length LE + type) into a vector.
     static void push_header(std::vector<uint8_t>& v, uint16_t total_len, D2CSPacketType type);

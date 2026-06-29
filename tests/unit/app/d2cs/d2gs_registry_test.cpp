@@ -40,12 +40,23 @@ TEST_CASE("D2gsRegistry: pending requests correlate and are taken once",
     CHECK_FALSE(reg.take_pending(0xDEADBEEF).has_value());
 }
 
-TEST_CASE("D2gsRegistry: game ids are monotonic from 1",
+TEST_CASE("D2gsRegistry: a created game is found by name then misses when host dies",
           "[app][d2cs][registry]") {
     D2gsRegistry reg;
-    CHECK(reg.next_game_id() == 1);
-    CHECK(reg.next_game_id() == 2);
-    CHECK(reg.next_game_id() == 3);
+    CHECK_FALSE(reg.find_game("Nope").has_value());  // unknown game
+
+    {
+        auto host = std::shared_ptr<D2CSTcpSession>(
+            reinterpret_cast<D2CSTcpSession*>(0x1), [](D2CSTcpSession*) {});
+        reg.add_game("GameA", 0x1000, host);
+        auto g = reg.find_game("GameA");
+        REQUIRE(g.has_value());
+        CHECK(g->gameid == 0x1000);
+        CHECK(g->gs.lock() == host);
+    }  // host shared_ptr drops here -> the stored weak_ptr expires
+
+    // Host gone: the game is pruned and no longer found.
+    CHECK_FALSE(reg.find_game("GameA").has_value());
 }
 
 TEST_CASE("D2gsRegistry: choose returns null when no live D2GS is registered",

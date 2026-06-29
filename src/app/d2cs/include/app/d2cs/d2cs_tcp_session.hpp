@@ -105,7 +105,8 @@ public:
 
     /// Send a CREATEGAMEREPLY (0x03) to this client session.
     void send_create_game_reply(std::uint16_t client_seqno,
-                                std::uint32_t game_id, std::uint32_t result);
+                                std::uint32_t game_id, std::uint32_t result,
+                                std::uint16_t u1);
 
     /// Send a JOINGAMEREPLY (0x04) to this client session.
     void send_join_game_reply(std::uint16_t client_seqno, std::uint32_t game_id,

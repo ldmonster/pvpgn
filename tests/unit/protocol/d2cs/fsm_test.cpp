@@ -769,11 +769,11 @@ TEST_CASE("D2CSSessionFsm - TC-25 make_join_game_reply structure", "[protocol][d
     CHECK(reply[6] == 0x01);
     CHECK(reply[7] == 0x00);  // u1 (u16 LE)
     CHECK(reply[8] == 0x00);
-    // addr = 0xC0A80101 (u32 LE)
-    CHECK(reply[9] == 0x01);
-    CHECK(reply[10] == 0x01);
-    CHECK(reply[11] == 0xA8);
-    CHECK(reply[12] == 0xC0);
+    // addr = 0xC0A80101 written BIG-ENDIAN / network order (oracle bn_int_nset)
+    CHECK(reply[9] == 0xC0);
+    CHECK(reply[10] == 0xA8);
+    CHECK(reply[11] == 0x01);
+    CHECK(reply[12] == 0x01);
     // token = 0xABCD (u32 LE)
     CHECK(reply[13] == 0xCD);
     CHECK(reply[14] == 0xAB);
