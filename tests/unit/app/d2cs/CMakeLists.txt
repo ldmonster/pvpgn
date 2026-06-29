@@ -11,3 +11,12 @@ pvpgn_v3_add_test(test_app_d2cs_session_handler
         domain_d2cs
         protocol_d2cs
 )
+
+pvpgn_v3_add_test(test_app_d2cs_d2gs_registry
+    SOURCES
+        d2gs_registry_test.cpp
+    DEPS
+        app_d2cs
+        domain_d2cs
+        protocol_d2cs
+)
