@@ -344,7 +344,11 @@ core::Result<void, core::Error> D2CSSessionHandler::handle_cancel_create_game()
 core::Result<void, core::Error> D2CSSessionHandler::handle_convert_char(
     const protocol::d2cs::D2CSConvertCharRequest& /*req*/)
 {
-    // Stub — ConvertCharacter use case wired in a later round.
+    // The original ALWAYS replies CONVERTCHARREPLY (a no-op stub hung the
+    // client). d2char_convert only succeeds for an old-format character that
+    // needs converting; the in-memory realm has none, so — matching the oracle
+    // for any current-format character — reply FAILED.
+    egress_.send_convert_char_result(false);
     return {};
 }
 

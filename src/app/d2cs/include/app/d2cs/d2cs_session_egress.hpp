@@ -90,6 +90,13 @@ public:
     /// @param success  `true` if the character was deleted.
     virtual void send_char_delete_result(bool success) = 0;
 
+    /// Send the result of a character-convert (CONVERTCHARREPLY / 0x18).
+    ///
+    /// @param success  `true` if the character was converted. The in-memory
+    ///                realm never converts (the original's d2char_convert also
+    ///                fails for a current-format character), so this is false.
+    virtual void send_convert_char_result(bool success) = 0;
+
     /// Send a page of ladder entries (LADDERREPLY / 0x11).
     ///
     /// @param entries  Ladder entries sorted by rank ascending (may be empty).

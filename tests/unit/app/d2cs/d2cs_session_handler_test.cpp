@@ -110,6 +110,15 @@ struct MockD2CSEgress final : public ID2CSSessionEgress {
         char_delete_success = success;
     }
 
+    // send_convert_char_result
+    bool convert_char_called{false};
+    bool convert_char_success{false};
+
+    void send_convert_char_result(bool success) override {
+        convert_char_called  = true;
+        convert_char_success = success;
+    }
+
     void send_ladder(const std::vector<LadderEntry>& entries) override {
         ladder_called  = true;
         ladder_entries = entries;

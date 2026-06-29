@@ -574,6 +574,14 @@ void D2CSTcpSession::send_char_delete_result(bool success) {
     send_raw(protocol::d2cs::D2CSSessionFsm::make_delete_char_reply(code));
 }
 
+void D2CSTcpSession::send_convert_char_result(bool success) {
+    // CONVERTCHARREPLY result: 0x00 = succeed, 0x01 = failed.
+    const uint32_t code =
+        success ? protocol::d2cs::wire::kConvertCharReplySucceed
+                : protocol::d2cs::wire::kConvertCharReplyFailed;
+    send_raw(protocol::d2cs::D2CSSessionFsm::make_convert_char_reply(code));
+}
+
 void D2CSTcpSession::send_ladder(
     const std::vector<domain::d2cs::LadderEntry>& entries) {
     // LADDERREPLY (0x11). The legacy d2cs_send_client_ladder sends NO packet

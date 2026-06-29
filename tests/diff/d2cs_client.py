@@ -167,6 +167,15 @@ class D2csClient:
             return None
         return struct.unpack_from("<I", rep, 0)[0]
 
+    def convert_char(self, name: str):
+        """CLIENT_D2CS_CONVERTCHARREQ (0x18): header-only request + charname.
+        Returns the u32 CONVERTCHARREPLY result (0x00 succeed, 0x01 failed)."""
+        self.send(0x18, _cstr(name))
+        rep = self.recv_type(0x18)
+        if rep is None or len(rep) < 4:
+            return None
+        return struct.unpack_from("<I", rep, 0)[0]
+
     def char_login(self, name: str):
         """CLIENT_D2CS_CHARLOGINREQ (0x07): select a character (header +
         charname). Reaches char_authed state. Returns the u32 reply code

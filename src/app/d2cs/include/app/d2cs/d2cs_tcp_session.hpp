@@ -134,6 +134,8 @@ public:
 
     void send_char_delete_result(bool success) override;
 
+    void send_convert_char_result(bool success) override;
+
     void send_ladder(
         const std::vector<domain::d2cs::LadderEntry>& entries) override;
 
