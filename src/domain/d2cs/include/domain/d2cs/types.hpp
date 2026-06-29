@@ -55,6 +55,8 @@ static_assert(static_cast<uint8_t>(CharacterClass::Assassin) == 6);
 /// field in CREATECHARREQ. Multiple flags may be combined with bitwise OR.
 enum class CharacterFlags : uint8_t {
     None      = 0x00,
+    Init      = 0x01,  ///< Character has been initialised (set on creation,
+                       ///< D2CHARINFO_STATUS_FLAG_INIT / charstatus_set_init)
     Hardcore  = 0x04,  ///< Hardcore character (permadeath)
     Died      = 0x08,  ///< Hardcore character that has died (ghost)
     Expansion = 0x20,  ///< Lord of Destruction expansion character
