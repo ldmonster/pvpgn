@@ -77,25 +77,48 @@ def main():
         st = threading.Thread(target=serve_loop, daemon=True)
         st.start()
 
+        def setup(c, acct):
+            c.login(acct, sessionnum=1,
+                    secret_hash_raw=dc.d2cs_token(acct, 1, 7), seqno=7)
+            c.create_char("Hero", char_class=4, status=0x20)
+            c.char_login("Hero")
+
         def client(i):
             try:
                 c = dc.D2csClient("127.0.0.1", a.port)
-                acct = f"u{i}"
-                c.login(acct, sessionnum=1,
-                        secret_hash_raw=dc.d2cs_token(acct, 1, 7), seqno=7)
-                c.create_char("Hero", char_class=4, status=0x20)
-                c.char_login("Hero")
+                setup(c, f"u{i}")
                 c.send(0x03, creategamereq_body(i, f"Game{i}"))
                 results.append(c.recv_type(0x03) is not None)
                 c.close()
             except Exception as e:  # noqa: BLE001
                 results.append(f"err:{e}")
 
+        def racer(i):
+            # Disconnect-mid-flight: send CREATEGAMEREQ then close IMMEDIATELY,
+            # before the D2GS reply, exercising the weak_ptr lifetime guard in
+            # the registry (take_pending -> client.lock() must see it expired).
+            # This is the use-after-free path (ASan) + a strand race (TSan).
+            try:
+                c = dc.D2csClient("127.0.0.1", a.port)
+                setup(c, f"r{i}")
+                c.send(0x03, creategamereq_body(1000 + i, f"Race{i}"))
+                c.close()  # no recv — drop the session before the reply
+            except Exception:  # noqa: BLE001
+                pass
+
+        # Phase 1: normal concurrent create-game.
         threads = [threading.Thread(target=client, args=(i,))
                    for i in range(a.clients)]
         for t in threads:
             t.start()
         for t in threads:
+            t.join(timeout=15)
+        # Phase 2: disconnect-mid-flight racers (lifetime / UAF guard).
+        racers = [threading.Thread(target=racer, args=(i,))
+                  for i in range(a.clients)]
+        for t in racers:
+            t.start()
+        for t in racers:
             t.join(timeout=15)
         stop.set()
         time.sleep(0.5)
@@ -110,15 +133,22 @@ def main():
 
     served = sum(1 for r in results if r is True)
     data = open(log_path).read()
-    warns = data.count("WARNING: ThreadSanitizer")
+    # Works against a TSan build (data races) or an ASan build (UAF/leaks).
+    tsan = data.count("WARNING: ThreadSanitizer")
+    asan = data.count("ERROR: AddressSanitizer")
+    leaks = data.count("Direct leak") + data.count("Indirect leak")
     print(f"clients served CREATEGAMEREPLY: {served}/{a.clients}")
-    print(f"ThreadSanitizer warnings: {warns}")
-    if warns:
-        idx = data.find("WARNING: ThreadSanitizer")
-        print(data[idx:idx + 2000])
-    ok = (served == a.clients and warns == 0)
-    print("OK: concurrent create-game routing is race-free under TSan"
-          if ok else "FAIL")
+    print(f"sanitizer findings: TSan={tsan} ASan={asan} leaks={leaks}")
+    if tsan or asan or leaks:
+        for marker in ("WARNING: ThreadSanitizer", "ERROR: AddressSanitizer",
+                       "Direct leak", "Indirect leak"):
+            idx = data.find(marker)
+            if idx >= 0:
+                print(data[idx:idx + 2000])
+                break
+    ok = (served == a.clients and tsan == 0 and asan == 0 and leaks == 0)
+    print("OK: concurrent + disconnect-mid-flight create-game routing is "
+          "sanitizer-clean" if ok else "FAIL")
     return 0 if ok else 1
 
 
