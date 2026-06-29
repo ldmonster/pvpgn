@@ -139,3 +139,34 @@ class D2gsClient:
         self.send_authreply()
         reply = self.recv_auth_result()
         return {"authreq": req, "reply": reply}
+
+    def send_setgsinfo(self, maxgame: int = 10, gameflag: int = 0):
+        """D2GS_D2CS_SETGSINFO (0x12): maxgame(u32) + gameflag(u32). A gs is only
+        eligible for game creation (d2gslist_choose_server) once maxgame > 0."""
+        self.send(D2CS_D2GS_SETGSINFO, struct.pack("<II", maxgame, gameflag))
+
+    def serve(self, max_packets: int = 8, gameid: int = 0x1000,
+              timeout: float = 3.0):
+        """Act as a game-hosting D2GS: read framed packets and auto-respond to
+        the d2cs game-routing requests. Returns the list of (type, body) seen.
+
+        Responds:
+          CREATEGAMEREQ (0x20) -> CREATEGAMEREPLY (0x20) result=SUCCEED, gameid
+          JOINGAMEREQ   (0x21) -> JOINGAMEREPLY   (0x21) result=SUCCEED, gameid
+          ECHOREQ       (0x13) -> ECHOREPLY       (0x13)
+        """
+        seen = []
+        self.sock.settimeout(timeout)
+        for _ in range(max_packets):
+            r = self.recv()
+            if r is None:
+                break
+            ptype, seqno, body = r
+            seen.append((ptype, body))
+            if ptype == 0x20:  # CREATEGAMEREQ
+                self.send(0x20, struct.pack("<II", 0, gameid), seqno)  # SUCCEED
+            elif ptype == 0x21:  # JOINGAMEREQ
+                self.send(0x21, struct.pack("<II", 0, gameid), seqno)  # SUCCEED
+            elif ptype == 0x13:  # ECHOREQ
+                self.send(0x13, b"", seqno)
+        return seen
