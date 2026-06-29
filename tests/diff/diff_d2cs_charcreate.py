@@ -40,6 +40,7 @@ def oracle_flow(bnetd_port, d2cs_port):
     out = {
         "create": c.create_char("DiffHero", char_class=4, status=0x20),
         "dup": c.create_char("DiffHero", char_class=4, status=0x20),
+        "select": c.char_login("DiffHero"),   # CHARLOGINREQ -> char_authed
     }
     lst = c.char_list()
     out["count"] = lst["currchar"] if lst else None
@@ -56,6 +57,7 @@ def v3_flow(d2cs_port):
     out = {
         "create": c.create_char("DiffHero", char_class=4, status=0x20),
         "dup": c.create_char("DiffHero", char_class=4, status=0x20),
+        "select": c.char_login("DiffHero"),   # CHARLOGINREQ -> char_authed
     }
     lst = c.char_list()
     out["count"] = lst["currchar"] if lst else None
@@ -89,9 +91,11 @@ def main():
         ok = (o is not None and n is not None and
               o["create"] == SUCCEED and n["create"] == SUCCEED and
               o["dup"] == n["dup"] and o["dup"] == ALREADY_EXIST and
+              o["select"] == SUCCEED and n["select"] == SUCCEED and
               (o["count"] or 0) >= 1 and (n["count"] or 0) >= 1)
         print("OK: oracle (real .d2s template) and v3 agree on CREATECHARREQ "
-              "(SUCCEED + duplicate ALREADY_EXIST)" if ok else "FAIL")
+              "(SUCCEED + duplicate ALREADY_EXIST) and CHARLOGINREQ select (SUCCEED)"
+              if ok else "FAIL")
         return 0 if ok else 1
     finally:
         v3.stop(); od.stop(); bnetd.stop()

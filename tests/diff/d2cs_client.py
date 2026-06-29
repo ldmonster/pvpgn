@@ -167,6 +167,16 @@ class D2csClient:
             return None
         return struct.unpack_from("<I", rep, 0)[0]
 
+    def char_login(self, name: str):
+        """CLIENT_D2CS_CHARLOGINREQ (0x07): select a character (header +
+        charname). Reaches char_authed state. Returns the u32 reply code
+        (0x00 SUCCEED) or None."""
+        self.send(0x07, _cstr(name))
+        rep = self.recv_type(0x07)
+        if rep is None or len(rep) < 4:
+            return None
+        return struct.unpack_from("<I", rep, 0)[0]
+
     def char_list(self, maxchar: int = 8):
         """CLIENT_D2CS_CHARLISTREQ (0x17). Returns a dict with the reply
         header counts and the list of character names, or None."""
