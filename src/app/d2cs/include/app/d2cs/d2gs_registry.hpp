@@ -39,6 +39,8 @@ public:
         std::weak_ptr<D2CSTcpSession> client;
         std::uint16_t                 client_seqno = 0;
         std::string                   game_name;
+        std::uint32_t                 gameflag = 0;  // for create -> game store
+        std::string                   game_desc;
     };
 
     /// Register an authenticated, SETGSINFO'd D2GS link as choosable.
@@ -74,11 +76,14 @@ public:
     /// Record a pending client request; returns its correlation id.
     std::uint32_t add_pending(std::weak_ptr<D2CSTcpSession> client,
                               std::uint16_t client_seqno,
-                              std::string game_name) {
+                              std::string game_name,
+                              std::uint32_t gameflag = 0,
+                              std::string game_desc = {}) {
         std::lock_guard<std::mutex> lk(mu_);
         const std::uint32_t corr = next_corr_++;
         pending_.emplace(corr, Pending{std::move(client), client_seqno,
-                                       std::move(game_name)});
+                                       std::move(game_name), gameflag,
+                                       std::move(game_desc)});
         return corr;
     }
 
@@ -94,15 +99,31 @@ public:
 
     /// A created game, mapping its name to the D2GS hosting it.
     struct GameRec {
-        std::uint32_t                 gameid = 0;
+        std::uint32_t                 gameid = 0;  // the D2GS's internal id
         std::weak_ptr<D2CSTcpSession> gs;
+        std::uint32_t                 game_number = 0;  // d2cs id (1-based, GAMELIST token)
+        std::uint32_t                 gameflag = 0;
+        std::string                   desc;
+        std::uint32_t                 currchar = 0;  // players in the game
     };
 
-    /// Record a created game so a later JOINGAMEREQ can find its host.
+    /// A game's listing data (snapshot for GAMELISTREPLY).
+    struct GameListEntry {
+        std::string   name;
+        std::uint32_t game_number = 0;
+        std::uint32_t currchar = 0;
+        std::uint32_t gameflag = 0;
+        std::string   desc;
+    };
+
+    /// Record a created game so a later JOINGAMEREQ / GAMELISTREQ can find it.
+    /// Assigns the d2cs game number (1-based, the GAMELIST token).
     void add_game(const std::string& name, std::uint32_t gameid,
-                  std::weak_ptr<D2CSTcpSession> gs) {
+                  std::weak_ptr<D2CSTcpSession> gs, std::uint32_t gameflag = 0,
+                  std::string desc = {}) {
         std::lock_guard<std::mutex> lk(mu_);
-        games_[name] = GameRec{gameid, std::move(gs)};
+        games_[name] = GameRec{gameid, std::move(gs), next_game_number_++,
+                               gameflag, std::move(desc), 0};
     }
 
     /// Look up a game by name; prunes + misses if its host has gone away.
@@ -114,13 +135,49 @@ public:
         return it->second;
     }
 
+    /// Adjust a game's player count (UPDATEGAMEINFO ENTER/LEAVE). The game is
+    /// identified by its host D2GS link + the D2GS's internal game id.
+    void adjust_currchar(const D2CSTcpSession* host, std::uint32_t gameid,
+                         int delta) {
+        std::lock_guard<std::mutex> lk(mu_);
+        for (auto& [name, rec] : games_) {
+            if (rec.gameid != gameid) continue;
+            auto sp = rec.gs.lock();
+            if (!sp || sp.get() != host) continue;
+            if (delta < 0 && rec.currchar < static_cast<std::uint32_t>(-delta))
+                rec.currchar = 0;
+            else
+                rec.currchar = static_cast<std::uint32_t>(
+                    static_cast<int>(rec.currchar) + delta);
+            return;
+        }
+    }
+
+    /// Snapshot of games with at least one player (currchar>0) for GAMELISTREPLY.
+    /// Prunes games whose host has disconnected.
+    std::vector<GameListEntry> list_active_games() {
+        std::lock_guard<std::mutex> lk(mu_);
+        std::vector<GameListEntry> out;
+        for (auto it = games_.begin(); it != games_.end();) {
+            if (it->second.gs.expired()) { it = games_.erase(it); continue; }
+            if (it->second.currchar > 0) {
+                out.push_back(GameListEntry{it->first, it->second.game_number,
+                                            it->second.currchar,
+                                            it->second.gameflag, it->second.desc});
+            }
+            ++it;
+        }
+        return out;
+    }
+
 private:
     std::mutex mu_;
     std::vector<std::weak_ptr<D2CSTcpSession>> d2gs_;
     std::unordered_map<std::uint32_t, Pending> pending_;
     std::unordered_map<std::string, GameRec> games_;
-    std::uint32_t next_corr_   = 1;
-    std::size_t   rr_          = 0;
+    std::uint32_t next_corr_        = 1;
+    std::uint32_t next_game_number_ = 1;  // 1-based d2cs game number (GAMELIST token)
+    std::size_t   rr_               = 0;
 };
 
 }  // namespace pvpgn::app::d2cs

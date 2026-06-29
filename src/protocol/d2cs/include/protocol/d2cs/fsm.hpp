@@ -312,6 +312,17 @@ public:
     /// @param result_code  0x00 = success, 0x01 = failed
     [[nodiscard]] static std::vector<uint8_t> make_convert_char_reply(uint32_t result_code);
 
+    /// Build one per-game GAMELISTREPLY (0x05) entry.
+    /// Wire: seqno(u16) token(u32) currchar(u8) gameflag(u32) name\0 desc\0.
+    [[nodiscard]] static std::vector<uint8_t> make_game_list_entry(
+        uint16_t seqno, uint32_t token, uint8_t currchar, uint32_t gameflag,
+        std::string_view name, std::string_view desc);
+
+    /// Build the GAMELISTREPLY (0x05) end-of-list terminator: seqno, then
+    /// token/currchar/gameflag all zero and three empty strings (matching the
+    /// original's trailing packet).
+    [[nodiscard]] static std::vector<uint8_t> make_game_list_terminator(uint16_t seqno);
+
 private:
     D2CSSessionState  state_ = D2CSSessionState::connected;
     D2CSFsmCallbacks  callbacks_;
@@ -374,6 +385,9 @@ private:
     /// Advances `offset` by 2.  Returns false if fewer than 2 bytes remain.
     [[nodiscard]] static bool read_u16le(
         const uint8_t* buf, size_t len, size_t& offset, uint16_t& out);
+
+    /// Append a single byte to a vector.
+    static void push_u8(std::vector<uint8_t>& v, uint8_t val);
 
     /// Write a little-endian uint16_t into a vector.
     static void push_u16le(std::vector<uint8_t>& v, uint16_t val);

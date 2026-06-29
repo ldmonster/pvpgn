@@ -158,6 +158,11 @@ private:
     core::Result<void, core::Error> route_join_game(
         const protocol::d2cs::D2CSJoinGameRequest& req);
 
+    /// Answer a client GAMELISTREQ: emit one GAMELISTREPLY per active game
+    /// (currchar>0) followed by the end-of-list terminator.
+    core::Result<void, core::Error> route_game_list(
+        const protocol::d2cs::D2CSGameListRequest& req);
+
     /// Send raw bytes over the TCP socket.
     void send_raw(std::vector<uint8_t> bytes);
 

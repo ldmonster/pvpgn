@@ -140,6 +140,15 @@ class D2gsClient:
         reply = self.recv_auth_result()
         return {"authreq": req, "reply": reply}
 
+    def send_updategameinfo(self, gameid: int, charname: str, flag: int = 1,
+                            charlevel: int = 1, charclass: int = 4):
+        """D2GS_D2CS_UPDATEGAMEINFO (0x22): flag(u32) gameid(u32) charlevel(u32)
+        charclass(u32) + charname. flag 1=ENTER (adds a character -> currchar++),
+        2=LEAVE. Used to make a created game appear in GAMELISTREPLY (currchar>0)."""
+        body = (struct.pack("<IIII", flag, gameid, charlevel, charclass)
+                + charname.encode("latin-1") + b"\x00")
+        self.send(0x22, body)
+
     def send_setgsinfo(self, maxgame: int = 10, gameflag: int = 0):
         """D2GS_D2CS_SETGSINFO (0x12): maxgame(u32) + gameflag(u32). A gs is only
         eligible for game creation (d2gslist_choose_server) once maxgame > 0."""

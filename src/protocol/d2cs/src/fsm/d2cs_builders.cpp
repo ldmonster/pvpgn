@@ -168,4 +168,42 @@ std::vector<uint8_t> D2CSSessionFsm::make_convert_char_reply(uint32_t result_cod
     return v;
 }
 
+std::vector<uint8_t> D2CSSessionFsm::make_game_list_entry(
+    uint16_t seqno, uint32_t token, uint8_t currchar, uint32_t gameflag,
+    std::string_view name, std::string_view desc)
+{
+    // Per t_d2cs_client_gamelistreply: Header(3) + seqno(u16) + token(u32) +
+    // currchar(u8) + gameflag(u32) + name\0 + desc\0.
+    const uint16_t total = static_cast<uint16_t>(
+        3 + 2 + 4 + 1 + 4 + name.size() + 1 + desc.size() + 1);
+    std::vector<uint8_t> v;
+    v.reserve(total);
+    push_header(v, total, D2CSPacketType::GAMELISTREPLY);
+    push_u16le(v, seqno);
+    push_u32le(v, token);
+    push_u8(v, currchar);
+    push_u32le(v, gameflag);
+    v.insert(v.end(), name.begin(), name.end());
+    v.push_back(0x00);
+    v.insert(v.end(), desc.begin(), desc.end());
+    v.push_back(0x00);
+    return v;
+}
+
+std::vector<uint8_t> D2CSSessionFsm::make_game_list_terminator(uint16_t seqno) {
+    // End-of-list marker: token/currchar/gameflag zero + THREE empty strings
+    // (the original's trailing packet appends "" three times).
+    std::vector<uint8_t> v;
+    v.reserve(17);
+    push_header(v, 17, D2CSPacketType::GAMELISTREPLY);
+    push_u16le(v, seqno);
+    push_u32le(v, 0);  // token
+    push_u8(v, 0);     // currchar
+    push_u32le(v, 0);  // gameflag
+    push_u8(v, 0);     // ""
+    push_u8(v, 0);     // ""
+    push_u8(v, 0);     // ""
+    return v;
+}
+
 }  // namespace pvpgn::protocol::d2cs

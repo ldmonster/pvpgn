@@ -56,9 +56,17 @@ constexpr std::uint16_t kD2gsAuthReply        = 0x11;  // both directions
 constexpr std::uint16_t kD2gsSetGsInfo        = 0x12;  // d2gs -> d2cs (maxgame)
 constexpr std::uint16_t kD2gsCreateGameReq    = 0x20;  // d2cs<->d2gs creategame
 constexpr std::uint16_t kD2gsJoinGameReq      = 0x21;  // d2cs<->d2gs joingame
+constexpr std::uint16_t kD2gsUpdateGameInfo   = 0x22;  // d2gs -> d2cs game info
 constexpr std::uint32_t kD2gsAuthReplySucceed = 0x00;
 constexpr std::uint32_t kD2gsCreateGameSucceed = 0x00;
 constexpr std::uint32_t kD2gsJoinGameSucceed   = 0x00;
+constexpr std::uint32_t kUpdateGameInfoLeave   = 0x02;  // FLAG_LEAVE
+
+// gameflag bitfield (game.h gameflag_create): release(0x04) + difficulty bits
+// (<<12) + expansion/hardcore/ladder flags.
+constexpr std::uint32_t kGameFlagRelease   = 0x00000004u;
+constexpr std::uint32_t kGameFlagHardcore  = 0x00000800u;
+constexpr std::uint32_t kGameFlagExpansion = 0x00100000u;
 constexpr std::size_t   kD2gsHeaderSize       = 8;     // size(2)+type(2)+seqno(4)
 
 // Monotonic session-number source for D2GS links (mirrors the original's
@@ -126,6 +134,10 @@ D2CSTcpSession::D2CSTcpSession(std::shared_ptr<infra::net::TcpSession> tcp,
     cb.on_join_game =
         [this](const protocol::d2cs::D2CSJoinGameRequest& req) {
             return route_join_game(req);
+        };
+    cb.on_game_list =
+        [this](const protocol::d2cs::D2CSGameListRequest& req) {
+            return route_game_list(req);
         };
     fsm_ = std::make_unique<protocol::d2cs::D2CSSessionFsm>(std::move(cb));
 }
@@ -322,9 +334,11 @@ void D2CSTcpSession::feed_d2gs(const uint8_t* data, std::size_t size) {
                         if (ok) {
                             // Record the game keyed by name; store the D2GS's own
                             // game id (used in the JOINGAMEREQ forward, like the
-                            // original's game_set_d2gs_gameid).
+                            // original's game_set_d2gs_gameid) plus the gameflag +
+                            // desc for GAMELISTREPLY.
                             registry_->add_game(pending->game_name, gameid,
-                                                weak_from_this());
+                                                weak_from_this(), pending->gameflag,
+                                                pending->game_desc);
                         }
                         // Oracle on_d2gs_creategamereply sends gameid=1, u1=1
                         // (literal) on this d2gs-reply path regardless of result.
@@ -362,8 +376,23 @@ void D2CSTcpSession::feed_d2gs(const uint8_t* data, std::size_t size) {
                     }
                 }
             }
+        } else if (type == kD2gsUpdateGameInfo) {
+            // UPDATEGAMEINFO (0x22): flag(u32) gameid(u32) charlevel(u32)
+            // charclass(u32) + charname. ENTER(1) adds a player (currchar++),
+            // LEAVE(2) removes one. Tracks the count GAMELISTREPLY needs.
+            if (registry_ && fsize >= kD2gsHeaderSize + 8) {
+                const auto* b = d2gs_buf_.data() + kD2gsHeaderSize;
+                const std::uint32_t flag =
+                    b[0] | (b[1] << 8) | (b[2] << 16) |
+                    (static_cast<std::uint32_t>(b[3]) << 24);
+                const std::uint32_t game_gameid =
+                    b[4] | (b[5] << 8) | (b[6] << 16) |
+                    (static_cast<std::uint32_t>(b[7]) << 24);
+                const int delta = (flag == kUpdateGameInfoLeave) ? -1 : +1;
+                registry_->adjust_currchar(this, game_gameid, delta);
+            }
         }
-        // Other D2GS->D2CS packets (ECHO/updategameinfo) are accepted + ignored.
+        // Other D2GS->D2CS packets (ECHO/...) are accepted + ignored.
 
         d2gs_buf_.erase(d2gs_buf_.begin(), d2gs_buf_.begin() + fsize);
     }
@@ -388,8 +417,18 @@ core::Result<void, core::Error> D2CSTcpSession::route_create_game(
         return core::Result<void, core::Error>();
     }
 
+    // Compute the stored gameflag the way the original does (gameflag_create):
+    // release bit + difficulty<<12 + expansion/hardcore/ladder flags. GAMELISTREPLY
+    // echoes this. ladder is not modelled (0).
+    const std::uint32_t gameflag =
+        kGameFlagRelease
+        | (static_cast<std::uint32_t>(req.difficulty & 0x07) << 12)
+        | (req.expansion ? kGameFlagExpansion : 0u)
+        | (req.hardcore  ? kGameFlagHardcore  : 0u);
+
     const std::uint32_t corr =
-        registry_->add_pending(weak_from_this(), client_seqno, req.game_name);
+        registry_->add_pending(weak_from_this(), client_seqno, req.game_name,
+                               gameflag, req.game_description);
 
     // D2CS_D2GS_CREATEGAMEREQ (0x20): ladder, expansion, difficulty, hardcore
     // bytes, then gamename / pass / desc / acct / char / ip c-strings.
@@ -471,6 +510,25 @@ void D2CSTcpSession::send_join_game_reply(std::uint16_t client_seqno,
                                           std::uint32_t result) {
     send_raw(protocol::d2cs::D2CSSessionFsm::make_join_game_reply(
         client_seqno, game_id, gs_ip, token, result));
+}
+
+core::Result<void, core::Error> D2CSTcpSession::route_game_list(
+    const protocol::d2cs::D2CSGameListRequest& req) {
+    const auto seqno = static_cast<std::uint16_t>(req.seqno);
+    if (!registry_) return core::Result<void, core::Error>();
+
+    auto games = registry_->list_active_games();
+    // Match the oracle: an EMPTY list sends NOTHING (the terminator only follows
+    // at least one listed game).
+    if (games.empty()) return core::Result<void, core::Error>();
+
+    for (const auto& g : games) {
+        send_raw(protocol::d2cs::D2CSSessionFsm::make_game_list_entry(
+            seqno, g.game_number, static_cast<std::uint8_t>(g.currchar),
+            g.gameflag, g.name, g.desc));
+    }
+    send_raw(protocol::d2cs::D2CSSessionFsm::make_game_list_terminator(seqno));
+    return core::Result<void, core::Error>();
 }
 
 // ---------------------------------------------------------------------------

@@ -783,6 +783,38 @@ TEST_CASE("D2CSSessionFsm - TC-25 make_join_game_reply structure", "[protocol][d
 }
 
 // ---------------------------------------------------------------------------
+// TC-25b: make_game_list_entry / terminator — wire-accurate GAMELISTREPLY
+// ---------------------------------------------------------------------------
+TEST_CASE("D2CSSessionFsm - TC-25b make_game_list_entry + terminator", "[protocol][d2cs]") {
+    // Matches the original's on_client_gamelistreq output captured from the
+    // oracle: seqno=2, token=1, currchar=1, gameflag=0x00100004, "MyGame",
+    // "A desc".
+    auto e = D2CSSessionFsm::make_game_list_entry(2, 1, 1, 0x00100004,
+                                                  "MyGame", "A desc");
+    const std::vector<uint8_t> expect_entry = {
+        0x1c, 0x00, 0x05,             // size=28, type=0x05
+        0x02, 0x00,                   // seqno
+        0x01, 0x00, 0x00, 0x00,       // token=1
+        0x01,                         // currchar
+        0x04, 0x00, 0x10, 0x00,       // gameflag=0x00100004
+        'M','y','G','a','m','e', 0x00,
+        'A',' ','d','e','s','c', 0x00,
+    };
+    CHECK(e == expect_entry);
+
+    auto term = D2CSSessionFsm::make_game_list_terminator(2);
+    const std::vector<uint8_t> expect_term = {
+        0x11, 0x00, 0x05,             // size=17, type=0x05
+        0x02, 0x00,                   // seqno
+        0x00, 0x00, 0x00, 0x00,       // token=0
+        0x00,                         // currchar=0
+        0x00, 0x00, 0x00, 0x00,       // gameflag=0
+        0x00, 0x00, 0x00,             // three empty strings
+    };
+    CHECK(term == expect_term);
+}
+
+// ---------------------------------------------------------------------------
 // TC-26: make_char_list_reply — wire-accurate CHARLISTREPLY structure
 // ---------------------------------------------------------------------------
 TEST_CASE("D2CSSessionFsm - TC-26 make_char_list_reply with names", "[protocol][d2cs]") {
