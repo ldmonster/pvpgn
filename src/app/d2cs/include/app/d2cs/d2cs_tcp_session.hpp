@@ -107,6 +107,11 @@ public:
     void send_create_game_reply(std::uint16_t client_seqno,
                                 std::uint32_t game_id, std::uint32_t result);
 
+    /// Send a JOINGAMEREPLY (0x04) to this client session.
+    void send_join_game_reply(std::uint16_t client_seqno, std::uint32_t game_id,
+                              std::uint32_t gs_ip, std::uint32_t token,
+                              std::uint32_t result);
+
     // -----------------------------------------------------------------------
     // ID2CSSessionEgress implementation
     // -----------------------------------------------------------------------
@@ -144,6 +149,11 @@ private:
     /// pending entry, or reply FAILED when no D2GS is available.
     core::Result<void, core::Error> route_create_game(
         const protocol::d2cs::D2CSCreateGameRequest& req);
+
+    /// Route a client JOINGAMEREQ: look up the game by name, forward 0x21 to its
+    /// host D2GS + record a pending entry, or reply FAILED when not found.
+    core::Result<void, core::Error> route_join_game(
+        const protocol::d2cs::D2CSJoinGameRequest& req);
 
     /// Send raw bytes over the TCP socket.
     void send_raw(std::vector<uint8_t> bytes);

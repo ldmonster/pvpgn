@@ -55,8 +55,10 @@ constexpr std::uint16_t kD2gsAuthReq          = 0x10;  // d2cs -> d2gs
 constexpr std::uint16_t kD2gsAuthReply        = 0x11;  // both directions
 constexpr std::uint16_t kD2gsSetGsInfo        = 0x12;  // d2gs -> d2cs (maxgame)
 constexpr std::uint16_t kD2gsCreateGameReq    = 0x20;  // d2cs<->d2gs creategame
+constexpr std::uint16_t kD2gsJoinGameReq      = 0x21;  // d2cs<->d2gs joingame
 constexpr std::uint32_t kD2gsAuthReplySucceed = 0x00;
 constexpr std::uint32_t kD2gsCreateGameSucceed = 0x00;
+constexpr std::uint32_t kD2gsJoinGameSucceed   = 0x00;
 constexpr std::size_t   kD2gsHeaderSize       = 8;     // size(2)+type(2)+seqno(4)
 
 // Monotonic session-number source for D2GS links (mirrors the original's
@@ -120,6 +122,10 @@ D2CSTcpSession::D2CSTcpSession(std::shared_ptr<infra::net::TcpSession> tcp,
     cb.on_create_game =
         [this](const protocol::d2cs::D2CSCreateGameRequest& req) {
             return route_create_game(req);
+        };
+    cb.on_join_game =
+        [this](const protocol::d2cs::D2CSJoinGameRequest& req) {
+            return route_join_game(req);
         };
     fsm_ = std::make_unique<protocol::d2cs::D2CSSessionFsm>(std::move(cb));
 }
@@ -318,14 +324,47 @@ void D2CSTcpSession::feed_d2gs(const uint8_t* data, std::size_t size) {
                         const std::uint32_t client_result =
                             ok ? protocol::d2cs::wire::kCreateGameReplySucceed
                                : protocol::d2cs::wire::kCreateGameReplyFailed;
+                        if (ok) {
+                            // Record the game so a later JOINGAMEREQ finds its
+                            // host (this D2GS-link session).
+                            registry_->add_game(pending->game_name, client_gameid,
+                                                weak_from_this());
+                        }
                         client->send_create_game_reply(
                             pending->client_seqno, client_gameid, client_result);
                     }
                 }
             }
+        } else if (type == kD2gsJoinGameReq) {
+            // JOINGAMEREPLY (0x21) from the D2GS: result(u32) + gameid(u32).
+            std::uint32_t result = kD2gsJoinGameSucceed;
+            std::uint32_t gameid = 0;
+            if (fsize >= kD2gsHeaderSize + 8) {
+                const auto* b = d2gs_buf_.data() + kD2gsHeaderSize;
+                result = b[0] | (b[1] << 8) | (b[2] << 16) |
+                         (static_cast<std::uint32_t>(b[3]) << 24);
+                gameid = b[4] | (b[5] << 8) | (b[6] << 16) |
+                         (static_cast<std::uint32_t>(b[7]) << 24);
+            }
+            if (registry_) {
+                if (auto pending = registry_->take_pending(seqno)) {
+                    if (auto client = pending->client.lock()) {
+                        const bool ok = (result == kD2gsJoinGameSucceed);
+                        const std::uint32_t client_result =
+                            ok ? protocol::d2cs::wire::kJoinGameReplySucceed
+                               : protocol::d2cs::wire::kJoinGameReplyFailed;
+                        // The game server the client connects to is this D2GS
+                        // link; report a placeholder addr/token (a later round
+                        // plumbs the real gs endpoint).
+                        client->send_join_game_reply(
+                            pending->client_seqno, gameid,
+                            /*gs_ip*/ 0x0100007Fu /*127.0.0.1*/,
+                            /*token*/ gameid, client_result);
+                    }
+                }
+            }
         }
-        // Other D2GS->D2CS packets (ECHO/joingame/updategameinfo) are accepted
-        // and ignored for now.
+        // Other D2GS->D2CS packets (ECHO/updategameinfo) are accepted + ignored.
 
         d2gs_buf_.erase(d2gs_buf_.begin(), d2gs_buf_.begin() + fsize);
     }
@@ -383,6 +422,53 @@ void D2CSTcpSession::send_create_game_reply(std::uint16_t client_seqno,
                                             std::uint32_t result) {
     send_raw(protocol::d2cs::D2CSSessionFsm::make_create_game_reply(
         client_seqno, game_id, result));
+}
+
+core::Result<void, core::Error> D2CSTcpSession::route_join_game(
+    const protocol::d2cs::D2CSJoinGameRequest& req) {
+    const auto client_seqno = static_cast<std::uint16_t>(req.seqno);
+
+    auto game = registry_ ? registry_->find_game(req.game_name) : std::nullopt;
+    std::shared_ptr<D2CSTcpSession> gs = game ? game->gs.lock() : nullptr;
+    if (!gs) {
+        // Unknown game (or its host disconnected) -> FAILED.
+        send_join_game_reply(client_seqno, 0, 0, 0,
+                             protocol::d2cs::wire::kJoinGameReplyFailed);
+        return core::Result<void, core::Error>();
+    }
+
+    const std::uint32_t corr =
+        registry_->add_pending(weak_from_this(), client_seqno, req.game_name);
+
+    // D2CS_D2GS_JOINGAMEREQ (0x21): gameid(u32) + token(u32) + char / acct / ip.
+    std::vector<uint8_t> body;
+    auto put_u32 = [&body](std::uint32_t v) {
+        body.push_back(static_cast<uint8_t>(v & 0xFF));
+        body.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+        body.push_back(static_cast<uint8_t>((v >> 16) & 0xFF));
+        body.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
+    };
+    put_u32(game->gameid);
+    put_u32(corr);  // token (correlation; a later round uses a real join token)
+    auto put_cstr = [&body](const std::string& s) {
+        body.insert(body.end(), s.begin(), s.end());
+        body.push_back(0);
+    };
+    put_cstr("");           // character (plumbed in a later round)
+    put_cstr("");           // account
+    put_cstr("127.0.0.1");  // client ip
+
+    gs->send_d2gs_request(kD2gsJoinGameReq, corr, body);
+    return core::Result<void, core::Error>();
+}
+
+void D2CSTcpSession::send_join_game_reply(std::uint16_t client_seqno,
+                                          std::uint32_t game_id,
+                                          std::uint32_t gs_ip,
+                                          std::uint32_t token,
+                                          std::uint32_t result) {
+    send_raw(protocol::d2cs::D2CSSessionFsm::make_join_game_reply(
+        client_seqno, game_id, gs_ip, token, result));
 }
 
 // ---------------------------------------------------------------------------

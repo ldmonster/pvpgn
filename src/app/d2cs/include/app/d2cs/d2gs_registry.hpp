@@ -98,10 +98,33 @@ public:
         return next_gameid_++;
     }
 
+    /// A created game, mapping its name to the D2GS hosting it.
+    struct GameRec {
+        std::uint32_t                 gameid = 0;
+        std::weak_ptr<D2CSTcpSession> gs;
+    };
+
+    /// Record a created game so a later JOINGAMEREQ can find its host.
+    void add_game(const std::string& name, std::uint32_t gameid,
+                  std::weak_ptr<D2CSTcpSession> gs) {
+        std::lock_guard<std::mutex> lk(mu_);
+        games_[name] = GameRec{gameid, std::move(gs)};
+    }
+
+    /// Look up a game by name; prunes + misses if its host has gone away.
+    std::optional<GameRec> find_game(const std::string& name) {
+        std::lock_guard<std::mutex> lk(mu_);
+        auto it = games_.find(name);
+        if (it == games_.end()) return std::nullopt;
+        if (it->second.gs.expired()) { games_.erase(it); return std::nullopt; }
+        return it->second;
+    }
+
 private:
     std::mutex mu_;
     std::vector<std::weak_ptr<D2CSTcpSession>> d2gs_;
     std::unordered_map<std::uint32_t, Pending> pending_;
+    std::unordered_map<std::string, GameRec> games_;
     std::uint32_t next_corr_   = 1;
     std::uint32_t next_gameid_ = 1;
     std::size_t   rr_          = 0;
