@@ -45,6 +45,18 @@ def probe(host, port, token):
     return data
 
 
+def strip_server_pings(data):
+    """Drop server-initiated keepalive PING lines ("PING :<token>\\r\\n").
+
+    Both servers periodically ping the client to keep the link alive; such a
+    keepalive can race into the capture window and is unrelated to whether the
+    server PONGed our PING. Only the PONG (the reply to our PING) is what this
+    test reasons about, so the asynchronous server PING is filtered out."""
+    lines = data.split(b"\r\n")
+    kept = [ln for ln in lines if not ln.startswith(b"PING ")]
+    return b"\r\n".join(ln for ln in kept if ln)
+
+
 def main():
     orig = OriginalBnetd(ORIG_REPO, PORT_BASE)
     v3 = V3Bnetd(V3BIN, PORT_BASE + 6)
@@ -62,16 +74,18 @@ def main():
         if b"PONG" not in n_short:
             failures.append(f"control: v3 did not PONG short token: {n_short!r}")
 
-        # Decisive: 600-char token -> BOTH suppress (0 bytes).
-        o_big = probe("127.0.0.1", orig.wolv1_port, "x" * 600)
-        n_big = probe("127.0.0.1", v3.wol_port, "x" * 600)
+        # Decisive: 600-char token -> BOTH suppress the PONG. (A server keepalive
+        # PING may arrive in the window; it is not a PONG, so filter it out.)
+        o_big = strip_server_pings(probe("127.0.0.1", orig.wolv1_port, "x" * 600))
+        n_big = strip_server_pings(probe("127.0.0.1", v3.wol_port, "x" * 600))
         if len(o_big) != 0:
             failures.append(f"oracle replied to 600-char PING ({len(o_big)} bytes): {o_big[:80]!r}")
         if len(n_big) != 0:
             failures.append(f"v3 replied to 600-char PING ({len(n_big)} bytes): {n_big[:80]!r}")
 
         print(f"control short: oracle={len(o_short)}B v3={len(n_short)}B (both PONG)")
-        print(f"decisive 600 : oracle={len(o_big)}B v3={len(n_big)}B (both suppress)")
+        print(f"decisive 600 : oracle={len(o_big)}B v3={len(n_big)}B "
+              f"(both suppress the PONG; server keepalive PINGs filtered)")
     finally:
         v3.stop()
         orig.stop()
