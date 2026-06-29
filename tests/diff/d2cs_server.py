@@ -136,6 +136,12 @@ class OriginalD2cs:
                 out.append(f'bak_charsave_dir = "{var}/bak"\n')
             elif key == "logfile":
                 out.append(f'logfile = "{var}/d2cs.log"\n')
+            elif key.startswith("newbiefile_"):
+                # Point every per-class newbie template at the .d2s template
+                # shipped in the original server's tree so the oracle can
+                # actually create characters (d2char_create reads this file).
+                tmpl = os.path.join(self.repo, "files", "newbie.save")
+                out.append(f'{key} = "{tmpl}"\n')
             else:
                 out.append(line)
         with open(conf_path, "w") as f:
