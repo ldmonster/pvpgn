@@ -732,20 +732,23 @@ TEST_CASE("D2CSSessionFsm - TC-23 make_char_login_reply structure", "[protocol][
 TEST_CASE("D2CSSessionFsm - TC-24 make_create_game_reply structure", "[protocol][d2cs]") {
     auto reply = D2CSSessionFsm::make_create_game_reply(42, 1001, 0x00);
 
-    REQUIRE(reply.size() == 19);
+    // t_d2cs_client_creategamereply: header(3) + seqno(u16) + gameid(u16) +
+    // u1(u16) + reply(u32) = 13 bytes. seqno/gameid/u1 are bn_short (u16).
+    REQUIRE(reply.size() == 13);
+    CHECK(reply[0] == 0x0D);  // size LE = 13
+    CHECK(reply[1] == 0x00);
     CHECK(reply[2] == 0x03);  // CREATEGAMEREPLY
 
-    // seqno = 42 (LE)
-    CHECK(reply[3] == 42);
+    CHECK(reply[3] == 42);    // seqno (u16 LE)
     CHECK(reply[4] == 0);
-    CHECK(reply[5] == 0);
-    CHECK(reply[6] == 0);
-
-    // game_id = 1001 = 0x3E9 (LE)
-    CHECK(reply[7] == 0xE9);
-    CHECK(reply[8] == 0x03);
-    CHECK(reply[9] == 0x00);
+    CHECK(reply[5] == 0xE9);  // gameid = 1001 = 0x3E9 (u16 LE)
+    CHECK(reply[6] == 0x03);
+    CHECK(reply[7] == 0x00);  // u1 (u16 LE)
+    CHECK(reply[8] == 0x00);
+    CHECK(reply[9] == 0x00);  // reply (u32 LE) = 0
     CHECK(reply[10] == 0x00);
+    CHECK(reply[11] == 0x00);
+    CHECK(reply[12] == 0x00);
 }
 
 // ---------------------------------------------------------------------------
@@ -755,17 +758,28 @@ TEST_CASE("D2CSSessionFsm - TC-25 make_join_game_reply structure", "[protocol][d
     // gs_ip = 192.168.1.1 = 0xC0A80101
     auto reply = D2CSSessionFsm::make_join_game_reply(10, 500, 0xC0A80101, 0xABCD, 0x00);
 
-    REQUIRE(reply.size() == 27);
+    // t_d2cs_client_joingamereply: header(3) + seqno(u16) + gameid(u16) +
+    // u1(u16) + addr(u32) + token(u32) + reply(u32) = 21 bytes.
+    REQUIRE(reply.size() == 21);
     CHECK(reply[2] == 0x04);  // JOINGAMEREPLY
 
-    // seqno = 10
-    CHECK(reply[3] == 10);
-
-    // result_code = 0 (last 4 bytes)
-    CHECK(reply[23] == 0x00);
-    CHECK(reply[24] == 0x00);
-    CHECK(reply[25] == 0x00);
-    CHECK(reply[26] == 0x00);
+    CHECK(reply[3] == 10);    // seqno (u16 LE)
+    CHECK(reply[4] == 0);
+    CHECK(reply[5] == 0xF4);  // gameid = 500 = 0x1F4 (u16 LE)
+    CHECK(reply[6] == 0x01);
+    CHECK(reply[7] == 0x00);  // u1 (u16 LE)
+    CHECK(reply[8] == 0x00);
+    // addr = 0xC0A80101 (u32 LE)
+    CHECK(reply[9] == 0x01);
+    CHECK(reply[10] == 0x01);
+    CHECK(reply[11] == 0xA8);
+    CHECK(reply[12] == 0xC0);
+    // token = 0xABCD (u32 LE)
+    CHECK(reply[13] == 0xCD);
+    CHECK(reply[14] == 0xAB);
+    // reply = 0 (last 4 bytes)
+    CHECK(reply[17] == 0x00);
+    CHECK(reply[20] == 0x00);
 }
 
 // ---------------------------------------------------------------------------

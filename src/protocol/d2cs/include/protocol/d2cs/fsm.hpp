@@ -370,6 +370,9 @@ private:
     [[nodiscard]] static bool read_u16le(
         const uint8_t* buf, size_t len, size_t& offset, uint16_t& out);
 
+    /// Write a little-endian uint16_t into a vector.
+    static void push_u16le(std::vector<uint8_t>& v, uint16_t val);
+
     /// Write a little-endian uint32_t into a vector.
     static void push_u32le(std::vector<uint8_t>& v, uint32_t val);
 

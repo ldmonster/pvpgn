@@ -32,6 +32,7 @@
 #include "core/bytes.hpp"
 #include "domain/d2cs/types.hpp"
 #include "protocol/d2cs/fsm.hpp"
+#include "protocol/d2cs/wire_types.hpp"
 #include "protocol/d2cs/ladderreply_encoder.hpp"
 
 namespace pvpgn::app::d2cs {
@@ -52,7 +53,10 @@ constexpr std::uint8_t  kInitClassD2cs        = 0x01;
 constexpr std::uint8_t  kInitClassD2gs        = 0x64;
 constexpr std::uint16_t kD2gsAuthReq          = 0x10;  // d2cs -> d2gs
 constexpr std::uint16_t kD2gsAuthReply        = 0x11;  // both directions
+constexpr std::uint16_t kD2gsSetGsInfo        = 0x12;  // d2gs -> d2cs (maxgame)
+constexpr std::uint16_t kD2gsCreateGameReq    = 0x20;  // d2cs<->d2gs creategame
 constexpr std::uint32_t kD2gsAuthReplySucceed = 0x00;
+constexpr std::uint32_t kD2gsCreateGameSucceed = 0x00;
 constexpr std::size_t   kD2gsHeaderSize       = 8;     // size(2)+type(2)+seqno(4)
 
 // Monotonic session-number source for D2GS links (mirrors the original's
@@ -99,15 +103,26 @@ std::vector<std::byte> build_portrait(const domain::d2cs::CharacterInfo& c) {
 // Constructor
 // ---------------------------------------------------------------------------
 
-D2CSTcpSession::D2CSTcpSession(std::shared_ptr<infra::net::TcpSession> tcp)
+D2CSTcpSession::D2CSTcpSession(std::shared_ptr<infra::net::TcpSession> tcp,
+                               std::shared_ptr<D2gsRegistry> registry)
     : tcp_(std::move(tcp))
     , char_repo_{}
     , ladder_repo_{}
     , handler_(std::make_unique<D2CSSessionHandler>(
           char_repo_, ladder_repo_, *this, std::string{kRealmKey}))
-    , fsm_(std::make_unique<protocol::d2cs::D2CSSessionFsm>(
-          handler_->make_callbacks()))
-{}
+    , registry_(std::move(registry))
+{
+    // Intercept CREATEGAMEREQ so the session can route it across to a D2GS link
+    // via the shared registry (the handler stub cannot reach other sessions).
+    // Owned by this session, so the FSM cannot outlive `this` — raw capture is
+    // safe. With no registry the route falls back to a FAILED reply.
+    auto cb = handler_->make_callbacks();
+    cb.on_create_game =
+        [this](const protocol::d2cs::D2CSCreateGameRequest& req) {
+            return route_create_game(req);
+        };
+    fsm_ = std::make_unique<protocol::d2cs::D2CSSessionFsm>(std::move(cb));
+}
 
 // ---------------------------------------------------------------------------
 // start()
@@ -169,6 +184,10 @@ void D2CSTcpSession::start() {
     tcp_->set_on_close([self](const boost::system::error_code& ec) {
         if (ec && ec != boost::asio::error::eof) {
             std::cerr << "[d2cs] session closed: " << ec.message() << "\n";
+        }
+        // Drop this D2GS link from the registry so it is no longer choosable.
+        if (self->registry_ && self->d2gs_registered_) {
+            self->registry_->remove_d2gs(self.get());
         }
         // FSM disconnect callback fires via on_disconnect in callbacks.
     });
@@ -252,6 +271,11 @@ void D2CSTcpSession::feed_d2gs(const uint8_t* data, std::size_t size) {
 
         const std::uint16_t type =
             static_cast<std::uint16_t>(d2gs_buf_[2] | (d2gs_buf_[3] << 8));
+        const std::uint32_t seqno =
+            static_cast<std::uint32_t>(d2gs_buf_[4]) |
+            (static_cast<std::uint32_t>(d2gs_buf_[5]) << 8) |
+            (static_cast<std::uint32_t>(d2gs_buf_[6]) << 16) |
+            (static_cast<std::uint32_t>(d2gs_buf_[7]) << 24);
 
         if (type == kD2gsAuthReply) {
             // D2GS authenticated. With version/checksum validation disabled
@@ -263,12 +287,102 @@ void D2CSTcpSession::feed_d2gs(const uint8_t* data, std::size_t size) {
                 static_cast<uint8_t>((kD2gsAuthReplySucceed >> 24) & 0xFF),
             };
             send_d2gs_frame(kD2gsAuthReply, /*seqno*/ 0, body);
+        } else if (type == kD2gsSetGsInfo) {
+            // The D2GS reported its capacity (maxgame>0) and is now choosable
+            // for game creation. Register it once.
+            if (registry_ && !d2gs_registered_) {
+                d2gs_registered_ = true;
+                registry_->add_d2gs(weak_from_this());
+            }
+        } else if (type == kD2gsCreateGameReq) {
+            // CREATEGAMEREPLY (0x20) from the D2GS: result(u32) + gameid(u32).
+            // Correlate back to the waiting client via the echoed frame seqno.
+            std::uint32_t result = kD2gsCreateGameSucceed;
+            std::uint32_t gameid = 0;
+            if (fsize >= kD2gsHeaderSize + 8) {
+                const auto* b = d2gs_buf_.data() + kD2gsHeaderSize;
+                result = b[0] | (b[1] << 8) | (b[2] << 16) |
+                         (static_cast<std::uint32_t>(b[3]) << 24);
+                gameid = b[4] | (b[5] << 8) | (b[6] << 16) |
+                         (static_cast<std::uint32_t>(b[7]) << 24);
+            }
+            (void)gameid;  // the D2GS's internal id; d2cs assigns its own below
+            if (registry_) {
+                if (auto pending = registry_->take_pending(seqno)) {
+                    if (auto client = pending->client.lock()) {
+                        const bool ok = (result == kD2gsCreateGameSucceed);
+                        // d2cs assigns the client-facing game id (like the
+                        // original's d2cs_game_get_id), not the D2GS's internal one.
+                        const std::uint32_t client_gameid =
+                            ok ? registry_->next_game_id() : 0u;
+                        const std::uint32_t client_result =
+                            ok ? protocol::d2cs::wire::kCreateGameReplySucceed
+                               : protocol::d2cs::wire::kCreateGameReplyFailed;
+                        client->send_create_game_reply(
+                            pending->client_seqno, client_gameid, client_result);
+                    }
+                }
+            }
         }
-        // Other D2GS->D2CS packets (SETGSINFO/ECHO/game replies) are accepted
-        // and ignored for now — the game-routing subsystem is a later round.
+        // Other D2GS->D2CS packets (ECHO/joingame/updategameinfo) are accepted
+        // and ignored for now.
 
         d2gs_buf_.erase(d2gs_buf_.begin(), d2gs_buf_.begin() + fsize);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Cross-session game-lobby routing
+// ---------------------------------------------------------------------------
+
+core::Result<void, core::Error> D2CSTcpSession::route_create_game(
+    const protocol::d2cs::D2CSCreateGameRequest& req) {
+    const auto client_seqno = static_cast<std::uint16_t>(req.seqno);
+
+    std::shared_ptr<D2CSTcpSession> gs =
+        registry_ ? registry_->choose_d2gs() : nullptr;
+    if (!gs) {
+        // No game server available — reply FAILED rather than hang the client.
+        send_create_game_reply(client_seqno, 0,
+                               protocol::d2cs::wire::kCreateGameReplyFailed);
+        return core::Result<void, core::Error>();
+    }
+
+    const std::uint32_t corr =
+        registry_->add_pending(weak_from_this(), client_seqno, req.game_name);
+
+    // D2CS_D2GS_CREATEGAMEREQ (0x20): ladder, expansion, difficulty, hardcore
+    // bytes, then gamename / pass / desc / acct / char / ip c-strings.
+    std::vector<uint8_t> body;
+    body.push_back(0);                                  // ladder
+    body.push_back(static_cast<uint8_t>(req.expansion));
+    body.push_back(static_cast<uint8_t>(req.difficulty));
+    body.push_back(static_cast<uint8_t>(req.hardcore));
+    auto put_cstr = [&body](const std::string& s) {
+        body.insert(body.end(), s.begin(), s.end());
+        body.push_back(0);
+    };
+    put_cstr(req.game_name);
+    put_cstr(req.game_password);
+    put_cstr(req.game_description);
+    put_cstr("");           // create-by account  (plumbed in a later round)
+    put_cstr("");           // create-by character
+    put_cstr("127.0.0.1");  // create-by ip
+
+    gs->send_d2gs_request(kD2gsCreateGameReq, corr, body);
+    return core::Result<void, core::Error>();
+}
+
+void D2CSTcpSession::send_d2gs_request(std::uint16_t type, std::uint32_t corr,
+                                       const std::vector<uint8_t>& body) {
+    send_d2gs_frame(type, corr, body);
+}
+
+void D2CSTcpSession::send_create_game_reply(std::uint16_t client_seqno,
+                                            std::uint32_t game_id,
+                                            std::uint32_t result) {
+    send_raw(protocol::d2cs::D2CSSessionFsm::make_create_game_reply(
+        client_seqno, game_id, result));
 }
 
 // ---------------------------------------------------------------------------

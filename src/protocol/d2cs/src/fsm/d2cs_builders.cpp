@@ -46,13 +46,15 @@ std::vector<uint8_t> D2CSSessionFsm::make_char_login_reply(uint32_t result_code)
 std::vector<uint8_t> D2CSSessionFsm::make_create_game_reply(
     uint32_t seqno, uint32_t game_id, uint32_t result_code)
 {
-    // Header(3) + seqno(4) + game_id(4) + u1(4) + result_code(4) = 19 bytes
+    // Per t_d2cs_client_creategamereply (and wire_types CreateGameReply):
+    // Header(3) + seqno(u16) + gameid(u16) + u1(u16=0) + reply(u32) = 13 bytes.
+    // seqno/gameid/u1 are bn_short (u16) on the wire, NOT u32.
     std::vector<uint8_t> v;
-    v.reserve(19);
-    push_header(v, 19, D2CSPacketType::CREATEGAMEREPLY);
-    push_u32le(v, seqno);
-    push_u32le(v, game_id);
-    push_u32le(v, 0);           // u1 (reserved)
+    v.reserve(13);
+    push_header(v, 13, D2CSPacketType::CREATEGAMEREPLY);
+    push_u16le(v, static_cast<uint16_t>(seqno));
+    push_u16le(v, static_cast<uint16_t>(game_id));
+    push_u16le(v, 0);           // u1 (reserved)
     push_u32le(v, result_code);
     return v;
 }
@@ -61,13 +63,15 @@ std::vector<uint8_t> D2CSSessionFsm::make_join_game_reply(
     uint32_t seqno, uint32_t game_id, uint32_t gs_ip,
     uint32_t token, uint32_t result_code)
 {
-    // Header(3) + seqno(4) + game_id(4) + u1(4) + gs_ip(4) + token(4) + result_code(4) = 27 bytes
+    // Per t_d2cs_client_joingamereply (and wire_types JoinGameReply):
+    // Header(3) + seqno(u16) + gameid(u16) + u1(u16=0) + addr(u32) + token(u32)
+    // + reply(u32) = 21 bytes. seqno/gameid/u1 are bn_short (u16), NOT u32.
     std::vector<uint8_t> v;
-    v.reserve(27);
-    push_header(v, 27, D2CSPacketType::JOINGAMEREPLY);
-    push_u32le(v, seqno);
-    push_u32le(v, game_id);
-    push_u32le(v, 0);           // u1 (reserved)
+    v.reserve(21);
+    push_header(v, 21, D2CSPacketType::JOINGAMEREPLY);
+    push_u16le(v, static_cast<uint16_t>(seqno));
+    push_u16le(v, static_cast<uint16_t>(game_id));
+    push_u16le(v, 0);           // u1 (reserved)
     push_u32le(v, gs_ip);
     push_u32le(v, token);
     push_u32le(v, result_code);

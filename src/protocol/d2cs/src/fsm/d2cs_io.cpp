@@ -68,6 +68,11 @@ bool D2CSSessionFsm::read_u16le(
     return true;
 }
 
+void D2CSSessionFsm::push_u16le(std::vector<uint8_t>& v, uint16_t val) {
+    v.push_back(static_cast<uint8_t>(val & 0xFF));
+    v.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
+}
+
 void D2CSSessionFsm::push_u32le(std::vector<uint8_t>& v, uint32_t val) {
     v.push_back(static_cast<uint8_t>(val & 0xFF));
     v.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));

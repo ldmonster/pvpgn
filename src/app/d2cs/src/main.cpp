@@ -145,10 +145,15 @@ static D2CSConfig build_config(const CliArgs& args) {
 // D2CS session factory
 // ---------------------------------------------------------------------------
 
+// Shared, run-loop-scoped registry that lets a client session route its
+// CREATEGAMEREQ to a connected D2GS link session and back.
+static std::shared_ptr<D2gsRegistry> g_d2gs_registry =
+    std::make_shared<D2gsRegistry>();
+
 static void make_d2cs_session(
     std::shared_ptr<pvpgn::infra::net::TcpSession> tcp) {
     if (!tcp) return;
-    auto session = D2CSTcpSession::create(std::move(tcp));
+    auto session = D2CSTcpSession::create(std::move(tcp), g_d2gs_registry);
     session->start();
 }
 

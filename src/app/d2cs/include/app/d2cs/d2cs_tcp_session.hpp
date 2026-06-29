@@ -45,6 +45,7 @@
 
 #include "app/d2cs/d2cs_session_egress.hpp"
 #include "app/d2cs/d2cs_session_handler.hpp"
+#include "app/d2cs/d2gs_registry.hpp"
 #include "domain/d2cs/in_memory_repositories.hpp"
 #include "domain/d2cs/types.hpp"
 #include "protocol/d2cs/fsm.hpp"
@@ -70,13 +71,15 @@ class D2CSTcpSession final
 public:
     /// Factory: create a session for an accepted TCP connection.
     ///
-    /// @param tcp  Shared TcpSession wrapping the accepted socket.
-    /// @return     Shared pointer to the new session (not yet started).
+    /// @param tcp       Shared TcpSession wrapping the accepted socket.
+    /// @param registry  Shared D2GS link/game registry (may be null in tests).
+    /// @return          Shared pointer to the new session (not yet started).
     [[nodiscard]] static std::shared_ptr<D2CSTcpSession>
-    create(std::shared_ptr<infra::net::TcpSession> tcp) {
+    create(std::shared_ptr<infra::net::TcpSession> tcp,
+           std::shared_ptr<D2gsRegistry> registry = nullptr) {
         // Cannot use make_shared because constructor is private.
         return std::shared_ptr<D2CSTcpSession>(
-            new D2CSTcpSession(std::move(tcp)));
+            new D2CSTcpSession(std::move(tcp), std::move(registry)));
     }
 
     D2CSTcpSession(const D2CSTcpSession&)            = delete;
@@ -88,6 +91,21 @@ public:
 
     /// Wire callbacks and begin the async read loop.
     void start();
+
+    // -----------------------------------------------------------------------
+    // Cross-session game-lobby routing (called between sessions via the
+    // shared D2gsRegistry). Public so a client session can drive a D2GS link
+    // session and vice-versa.
+    // -----------------------------------------------------------------------
+
+    /// Forward a framed request (e.g. D2CS_D2GS_CREATEGAMEREQ 0x20) to this
+    /// D2GS link, tagging the frame seqno with the correlation id.
+    void send_d2gs_request(std::uint16_t type, std::uint32_t corr,
+                          const std::vector<uint8_t>& body);
+
+    /// Send a CREATEGAMEREPLY (0x03) to this client session.
+    void send_create_game_reply(std::uint16_t client_seqno,
+                                std::uint32_t game_id, std::uint32_t result);
 
     // -----------------------------------------------------------------------
     // ID2CSSessionEgress implementation
@@ -119,7 +137,13 @@ public:
     void send_motd(std::string_view message) override;
 
 private:
-    explicit D2CSTcpSession(std::shared_ptr<infra::net::TcpSession> tcp);
+    D2CSTcpSession(std::shared_ptr<infra::net::TcpSession> tcp,
+                   std::shared_ptr<D2gsRegistry> registry);
+
+    /// Route a client CREATEGAMEREQ: pick a D2GS, forward 0x20 + record a
+    /// pending entry, or reply FAILED when no D2GS is available.
+    core::Result<void, core::Error> route_create_game(
+        const protocol::d2cs::D2CSCreateGameRequest& req);
 
     /// Send raw bytes over the TCP socket.
     void send_raw(std::vector<uint8_t> bytes);
@@ -175,6 +199,12 @@ private:
     std::vector<uint8_t> d2gs_buf_;
     /// Session number assigned to this D2GS link (echoed in AUTHREQ).
     std::uint32_t d2gs_sessionnum_ = 0;
+    /// True once this D2GS link has been registered as choosable (post
+    /// SETGSINFO), so it is registered/removed exactly once.
+    bool d2gs_registered_ = false;
+
+    /// Shared cross-session game-lobby registry (null when unused).
+    std::shared_ptr<D2gsRegistry> registry_;
 };
 
 } // namespace pvpgn::app::d2cs

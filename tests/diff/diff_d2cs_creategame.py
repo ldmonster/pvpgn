@@ -53,53 +53,58 @@ def parse_creategamereply(body):
     return {"seqno": seqno, "gameid": gameid, "u1": u1, "reply": reply}
 
 
-def run_oracle(bnetd_port, d2cs_port):
+def _run(d2cs_port, login_fn):
+    """Connect a game-hosting mock D2GS (auth + SETGSINFO + serve thread), then a
+    client that logs in (login_fn), creates+selects a char, and creates a game.
+    Returns {reply, d2gs_saw}."""
     gs = dg.D2gsClient("127.0.0.1", d2cs_port)
     hs = gs.handshake()
     if not hs or hs.get("reply") != 0:
         gs.close(); return None
     gs.send_setgsinfo(maxgame=10)
-    time.sleep(0.3)
+    time.sleep(0.4)  # let d2cs register the gs as choosable
 
     seen = []
     t = threading.Thread(
-        target=lambda: seen.extend(gs.serve(max_packets=4, timeout=4.0)),
+        target=lambda: seen.extend(gs.serve(max_packets=6, timeout=5.0)),
         daemon=True)
     t.start()
 
-    cli, _ = bc.full_login("127.0.0.1", bnetd_port, "cgacct", "pw", product=b"D2DV")
-    rj = bc.realm_join(cli, "test", seqno=1)
-    c = dc.D2csClient("127.0.0.1", d2cs_port)
-    c.login("cgacct", sessionnum=rj["sessionnum"], sessionkey=rj["sessionkey"],
-            secret_hash_raw=rj["secret_hash"], seqno=1)
+    cli = login_fn()
+    if cli is None:
+        gs.close(); return None
+    c = cli["client"]
     c.create_char("CGamer", char_class=4, status=0x20)
     c.char_login("CGamer")
     c.send(0x03, creategamereq_body())
     reply = parse_creategamereply(c.recv_type(0x03))
-    c.close(); cli.close()
-    t.join(timeout=5)
+    c.close()
+    if cli.get("bncs"):
+        cli["bncs"].close()
+    t.join(timeout=6)
     gs.close()
     return {"reply": reply, "d2gs_saw": [p for p, _ in seen]}
 
 
-def probe_v3(d2cs_port):
-    """Report whether v3 routes a CREATEGAMEREQ yet (currently a no-op stub)."""
-    try:
-        gs = dg.D2gsClient("127.0.0.1", d2cs_port)
-        if not gs.handshake():
-            gs.close(); return "no-d2gs-link"
-        gs.send_setgsinfo(maxgame=10)
+def run_oracle(bnetd_port, d2cs_port):
+    def login():
+        cli, _ = bc.full_login("127.0.0.1", bnetd_port, "cgacct", "pw",
+                               product=b"D2DV")
+        rj = bc.realm_join(cli, "test", seqno=1)
+        c = dc.D2csClient("127.0.0.1", d2cs_port)
+        c.login("cgacct", sessionnum=rj["sessionnum"], sessionkey=rj["sessionkey"],
+                secret_hash_raw=rj["secret_hash"], seqno=1)
+        return {"client": c, "bncs": cli}
+    return _run(d2cs_port, login)
+
+
+def run_v3(d2cs_port):
+    def login():
         c = dc.D2csClient("127.0.0.1", d2cs_port)
         c.login("cgacct", sessionnum=1,
                 secret_hash_raw=dc.d2cs_token("cgacct", 1, 7), seqno=7)
-        c.create_char("CGamer", char_class=4, status=0x20)
-        c.char_login("CGamer")
-        c.send(0x03, creategamereq_body())
-        rep = parse_creategamereply(c.recv_type(0x03))
-        c.close(); gs.close()
-        return rep if rep else "no-reply (stub)"
-    except Exception as e:  # noqa: BLE001
-        return f"error: {e}"
+        return {"client": c, "bncs": None}
+    return _run(d2cs_port, login)
 
 
 def main():
@@ -122,15 +127,20 @@ def main():
         bnetd.start(); od.start(); v3.start()
         time.sleep(1.5)
         o = run_oracle(a.bnetd_port, a.orig_d2cs_port)
+        n = run_v3(a.v3_d2cs_port)
         print(f"oracle: {o}")
-        print(f"v3 (current, routing not yet implemented): {probe_v3(a.v3_d2cs_port)}")
+        print(f"v3    : {n}")
 
-        ok = (o is not None and o["reply"] is not None and
-              o["reply"]["reply"] == CREATEGAME_SUCCEED and
-              0x20 in o["d2gs_saw"])
-        print("OK: oracle routes CREATEGAMEREQ to the D2GS (0x20) and replies "
-              "CREATEGAMEREPLY SUCCEED — spec captured for the v3 routing subsystem"
-              if ok else "FAIL")
+        def routed_ok(r):
+            return (r is not None and r["reply"] is not None and
+                    r["reply"]["reply"] == CREATEGAME_SUCCEED and
+                    0x20 in r["d2gs_saw"])
+
+        ok = routed_ok(o) and routed_ok(n)
+        print(f"oracle routes 0x20 + CREATEGAMEREPLY SUCCEED: {routed_ok(o)}")
+        print(f"v3     routes 0x20 + CREATEGAMEREPLY SUCCEED: {routed_ok(n)}")
+        print("OK: oracle AND v3 route CREATEGAMEREQ to the D2GS (0x20) and reply "
+              "the client CREATEGAMEREPLY SUCCEED" if ok else "FAIL")
         return 0 if ok else 1
     finally:
         v3.stop(); od.stop(); bnetd.stop()
