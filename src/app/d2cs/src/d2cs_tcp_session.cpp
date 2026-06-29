@@ -26,6 +26,7 @@
 #include <boost/system/error_code.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 
 #include "core/bytes.hpp"
@@ -42,6 +43,21 @@ namespace {
 // token with this key; the d2cs validates it here. Mirrors the original's
 // session-bound auth without a live bnetd link. Mock clients use the same key.
 constexpr const char* kRealmKey = "pvpgn-v3-d2cs-realm-secret-v1";
+
+// Realm name echoed to a D2GS in the AUTHREQ handshake (informational).
+constexpr const char* kRealmName = "pvpgn-v3";
+
+// D2GS server-to-server link constants (d2cs_d2gs_protocol.h).
+constexpr std::uint8_t  kInitClassD2cs        = 0x01;
+constexpr std::uint8_t  kInitClassD2gs        = 0x64;
+constexpr std::uint16_t kD2gsAuthReq          = 0x10;  // d2cs -> d2gs
+constexpr std::uint16_t kD2gsAuthReply        = 0x11;  // both directions
+constexpr std::uint32_t kD2gsAuthReplySucceed = 0x00;
+constexpr std::size_t   kD2gsHeaderSize       = 8;     // size(2)+type(2)+seqno(4)
+
+// Monotonic session-number source for D2GS links (mirrors the original's
+// per-connection sessionnum). Relaxed: only uniqueness matters.
+std::atomic<std::uint32_t> g_d2gs_sessionnum{0};
 
 // Portrait constants mirror the legacy d2cs encoding (d2charfile.cpp /
 // d2cs_d2gs_character.h):
@@ -110,9 +126,22 @@ void D2CSTcpSession::start() {
         // connection class and the original drops the connection.
         if (!self->init_consumed_) {
             if (size == 0) return;            // wait for the byte
-            if (data[0] != 0x01) {
+            const std::uint8_t init_class = data[0];
+            if (init_class == kInitClassD2gs) {
+                // A game server link: switch to the D2GS handshake and begin it
+                // by sending AUTHREQ.
+                self->init_consumed_ = true;
+                self->d2gs_link_     = true;
+                ++data;
+                --size;
+                self->start_d2gs_link();
+                if (size == 0) return;        // init byte arrived alone
+                self->feed_d2gs(data, size);
+                return;
+            }
+            if (init_class != kInitClassD2cs) {
                 std::cerr << "[d2cs] bad init class byte: "
-                          << static_cast<int>(data[0]) << "\n";
+                          << static_cast<int>(init_class) << "\n";
                 self->tcp_->close();
                 return;
             }
@@ -120,6 +149,11 @@ void D2CSTcpSession::start() {
             ++data;
             --size;
             if (size == 0) return;            // init byte arrived alone
+        }
+
+        if (self->d2gs_link_) {
+            self->feed_d2gs(data, size);
+            return;
         }
 
         // Feed the remaining raw bytes into the FSM reassembly buffer.
@@ -154,6 +188,87 @@ void D2CSTcpSession::send_raw(std::vector<uint8_t> bytes) {
         buf.push_back(static_cast<std::byte>(b));
     }
     tcp_->send(std::move(buf));
+}
+
+// ---------------------------------------------------------------------------
+// D2GS server-to-server link handshake
+// ---------------------------------------------------------------------------
+
+void D2CSTcpSession::send_d2gs_frame(std::uint16_t type, std::uint32_t seqno,
+                                     const std::vector<uint8_t>& body) {
+    const std::size_t total = kD2gsHeaderSize + body.size();
+    std::vector<uint8_t> pkt;
+    pkt.reserve(total);
+    auto push16 = [&pkt](std::uint16_t v) {
+        pkt.push_back(static_cast<uint8_t>(v & 0xFF));
+        pkt.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+    };
+    auto push32 = [&pkt](std::uint32_t v) {
+        pkt.push_back(static_cast<uint8_t>(v & 0xFF));
+        pkt.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+        pkt.push_back(static_cast<uint8_t>((v >> 16) & 0xFF));
+        pkt.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
+    };
+    push16(static_cast<std::uint16_t>(total));
+    push16(type);
+    push32(seqno);
+    pkt.insert(pkt.end(), body.begin(), body.end());
+    send_raw(std::move(pkt));
+}
+
+void D2CSTcpSession::start_d2gs_link() {
+    d2gs_sessionnum_ = g_d2gs_sessionnum.fetch_add(1, std::memory_order_relaxed) + 1;
+
+    // AUTHREQ (0x10): sessionnum(u32), signlen(u32 = 0), realmname + NUL.
+    std::vector<uint8_t> body;
+    auto push32 = [&body](std::uint32_t v) {
+        body.push_back(static_cast<uint8_t>(v & 0xFF));
+        body.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+        body.push_back(static_cast<uint8_t>((v >> 16) & 0xFF));
+        body.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
+    };
+    push32(d2gs_sessionnum_);
+    push32(0);  // signlen
+    for (const char* p = kRealmName; *p; ++p) {
+        body.push_back(static_cast<uint8_t>(*p));
+    }
+    body.push_back(0);  // realmname NUL
+    send_d2gs_frame(kD2gsAuthReq, /*seqno*/ 0, body);
+}
+
+void D2CSTcpSession::feed_d2gs(const uint8_t* data, std::size_t size) {
+    d2gs_buf_.insert(d2gs_buf_.end(), data, data + size);
+
+    // Parse complete [size:2][type:2][seqno:4] frames.
+    while (d2gs_buf_.size() >= kD2gsHeaderSize) {
+        const std::uint16_t fsize =
+            static_cast<std::uint16_t>(d2gs_buf_[0] | (d2gs_buf_[1] << 8));
+        if (fsize < kD2gsHeaderSize) {
+            std::cerr << "[d2cs] d2gs bad frame size " << fsize << "\n";
+            tcp_->close();
+            return;
+        }
+        if (d2gs_buf_.size() < fsize) break;  // wait for the rest
+
+        const std::uint16_t type =
+            static_cast<std::uint16_t>(d2gs_buf_[2] | (d2gs_buf_[3] << 8));
+
+        if (type == kD2gsAuthReply) {
+            // D2GS authenticated. With version/checksum validation disabled
+            // (the v3 default), always accept. Reply AUTHREPLY(SUCCEED).
+            std::vector<uint8_t> body = {
+                static_cast<uint8_t>(kD2gsAuthReplySucceed & 0xFF),
+                static_cast<uint8_t>((kD2gsAuthReplySucceed >> 8) & 0xFF),
+                static_cast<uint8_t>((kD2gsAuthReplySucceed >> 16) & 0xFF),
+                static_cast<uint8_t>((kD2gsAuthReplySucceed >> 24) & 0xFF),
+            };
+            send_d2gs_frame(kD2gsAuthReply, /*seqno*/ 0, body);
+        }
+        // Other D2GS->D2CS packets (SETGSINFO/ECHO/game replies) are accepted
+        // and ignored for now — the game-routing subsystem is a later round.
+
+        d2gs_buf_.erase(d2gs_buf_.begin(), d2gs_buf_.begin() + fsize);
+    }
 }
 
 // ---------------------------------------------------------------------------

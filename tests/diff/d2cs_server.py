@@ -123,6 +123,9 @@ class OriginalD2cs:
                 out.append(f"bnetdaddr = 127.0.0.1:{self.bnetd_port}\n")
             elif key == "realmname":
                 out.append(f'realmname = "{self.realm_name}"\n')
+            elif key == "gameservlist":
+                # Allow a mock D2GS connecting from localhost (init class 0x64).
+                out.append("gameservlist = 127.0.0.1\n")
             elif key == "charsavedir":
                 out.append(f'charsavedir = "{var}/charsave"\n')
             elif key == "charinfodir":

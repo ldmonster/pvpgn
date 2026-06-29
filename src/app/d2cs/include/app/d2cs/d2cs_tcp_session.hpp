@@ -125,6 +125,26 @@ private:
     void send_raw(std::vector<uint8_t> bytes);
 
     // -----------------------------------------------------------------------
+    // D2GS server-to-server link (init class CLIENT_INITCONN_CLASS_D2GS = 0x64)
+    //
+    // A game server (D2GS) connects to d2cs on the same listener with a 0x64
+    // init byte. d2cs immediately sends AUTHREQ (0x10); the D2GS answers with
+    // AUTHREPLY (0x11, version/checksum/sign); d2cs replies AUTHREPLY (0x11,
+    // result). With version/checksum checks disabled (the defaults) the result
+    // is SUCCEED. The link uses an 8-byte [size:2][type:2][seqno:4] header,
+    // distinct from the client's 3-byte framing, so it is handled inline here
+    // rather than via the client FSM.
+    // -----------------------------------------------------------------------
+
+    /// Send AUTHREQ to the freshly-connected D2GS (begins the link handshake).
+    void start_d2gs_link();
+    /// Buffer + dispatch framed D2GS->D2CS packets.
+    void feed_d2gs(const uint8_t* data, std::size_t size);
+    /// Send a single framed D2CS->D2GS packet.
+    void send_d2gs_frame(std::uint16_t type, std::uint32_t seqno,
+                         const std::vector<uint8_t>& body);
+
+    // -----------------------------------------------------------------------
     // Owned objects (per-session state)
     // -----------------------------------------------------------------------
 
@@ -147,6 +167,14 @@ private:
     /// handle_init; the FSM here only understands framed packets, so the session
     /// strips the leading byte before feeding the stream. False until consumed.
     bool init_consumed_ = false;
+
+    /// True once the init byte was 0x64 (CLIENT_INITCONN_CLASS_D2GS): this
+    /// connection is a D2GS server link, not a D2 client.
+    bool d2gs_link_ = false;
+    /// Reassembly buffer for framed D2GS->D2CS packets.
+    std::vector<uint8_t> d2gs_buf_;
+    /// Session number assigned to this D2GS link (echoed in AUTHREQ).
+    std::uint32_t d2gs_sessionnum_ = 0;
 };
 
 } // namespace pvpgn::app::d2cs
